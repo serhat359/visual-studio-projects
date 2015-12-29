@@ -2,3 +2,9 @@ C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\Console\bin\
 C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\Console\obj\Debug\Console.pdb
 C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\Console\bin\Debug\Console.exe
 C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\Console\obj\Debug\Console.exe
+C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\Console\obj\Debug\Console.csprojResolveAssemblyReference.cache
+C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\Console\bin\Debug\MapperTextlibrary.dll
+C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\Console\bin\Debug\Model.dll
+C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\Console\bin\Debug\MapperTextlibrary.pdb
+C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\Console\bin\Debug\Model.pdb
+C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\Console\bin\Debug\Console.exe.config
