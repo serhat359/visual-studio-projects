@@ -1,0 +1,11 @@
+C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\WebModelFactory\bin\Debug\WebModelFactory.dll
+C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\WebModelFactory\bin\Debug\WebModelFactory.pdb
+C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\WebModelFactory\obj\Debug\WebModelFactory.csprojResolveAssemblyReference.cache
+C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\WebModelFactory\obj\Debug\WebModelFactory.dll
+C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\WebModelFactory\obj\Debug\WebModelFactory.pdb
+C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\WebModelFactory\bin\Debug\Data.dll
+C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\WebModelFactory\bin\Debug\Data.pdb
+C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\WebModelFactory\bin\Debug\Model.dll
+C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\WebModelFactory\bin\Debug\Model.pdb
+C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\WebModelFactory\bin\Debug\Business.dll
+C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\WebModelFactory\bin\Debug\Business.pdb

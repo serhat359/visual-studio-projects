@@ -1,0 +1,841 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>
+    </ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{4418BF0B-9556-43B2-AC17-108B6CAFF125}</ProjectGuid>
+    <ProjectTypeGuids>{F85E285D-A4E0-4152-9332-AB1D724D3325};{349c5851-65df-11da-9384-00065b846f21};{fae04ec0-301f-11d3-bf4b-00c04f79efbc}</ProjectTypeGuids>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>CasualWebSite</RootNamespace>
+    <AssemblyName>CasualWebSite</AssemblyName>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <MvcBuildViews>false</MvcBuildViews>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Web.DynamicData" />
+    <Reference Include="System.Web.Entity" />
+    <Reference Include="System.Web.ApplicationServices" />
+    <Reference Include="System.ComponentModel.DataAnnotations">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Core">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Data.DataSetExtensions">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Web.Mvc, Version=2.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL" />
+    <Reference Include="System.Xml.Linq">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Web" />
+    <Reference Include="System.Web.Extensions">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Web.Abstractions" />
+    <Reference Include="System.Web.Routing" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Configuration" />
+    <Reference Include="System.Web.Services" />
+    <Reference Include="System.EnterpriseServices" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Controllers\AccountController.cs" />
+    <Compile Include="Controllers\ControllerBase.cs" />
+    <Compile Include="Controllers\HomeController.cs" />
+    <Compile Include="Global.asax.cs">
+      <DependentUpon>Global.asax</DependentUpon>
+    </Compile>
+    <Compile Include="Models\AccountModels.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Content\css\extra.css" />
+    <Content Include="Content\image\pokemonImage\001MS.png" />
+    <Content Include="Content\image\pokemonImage\002MS.png" />
+    <Content Include="Content\image\pokemonImage\003MS.png" />
+    <Content Include="Content\image\pokemonImage\004MS.png" />
+    <Content Include="Content\image\pokemonImage\005MS.png" />
+    <Content Include="Content\image\pokemonImage\006MS.png" />
+    <Content Include="Content\image\pokemonImage\007MS.png" />
+    <Content Include="Content\image\pokemonImage\008MS.png" />
+    <Content Include="Content\image\pokemonImage\009MS.png" />
+    <Content Include="Content\image\pokemonImage\010MS.png" />
+    <Content Include="Content\image\pokemonImage\011MS.png" />
+    <Content Include="Content\image\pokemonImage\012MS.png" />
+    <Content Include="Content\image\pokemonImage\013MS.png" />
+    <Content Include="Content\image\pokemonImage\014MS.png" />
+    <Content Include="Content\image\pokemonImage\015MS.png" />
+    <Content Include="Content\image\pokemonImage\016MS.png" />
+    <Content Include="Content\image\pokemonImage\017MS.png" />
+    <Content Include="Content\image\pokemonImage\018MS.png" />
+    <Content Include="Content\image\pokemonImage\019MS.png" />
+    <Content Include="Content\image\pokemonImage\020MS.png" />
+    <Content Include="Content\image\pokemonImage\021MS.png" />
+    <Content Include="Content\image\pokemonImage\022MS.png" />
+    <Content Include="Content\image\pokemonImage\023MS.png" />
+    <Content Include="Content\image\pokemonImage\024MS.png" />
+    <Content Include="Content\image\pokemonImage\025MS.png" />
+    <Content Include="Content\image\pokemonImage\026MS.png" />
+    <Content Include="Content\image\pokemonImage\027MS.png" />
+    <Content Include="Content\image\pokemonImage\028MS.png" />
+    <Content Include="Content\image\pokemonImage\029MS.png" />
+    <Content Include="Content\image\pokemonImage\030MS.png" />
+    <Content Include="Content\image\pokemonImage\031MS.png" />
+    <Content Include="Content\image\pokemonImage\032MS.png" />
+    <Content Include="Content\image\pokemonImage\033MS.png" />
+    <Content Include="Content\image\pokemonImage\034MS.png" />
+    <Content Include="Content\image\pokemonImage\035MS.png" />
+    <Content Include="Content\image\pokemonImage\036MS.png" />
+    <Content Include="Content\image\pokemonImage\037MS.png" />
+    <Content Include="Content\image\pokemonImage\038MS.png" />
+    <Content Include="Content\image\pokemonImage\039MS.png" />
+    <Content Include="Content\image\pokemonImage\040MS.png" />
+    <Content Include="Content\image\pokemonImage\041MS.png" />
+    <Content Include="Content\image\pokemonImage\042MS.png" />
+    <Content Include="Content\image\pokemonImage\043MS.png" />
+    <Content Include="Content\image\pokemonImage\044MS.png" />
+    <Content Include="Content\image\pokemonImage\045MS.png" />
+    <Content Include="Content\image\pokemonImage\046MS.png" />
+    <Content Include="Content\image\pokemonImage\047MS.png" />
+    <Content Include="Content\image\pokemonImage\048MS.png" />
+    <Content Include="Content\image\pokemonImage\049MS.png" />
+    <Content Include="Content\image\pokemonImage\050MS.png" />
+    <Content Include="Content\image\pokemonImage\051MS.png" />
+    <Content Include="Content\image\pokemonImage\052MS.png" />
+    <Content Include="Content\image\pokemonImage\053MS.png" />
+    <Content Include="Content\image\pokemonImage\054MS.png" />
+    <Content Include="Content\image\pokemonImage\055MS.png" />
+    <Content Include="Content\image\pokemonImage\056MS.png" />
+    <Content Include="Content\image\pokemonImage\057MS.png" />
+    <Content Include="Content\image\pokemonImage\058MS.png" />
+    <Content Include="Content\image\pokemonImage\059MS.png" />
+    <Content Include="Content\image\pokemonImage\060MS.png" />
+    <Content Include="Content\image\pokemonImage\061MS.png" />
+    <Content Include="Content\image\pokemonImage\062MS.png" />
+    <Content Include="Content\image\pokemonImage\063MS.png" />
+    <Content Include="Content\image\pokemonImage\064MS.png" />
+    <Content Include="Content\image\pokemonImage\065MS.png" />
+    <Content Include="Content\image\pokemonImage\066MS.png" />
+    <Content Include="Content\image\pokemonImage\067MS.png" />
+    <Content Include="Content\image\pokemonImage\068MS.png" />
+    <Content Include="Content\image\pokemonImage\069MS.png" />
+    <Content Include="Content\image\pokemonImage\070MS.png" />
+    <Content Include="Content\image\pokemonImage\071MS.png" />
+    <Content Include="Content\image\pokemonImage\072MS.png" />
+    <Content Include="Content\image\pokemonImage\073MS.png" />
+    <Content Include="Content\image\pokemonImage\074MS.png" />
+    <Content Include="Content\image\pokemonImage\075MS.png" />
+    <Content Include="Content\image\pokemonImage\076MS.png" />
+    <Content Include="Content\image\pokemonImage\077MS.png" />
+    <Content Include="Content\image\pokemonImage\078MS.png" />
+    <Content Include="Content\image\pokemonImage\079MS.png" />
+    <Content Include="Content\image\pokemonImage\080MS.png" />
+    <Content Include="Content\image\pokemonImage\081MS.png" />
+    <Content Include="Content\image\pokemonImage\082MS.png" />
+    <Content Include="Content\image\pokemonImage\083MS.png" />
+    <Content Include="Content\image\pokemonImage\084MS.png" />
+    <Content Include="Content\image\pokemonImage\085MS.png" />
+    <Content Include="Content\image\pokemonImage\086MS.png" />
+    <Content Include="Content\image\pokemonImage\087MS.png" />
+    <Content Include="Content\image\pokemonImage\088MS.png" />
+    <Content Include="Content\image\pokemonImage\089MS.png" />
+    <Content Include="Content\image\pokemonImage\090MS.png" />
+    <Content Include="Content\image\pokemonImage\091MS.png" />
+    <Content Include="Content\image\pokemonImage\092MS.png" />
+    <Content Include="Content\image\pokemonImage\093MS.png" />
+    <Content Include="Content\image\pokemonImage\094MS.png" />
+    <Content Include="Content\image\pokemonImage\095MS.png" />
+    <Content Include="Content\image\pokemonImage\096MS.png" />
+    <Content Include="Content\image\pokemonImage\097MS.png" />
+    <Content Include="Content\image\pokemonImage\098MS.png" />
+    <Content Include="Content\image\pokemonImage\099MS.png" />
+    <Content Include="Content\image\pokemonImage\100MS.png" />
+    <Content Include="Content\image\pokemonImage\101MS.png" />
+    <Content Include="Content\image\pokemonImage\102MS.png" />
+    <Content Include="Content\image\pokemonImage\103MS.png" />
+    <Content Include="Content\image\pokemonImage\104MS.png" />
+    <Content Include="Content\image\pokemonImage\105MS.png" />
+    <Content Include="Content\image\pokemonImage\106MS.png" />
+    <Content Include="Content\image\pokemonImage\107MS.png" />
+    <Content Include="Content\image\pokemonImage\108MS.png" />
+    <Content Include="Content\image\pokemonImage\109MS.png" />
+    <Content Include="Content\image\pokemonImage\110MS.png" />
+    <Content Include="Content\image\pokemonImage\111MS.png" />
+    <Content Include="Content\image\pokemonImage\112MS.png" />
+    <Content Include="Content\image\pokemonImage\113MS.png" />
+    <Content Include="Content\image\pokemonImage\114MS.png" />
+    <Content Include="Content\image\pokemonImage\115MS.png" />
+    <Content Include="Content\image\pokemonImage\116MS.png" />
+    <Content Include="Content\image\pokemonImage\117MS.png" />
+    <Content Include="Content\image\pokemonImage\118MS.png" />
+    <Content Include="Content\image\pokemonImage\119MS.png" />
+    <Content Include="Content\image\pokemonImage\120MS.png" />
+    <Content Include="Content\image\pokemonImage\121MS.png" />
+    <Content Include="Content\image\pokemonImage\122MS.png" />
+    <Content Include="Content\image\pokemonImage\123MS.png" />
+    <Content Include="Content\image\pokemonImage\124MS.png" />
+    <Content Include="Content\image\pokemonImage\125MS.png" />
+    <Content Include="Content\image\pokemonImage\126MS.png" />
+    <Content Include="Content\image\pokemonImage\127MS.png" />
+    <Content Include="Content\image\pokemonImage\128MS.png" />
+    <Content Include="Content\image\pokemonImage\129MS.png" />
+    <Content Include="Content\image\pokemonImage\130MS.png" />
+    <Content Include="Content\image\pokemonImage\131MS.png" />
+    <Content Include="Content\image\pokemonImage\132MS.png" />
+    <Content Include="Content\image\pokemonImage\133MS.png" />
+    <Content Include="Content\image\pokemonImage\134MS.png" />
+    <Content Include="Content\image\pokemonImage\135MS.png" />
+    <Content Include="Content\image\pokemonImage\136MS.png" />
+    <Content Include="Content\image\pokemonImage\137MS.png" />
+    <Content Include="Content\image\pokemonImage\138MS.png" />
+    <Content Include="Content\image\pokemonImage\139MS.png" />
+    <Content Include="Content\image\pokemonImage\140MS.png" />
+    <Content Include="Content\image\pokemonImage\141MS.png" />
+    <Content Include="Content\image\pokemonImage\142MS.png" />
+    <Content Include="Content\image\pokemonImage\143MS.png" />
+    <Content Include="Content\image\pokemonImage\144MS.png" />
+    <Content Include="Content\image\pokemonImage\145MS.png" />
+    <Content Include="Content\image\pokemonImage\146MS.png" />
+    <Content Include="Content\image\pokemonImage\147MS.png" />
+    <Content Include="Content\image\pokemonImage\148MS.png" />
+    <Content Include="Content\image\pokemonImage\149MS.png" />
+    <Content Include="Content\image\pokemonImage\150MS.png" />
+    <Content Include="Content\image\pokemonImage\151MS.png" />
+    <Content Include="Content\image\pokemonImage\152MS.png" />
+    <Content Include="Content\image\pokemonImage\153MS.png" />
+    <Content Include="Content\image\pokemonImage\154MS.png" />
+    <Content Include="Content\image\pokemonImage\155MS.png" />
+    <Content Include="Content\image\pokemonImage\156MS.png" />
+    <Content Include="Content\image\pokemonImage\157MS.png" />
+    <Content Include="Content\image\pokemonImage\158MS.png" />
+    <Content Include="Content\image\pokemonImage\159MS.png" />
+    <Content Include="Content\image\pokemonImage\160MS.png" />
+    <Content Include="Content\image\pokemonImage\161MS.png" />
+    <Content Include="Content\image\pokemonImage\162MS.png" />
+    <Content Include="Content\image\pokemonImage\163MS.png" />
+    <Content Include="Content\image\pokemonImage\164MS.png" />
+    <Content Include="Content\image\pokemonImage\165MS.png" />
+    <Content Include="Content\image\pokemonImage\166MS.png" />
+    <Content Include="Content\image\pokemonImage\167MS.png" />
+    <Content Include="Content\image\pokemonImage\168MS.png" />
+    <Content Include="Content\image\pokemonImage\169MS.png" />
+    <Content Include="Content\image\pokemonImage\170MS.png" />
+    <Content Include="Content\image\pokemonImage\171MS.png" />
+    <Content Include="Content\image\pokemonImage\172MS.png" />
+    <Content Include="Content\image\pokemonImage\173MS.png" />
+    <Content Include="Content\image\pokemonImage\174MS.png" />
+    <Content Include="Content\image\pokemonImage\175MS.png" />
+    <Content Include="Content\image\pokemonImage\176MS.png" />
+    <Content Include="Content\image\pokemonImage\177MS.png" />
+    <Content Include="Content\image\pokemonImage\178MS.png" />
+    <Content Include="Content\image\pokemonImage\179MS.png" />
+    <Content Include="Content\image\pokemonImage\180MS.png" />
+    <Content Include="Content\image\pokemonImage\181MS.png" />
+    <Content Include="Content\image\pokemonImage\182MS.png" />
+    <Content Include="Content\image\pokemonImage\183MS.png" />
+    <Content Include="Content\image\pokemonImage\184MS.png" />
+    <Content Include="Content\image\pokemonImage\185MS.png" />
+    <Content Include="Content\image\pokemonImage\186MS.png" />
+    <Content Include="Content\image\pokemonImage\187MS.png" />
+    <Content Include="Content\image\pokemonImage\188MS.png" />
+    <Content Include="Content\image\pokemonImage\189MS.png" />
+    <Content Include="Content\image\pokemonImage\190MS.png" />
+    <Content Include="Content\image\pokemonImage\191MS.png" />
+    <Content Include="Content\image\pokemonImage\192MS.png" />
+    <Content Include="Content\image\pokemonImage\193MS.png" />
+    <Content Include="Content\image\pokemonImage\194MS.png" />
+    <Content Include="Content\image\pokemonImage\195MS.png" />
+    <Content Include="Content\image\pokemonImage\196MS.png" />
+    <Content Include="Content\image\pokemonImage\197MS.png" />
+    <Content Include="Content\image\pokemonImage\198MS.png" />
+    <Content Include="Content\image\pokemonImage\199MS.png" />
+    <Content Include="Content\image\pokemonImage\200MS.png" />
+    <Content Include="Content\image\pokemonImage\201MS.png" />
+    <Content Include="Content\image\pokemonImage\202MS.png" />
+    <Content Include="Content\image\pokemonImage\203MS.png" />
+    <Content Include="Content\image\pokemonImage\204MS.png" />
+    <Content Include="Content\image\pokemonImage\205MS.png" />
+    <Content Include="Content\image\pokemonImage\206MS.png" />
+    <Content Include="Content\image\pokemonImage\207MS.png" />
+    <Content Include="Content\image\pokemonImage\208MS.png" />
+    <Content Include="Content\image\pokemonImage\209MS.png" />
+    <Content Include="Content\image\pokemonImage\210MS.png" />
+    <Content Include="Content\image\pokemonImage\211MS.png" />
+    <Content Include="Content\image\pokemonImage\212MS.png" />
+    <Content Include="Content\image\pokemonImage\213MS.png" />
+    <Content Include="Content\image\pokemonImage\214MS.png" />
+    <Content Include="Content\image\pokemonImage\215MS.png" />
+    <Content Include="Content\image\pokemonImage\216MS.png" />
+    <Content Include="Content\image\pokemonImage\217MS.png" />
+    <Content Include="Content\image\pokemonImage\218MS.png" />
+    <Content Include="Content\image\pokemonImage\219MS.png" />
+    <Content Include="Content\image\pokemonImage\220MS.png" />
+    <Content Include="Content\image\pokemonImage\221MS.png" />
+    <Content Include="Content\image\pokemonImage\222MS.png" />
+    <Content Include="Content\image\pokemonImage\223MS.png" />
+    <Content Include="Content\image\pokemonImage\224MS.png" />
+    <Content Include="Content\image\pokemonImage\225MS.png" />
+    <Content Include="Content\image\pokemonImage\226MS.png" />
+    <Content Include="Content\image\pokemonImage\227MS.png" />
+    <Content Include="Content\image\pokemonImage\228MS.png" />
+    <Content Include="Content\image\pokemonImage\229MS.png" />
+    <Content Include="Content\image\pokemonImage\230MS.png" />
+    <Content Include="Content\image\pokemonImage\231MS.png" />
+    <Content Include="Content\image\pokemonImage\232MS.png" />
+    <Content Include="Content\image\pokemonImage\233MS.png" />
+    <Content Include="Content\image\pokemonImage\234MS.png" />
+    <Content Include="Content\image\pokemonImage\235MS.png" />
+    <Content Include="Content\image\pokemonImage\236MS.png" />
+    <Content Include="Content\image\pokemonImage\237MS.png" />
+    <Content Include="Content\image\pokemonImage\238MS.png" />
+    <Content Include="Content\image\pokemonImage\239MS.png" />
+    <Content Include="Content\image\pokemonImage\240MS.png" />
+    <Content Include="Content\image\pokemonImage\241MS.png" />
+    <Content Include="Content\image\pokemonImage\242MS.png" />
+    <Content Include="Content\image\pokemonImage\243MS.png" />
+    <Content Include="Content\image\pokemonImage\244MS.png" />
+    <Content Include="Content\image\pokemonImage\245MS.png" />
+    <Content Include="Content\image\pokemonImage\246MS.png" />
+    <Content Include="Content\image\pokemonImage\247MS.png" />
+    <Content Include="Content\image\pokemonImage\248MS.png" />
+    <Content Include="Content\image\pokemonImage\249MS.png" />
+    <Content Include="Content\image\pokemonImage\250MS.png" />
+    <Content Include="Content\image\pokemonImage\251MS.png" />
+    <Content Include="Content\image\pokemonImage\252MS.png" />
+    <Content Include="Content\image\pokemonImage\253MS.png" />
+    <Content Include="Content\image\pokemonImage\254MS.png" />
+    <Content Include="Content\image\pokemonImage\255MS.png" />
+    <Content Include="Content\image\pokemonImage\256MS.png" />
+    <Content Include="Content\image\pokemonImage\257MS.png" />
+    <Content Include="Content\image\pokemonImage\258MS.png" />
+    <Content Include="Content\image\pokemonImage\259MS.png" />
+    <Content Include="Content\image\pokemonImage\260MS.png" />
+    <Content Include="Content\image\pokemonImage\261MS.png" />
+    <Content Include="Content\image\pokemonImage\262MS.png" />
+    <Content Include="Content\image\pokemonImage\263MS.png" />
+    <Content Include="Content\image\pokemonImage\264MS.png" />
+    <Content Include="Content\image\pokemonImage\265MS.png" />
+    <Content Include="Content\image\pokemonImage\266MS.png" />
+    <Content Include="Content\image\pokemonImage\267MS.png" />
+    <Content Include="Content\image\pokemonImage\268MS.png" />
+    <Content Include="Content\image\pokemonImage\269MS.png" />
+    <Content Include="Content\image\pokemonImage\270MS.png" />
+    <Content Include="Content\image\pokemonImage\271MS.png" />
+    <Content Include="Content\image\pokemonImage\272MS.png" />
+    <Content Include="Content\image\pokemonImage\273MS.png" />
+    <Content Include="Content\image\pokemonImage\274MS.png" />
+    <Content Include="Content\image\pokemonImage\275MS.png" />
+    <Content Include="Content\image\pokemonImage\276MS.png" />
+    <Content Include="Content\image\pokemonImage\277MS.png" />
+    <Content Include="Content\image\pokemonImage\278MS.png" />
+    <Content Include="Content\image\pokemonImage\279MS.png" />
+    <Content Include="Content\image\pokemonImage\280MS.png" />
+    <Content Include="Content\image\pokemonImage\281MS.png" />
+    <Content Include="Content\image\pokemonImage\282MS.png" />
+    <Content Include="Content\image\pokemonImage\283MS.png" />
+    <Content Include="Content\image\pokemonImage\284MS.png" />
+    <Content Include="Content\image\pokemonImage\285MS.png" />
+    <Content Include="Content\image\pokemonImage\286MS.png" />
+    <Content Include="Content\image\pokemonImage\287MS.png" />
+    <Content Include="Content\image\pokemonImage\288MS.png" />
+    <Content Include="Content\image\pokemonImage\289MS.png" />
+    <Content Include="Content\image\pokemonImage\290MS.png" />
+    <Content Include="Content\image\pokemonImage\291MS.png" />
+    <Content Include="Content\image\pokemonImage\292MS.png" />
+    <Content Include="Content\image\pokemonImage\293MS.png" />
+    <Content Include="Content\image\pokemonImage\294MS.png" />
+    <Content Include="Content\image\pokemonImage\295MS.png" />
+    <Content Include="Content\image\pokemonImage\296MS.png" />
+    <Content Include="Content\image\pokemonImage\297MS.png" />
+    <Content Include="Content\image\pokemonImage\298MS.png" />
+    <Content Include="Content\image\pokemonImage\299MS.png" />
+    <Content Include="Content\image\pokemonImage\300MS.png" />
+    <Content Include="Content\image\pokemonImage\301MS.png" />
+    <Content Include="Content\image\pokemonImage\302MS.png" />
+    <Content Include="Content\image\pokemonImage\303MS.png" />
+    <Content Include="Content\image\pokemonImage\304MS.png" />
+    <Content Include="Content\image\pokemonImage\305MS.png" />
+    <Content Include="Content\image\pokemonImage\306MS.png" />
+    <Content Include="Content\image\pokemonImage\307MS.png" />
+    <Content Include="Content\image\pokemonImage\308MS.png" />
+    <Content Include="Content\image\pokemonImage\309MS.png" />
+    <Content Include="Content\image\pokemonImage\310MS.png" />
+    <Content Include="Content\image\pokemonImage\311MS.png" />
+    <Content Include="Content\image\pokemonImage\312MS.png" />
+    <Content Include="Content\image\pokemonImage\313MS.png" />
+    <Content Include="Content\image\pokemonImage\314MS.png" />
+    <Content Include="Content\image\pokemonImage\315MS.png" />
+    <Content Include="Content\image\pokemonImage\316MS.png" />
+    <Content Include="Content\image\pokemonImage\317MS.png" />
+    <Content Include="Content\image\pokemonImage\318MS.png" />
+    <Content Include="Content\image\pokemonImage\319MS.png" />
+    <Content Include="Content\image\pokemonImage\320MS.png" />
+    <Content Include="Content\image\pokemonImage\321MS.png" />
+    <Content Include="Content\image\pokemonImage\322MS.png" />
+    <Content Include="Content\image\pokemonImage\323MS.png" />
+    <Content Include="Content\image\pokemonImage\324MS.png" />
+    <Content Include="Content\image\pokemonImage\325MS.png" />
+    <Content Include="Content\image\pokemonImage\326MS.png" />
+    <Content Include="Content\image\pokemonImage\327MS.png" />
+    <Content Include="Content\image\pokemonImage\328MS.png" />
+    <Content Include="Content\image\pokemonImage\329MS.png" />
+    <Content Include="Content\image\pokemonImage\330MS.png" />
+    <Content Include="Content\image\pokemonImage\331MS.png" />
+    <Content Include="Content\image\pokemonImage\332MS.png" />
+    <Content Include="Content\image\pokemonImage\333MS.png" />
+    <Content Include="Content\image\pokemonImage\334MS.png" />
+    <Content Include="Content\image\pokemonImage\335MS.png" />
+    <Content Include="Content\image\pokemonImage\336MS.png" />
+    <Content Include="Content\image\pokemonImage\337MS.png" />
+    <Content Include="Content\image\pokemonImage\338MS.png" />
+    <Content Include="Content\image\pokemonImage\339MS.png" />
+    <Content Include="Content\image\pokemonImage\340MS.png" />
+    <Content Include="Content\image\pokemonImage\341MS.png" />
+    <Content Include="Content\image\pokemonImage\342MS.png" />
+    <Content Include="Content\image\pokemonImage\343MS.png" />
+    <Content Include="Content\image\pokemonImage\344MS.png" />
+    <Content Include="Content\image\pokemonImage\345MS.png" />
+    <Content Include="Content\image\pokemonImage\346MS.png" />
+    <Content Include="Content\image\pokemonImage\347MS.png" />
+    <Content Include="Content\image\pokemonImage\348MS.png" />
+    <Content Include="Content\image\pokemonImage\349MS.png" />
+    <Content Include="Content\image\pokemonImage\350MS.png" />
+    <Content Include="Content\image\pokemonImage\351MS.png" />
+    <Content Include="Content\image\pokemonImage\352MS.png" />
+    <Content Include="Content\image\pokemonImage\353MS.png" />
+    <Content Include="Content\image\pokemonImage\354MS.png" />
+    <Content Include="Content\image\pokemonImage\355MS.png" />
+    <Content Include="Content\image\pokemonImage\356MS.png" />
+    <Content Include="Content\image\pokemonImage\357MS.png" />
+    <Content Include="Content\image\pokemonImage\358MS.png" />
+    <Content Include="Content\image\pokemonImage\359MS.png" />
+    <Content Include="Content\image\pokemonImage\360MS.png" />
+    <Content Include="Content\image\pokemonImage\361MS.png" />
+    <Content Include="Content\image\pokemonImage\362MS.png" />
+    <Content Include="Content\image\pokemonImage\363MS.png" />
+    <Content Include="Content\image\pokemonImage\364MS.png" />
+    <Content Include="Content\image\pokemonImage\365MS.png" />
+    <Content Include="Content\image\pokemonImage\366MS.png" />
+    <Content Include="Content\image\pokemonImage\367MS.png" />
+    <Content Include="Content\image\pokemonImage\368MS.png" />
+    <Content Include="Content\image\pokemonImage\369MS.png" />
+    <Content Include="Content\image\pokemonImage\370MS.png" />
+    <Content Include="Content\image\pokemonImage\371MS.png" />
+    <Content Include="Content\image\pokemonImage\372MS.png" />
+    <Content Include="Content\image\pokemonImage\373MS.png" />
+    <Content Include="Content\image\pokemonImage\374MS.png" />
+    <Content Include="Content\image\pokemonImage\375MS.png" />
+    <Content Include="Content\image\pokemonImage\376MS.png" />
+    <Content Include="Content\image\pokemonImage\377MS.png" />
+    <Content Include="Content\image\pokemonImage\378MS.png" />
+    <Content Include="Content\image\pokemonImage\379MS.png" />
+    <Content Include="Content\image\pokemonImage\380MS.png" />
+    <Content Include="Content\image\pokemonImage\381MS.png" />
+    <Content Include="Content\image\pokemonImage\382MS.png" />
+    <Content Include="Content\image\pokemonImage\383MS.png" />
+    <Content Include="Content\image\pokemonImage\384MS.png" />
+    <Content Include="Content\image\pokemonImage\385MS.png" />
+    <Content Include="Content\image\pokemonImage\386AMS.png" />
+    <Content Include="Content\image\pokemonImage\386DMS.png" />
+    <Content Include="Content\image\pokemonImage\386MS.png" />
+    <Content Include="Content\image\pokemonImage\386SMS.png" />
+    <Content Include="Content\image\pokemonImage\387MS.png" />
+    <Content Include="Content\image\pokemonImage\388MS.png" />
+    <Content Include="Content\image\pokemonImage\389MS.png" />
+    <Content Include="Content\image\pokemonImage\390MS.png" />
+    <Content Include="Content\image\pokemonImage\391MS.png" />
+    <Content Include="Content\image\pokemonImage\392MS.png" />
+    <Content Include="Content\image\pokemonImage\393MS.png" />
+    <Content Include="Content\image\pokemonImage\394MS.png" />
+    <Content Include="Content\image\pokemonImage\395MS.png" />
+    <Content Include="Content\image\pokemonImage\396MS.png" />
+    <Content Include="Content\image\pokemonImage\397MS.png" />
+    <Content Include="Content\image\pokemonImage\398MS.png" />
+    <Content Include="Content\image\pokemonImage\399MS.png" />
+    <Content Include="Content\image\pokemonImage\400MS.png" />
+    <Content Include="Content\image\pokemonImage\401MS.png" />
+    <Content Include="Content\image\pokemonImage\402MS.png" />
+    <Content Include="Content\image\pokemonImage\403MS.png" />
+    <Content Include="Content\image\pokemonImage\404MS.png" />
+    <Content Include="Content\image\pokemonImage\405MS.png" />
+    <Content Include="Content\image\pokemonImage\406MS.png" />
+    <Content Include="Content\image\pokemonImage\407MS.png" />
+    <Content Include="Content\image\pokemonImage\408MS.png" />
+    <Content Include="Content\image\pokemonImage\409MS.png" />
+    <Content Include="Content\image\pokemonImage\410MS.png" />
+    <Content Include="Content\image\pokemonImage\411MS.png" />
+    <Content Include="Content\image\pokemonImage\412MS.png" />
+    <Content Include="Content\image\pokemonImage\413GMS.png" />
+    <Content Include="Content\image\pokemonImage\413MS.png" />
+    <Content Include="Content\image\pokemonImage\413SMS.png" />
+    <Content Include="Content\image\pokemonImage\414MS.png" />
+    <Content Include="Content\image\pokemonImage\415MS.png" />
+    <Content Include="Content\image\pokemonImage\416MS.png" />
+    <Content Include="Content\image\pokemonImage\417MS.png" />
+    <Content Include="Content\image\pokemonImage\418MS.png" />
+    <Content Include="Content\image\pokemonImage\419MS.png" />
+    <Content Include="Content\image\pokemonImage\420MS.png" />
+    <Content Include="Content\image\pokemonImage\421MS.png" />
+    <Content Include="Content\image\pokemonImage\422MS.png" />
+    <Content Include="Content\image\pokemonImage\423MS.png" />
+    <Content Include="Content\image\pokemonImage\424MS.png" />
+    <Content Include="Content\image\pokemonImage\425MS.png" />
+    <Content Include="Content\image\pokemonImage\426MS.png" />
+    <Content Include="Content\image\pokemonImage\427MS.png" />
+    <Content Include="Content\image\pokemonImage\428MS.png" />
+    <Content Include="Content\image\pokemonImage\429MS.png" />
+    <Content Include="Content\image\pokemonImage\430MS.png" />
+    <Content Include="Content\image\pokemonImage\431MS.png" />
+    <Content Include="Content\image\pokemonImage\432MS.png" />
+    <Content Include="Content\image\pokemonImage\433MS.png" />
+    <Content Include="Content\image\pokemonImage\434MS.png" />
+    <Content Include="Content\image\pokemonImage\435MS.png" />
+    <Content Include="Content\image\pokemonImage\436MS.png" />
+    <Content Include="Content\image\pokemonImage\437MS.png" />
+    <Content Include="Content\image\pokemonImage\438MS.png" />
+    <Content Include="Content\image\pokemonImage\439MS.png" />
+    <Content Include="Content\image\pokemonImage\440MS.png" />
+    <Content Include="Content\image\pokemonImage\441MS.png" />
+    <Content Include="Content\image\pokemonImage\442MS.png" />
+    <Content Include="Content\image\pokemonImage\443MS.png" />
+    <Content Include="Content\image\pokemonImage\444MS.png" />
+    <Content Include="Content\image\pokemonImage\445MS.png" />
+    <Content Include="Content\image\pokemonImage\446MS.png" />
+    <Content Include="Content\image\pokemonImage\447MS.png" />
+    <Content Include="Content\image\pokemonImage\448MS.png" />
+    <Content Include="Content\image\pokemonImage\449MS.png" />
+    <Content Include="Content\image\pokemonImage\450MS.png" />
+    <Content Include="Content\image\pokemonImage\451MS.png" />
+    <Content Include="Content\image\pokemonImage\452MS.png" />
+    <Content Include="Content\image\pokemonImage\453MS.png" />
+    <Content Include="Content\image\pokemonImage\454MS.png" />
+    <Content Include="Content\image\pokemonImage\455MS.png" />
+    <Content Include="Content\image\pokemonImage\456MS.png" />
+    <Content Include="Content\image\pokemonImage\457MS.png" />
+    <Content Include="Content\image\pokemonImage\458MS.png" />
+    <Content Include="Content\image\pokemonImage\459MS.png" />
+    <Content Include="Content\image\pokemonImage\460MS.png" />
+    <Content Include="Content\image\pokemonImage\461MS.png" />
+    <Content Include="Content\image\pokemonImage\462MS.png" />
+    <Content Include="Content\image\pokemonImage\463MS.png" />
+    <Content Include="Content\image\pokemonImage\464MS.png" />
+    <Content Include="Content\image\pokemonImage\465MS.png" />
+    <Content Include="Content\image\pokemonImage\466MS.png" />
+    <Content Include="Content\image\pokemonImage\467MS.png" />
+    <Content Include="Content\image\pokemonImage\468MS.png" />
+    <Content Include="Content\image\pokemonImage\469MS.png" />
+    <Content Include="Content\image\pokemonImage\470MS.png" />
+    <Content Include="Content\image\pokemonImage\471MS.png" />
+    <Content Include="Content\image\pokemonImage\472MS.png" />
+    <Content Include="Content\image\pokemonImage\473MS.png" />
+    <Content Include="Content\image\pokemonImage\474MS.png" />
+    <Content Include="Content\image\pokemonImage\475MS.png" />
+    <Content Include="Content\image\pokemonImage\476MS.png" />
+    <Content Include="Content\image\pokemonImage\477MS.png" />
+    <Content Include="Content\image\pokemonImage\478MS.png" />
+    <Content Include="Content\image\pokemonImage\479FMS.png" />
+    <Content Include="Content\image\pokemonImage\479LMS.png" />
+    <Content Include="Content\image\pokemonImage\479MS.png" />
+    <Content Include="Content\image\pokemonImage\479OMS.png" />
+    <Content Include="Content\image\pokemonImage\479RMS.png" />
+    <Content Include="Content\image\pokemonImage\479WMS.png" />
+    <Content Include="Content\image\pokemonImage\480MS.png" />
+    <Content Include="Content\image\pokemonImage\481MS.png" />
+    <Content Include="Content\image\pokemonImage\482MS.png" />
+    <Content Include="Content\image\pokemonImage\483MS.png" />
+    <Content Include="Content\image\pokemonImage\484MS.png" />
+    <Content Include="Content\image\pokemonImage\485MS.png" />
+    <Content Include="Content\image\pokemonImage\486MS.png" />
+    <Content Include="Content\image\pokemonImage\487MS.png" />
+    <Content Include="Content\image\pokemonImage\487OMS.png" />
+    <Content Include="Content\image\pokemonImage\488MS.png" />
+    <Content Include="Content\image\pokemonImage\489MS.png" />
+    <Content Include="Content\image\pokemonImage\490MS.png" />
+    <Content Include="Content\image\pokemonImage\491MS.png" />
+    <Content Include="Content\image\pokemonImage\492MS.png" />
+    <Content Include="Content\image\pokemonImage\492SMS.png" />
+    <Content Include="Content\image\pokemonImage\493MS.png" />
+    <Content Include="Content\image\pokemonImage\494MS.png" />
+    <Content Include="Content\image\pokemonImage\495MS.png" />
+    <Content Include="Content\image\pokemonImage\496MS.png" />
+    <Content Include="Content\image\pokemonImage\497MS.png" />
+    <Content Include="Content\image\pokemonImage\498MS.png" />
+    <Content Include="Content\image\pokemonImage\499MS.png" />
+    <Content Include="Content\image\pokemonImage\500MS.png" />
+    <Content Include="Content\image\pokemonImage\501MS.png" />
+    <Content Include="Content\image\pokemonImage\502MS.png" />
+    <Content Include="Content\image\pokemonImage\503MS.png" />
+    <Content Include="Content\image\pokemonImage\504MS.png" />
+    <Content Include="Content\image\pokemonImage\505MS.png" />
+    <Content Include="Content\image\pokemonImage\506MS.png" />
+    <Content Include="Content\image\pokemonImage\507MS.png" />
+    <Content Include="Content\image\pokemonImage\508MS.png" />
+    <Content Include="Content\image\pokemonImage\509MS.png" />
+    <Content Include="Content\image\pokemonImage\510MS.png" />
+    <Content Include="Content\image\pokemonImage\511MS.png" />
+    <Content Include="Content\image\pokemonImage\512MS.png" />
+    <Content Include="Content\image\pokemonImage\513MS.png" />
+    <Content Include="Content\image\pokemonImage\514MS.png" />
+    <Content Include="Content\image\pokemonImage\515MS.png" />
+    <Content Include="Content\image\pokemonImage\516MS.png" />
+    <Content Include="Content\image\pokemonImage\517MS.png" />
+    <Content Include="Content\image\pokemonImage\518MS.png" />
+    <Content Include="Content\image\pokemonImage\519MS.png" />
+    <Content Include="Content\image\pokemonImage\520MS.png" />
+    <Content Include="Content\image\pokemonImage\521MS.png" />
+    <Content Include="Content\image\pokemonImage\522MS.png" />
+    <Content Include="Content\image\pokemonImage\523MS.png" />
+    <Content Include="Content\image\pokemonImage\524MS.png" />
+    <Content Include="Content\image\pokemonImage\525MS.png" />
+    <Content Include="Content\image\pokemonImage\526MS.png" />
+    <Content Include="Content\image\pokemonImage\527MS.png" />
+    <Content Include="Content\image\pokemonImage\528MS.png" />
+    <Content Include="Content\image\pokemonImage\529MS.png" />
+    <Content Include="Content\image\pokemonImage\530MS.png" />
+    <Content Include="Content\image\pokemonImage\531MS.png" />
+    <Content Include="Content\image\pokemonImage\532MS.png" />
+    <Content Include="Content\image\pokemonImage\533MS.png" />
+    <Content Include="Content\image\pokemonImage\534MS.png" />
+    <Content Include="Content\image\pokemonImage\535MS.png" />
+    <Content Include="Content\image\pokemonImage\536MS.png" />
+    <Content Include="Content\image\pokemonImage\537MS.png" />
+    <Content Include="Content\image\pokemonImage\538MS.png" />
+    <Content Include="Content\image\pokemonImage\539MS.png" />
+    <Content Include="Content\image\pokemonImage\540MS.png" />
+    <Content Include="Content\image\pokemonImage\541MS.png" />
+    <Content Include="Content\image\pokemonImage\542MS.png" />
+    <Content Include="Content\image\pokemonImage\543MS.png" />
+    <Content Include="Content\image\pokemonImage\544MS.png" />
+    <Content Include="Content\image\pokemonImage\545MS.png" />
+    <Content Include="Content\image\pokemonImage\546MS.png" />
+    <Content Include="Content\image\pokemonImage\547MS.png" />
+    <Content Include="Content\image\pokemonImage\548MS.png" />
+    <Content Include="Content\image\pokemonImage\549MS.png" />
+    <Content Include="Content\image\pokemonImage\550MS.png" />
+    <Content Include="Content\image\pokemonImage\551MS.png" />
+    <Content Include="Content\image\pokemonImage\552MS.png" />
+    <Content Include="Content\image\pokemonImage\553MS.png" />
+    <Content Include="Content\image\pokemonImage\554MS.png" />
+    <Content Include="Content\image\pokemonImage\555MS.png" />
+    <Content Include="Content\image\pokemonImage\555ZMS.png" />
+    <Content Include="Content\image\pokemonImage\556MS.png" />
+    <Content Include="Content\image\pokemonImage\557MS.png" />
+    <Content Include="Content\image\pokemonImage\558MS.png" />
+    <Content Include="Content\image\pokemonImage\559MS.png" />
+    <Content Include="Content\image\pokemonImage\560MS.png" />
+    <Content Include="Content\image\pokemonImage\561MS.png" />
+    <Content Include="Content\image\pokemonImage\562MS.png" />
+    <Content Include="Content\image\pokemonImage\563MS.png" />
+    <Content Include="Content\image\pokemonImage\564MS.png" />
+    <Content Include="Content\image\pokemonImage\565MS.png" />
+    <Content Include="Content\image\pokemonImage\566MS.png" />
+    <Content Include="Content\image\pokemonImage\567MS.png" />
+    <Content Include="Content\image\pokemonImage\568MS.png" />
+    <Content Include="Content\image\pokemonImage\569MS.png" />
+    <Content Include="Content\image\pokemonImage\570MS.png" />
+    <Content Include="Content\image\pokemonImage\571MS.png" />
+    <Content Include="Content\image\pokemonImage\572MS.png" />
+    <Content Include="Content\image\pokemonImage\573MS.png" />
+    <Content Include="Content\image\pokemonImage\574MS.png" />
+    <Content Include="Content\image\pokemonImage\575MS.png" />
+    <Content Include="Content\image\pokemonImage\576MS.png" />
+    <Content Include="Content\image\pokemonImage\577MS.png" />
+    <Content Include="Content\image\pokemonImage\578MS.png" />
+    <Content Include="Content\image\pokemonImage\579MS.png" />
+    <Content Include="Content\image\pokemonImage\580MS.png" />
+    <Content Include="Content\image\pokemonImage\581MS.png" />
+    <Content Include="Content\image\pokemonImage\582MS.png" />
+    <Content Include="Content\image\pokemonImage\583MS.png" />
+    <Content Include="Content\image\pokemonImage\584MS.png" />
+    <Content Include="Content\image\pokemonImage\585MS.png" />
+    <Content Include="Content\image\pokemonImage\586MS.png" />
+    <Content Include="Content\image\pokemonImage\587MS.png" />
+    <Content Include="Content\image\pokemonImage\588MS.png" />
+    <Content Include="Content\image\pokemonImage\589MS.png" />
+    <Content Include="Content\image\pokemonImage\590MS.png" />
+    <Content Include="Content\image\pokemonImage\591MS.png" />
+    <Content Include="Content\image\pokemonImage\592MS.png" />
+    <Content Include="Content\image\pokemonImage\593MS.png" />
+    <Content Include="Content\image\pokemonImage\594MS.png" />
+    <Content Include="Content\image\pokemonImage\595MS.png" />
+    <Content Include="Content\image\pokemonImage\596MS.png" />
+    <Content Include="Content\image\pokemonImage\597MS.png" />
+    <Content Include="Content\image\pokemonImage\598MS.png" />
+    <Content Include="Content\image\pokemonImage\599MS.png" />
+    <Content Include="Content\image\pokemonImage\600MS.png" />
+    <Content Include="Content\image\pokemonImage\601MS.png" />
+    <Content Include="Content\image\pokemonImage\602MS.png" />
+    <Content Include="Content\image\pokemonImage\603MS.png" />
+    <Content Include="Content\image\pokemonImage\604MS.png" />
+    <Content Include="Content\image\pokemonImage\605MS.png" />
+    <Content Include="Content\image\pokemonImage\606MS.png" />
+    <Content Include="Content\image\pokemonImage\607MS.png" />
+    <Content Include="Content\image\pokemonImage\608MS.png" />
+    <Content Include="Content\image\pokemonImage\609MS.png" />
+    <Content Include="Content\image\pokemonImage\610MS.png" />
+    <Content Include="Content\image\pokemonImage\611MS.png" />
+    <Content Include="Content\image\pokemonImage\612MS.png" />
+    <Content Include="Content\image\pokemonImage\613MS.png" />
+    <Content Include="Content\image\pokemonImage\614MS.png" />
+    <Content Include="Content\image\pokemonImage\615MS.png" />
+    <Content Include="Content\image\pokemonImage\616MS.png" />
+    <Content Include="Content\image\pokemonImage\617MS.png" />
+    <Content Include="Content\image\pokemonImage\618MS.png" />
+    <Content Include="Content\image\pokemonImage\619MS.png" />
+    <Content Include="Content\image\pokemonImage\620MS.png" />
+    <Content Include="Content\image\pokemonImage\621MS.png" />
+    <Content Include="Content\image\pokemonImage\622MS.png" />
+    <Content Include="Content\image\pokemonImage\623MS.png" />
+    <Content Include="Content\image\pokemonImage\624MS.png" />
+    <Content Include="Content\image\pokemonImage\625MS.png" />
+    <Content Include="Content\image\pokemonImage\626MS.png" />
+    <Content Include="Content\image\pokemonImage\627MS.png" />
+    <Content Include="Content\image\pokemonImage\628MS.png" />
+    <Content Include="Content\image\pokemonImage\629MS.png" />
+    <Content Include="Content\image\pokemonImage\630MS.png" />
+    <Content Include="Content\image\pokemonImage\631MS.png" />
+    <Content Include="Content\image\pokemonImage\632MS.png" />
+    <Content Include="Content\image\pokemonImage\633MS.png" />
+    <Content Include="Content\image\pokemonImage\634MS.png" />
+    <Content Include="Content\image\pokemonImage\635MS.png" />
+    <Content Include="Content\image\pokemonImage\636MS.png" />
+    <Content Include="Content\image\pokemonImage\637MS.png" />
+    <Content Include="Content\image\pokemonImage\638MS.png" />
+    <Content Include="Content\image\pokemonImage\639MS.png" />
+    <Content Include="Content\image\pokemonImage\640MS.png" />
+    <Content Include="Content\image\pokemonImage\641MS.png" />
+    <Content Include="Content\image\pokemonImage\641TMS.png" />
+    <Content Include="Content\image\pokemonImage\642MS.png" />
+    <Content Include="Content\image\pokemonImage\642TMS.png" />
+    <Content Include="Content\image\pokemonImage\643MS.png" />
+    <Content Include="Content\image\pokemonImage\644MS.png" />
+    <Content Include="Content\image\pokemonImage\645MS.png" />
+    <Content Include="Content\image\pokemonImage\645TMS.png" />
+    <Content Include="Content\image\pokemonImage\646BMS.png" />
+    <Content Include="Content\image\pokemonImage\646MS.png" />
+    <Content Include="Content\image\pokemonImage\646WMS.png" />
+    <Content Include="Content\image\pokemonImage\647MS.png" />
+    <Content Include="Content\image\pokemonImage\648MS.png" />
+    <Content Include="Content\image\pokemonImage\648PMS.png" />
+    <Content Include="Content\image\pokemonImage\649MS.png" />
+    <Content Include="Content\image\pokemonType\BugIC.gif" />
+    <Content Include="Content\image\pokemonType\DarkIC.gif" />
+    <Content Include="Content\image\pokemonType\DragonIC.gif" />
+    <Content Include="Content\image\pokemonType\ElectricIC.gif" />
+    <Content Include="Content\image\pokemonType\FightingIC.gif" />
+    <Content Include="Content\image\pokemonType\FireIC.gif" />
+    <Content Include="Content\image\pokemonType\FlyingIC.gif" />
+    <Content Include="Content\image\pokemonType\GhostIC.gif" />
+    <Content Include="Content\image\pokemonType\GrassIC.gif" />
+    <Content Include="Content\image\pokemonType\GroundIC.gif" />
+    <Content Include="Content\image\pokemonType\IceIC.gif" />
+    <Content Include="Content\image\pokemonType\NormalIC.gif" />
+    <Content Include="Content\image\pokemonType\PoisonIC.gif" />
+    <Content Include="Content\image\pokemonType\PsychicIC.gif" />
+    <Content Include="Content\image\pokemonType\RockIC.gif" />
+    <Content Include="Content\image\pokemonType\SteelIC.gif" />
+    <Content Include="Content\image\pokemonType\WaterIC.gif" />
+    <Content Include="Global.asax" />
+    <Content Include="Views\Home\Pokemon.aspx" />
+    <Content Include="Web.config">
+      <SubType>Designer</SubType>
+    </Content>
+    <Content Include="Web.Debug.config">
+      <DependentUpon>Web.config</DependentUpon>
+    </Content>
+    <Content Include="Web.Release.config">
+      <DependentUpon>Web.config</DependentUpon>
+    </Content>
+    <Content Include="Content\css\Site.css" />
+    <Content Include="Scripts\jquery-1.4.1.js" />
+    <Content Include="Scripts\jquery-1.4.1.min.js" />
+    <Content Include="Scripts\jquery-1.4.1-vsdoc.js" />
+    <Content Include="Scripts\jquery.validate.js" />
+    <Content Include="Scripts\jquery.validate.min.js" />
+    <Content Include="Scripts\jquery.validate-vsdoc.js" />
+    <Content Include="Scripts\MicrosoftAjax.js" />
+    <Content Include="Scripts\MicrosoftAjax.debug.js" />
+    <Content Include="Scripts\MicrosoftMvcAjax.js" />
+    <Content Include="Scripts\MicrosoftMvcAjax.debug.js" />
+    <Content Include="Scripts\MicrosoftMvcValidation.js" />
+    <Content Include="Scripts\MicrosoftMvcValidation.debug.js" />
+    <Content Include="Views\Account\ChangePassword.aspx" />
+    <Content Include="Views\Account\ChangePasswordSuccess.aspx" />
+    <Content Include="Views\Account\LogOn.aspx" />
+    <Content Include="Views\Account\Register.aspx" />
+    <Content Include="Views\Home\About.aspx" />
+    <Content Include="Views\Home\Index.aspx" />
+    <Content Include="Views\Shared\Error.aspx" />
+    <Content Include="Views\Shared\LogOnUserControl.ascx" />
+    <Content Include="Views\Shared\Site.Master" />
+    <Content Include="Views\Web.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="App_Data\" />
+    <Folder Include="Content\js\" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Model\Model.csproj">
+      <Project>{EE7F0A07-998E-4644-97EC-CC8B230C10E6}</Project>
+      <Name>Model</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\WebModelFactory\WebModelFactory.csproj">
+      <Project>{0C1E467A-8226-494D-9A25-EF2511F7DF0E}</Project>
+      <Name>WebModelFactory</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v10.0\WebApplications\Microsoft.WebApplication.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target> -->
+  <Target Name="AfterBuild" Condition="'$(MvcBuildViews)'=='true'">
+    <AspNetCompiler VirtualPath="temp" PhysicalPath="$(ProjectDir)" />
+  </Target>
+  <ProjectExtensions>
+    <VisualStudio>
+      <FlavorProperties GUID="{349c5851-65df-11da-9384-00065b846f21}">
+        <WebProjectProperties>
+          <UseIIS>False</UseIIS>
+          <AutoAssignPort>True</AutoAssignPort>
+          <DevelopmentServerPort>49882</DevelopmentServerPort>
+          <DevelopmentServerVPath>/</DevelopmentServerVPath>
+          <IISUrl>
+          </IISUrl>
+          <NTLMAuthentication>False</NTLMAuthentication>
+          <UseCustomServer>False</UseCustomServer>
+          <CustomServerUrl>
+          </CustomServerUrl>
+          <SaveServerSettingsInUserFile>False</SaveServerSettingsInUserFile>
+        </WebProjectProperties>
+      </FlavorProperties>
+    </VisualStudio>
+  </ProjectExtensions>
+</Project>

@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual C# Express 2010
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CasualConsole", "CasualConsole\CasualConsole.csproj", "{94279BAB-F62C-4D42-BBA5-A6F03CEAD7B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleApplication1", "ConsoleApplication1\ConsoleApplication1.csproj", "{29F20C9E-4128-4E84-95D5-7E7384DE66C9}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x86 = Debug|x86
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{94279BAB-F62C-4D42-BBA5-A6F03CEAD7B0}.Debug|x86.ActiveCfg = Debug|x86
+		{94279BAB-F62C-4D42-BBA5-A6F03CEAD7B0}.Debug|x86.Build.0 = Debug|x86
+		{94279BAB-F62C-4D42-BBA5-A6F03CEAD7B0}.Release|x86.ActiveCfg = Release|x86
+		{94279BAB-F62C-4D42-BBA5-A6F03CEAD7B0}.Release|x86.Build.0 = Release|x86
+		{29F20C9E-4128-4E84-95D5-7E7384DE66C9}.Debug|x86.ActiveCfg = Debug|x86
+		{29F20C9E-4128-4E84-95D5-7E7384DE66C9}.Debug|x86.Build.0 = Debug|x86
+		{29F20C9E-4128-4E84-95D5-7E7384DE66C9}.Release|x86.ActiveCfg = Release|x86
+		{29F20C9E-4128-4E84-95D5-7E7384DE66C9}.Release|x86.Build.0 = Release|x86
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

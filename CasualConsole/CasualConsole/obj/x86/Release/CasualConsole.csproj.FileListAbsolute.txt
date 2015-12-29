@@ -1,0 +1,4 @@
+C:\Users\Serhat\documents\visual studio 2010\Projects\CasualConsole\CasualConsole\bin\Release\CasualConsole.exe
+C:\Users\Serhat\documents\visual studio 2010\Projects\CasualConsole\CasualConsole\bin\Release\CasualConsole.pdb
+C:\Users\Serhat\documents\visual studio 2010\Projects\CasualConsole\CasualConsole\obj\x86\Release\CasualConsole.exe
+C:\Users\Serhat\documents\visual studio 2010\Projects\CasualConsole\CasualConsole\obj\x86\Release\CasualConsole.pdb
