@@ -10,7 +10,18 @@ namespace CasualConsole
     {
         public static void Main(string[] args)
         {
-            
+            List<Dummy> first = new List<Dummy> { new Dummy(1, "asd") };
+            List<Dummy> second = new List<Dummy> { new Dummy(1, "asd") };
+
+            if (Enumerable.SequenceEqual(first, second))
+            {
+                Console.WriteLine("same");
+            }
+            else
+            {
+                Console.WriteLine("not the same");
+            }
+   
             // Closing, Do Not Delete!
             Console.WriteLine("Program has terminated");
             Console.ReadKey();
@@ -72,7 +83,7 @@ namespace CasualConsole
         }
     }
 
-    public class Dummy
+    public class Dummy : IEquatable<Dummy>
     {
         public int index;
         public string text;
@@ -87,6 +98,11 @@ namespace CasualConsole
         public override string ToString()
         {
             return "Dummy " + index + " and " + text;
+        }
+
+        public bool Equals(Dummy dummyObj)
+        {
+            return dummyObj.text == this.text && dummyObj.index == this.index;
         }
     }
 }

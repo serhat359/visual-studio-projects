@@ -1,14 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Data;
+using System.Linq;
 using System.Linq.Expressions;
-using System.Reflection;
 
 namespace MapperTextlibrary
 {
-	public class ExpressionMapMapper<T> : IMapper<T> where T : new()
+	public class ExpressionTreeMapperNullCheck<T> : IMapper<T> where T : new()
 	{
 		public LinkedList<T> MapAll(IDataReader dataReader)
 		{
@@ -47,8 +45,7 @@ namespace MapperTextlibrary
 					continue;
 
 				var columnNameExp = Expression.Constant(column.i);
-				var propertyExp = Expression.MakeIndex(
-					paramExp, indexerInfo, new[] { columnNameExp });
+				var propertyExp = Expression.MakeIndex(paramExp, indexerInfo, new[] { columnNameExp });
 				var convertExp = Expression.Convert(propertyExp, property.PropertyType);
 				var bindExp = Expression.Assign(Expression.Property(targetExp, property), convertExp);
 				var testExp = Expression.NotEqual(propertyExp, dbNullParamExpression);

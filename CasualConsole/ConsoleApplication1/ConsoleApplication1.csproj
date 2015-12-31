@@ -49,6 +49,12 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Stack.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CasualConsole\CasualConsole.csproj">
+      <Project>{94279BAB-F62C-4D42-BBA5-A6F03CEAD7B0}</Project>
+      <Name>CasualConsole</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

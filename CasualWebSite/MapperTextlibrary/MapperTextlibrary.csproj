@@ -42,10 +42,14 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ActivatorNewMapper.cs" />
+    <Compile Include="ConstructorNewMapper.cs" />
     <Compile Include="CommonMethods.cs" />
     <Compile Include="DBConnection.cs" />
     <Compile Include="ExampleMapper.cs" />
-    <Compile Include="ExpressionMapMapper.cs" />
+    <Compile Include="ExampleMapperByIndex.cs" />
+    <Compile Include="ExpressionTreeMapperAs.cs" />
+    <Compile Include="ExpressionTreeMapperNullCheck.cs" />
     <Compile Include="ExpressionNewMapper.cs" />
     <Compile Include="IMapper.cs" />
     <Compile Include="MyMapper.cs" />

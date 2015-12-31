@@ -6,7 +6,7 @@ using MySql.Data.Types;
 
 namespace Model.Data
 {
-	public class Example
+	public class Example : IEquatable<Example>
 	{
 		public UInt32 id { get; set; }
 
@@ -25,5 +25,18 @@ namespace Model.Data
 		public bool isgood { get; set; }
 
 		public long? somecount { get; set; }
+
+		public bool Equals(Example ex){
+			return ex.id == this.id
+				&& ex.name == this.name
+				&& ex.largetext == this.largetext
+				&& ex.date == this.date
+				&& ex.money == this.money
+				&& ex.code == this.code
+				&& ex.insertdate == this.insertdate
+				&& ex.isgood == this.isgood
+				&& ex.somecount == this.somecount
+				;
+		}
 	}
 }

@@ -5,11 +5,11 @@ using System.Reflection;
 
 namespace MapperTextlibrary
 {
-	public class ExpressionNewMapper<T> : IMapper<T> where T : new()
+	public class ConstructorNewMapper<T> : IMapper<T> where T : new()
 	{
 		public LinkedList<T> MapAll(IDataReader dataReader)
 		{
-			Func<T> newInstancer = CommonMethods.GetNewInstanceFunc<T>();
+			var constructorInfo = typeof(T).GetConstructor(Type.EmptyTypes);
 
 			List<PropertyInfo> properties = CommonMethods.GetCommonProperties<T>(dataReader);
 
@@ -17,7 +17,7 @@ namespace MapperTextlibrary
 
 			while (dataReader.Read())
 			{
-				T t = Map(dataReader, properties, newInstancer);
+				T t = Map(dataReader, properties, (T)constructorInfo.Invoke(null));
 
 				list.AddLast(t);
 			}
@@ -25,9 +25,9 @@ namespace MapperTextlibrary
 			return list;
 		}
 
-		private T Map(IDataRecord record, List<PropertyInfo> properties, Func<T> newInstancer)
+		private T Map(IDataRecord record, List<PropertyInfo> properties, T newInstance)
 		{
-			T t = newInstancer();
+			T t = newInstance;
 
 			foreach (PropertyInfo property in properties)
 			{

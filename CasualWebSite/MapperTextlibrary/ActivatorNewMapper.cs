@@ -1,23 +1,25 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
+using System.Linq;
+using System.Text;
 using System.Reflection;
+using System.Data;
 
 namespace MapperTextlibrary
 {
-	public class ExpressionNewMapper<T> : IMapper<T> where T : new()
+	public class ActivatorNewMapper<T> : IMapper<T> where T : new()
 	{
 		public LinkedList<T> MapAll(IDataReader dataReader)
 		{
-			Func<T> newInstancer = CommonMethods.GetNewInstanceFunc<T>();
-
 			List<PropertyInfo> properties = CommonMethods.GetCommonProperties<T>(dataReader);
 
 			LinkedList<T> list = new LinkedList<T>();
 
+			Type typeOfT = typeof(T);
+
 			while (dataReader.Read())
 			{
-				T t = Map(dataReader, properties, newInstancer);
+				T t = Map(dataReader, properties, (T)Activator.CreateInstance(typeOfT));
 
 				list.AddLast(t);
 			}
@@ -25,9 +27,9 @@ namespace MapperTextlibrary
 			return list;
 		}
 
-		private T Map(IDataRecord record, List<PropertyInfo> properties, Func<T> newInstancer)
+		private T Map(IDataRecord record, List<PropertyInfo> properties, T newInstance)
 		{
-			T t = newInstancer();
+			T t = newInstance;
 
 			foreach (PropertyInfo property in properties)
 			{
