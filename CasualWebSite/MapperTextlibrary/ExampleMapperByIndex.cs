@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using Model.Data;
 using System.Data;
+using MySql.Data.Types;
 
 namespace MapperTextlibrary
 {
@@ -30,7 +31,7 @@ namespace MapperTextlibrary
 			example.date = (DateTime)record[3]; // date
 			example.money = (double)record[4]; // money
 			example.code = record[5] as string; // code
-			example.insertdate = (DateTime)record[6]; // insertdate
+			example.insertdate = record[6] as Nullable<DateTime>; // insertdate
 			example.isgood = (bool)record[7]; // isgood
 			example.somecount = record[8] as Nullable<long>; // somecount
 

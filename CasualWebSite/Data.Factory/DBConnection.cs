@@ -32,7 +32,7 @@ namespace Data
 
             IDataReader dataReader = cmd.ExecuteReader();
 
-            List<T> list = Mapper.MapAll<T>(dataReader);
+			List<T> list = Mapper.MapAllByExpression<T>(dataReader);
 
             dataReader.Close();
 

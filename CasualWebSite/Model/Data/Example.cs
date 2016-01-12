@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using MySql.Data.Types;
 
 namespace Model.Data
 {
@@ -20,9 +19,9 @@ namespace Model.Data
 
 		public string code { get; set; }
 
-		public DateTime insertdate { get; set; }
+		public DateTime? insertdate { get; set; }
 
-		public bool isgood { get; set; }
+		public bool? isgood { get; set; }
 
 		public long? somecount { get; set; }
 

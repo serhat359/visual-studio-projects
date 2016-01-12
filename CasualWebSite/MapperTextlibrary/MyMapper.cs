@@ -25,7 +25,7 @@ namespace MapperTextlibrary
 			return list;
 		}
 
-		private T Map(IDataRecord record, List<PropertyInfo> properties) 
+		private T Map(IDataRecord record, List<PropertyInfo> properties)
 		{
 			T t = new T();
 

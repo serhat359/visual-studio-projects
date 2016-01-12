@@ -31,7 +31,7 @@ namespace MapperTextlibrary
 			example.date = (DateTime)record["date"];
 			example.money = (double)record["money"];
 			example.code = record["code"] as string;
-			example.insertdate = (DateTime)record["insertdate"];
+			example.insertdate = record["insertdate"] as Nullable<DateTime>;
 			example.isgood = (bool)record["isgood"];
 			example.somecount = record["somecount"] as Nullable<long>;
 

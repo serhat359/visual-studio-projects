@@ -59,7 +59,10 @@ namespace MapperTextlibrary
 			}
 
 			exps.Add(targetExp);
-			return Expression.Lambda<Func<IDataRecord, T>>(Expression.Block(new[] { targetExp }, exps), paramExp).Compile();
+
+			var block = Expression.Block(new[] { targetExp }, exps);
+
+			return Expression.Lambda<Func<IDataRecord, T>>(block, paramExp).Compile();
 		}
 	}
 }
