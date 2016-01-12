@@ -9,7 +9,7 @@ namespace ConsoleApplication1
     {
         static void Main(string[] args)
         {
-			
+            TestPivot();
 
             Console.WriteLine("Press a key to exit");
             Console.Read();
@@ -24,11 +24,19 @@ namespace ConsoleApplication1
                 new FooBar{ Text = "a", Value1 = new DateTime(2015,12,12), Value2 = 4},
                 new FooBar{ Text = "b", Value1 = new DateTime(2015,12,12), Value2 = 2},
                 new FooBar{ Text = "a", Value1 = new DateTime(2015,12,10), Value2 = 3},
+                new FooBar{ Text = "a", Value1 = new DateTime(2015,12,10), Value2 = 3},
+                new FooBar{ Text = "b", Value1 = new DateTime(2015,12,12), Value2 = 5},
+                new FooBar{ Text = "b", Value1 = new DateTime(2015,12,10), Value2 = 1},
+                new FooBar{ Text = "b", Value1 = new DateTime(2015,12,10), Value2 = 4},
             };
 
-			table = DataUtil.Pivot(foobars, x => x.Value1, x => x.Value2, x => x.Sum().ToString(), "NULL", x => x.Month + "-" + x.Day);
+            table = DataUtil.PivotAll(foobars, x => x.Value1, x => x.Value2, x => x.Average().ToString(), "0", x => x.Month + "-" + x.Day);
 
 			PrintDataTable(table);
+
+            table = DataUtil.Pivot(foobars, x => x.Text, x => x.Value1, x => x.Value2, x => x.Average(), 0, x => x.ToString("MM-dd"));
+
+            PrintDataTable(table);
 		}
 
         private static DataTable GetTestDebtPivotTable()
@@ -45,7 +53,7 @@ namespace ConsoleApplication1
 
             Func<IEnumerable<int>, string> groupConcat = x => string.Join(",", x);
 
-            DataTable table = DataUtil.Pivot(debtList, x => x.When, x => x.HowMuch, groupConcat, "0");
+            DataTable table = DataUtil.PivotAll(debtList, x => x.When, x => x.HowMuch, groupConcat, "0");
 
             return table;
         }
