@@ -15,11 +15,14 @@ namespace MapperTextlibrary
 
 			LinkedList<T> list = new LinkedList<T>();
 
-			while (dataReader.Read())
+			if (dataReader.Read())
 			{
-				T t = Map(dataReader, properties);
+				do
+				{
+					T t = Map(dataReader, properties);
 
-				list.AddLast(t);
+					list.AddLast(t);
+				} while (dataReader.Read());
 			}
 
 			return list;
