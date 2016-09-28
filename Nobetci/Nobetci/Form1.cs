@@ -57,6 +57,11 @@ namespace Nobetci
             table.Columns.Add("3.", typeof(int));
             table.Columns.Add("4.", typeof(int));
             table.Columns.Add("5.", typeof(int));
+            table.Columns.Add("Cum", typeof(int));
+            table.Columns.Add("Cts", typeof(int));
+            table.Columns.Add("Paz", typeof(int));
+            table.Columns.Add("H.sonu", typeof(int));
+            table.Columns.Add("Per", typeof(bool));
 
             table.Rows.Add("serhat", 15, 23);
             table.Rows.Add("ahmet", 28, 12);
