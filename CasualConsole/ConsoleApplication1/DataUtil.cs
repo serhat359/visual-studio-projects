@@ -28,15 +28,13 @@ namespace ConsoleApplication1
             return table;
         }
 
-        public static DataTable Pivot<T, RH, CH, V, O>(IEnumerable<T> sourceElements, Expression<Func<T, RH>> rowProperty, Func<T, CH> columnProperty, Func<T, V> valueProperty, Func<IEnumerable<V>, O> valueReducer, O defaultValue, Func<CH, string> columnNameFormatter) where CH : IComparable<CH>
+        public static DataTable Pivot<T, RH, CH, V, O>(IEnumerable<T> sourceElements, Func<T, RH> rowProperty, Func<T, CH> columnProperty, Func<T, V> valueProperty, Func<IEnumerable<V>, O> valueReducer, O defaultValue, Func<CH, string> columnNameFormatter) where CH : IComparable<CH>
         {
-            Func<T, RH> rowSelector = rowProperty.Compile();
+            Func<T, RH> rowSelector = rowProperty;
             List<CH> distinctColumnNames = sourceElements.Select(columnProperty).Distinct().ToList();
 
-            PropertyInfo columnMember = (rowProperty.Body as MemberExpression).Member as PropertyInfo;
-
             DataTable table = new DataTable();
-            table.Columns.Add(columnMember.Name, columnMember.PropertyType);
+            table.Columns.Add(" ", typeof(RH));
             foreach (CH item in distinctColumnNames)
             {
                 table.Columns.Add(columnNameFormatter(item), typeof(O));
@@ -81,7 +79,7 @@ namespace ConsoleApplication1
                 {
                     Dictionary<C, List<V>> valuePairs = item.Value;
 
-                    List<V> values = valuePairs.GetExistingOrDefault(x);
+                    List<V> values = valuePairs.GetValueOrDefault(x);
 
                     object value = values != null && values.Any() ? reduceMethod(values) : defaultvalue;
 
@@ -104,7 +102,7 @@ namespace ConsoleApplication1
                 C columnValue = columnNameFunc(item);
                 V value = valueFunc(item);
 
-                List<V> valueList = valueDic.GetValueAssuring(propKey).GetValueAssuring(columnValue);
+                List<V> valueList = valueDic.GetValueOrNew(propKey).GetValueOrNew(columnValue);
                 valueList.Add(value);
             }
 

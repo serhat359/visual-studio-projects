@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Text.RegularExpressions;
+using CasualConsole;
 
 namespace ConsoleApplication1
 {
@@ -11,33 +13,201 @@ namespace ConsoleApplication1
         {
             TestPivot();
 
+            //TestRegex();
+
+            //TestSplitWithCondition();
+
+            //TestIntersect();
+
             Console.WriteLine("Press a key to exit");
             Console.Read();
         }
 
-		private static void TestPivot()
-		{
-			DataTable table = GetTestDebtPivotTable();
+        private static void TestIntersect()
+        {
+            int[] firstList = { 2, 5, 3, 7, 4, 8 };
 
-			List<FooBar> foobars = new List<FooBar>()
+            Debt[] secondList = { 
+                                    new Debt{ From= "asd", To="x", HowMuch = 2, When = 3},
+                                    new Debt{ From= "kjs", To="rrtu", HowMuch = 6, When = 2},
+                                    new Debt{ From= "ret", To="cc", HowMuch = 9, When = 5}
+                                };
+
+            var intersected = Intersect(firstList, x => x, secondList, x => x.HowMuch);
+
+            Console.WriteLine(string.Join(",", intersected.LeftSide));
+            Console.WriteLine(string.Join(",", intersected.Intersection.Select(x => x.MatchedValue)));
+            Console.WriteLine(string.Join(",", intersected.RightSide.Select(x => x.ToString())));
+        }
+
+        private static IntersectionResult<T, E, V> Intersect<T, E, V>(IEnumerable<T> source1, Func<T, V> source1Selector, IEnumerable<E> source2, Func<E, V> source2Selector)
+        {
+            Dictionary<V, T> source1Dic = source1.ToDictionary(source1Selector);
+
+            List<Result<T, E, V>> matches = new List<Result<T, E, V>>();
+            List<E> rightSide = new List<E>();
+
+            foreach (E source2Item in source2)
             {
-                new FooBar{ Text = "a", Value1 = new DateTime(2015,12,12), Value2 = 4},
-                new FooBar{ Text = "b", Value1 = new DateTime(2015,12,12), Value2 = 2},
-                new FooBar{ Text = "a", Value1 = new DateTime(2015,12,10), Value2 = 3},
-                new FooBar{ Text = "a", Value1 = new DateTime(2015,12,10), Value2 = 3},
-                new FooBar{ Text = "b", Value1 = new DateTime(2015,12,12), Value2 = 5},
-                new FooBar{ Text = "b", Value1 = new DateTime(2015,12,10), Value2 = 1},
-                new FooBar{ Text = "b", Value1 = new DateTime(2015,12,10), Value2 = 4},
+                V source2Value = source2Selector(source2Item);
+
+                T source1Match;
+                if (source1Dic.TryGetValue(source2Value, out source1Match))
+                {
+                    Result<T, E, V> match = new Result<T, E, V>()
+                    {
+                        LeftValue = source1Match,
+                        MatchedValue = source2Value,
+                        RightValue = source2Item,
+                    };
+
+                    matches.Add(match);
+
+                    source1Dic.Remove(source2Value);
+                }
+                else
+                {
+                    rightSide.Add(source2Item);
+                }
+            }
+
+            IntersectionResult<T, E, V> result = new IntersectionResult<T, E, V>
+            {
+                LeftSide = source1Dic.Values,
+                Intersection = matches,
+                RightSide = rightSide,
             };
 
-            table = DataUtil.PivotAll(foobars, x => x.Value1, x => x.Value2, x => x.Average().ToString(), "0", x => x.Month + "-" + x.Day);
+            return result;
+        }
 
-			PrintDataTable(table);
+        public class IntersectionResult<T, E, V>
+        {
+            public ICollection<T> LeftSide { get; set; }
+            public ICollection<Result<T, E, V>> Intersection { get; set; }
+            public ICollection<E> RightSide { get; set; }
+        }
 
-            table = DataUtil.Pivot(foobars, x => x.Text, x => x.Value1, x => x.Value2, x => x.Average(), 0, x => x.ToString("MM-dd"));
+        public class Result<T, E, V>
+        {
+            public T LeftValue { get; set; }
+            public E RightValue { get; set; }
+            public V MatchedValue { get; set; }
+        }
+
+        private static void TestSplitWithCondition()
+        {
+            string text = @"a,[a,c,b],c,d,[e,x]";
+
+            Func<string, int, bool> splitCond = (e, i) =>
+            {
+                string leftPart = e.Substring(0, i);
+
+                int bracketIndex = leftPart.LastIndexOfAny(new char[] { '[', ']' });
+
+                if (bracketIndex < 0)
+                    return true;
+                else if (e[bracketIndex] == ']')
+                    return true;
+                else if (e[bracketIndex] == '[')
+                    return false;
+                else
+                    throw new Exception();
+            };
+
+            string[] splitted = SplitWithCondition(text, ',', splitCond);
+        }
+
+        private static string[] SplitWithCondition(string text, char splitChar, Func<string, int, bool> condition)
+        {
+            List<int> matchIndexes = new List<int>();
+
+            for (int lastFound = 0, index = text.IndexOf(splitChar, lastFound); index >= 0; index = text.IndexOf(splitChar, lastFound))
+            {
+                bool isValid = condition(text, index);
+
+                if (isValid)
+                {
+                    matchIndexes.Add(index);
+                }
+
+                lastFound = index + 1;
+            }
+
+            string[] result = new string[matchIndexes.Count + 1];
+            int matchBefore = 0;
+            for (int i = 0; i < matchIndexes.Count; i++)
+            {
+                int currentMatch = matchIndexes[i];
+                result[i] = text.Substring(matchBefore, currentMatch - matchBefore);
+                matchBefore = currentMatch + 1; // length of split character
+            }
+            result[matchIndexes.Count] = text.Substring(matchBefore);
+
+            return result;
+        }
+
+        private static void TestRegex()
+        {
+            string pattern = "<[a-z]+><[0-8]>";
+            string text = "<hey><4><youthere><2>";
+
+            Regex regex = new Regex(pattern);
+
+            string replaced = regex.Replace(text, new MatchEvaluator(a => new String('*', a.Length)));
+
+            var matchCollection = Regex.Matches(text, pattern);
+
+            Match x = matchCollection[0];
+            Match x2 = matchCollection[1];
+
+            Group y = x.Groups[0];
+            Group y2 = x2.Groups[0];
+
+            Capture z = y.Captures[0];
+            Capture z2 = y2.Captures[0];
+
+            foreach (var match in matchCollection)
+            {
+                Group group = match as Group;
+
+                //foreach (var capture in captures)
+                //{
+                //    string resultString = capture.ToString();
+                //}
+
+                //foreach (var group in match.Groups)
+                //{
+                //    string grouoString = group.ToString();
+                //}
+
+                //string nextvalue = match.NextMatch().Value;
+            }
+        }
+
+        private static void TestPivot()
+        {
+            DataTable table = GetTestDebtPivotTable();
+
+            List<FooBar> foobars = new List<FooBar>()
+            {
+                new FooBar{ Text = "a", Date = new DateTime(2015,12,12), Amount = 4},
+                new FooBar{ Text = "b", Date = new DateTime(2015,12,12), Amount = 2},
+                new FooBar{ Text = "a", Date = new DateTime(2015,12,10), Amount = 3},
+                new FooBar{ Text = "a", Date = new DateTime(2015,12,10), Amount = 3},
+                new FooBar{ Text = "b", Date = new DateTime(2015,12,12), Amount = 5},
+                new FooBar{ Text = "b", Date = new DateTime(2015,12,10), Amount = 1},
+                new FooBar{ Text = "b", Date = new DateTime(2015,12,10), Amount = 4},
+            };
+
+            table = DataUtil.PivotAll(foobars, x => x.Date, x => x.Amount, x => x.Average().ToString(), "0", x => x.Month + "-" + x.Day);
+
+            //PrintDataTable(table);
+
+            table = DataUtil.Pivot(foobars, x => x.Text, x => x.Date, x => x.Amount, x => x.Average(), 0, x => x.ToString("MM-dd"));
 
             PrintDataTable(table);
-		}
+        }
 
         private static DataTable GetTestDebtPivotTable()
         {
@@ -89,14 +259,19 @@ namespace ConsoleApplication1
         public int When { get; set; }
 
         public int HowMuch { get; set; }
+
+        public override string ToString()
+        {
+            return string.Format("From: {0}, To: {1}, When: {2}, HowMuch: {3}", From, To, When, HowMuch);
+        }
     }
 
     class FooBar
     {
         public string Text { get; set; }
 
-        public DateTime Value1 { get; set; }
+        public DateTime Date { get; set; }
 
-        public int Value2 { get; set; }
+        public int Amount { get; set; }
     }
 }

@@ -12,20 +12,37 @@ namespace CasualConsole
     {
         public static void Main(string[] args)
         {
-            int[] numbers = { 3, 6, 2, 6, 4, 23, 7, 2, 3456, 3, 23, 2, 78 };
-
-
-
-            //min
-            //max
-            //sum
+            var x = new GenericClass<int, bool>();
 
             // Closing, Do Not Delete!
-            Console.WriteLine("Program has terminated");
+            Console.WriteLine("Program has terminated, press a key to exit");
             Console.ReadKey();
         }
 
+        static bool testMethod<T,E>(GenericClass<T,E> s)
+        {
+            return false;
+        }
 
+        static int DoOrDie(Func<int> action, String errorMessage)
+        {
+            try
+            {
+                return action();
+            }
+            catch (Exception e)
+            {
+                throw new Exception(errorMessage, e);
+            }
+        }
+
+        static void printArray<GenericType>(IEnumerable<GenericType> arr)
+        {
+            foreach (var item in arr)
+            {
+                Console.Write(item + "/");
+            }
+        }
 
         private static Action GetPrinterForInstance(IEnumerable<object> elems)
         {

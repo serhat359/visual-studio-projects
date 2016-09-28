@@ -1,7 +1,0 @@
-C:\Users\Serhat\documents\visual studio 2010\Projects\CasualConsole\ConsoleApplication1\bin\Release\ConsoleApplication1.exe
-C:\Users\Serhat\documents\visual studio 2010\Projects\CasualConsole\ConsoleApplication1\bin\Release\ConsoleApplication1.pdb
-C:\Users\Serhat\documents\visual studio 2010\Projects\CasualConsole\ConsoleApplication1\obj\x86\Release\ConsoleApplication1.exe
-C:\Users\Serhat\documents\visual studio 2010\Projects\CasualConsole\ConsoleApplication1\obj\x86\Release\ConsoleApplication1.pdb
-C:\Users\Serhat\documents\visual studio 2010\Projects\CasualConsole\ConsoleApplication1\obj\x86\Release\ConsoleApplication1.csprojResolveAssemblyReference.cache
-C:\Users\Serhat\documents\visual studio 2010\Projects\CasualConsole\ConsoleApplication1\bin\Release\CasualConsole.exe
-C:\Users\Serhat\documents\visual studio 2010\Projects\CasualConsole\ConsoleApplication1\bin\Release\CasualConsole.pdb

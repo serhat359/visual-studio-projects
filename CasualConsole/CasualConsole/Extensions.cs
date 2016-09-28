@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections;
+using System.Text.RegularExpressions;
 
 namespace CasualConsole
 {
@@ -15,13 +17,13 @@ namespace CasualConsole
             }
         }
 
-        public static V GetValueAssuring<K, V>(this Dictionary<K, V> dic, K key) where V : new()
+        public static V GetValueOrNew<K, V>(this Dictionary<K, V> dic, K key) where V : new()
         {
             V value;
 
-            if (dic.ContainsKey(key))
+            if (dic.TryGetValue(key, out value))
             {
-                value = dic[key];
+                
             }
             else
             {
@@ -32,12 +34,30 @@ namespace CasualConsole
             return value;
         }
 
-        public static V GetExistingOrDefault<K, V>(this Dictionary<K, V> dic, K key)
+        public static V GetValueOrDefault<K, V>(this Dictionary<K, V> dic, K key)
         {
-            if (dic.ContainsKey(key))
-                return dic[key];
+            V value;
+
+            if (dic.TryGetValue(key, out value))
+                return value;
             else
                 return default(V);
+        }
+
+        public static IEnumerable<object> AsEnumerable(IEnumerable collection)
+        {
+            foreach (var item in collection)
+            {
+                yield return item;
+            }
+        }
+
+        public static IEnumerable<Group> GroupList(this Match match)
+        {
+            for (int i = 0; i < match.Groups.Count; i++)
+            {
+                yield return match.Groups[i];
+            }
         }
     }
 }
