@@ -1,0 +1,90 @@
+﻿<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+    <head>
+        <title>Silverlight Gadget Template Useful Information</title>
+    </head>
+    <body>
+        <h1>Introduction</h1>
+        <p>
+            The purpose of the SilverlightGadgetDebugger project is only to act as a debug session starter for the
+            Silverlight gadget. Even though it is a console application project, it produces no output.
+            Instead, whenever the project is started it will invoke the SidebarSandboxStarter.exe file.
+            This application receives the current solution path as a command line parameter. 
+            It uses this information to connect to the Visual Studio that has the specified solution opened.
+            The SidebarSandboxStarter will attach the debugger from that instance of Visual Studio to the Windows Sidebar
+            process (sidebar.exe). If the process is not started, it will start it.
+        </p>
+        <p>
+            <b>NOTE:</b> Silverlight gadgets that use a Sivlerlight version older than 5.0 only work in the 32 bit version
+             of the Sidebar. Template will attach to the 32 bit or 64 bit version of the Sidebar, depending on the value of
+             Platform Target setting of the SilverlightGadgetDebugger project (from the property pages of the project).
+             <ul>
+                 <li>AnyCPU : 32 bit Sidebar</li>
+                 <li>x86    : 32 bit Sidebar</li>
+                 <li>x64    : 64 bit Sidebar (only on 64 bit OS, otherwise, 32 bit)</li>
+                 <li>Itanium: 64 bit Sidebar (only on 64 bit OS, otherwise, 32 bit)</li>
+             </ul>
+        </p>
+
+        <h1>Adding More Content to the SilverlightGadgetWeb Project</h1>
+        <ul>
+            <li>Include the content in the project</li>
+            <li>Set the "Build Action" to "Content"</li>
+            <li>Set the "Copy to Output Directory" to "Copy always" or "Copy if newer"</li>
+        </ul>
+        <h1>How to Debug Silverlight Gadgets Built Using This Template</h1>
+        <ul>
+            <li>
+                Make sure that the SilverlightGadgetDebugger is set as the startup project in the solution.
+            </li>
+            <li>
+                Make sure that the proper Platform Target is set for the SilverlightGadgetDebugger project.
+                For Silverlight versions older than 5.0, only AnyCPU or x86 will work.</li>
+            <li>
+                Start debugging this project (F5) and eventually Visual Studio will automatically attach to the Sidebar.
+                At this point you can debug.
+            </li>
+            <li>
+                When you stop debugging the project, the Sidebar is restored to the previous state.
+            </li>
+            <li>
+                When you run or debug using the method described in this file, you will get a UI with a "Close"
+                button that you can use to terminate the run or debug session.
+            </li>
+        </ul>
+        <p>
+            Sometimes it can take a bit longer (though not more than aprox. 20 seconds) for Visual Studio to attach to
+            the Sidebar. If you feel that the debugger is taking too long to attach, kill the SidebarSandboxStarter.exe
+            process and try again.
+        </p>
+        <p>
+            If you start the SilverlightGadgetDebugger project without debugging (Ctrl+ F5), it is possible that you
+            will get a console window that will eventually prompt you to "Press any key to continue...".
+            You can close this window and there won't be any side-effects.
+        </p>
+        <p>
+            As an alternative, you can manually attach to the 32 bit Sidebar process (without involving the
+            SilverlightGadgetDebugger project at all).
+        </p>
+        <h1>How to Publish Silverlight Gadgets Built Using This Template</h1>
+        <p>
+            Each time the SilverlightGadgetWeb project is built, a corresponding .gadget deployment file is generated.
+            The file is located under SilverlightGadgetWeb\bin\Publish.
+        </p>
+        <h1>Troubleshooting</h1>
+        <p>
+            Please don't move or change the name of the SilverlightGadgetDebugger project, as the build events from the
+            template rely on the project's name (and relative path within the solution).
+        </p>
+        <p>
+            If you make changes to some of the template generated files that break the build of the .gadget file or
+            the F5 debugging experience, you can create a new project using the template and compare your changes with the
+            original working versions.
+        </p>
+        <p>
+            If you change the Platform Target, unload/reload or close/open the SilverlightGadgetDebugger project.
+            Otherwise, the change will not be picked up by the starting arguments of the project
+            (limitation in Visual Studio).
+        </p>
+    </body>
+</html>
