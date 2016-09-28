@@ -1,5 +1,0 @@
-C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\Data.Factory\bin\Debug\Data.dll
-C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\Data.Factory\bin\Debug\Data.pdb
-C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\Data.Factory\obj\Debug\Data.dll
-C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\Data.Factory\obj\Debug\Data.pdb
-C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\Data.Factory\obj\Debug\Data.csprojResolveAssemblyReference.cache

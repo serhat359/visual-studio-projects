@@ -1,5 +1,0 @@
-C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\Business\bin\Debug\Business.dll
-C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\Business\bin\Debug\Business.pdb
-C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\Business\obj\Debug\Business.dll
-C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\Business\obj\Debug\Business.pdb
-C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\Business\obj\Debug\Business.csprojResolveAssemblyReference.cache

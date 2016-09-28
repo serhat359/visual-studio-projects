@@ -12,7 +12,7 @@ namespace WebModelFactory
         {
             PokemonModel model = new PokemonModel();
 
-            string query = "select * from stats " + (request.GetPropertyOrDefault(x => x.Query) ?? "");
+            string query = "select * from stat " + (request.GetPropertyOrDefault(x => x.Query) ?? "");
 
             try
             {

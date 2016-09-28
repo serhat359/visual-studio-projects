@@ -1,5 +1,0 @@
-C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\Model\bin\Debug\Model.dll
-C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\Model\bin\Debug\Model.pdb
-C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\Model\obj\Debug\Model.dll
-C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\Model\obj\Debug\Model.pdb
-C:\Users\Serhat\Documents\Visual Studio 2010\Projects\CasualWebSite\Model\obj\Debug\Model.csprojResolveAssemblyReference.cache
