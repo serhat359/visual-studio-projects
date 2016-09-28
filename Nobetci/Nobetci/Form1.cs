@@ -11,6 +11,8 @@ namespace Nobetci
 {
     public partial class Form1 : Form
     {
+        public Color holidayColor { get { return Color.Red; } }
+
         public Form1()
         {
             InitializeComponent();
@@ -18,8 +20,6 @@ namespace Nobetci
             SetupNobetTable();
 
             SetupCalendar();
-
-            
         }
 
         private void SetupCalendar()
@@ -75,19 +75,15 @@ namespace Nobetci
         {
             var color = myCalendar.Rows[row].Cells[column].Style.ForeColor;
 
-            if (color != Color.Red)
-            {
-                myCalendar.Rows[row].Cells[column].Style.ForeColor = Color.Red;
-            }
+            if (color != holidayColor)
+                myCalendar.Rows[row].Cells[column].Style.ForeColor = holidayColor;
             else
-            {
                 myCalendar.Rows[row].Cells[column].Style.ForeColor = Color.Black;
-            }
         }
 
         private bool IsHoliday(int row, int column)
         {
-            return myCalendar.Rows[row].Cells[column].Style.ForeColor == Color.Red;
+            return myCalendar.Rows[row].Cells[column].Style.ForeColor == holidayColor;
         }
     }
 }
