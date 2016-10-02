@@ -7,17 +7,19 @@ using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 using Nobetci;
+using System.Globalization;
 
 namespace Nobetci
 {
     public partial class Form1 : Form
     {
         public Color holidayColor { get { return Color.Red; } }
+        const int nobetCount = 6;
         public List<int> nobetDays
         {
             get
             {
-                return new int[] { 1, 2, 3, 4, 5 }.ToList();
+                return Enumerable.Range(1, nobetCount).ToList();
             }
         }
 
@@ -46,6 +48,8 @@ namespace Nobetci
             SetupNobetTable();
 
             SetupCalendar();
+
+            this.Text = DateTimeFormatInfo.CurrentInfo.GetMonthName(month) + " " + year + " Nöbetleri";
         }
 
         private void SetYearAndMonth()
@@ -95,19 +99,18 @@ namespace Nobetci
         {
             DataTable table = new DataTable();
             table.Columns.Add("İsim", typeof(string));
-            table.Columns.Add("1.", typeof(int));
-            table.Columns.Add("2.", typeof(int));
-            table.Columns.Add("3.", typeof(int));
-            table.Columns.Add("4.", typeof(int));
-            table.Columns.Add("5.", typeof(int));
+            foreach (int day in nobetDays)
+            {
+                table.Columns.Add(day + ".", typeof(int));
+            }
             table.Columns.Add(friDay, typeof(int));
             table.Columns.Add(satDay, typeof(int));
             table.Columns.Add(sunDay, typeof(int));
             table.Columns.Add("H.sonu", typeof(int));
             table.Columns.Add("Per", typeof(bool));
 
-            table.Rows.Add("serhat", 15, 23);
-            table.Rows.Add("ahmet", 5, 12);
+            table.Rows.Add("serhat", 16, 23);
+            table.Rows.Add("ahmet", 6, 12);
             table.AcceptChanges();
 
             this.nobetTable.DataSource = table;

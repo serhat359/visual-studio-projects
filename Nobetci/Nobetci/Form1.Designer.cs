@@ -49,7 +49,7 @@
             this.nobetTable.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.nobetTable.Location = new System.Drawing.Point(12, 12);
             this.nobetTable.Name = "nobetTable";
-            this.nobetTable.Size = new System.Drawing.Size(482, 405);
+            this.nobetTable.Size = new System.Drawing.Size(550, 405);
             this.nobetTable.TabIndex = 0;
             this.nobetTable.CellClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.nobetTable_CellClick);
             this.nobetTable.CellEndEdit += new System.Windows.Forms.DataGridViewCellEventHandler(this.nobetTable_CellEndEdit);
@@ -71,7 +71,7 @@
             this.Cts,
             this.Paz});
             this.myCalendar.EditMode = System.Windows.Forms.DataGridViewEditMode.EditOnF2;
-            this.myCalendar.Location = new System.Drawing.Point(518, 12);
+            this.myCalendar.Location = new System.Drawing.Point(582, 12);
             this.myCalendar.Name = "myCalendar";
             this.myCalendar.ReadOnly = true;
             this.myCalendar.Size = new System.Drawing.Size(240, 157);
