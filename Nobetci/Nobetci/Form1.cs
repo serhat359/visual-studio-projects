@@ -13,6 +13,15 @@ namespace Nobetci
     {
         public Color holidayColor { get { return Color.Red; } }
 
+        public class TableIndex
+        {
+            public int RowIndex { get; set; }
+            public int ColumnIndex { get; set; }
+        }
+
+        private bool isCellClicked;
+        private TableIndex lastIndex;
+
         public Form1()
         {
             InitializeComponent();
@@ -27,7 +36,7 @@ namespace Nobetci
             const int year = 2016;
             const int month = 10;
             DateTime date = new DateTime(year, month, 1);
-            
+
             // myCalendar
             myCalendar.Rows.Add(6);
 
@@ -90,5 +99,41 @@ namespace Nobetci
         {
             return myCalendar.Rows[row].Cells[column].Style.ForeColor == holidayColor;
         }
+
+        private void nobetTable_CellClick(object sender, System.Windows.Forms.DataGridViewCellEventArgs e)
+        {
+            if (!isCellClicked)
+            {
+                lastIndex = new TableIndex { RowIndex = e.RowIndex, ColumnIndex = e.ColumnIndex };
+            }
+            else
+            {
+                TableIndex newIndex = new TableIndex { RowIndex = e.RowIndex, ColumnIndex = e.ColumnIndex };
+                SwapCells(lastIndex, newIndex);
+            }
+
+            Flip(ref isCellClicked);
+        }
+
+        private void SwapCells(TableIndex lastIndex, TableIndex newIndex)
+        {
+            var lastCellValue = this.nobetTable[lastIndex.ColumnIndex, lastIndex.RowIndex].Value;
+            var newCellValue = this.nobetTable[newIndex.ColumnIndex, newIndex.RowIndex].Value;
+
+            if (lastCellValue != null && newCellValue != null && lastCellValue.GetType() == typeof(int) && newCellValue.GetType() == typeof(int))
+            {
+                int lastValue = (int)lastCellValue;
+                int newValue = (int)newCellValue;
+
+                this.nobetTable[lastIndex.ColumnIndex, lastIndex.RowIndex].Value = newValue;
+                this.nobetTable[newIndex.ColumnIndex, newIndex.RowIndex].Value = lastValue;
+            }
+        }
+
+        private void Flip(ref bool val)
+        {
+            val = !val;
+        }
+
     }
 }
