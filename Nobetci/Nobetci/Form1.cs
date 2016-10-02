@@ -34,8 +34,11 @@ namespace Nobetci
 
         public class TableIndex
         {
-            public int RowIndex { get; set; }
-            public int ColumnIndex { get; set; }
+            private int _rowIndex;
+            public int RowIndex { get { return _rowIndex; } set { _rowIndex = value > 0 ? value : 0; } }
+
+            private int _columnIndex;
+            public int ColumnIndex { get { return _columnIndex; } set { _columnIndex = value > 0 ? value : 0; } }
         }
 
         private bool isCellClicked;
@@ -116,6 +119,11 @@ namespace Nobetci
             table.AcceptChanges();
 
             this.nobetTable.DataSource = table;
+            foreach (DataGridViewColumn column in this.nobetTable.Columns)
+            {
+                column.SortMode = DataGridViewColumnSortMode.NotSortable;
+            }
+            this.nobetTable.Columns["İsim"].AutoSizeMode = DataGridViewAutoSizeColumnMode.DisplayedCells;
             this.nobetTable.EndEdit();
         }
 
@@ -205,7 +213,7 @@ namespace Nobetci
 
         private void CheckAllRows()
         {
-            IEnumerable<int> rows = Enumerable.Range(0, nobetTable.Rows.Count);
+            IEnumerable<int> rows = Enumerable.Range(0, nobetTable.Rows.Count - 1);
 
             foreach (int rowIndex in rows)
             {
@@ -278,7 +286,7 @@ namespace Nobetci
 
         private IEnumerable<DataGridViewCell> GetAllCalendarCells()
         {
-            foreach (int rowIndex in Enumerable.Range(0, myCalendar.Rows.Count))
+            foreach (int rowIndex in Enumerable.Range(0, myCalendar.Rows.Count - 1))
             {
                 foreach (int columnIndex in Enumerable.Range(0, myCalendar.Columns.Count))
                 {
