@@ -6,12 +6,20 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
+using Nobetci;
 
 namespace Nobetci
 {
     public partial class Form1 : Form
     {
         public Color holidayColor { get { return Color.Red; } }
+        public List<int> nobetDays
+        {
+            get
+            {
+                return new int[] { 1, 2, 3, 4, 5 }.ToList();
+            }
+        }
 
         public class TableIndex
         {
@@ -73,7 +81,7 @@ namespace Nobetci
             table.Columns.Add("Per", typeof(bool));
 
             table.Rows.Add("serhat", 15, 23);
-            table.Rows.Add("ahmet", 28, 12);
+            table.Rows.Add("ahmet", 5, 12);
             table.AcceptChanges();
 
             this.nobetTable.DataSource = table;
@@ -110,9 +118,22 @@ namespace Nobetci
             {
                 TableIndex newIndex = new TableIndex { RowIndex = e.RowIndex, ColumnIndex = e.ColumnIndex };
                 SwapCells(lastIndex, newIndex);
+                SortRows(lastIndex.RowIndex, newIndex.RowIndex);
+                CheckAllRows();
             }
 
             Flip(ref isCellClicked);
+        }
+
+        private void SortRows(params int[] rows)
+        {
+            foreach (int rowIndex in rows)
+            {
+                foreach (var item in GetNobets(rowIndex).OrderBy(x => x).WithIndex())
+                {
+                    this.nobetTable[item.Index + 1, rowIndex].Value = item.Value;
+                }
+            }
         }
 
         private void SwapCells(TableIndex lastIndex, TableIndex newIndex)
@@ -130,10 +151,64 @@ namespace Nobetci
             }
         }
 
+        void nobetTable_CellEndEdit(object sender, System.Windows.Forms.DataGridViewCellEventArgs e)
+        {
+            SortRows(e.RowIndex);
+            CheckAllRows();
+        }
+
+        private void CheckAllRows()
+        {
+            IEnumerable<int> rows = Enumerable.Range(0, nobetTable.Rows.Count);
+
+            foreach (int rowIndex in rows)
+            {
+                ClearRowStyle(rowIndex);
+
+                CheckFollowingDays(rowIndex);
+            }
+        }
+
+        private void CheckFollowingDays(int rowIndex)
+        {
+            var days = GetNobets(rowIndex).Select((e, i) => new { index = i, value = e }).OrderBy(x => x.value).ToList();
+
+            for (int i = 1; i < days.Count; i++)
+            {
+                if (days[i].value - days[i - 1].value <= 1)
+                    Highlight(rowIndex, days[i].index + 1);
+            }
+        }
+
+        private void ClearRowStyle(int rowIndex)
+        {
+            foreach (int columnIndex in nobetDays)
+            {
+                nobetTable[columnIndex, rowIndex].Style.ForeColor = Color.Black;
+            }
+        }
+
+        private void Highlight(int rowIndex, int columnIndex)
+        {
+            nobetTable[columnIndex, rowIndex].Style.ForeColor = Color.Red;
+        }
+
+        private IEnumerable<int> GetNobets(int rowIndex)
+        {
+            foreach (int i in nobetDays)
+            {
+                var cellValue = nobetTable[i, rowIndex].Value;
+
+                if (cellValue != null && typeof(int) == cellValue.GetType())
+                    yield return (int)cellValue;
+                else
+                    break;
+            }
+        }
+
         private void Flip(ref bool val)
         {
             val = !val;
         }
-
     }
 }

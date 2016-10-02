@@ -52,6 +52,7 @@
             this.nobetTable.Size = new System.Drawing.Size(482, 405);
             this.nobetTable.TabIndex = 0;
             this.nobetTable.CellClick += new System.Windows.Forms.DataGridViewCellEventHandler(nobetTable_CellClick);
+            this.nobetTable.CellEndEdit += new System.Windows.Forms.DataGridViewCellEventHandler(nobetTable_CellEndEdit);
             // 
             // myCalendar
             // 
