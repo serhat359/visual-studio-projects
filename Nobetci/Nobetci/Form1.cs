@@ -29,6 +29,8 @@ namespace Nobetci
         const string friDay = "Cum";
         const string satDay = "Cts";
         const string sunDay = "Paz";
+        const string weekEnd = "H.sonu";
+        const string thuDay = "Per";
 
         public class TableIndex
         {
@@ -106,8 +108,8 @@ namespace Nobetci
             table.Columns.Add(friDay, typeof(int));
             table.Columns.Add(satDay, typeof(int));
             table.Columns.Add(sunDay, typeof(int));
-            table.Columns.Add("H.sonu", typeof(int));
-            table.Columns.Add("Per", typeof(bool));
+            table.Columns.Add(weekEnd, typeof(int));
+            table.Columns.Add(thuDay, typeof(bool));
 
             table.Rows.Add("serhat", 16, 23);
             table.Rows.Add("ahmet", 6, 12);
@@ -137,19 +139,19 @@ namespace Nobetci
                 myCalendar.Rows[row].Cells[column].Style.ForeColor = LighterIfNext(Color.Black, isNextMonth);
         }
 
-        private bool IsHoliday(Color c)
-        {
-            return c.R == 255;
-        }
-
         private Color LighterIfNext(Color color, bool isNextMonth)
         {
             return isNextMonth ? Color.FromArgb(color.R / 3 + 170, color.G / 3 + 170, color.B / 3 + 170) : color;
         }
 
+        private bool IsHoliday(Color c)
+        {
+            return c.R == 255;
+        }
+
         private bool IsHoliday(int row, int column)
         {
-            return myCalendar.Rows[row].Cells[column].Style.ForeColor == holidayColor;
+            return IsHoliday(myCalendar.Rows[row].Cells[column].Style.ForeColor);
         }
 
         private void nobetTable_CellClick(object sender, System.Windows.Forms.DataGridViewCellEventArgs e)
@@ -220,6 +222,8 @@ namespace Nobetci
             int friCount = 0;
             int satCount = 0;
             int sunCount = 0;
+            int thuCount = 0;
+            int weekEndCount = 0;
 
             foreach (int day in GetNobets(rowIndex))
             {
@@ -227,6 +231,9 @@ namespace Nobetci
 
                 switch (dayOfWeek)
                 {
+                    case DayOfWeek.Thursday:
+                        thuCount++;
+                        break;
                     case DayOfWeek.Friday:
                         friCount++;
                         break;
@@ -240,9 +247,44 @@ namespace Nobetci
                         break;
                 }
 
-                nobetTable[friDay, rowIndex].Value = friCount;
-                nobetTable[satDay, rowIndex].Value = satCount;
-                nobetTable[sunDay, rowIndex].Value = sunCount;
+                weekEndCount += GetWeekendWaste(day);
+            }
+
+            nobetTable[friDay, rowIndex].Value = friCount;
+            nobetTable[satDay, rowIndex].Value = satCount;
+            nobetTable[sunDay, rowIndex].Value = sunCount;
+            nobetTable[weekEnd, rowIndex].Value = weekEndCount;
+            nobetTable[thuDay, rowIndex].Value = thuCount > 0;
+        }
+
+        private int GetWeekendWaste(int day)
+        {
+            int weekendCount = 0;
+
+            var cells = GetAllCalendarCells().SkipWhile(x => Extensions.CastInt(x.Value) != day).Take(2).ToArray();
+
+            foreach (var cell in cells)
+            {
+                var color = cell.Style.ForeColor;
+                bool isHoliday = IsHoliday(color);
+                if (isHoliday)
+                {
+                    weekendCount++;
+                }
+            }
+
+            return weekendCount;
+        }
+
+        private IEnumerable<DataGridViewCell> GetAllCalendarCells()
+        {
+            foreach (int rowIndex in Enumerable.Range(0, myCalendar.Rows.Count))
+            {
+                foreach (int columnIndex in Enumerable.Range(0, myCalendar.Columns.Count))
+                {
+                    DataGridViewCell cell = myCalendar[columnIndex, rowIndex];
+                    yield return cell;
+                }
             }
         }
 
