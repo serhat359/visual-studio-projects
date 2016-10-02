@@ -21,9 +21,9 @@ namespace Nobetci
             }
         }
 
-        const int year = 2016;
-        const int month = 10;
-        DateTime date = new DateTime(year, month, 1);
+        int year = 0;
+        int month = 0;
+        DateTime date;
         const string friDay = "Cum";
         const string satDay = "Cts";
         const string sunDay = "Paz";
@@ -41,21 +41,37 @@ namespace Nobetci
         {
             InitializeComponent();
 
+            SetYearAndMonth();
+
             SetupNobetTable();
 
             SetupCalendar();
         }
 
+        private void SetYearAndMonth()
+        {
+            var result = new YearAndMonthForm().GetYearAndMonth();
+
+            if (!result.IsSuccessFull)
+                System.Environment.Exit(0);
+            else
+            {
+                this.month = result.Month;
+                this.year = result.Year;
+                this.date = new DateTime(year, month, 1);
+            }
+        }
+
         private void SetupCalendar()
         {
-
-            // myCalendar
             myCalendar.Rows.Add(6);
 
             int firstDay = (int)date.DayOfWeek;
             firstDay = firstDay == 0 ? 7 : firstDay;
 
-            for (int i = 0; i < DateTime.DaysInMonth(year, month); i++)
+            int daysInMoth = DateTime.DaysInMonth(year, month);
+
+            for (int i = 0; i < daysInMoth + 3; i++)
             {
                 int thisDay = i + firstDay - 1;
                 int row = thisDay / 7;
@@ -63,9 +79,15 @@ namespace Nobetci
 
                 myCalendar.Rows[row].Cells[column].Value = i + 1;
 
-                var dayOfWeek = new DateTime(year, month, i + 1).DayOfWeek;
+                var dayOfWeek = new DateTime(year, month, 1).AddDays(i).DayOfWeek;
                 if (dayOfWeek == DayOfWeek.Saturday || dayOfWeek == DayOfWeek.Sunday)
-                    ToggleHoliday(row, column);
+                    ToggleHoliday(row, column, i > daysInMoth);
+
+                if (i >= daysInMoth)
+                {
+                    var color = myCalendar.Rows[row].Cells[column].Style.ForeColor;
+                    myCalendar.Rows[row].Cells[column].Style.ForeColor = LighterIfNext(color, true);
+                }
             }
         }
 
@@ -92,19 +114,34 @@ namespace Nobetci
             this.nobetTable.EndEdit();
         }
 
-        private void myCalendar_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        private void myCalendar_CellContentDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
             ToggleHoliday(e.RowIndex, e.ColumnIndex);
         }
 
         private void ToggleHoliday(int row, int column)
         {
+            ToggleHoliday(row, column, myCalendar[column, row].Style.ForeColor.G > 0);
+        }
+
+        private void ToggleHoliday(int row, int column, bool isNextMonth)
+        {
             var color = myCalendar.Rows[row].Cells[column].Style.ForeColor;
 
-            if (color != holidayColor)
-                myCalendar.Rows[row].Cells[column].Style.ForeColor = holidayColor;
+            if (!IsHoliday(color))
+                myCalendar.Rows[row].Cells[column].Style.ForeColor = LighterIfNext(holidayColor, isNextMonth);
             else
-                myCalendar.Rows[row].Cells[column].Style.ForeColor = Color.Black;
+                myCalendar.Rows[row].Cells[column].Style.ForeColor = LighterIfNext(Color.Black, isNextMonth);
+        }
+
+        private bool IsHoliday(Color c)
+        {
+            return c.R == 255;
+        }
+
+        private Color LighterIfNext(Color color, bool isNextMonth)
+        {
+            return isNextMonth ? Color.FromArgb(color.R / 3 + 170, color.G / 3 + 170, color.B / 3 + 170) : color;
         }
 
         private bool IsHoliday(int row, int column)

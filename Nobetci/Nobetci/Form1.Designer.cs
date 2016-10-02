@@ -51,8 +51,8 @@
             this.nobetTable.Name = "nobetTable";
             this.nobetTable.Size = new System.Drawing.Size(482, 405);
             this.nobetTable.TabIndex = 0;
-            this.nobetTable.CellClick += new System.Windows.Forms.DataGridViewCellEventHandler(nobetTable_CellClick);
-            this.nobetTable.CellEndEdit += new System.Windows.Forms.DataGridViewCellEventHandler(nobetTable_CellEndEdit);
+            this.nobetTable.CellClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.nobetTable_CellClick);
+            this.nobetTable.CellEndEdit += new System.Windows.Forms.DataGridViewCellEventHandler(this.nobetTable_CellEndEdit);
             // 
             // myCalendar
             // 
@@ -76,7 +76,7 @@
             this.myCalendar.ReadOnly = true;
             this.myCalendar.Size = new System.Drawing.Size(240, 157);
             this.myCalendar.TabIndex = 2;
-            this.myCalendar.CellContentDoubleClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.myCalendar_CellContentClick);
+            this.myCalendar.CellContentDoubleClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.myCalendar_CellContentDoubleClick);
             // 
             // Pzt
             // 
@@ -128,7 +128,7 @@
             this.Controls.Add(this.myCalendar);
             this.Controls.Add(this.nobetTable);
             this.Name = "Form1";
-            this.Text = "Form1";
+            this.Text = "Nöbet Düzenleme";
             ((System.ComponentModel.ISupportInitialize)(this.nobetTable)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.myCalendar)).EndInit();
             this.ResumeLayout(false);
