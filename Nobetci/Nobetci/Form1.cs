@@ -21,6 +21,13 @@ namespace Nobetci
             }
         }
 
+        const int year = 2016;
+        const int month = 10;
+        DateTime date = new DateTime(year, month, 1);
+        const string friDay = "Cum";
+        const string satDay = "Cts";
+        const string sunDay = "Paz";
+
         public class TableIndex
         {
             public int RowIndex { get; set; }
@@ -41,9 +48,6 @@ namespace Nobetci
 
         private void SetupCalendar()
         {
-            const int year = 2016;
-            const int month = 10;
-            DateTime date = new DateTime(year, month, 1);
 
             // myCalendar
             myCalendar.Rows.Add(6);
@@ -74,9 +78,9 @@ namespace Nobetci
             table.Columns.Add("3.", typeof(int));
             table.Columns.Add("4.", typeof(int));
             table.Columns.Add("5.", typeof(int));
-            table.Columns.Add("Cum", typeof(int));
-            table.Columns.Add("Cts", typeof(int));
-            table.Columns.Add("Paz", typeof(int));
+            table.Columns.Add(friDay, typeof(int));
+            table.Columns.Add(satDay, typeof(int));
+            table.Columns.Add(sunDay, typeof(int));
             table.Columns.Add("H.sonu", typeof(int));
             table.Columns.Add("Per", typeof(bool));
 
@@ -166,6 +170,39 @@ namespace Nobetci
                 ClearRowStyle(rowIndex);
 
                 CheckFollowingDays(rowIndex);
+
+                DoCountings(rowIndex);
+            }
+        }
+
+        private void DoCountings(int rowIndex)
+        {
+            int friCount = 0;
+            int satCount = 0;
+            int sunCount = 0;
+
+            foreach (int day in GetNobets(rowIndex))
+            {
+                DayOfWeek dayOfWeek = new DateTime(year, month, day).DayOfWeek;
+
+                switch (dayOfWeek)
+                {
+                    case DayOfWeek.Friday:
+                        friCount++;
+                        break;
+                    case DayOfWeek.Saturday:
+                        satCount++;
+                        break;
+                    case DayOfWeek.Sunday:
+                        sunCount++;
+                        break;
+                    default:
+                        break;
+                }
+
+                nobetTable[friDay, rowIndex].Value = friCount;
+                nobetTable[satDay, rowIndex].Value = satCount;
+                nobetTable[sunDay, rowIndex].Value = sunCount;
             }
         }
 
