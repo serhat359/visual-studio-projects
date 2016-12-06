@@ -1,12 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Windows.Forms;
 using System.IO;
+using System.Windows.Forms;
 
 namespace BackupHomeFolder
 {
@@ -25,6 +20,8 @@ namespace BackupHomeFolder
 
         private void checkButton_Click(object sender, EventArgs e)
         {
+            checkButton.Enabled = false;
+
             string sourceFolder = sourceTextBox.Text;
             string destinationFolder = destinationTextBox.Text;
 
@@ -62,18 +59,20 @@ namespace BackupHomeFolder
                     }
                 }
 
+                checkButton.Enabled = true;
+
                 string dialogtext = string.Format("{0} files and {1} will be copied, continue?", fileCountToCopy, ByteSize.SizeSuffix(bytesToCopy));
 
                 DialogResult dialogResult = MessageBox.Show(dialogtext, "Copy Files", MessageBoxButtons.YesNo);
                 if (dialogResult == DialogResult.Yes)
                 {
                     thread = new FileCopyingThread(filesToCopy, this.Handle, bytesToCopy, fileCopyLabel);
-
                 }
             }
             else
             {
                 MessageBox.Show("Choose both folders");
+                checkButton.Enabled = true;
             }
         }
 
