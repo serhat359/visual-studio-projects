@@ -12,6 +12,8 @@ namespace BackupHomeFolder
 {
     public partial class Form1 : Form
     {
+        FileCopyingThread thread = null;
+
         public Form1()
         {
             InitializeComponent();
@@ -65,25 +67,8 @@ namespace BackupHomeFolder
                 DialogResult dialogResult = MessageBox.Show(dialogtext, "Copy Files", MessageBoxButtons.YesNo);
                 if (dialogResult == DialogResult.Yes)
                 {
-                    long bytesCopied = 0;
-                    filesToCopy.Each((copyInfo, i) =>
-                    {
-                        fileCopyLabel.Text = string.Format("Copying {0} of {1} files", (i + 1), filesToCopy.Count);
-                        fileCopyLabel.Refresh();
-                        Directory.CreateDirectory(Path.GetDirectoryName(copyInfo.DestinationPath));
-                        File.Copy(copyInfo.SourcePath, copyInfo.DestinationPath, true);
-                        TaskbarProgress.SetState(this.Handle, TaskbarProgress.TaskbarStates.Normal);
-                        TaskbarProgress.SetValue(this.Handle, bytesCopied, IfZero(bytesToCopy, 1));
-                        bytesCopied += copyInfo.FileSize;
-                    });
+                    thread = new FileCopyingThread(filesToCopy, this.Handle, bytesToCopy, fileCopyLabel);
 
-                    TaskbarProgress.SetState(this.Handle, TaskbarProgress.TaskbarStates.Normal);
-                    TaskbarProgress.SetValue(this.Handle, 1, 1);
-
-                    fileCopyLabel.Text = "Copying Completed";
-                    fileCopyLabel.Refresh();
-                    MessageBox.Show("Copying Completed");
-                    TaskbarProgress.SetState(this.Handle, TaskbarProgress.TaskbarStates.NoProgress);
                 }
             }
             else
@@ -120,9 +105,10 @@ namespace BackupHomeFolder
             return files;
         }
 
-        private long IfZero(long num, long ifZeroVal)
+        private void stopCopybutton_Click(object sender, EventArgs e)
         {
-            return num != 0 ? num : ifZeroVal;
+            if (thread != null)
+                thread.continueCopy = false;
         }
     }
 
