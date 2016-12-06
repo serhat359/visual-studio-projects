@@ -32,8 +32,9 @@ namespace BackupHomeFolder
                 setting.DestinationFolder = destinationFolder;
                 Settings.Set(setting);
 
-                string[] subfolders = new string[] { "Pictures", "Videos", "Desktop", "Documents" };
+                string[] subfolders = new string[] { "Pictures", "Videos", "Desktop", "Documents", "git", "Downloads", "Music", "workspace" };
 
+                // Copying files to hard drive
                 long fileCountToCopy = 0;
                 long bytesToCopy = 0;
 
@@ -41,7 +42,7 @@ namespace BackupHomeFolder
 
                 foreach (var subfolderName in subfolders)
                 {
-                    List<String> allFiles = DirSearch(Path.Combine(sourceFolder, subfolderName));
+                    List<String> allFiles = DirSearch(Path.Combine(sourceFolder, subfolderName), false);
 
                     foreach (String oldFilePath in allFiles)
                     {
@@ -59,14 +60,39 @@ namespace BackupHomeFolder
                     }
                 }
 
+                // Deleting files from hard drive
+                long fileCountToDelete = 0;
+                long bytesToDelete = 0;
+
+                List<string> filesToDelete = new List<string>();
+
+                foreach (var subfolderName in subfolders)
+                {
+                    List<String> allFiles = DirSearch(Path.Combine(destinationFolder, subfolderName), true);
+
+                    foreach (String destFilePath in allFiles)
+                    {
+                        string srcFilePath = destFilePath.Replace(destinationFolder, sourceFolder);
+
+                        FileInfo destFileInfo = new FileInfo(destFilePath);
+
+                        if (!File.Exists(srcFilePath))
+                        {
+                            fileCountToDelete++;
+                            bytesToDelete += destFileInfo.Length;
+                            filesToDelete.Add(destFilePath);
+                        }
+                    }
+                }
+
                 checkButton.Enabled = true;
 
-                string dialogtext = string.Format("{0} files and {1} will be copied, continue?", fileCountToCopy, ByteSize.SizeSuffix(bytesToCopy));
+                string dialogtext = string.Format("{0} files and {1} will be copied, {2} files and {3} will be deleted, continue?", fileCountToCopy, ByteSize.SizeSuffix(bytesToCopy), fileCountToDelete, ByteSize.SizeSuffix(bytesToDelete));
 
                 DialogResult dialogResult = MessageBox.Show(dialogtext, "Copy Files", MessageBoxButtons.YesNo);
                 if (dialogResult == DialogResult.Yes)
                 {
-                    thread = new FileCopyingThread(filesToCopy, this.Handle, bytesToCopy, fileCopyLabel);
+                    thread = new FileCopyingThread(filesToCopy, this.Handle, bytesToCopy, fileCopyLabel, filesToDelete);
                 }
             }
             else
@@ -81,7 +107,7 @@ namespace BackupHomeFolder
             return !string.IsNullOrEmpty(str);
         }
 
-        private List<String> DirSearch(string sDir)
+        private List<String> DirSearch(string sDir, bool suppressEx)
         {
             List<String> files = new List<String>();
 
@@ -93,12 +119,14 @@ namespace BackupHomeFolder
                 }
                 foreach (string d in Directory.GetDirectories(sDir))
                 {
-                    files.AddRange(DirSearch(d));
+                    files.AddRange(DirSearch(d, suppressEx));
                 }
             }
-            catch (System.Exception excpt)
+            catch (UnauthorizedAccessException) { }
+            catch (Exception excpt)
             {
-                //MessageBox.Show(excpt.Message);
+                if (!suppressEx)
+                    MessageBox.Show(excpt.Message);
             }
 
             return files;

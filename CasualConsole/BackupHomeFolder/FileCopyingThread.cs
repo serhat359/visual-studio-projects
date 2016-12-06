@@ -12,21 +12,27 @@ namespace BackupHomeFolder
 
         ThreadStart threadAction;
 
-        public FileCopyingThread(List<FileCopyInfo> filesToCopy, IntPtr handle, long bytesToCopy, Label fileCopyLabel)
+        public FileCopyingThread(List<FileCopyInfo> filesToCopy, IntPtr handle, long bytesToCopy, Label fileCopyLabel, List<string> filesToDelete)
         {
             threadAction = () =>
             {
-                DoWork(filesToCopy, handle, bytesToCopy, fileCopyLabel);
+                DoWork(filesToCopy, handle, bytesToCopy, fileCopyLabel, filesToDelete);
             };
 
             Thread thread = new Thread(threadAction);
             thread.Start();
         }
 
-        private void DoWork(List<FileCopyInfo> filesToCopy, IntPtr handle, long bytesToCopy, Label fileCopyLabel)
+        private void DoWork(List<FileCopyInfo> filesToCopy, IntPtr handle, long bytesToCopy, Label fileCopyLabel, List<string> filesToDelete)
         {
             continueCopy = true;
             long bytesCopied = 0;
+
+            filesToDelete.Each((filePathToDelete, i) =>
+            {
+                File.Delete(filePathToDelete);
+                return continueCopy;
+            });
 
             filesToCopy.Each((copyInfo, i) =>
             {
