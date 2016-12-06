@@ -33,6 +33,7 @@
             this.checkButton = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
+            this.fileCopyLabel = new System.Windows.Forms.Label();
             this.SuspendLayout();
             // 
             // sourceTextBox
@@ -51,11 +52,11 @@
             // 
             // checkButton
             // 
-            this.checkButton.Location = new System.Drawing.Point(517, 209);
+            this.checkButton.Location = new System.Drawing.Point(477, 209);
             this.checkButton.Name = "checkButton";
-            this.checkButton.Size = new System.Drawing.Size(75, 23);
+            this.checkButton.Size = new System.Drawing.Size(115, 23);
             this.checkButton.TabIndex = 2;
-            this.checkButton.Text = "Check";
+            this.checkButton.Text = "Check for Updates";
             this.checkButton.UseVisualStyleBackColor = true;
             this.checkButton.Click += new System.EventHandler(this.checkButton_Click);
             // 
@@ -77,18 +78,28 @@
             this.label2.TabIndex = 4;
             this.label2.Text = "Destination Folder";
             // 
+            // fileCopyLabel
+            // 
+            this.fileCopyLabel.AutoSize = true;
+            this.fileCopyLabel.Location = new System.Drawing.Point(37, 209);
+            this.fileCopyLabel.Name = "fileCopyLabel";
+            this.fileCopyLabel.Size = new System.Drawing.Size(108, 13);
+            this.fileCopyLabel.TabIndex = 5;
+            this.fileCopyLabel.Text = "Waiting for Command";
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(662, 276);
+            this.Controls.Add(this.fileCopyLabel);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.checkButton);
             this.Controls.Add(this.destinationTextBox);
             this.Controls.Add(this.sourceTextBox);
             this.Name = "Form1";
-            this.Text = "Form1";
+            this.Text = "Backup Home Folder";
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -101,6 +112,7 @@
         private System.Windows.Forms.Button checkButton;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label label2;
+        private System.Windows.Forms.Label fileCopyLabel;
     }
 }
 
