@@ -55,7 +55,7 @@ namespace BackupHomeFolder
                         {
                             fileCountToCopy++;
                             bytesToCopy += oldFileInfo.Length;
-                            filesToCopy.Add(new FileCopyInfo { SourcePath = oldFilePath, DestinationPath = newFilePath, FileSize = oldFileInfo.Length });
+                            filesToCopy.Add(new FileCopyInfo { SourcePath = oldFilePath, DestinationPath = newFilePath, FileSizeBytes = oldFileInfo.Length });
                         }
                     }
                 }
@@ -143,6 +143,6 @@ namespace BackupHomeFolder
     {
         public string SourcePath { get; set; }
         public string DestinationPath { get; set; }
-        public long FileSize { get; set; }
+        public long FileSizeBytes { get; set; }
     }
 }

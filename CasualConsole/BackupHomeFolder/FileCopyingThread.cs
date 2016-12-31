@@ -41,7 +41,7 @@ namespace BackupHomeFolder
                 File.Copy(copyInfo.SourcePath, copyInfo.DestinationPath, true);
                 TaskbarProgress.SetState(handle, TaskbarProgress.TaskbarStates.Normal);
                 TaskbarProgress.SetValue(handle, bytesCopied, IfZero(bytesToCopy, 1));
-                bytesCopied += copyInfo.FileSize;
+                bytesCopied += copyInfo.FileSizeBytes;
                 return continueCopy;
             });
 
