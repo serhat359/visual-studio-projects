@@ -30,7 +30,12 @@ namespace BackupHomeFolder
 
             filesToDelete.Each((filePathToDelete, i) =>
             {
-                File.Delete(filePathToDelete);
+                try
+                {
+                    File.Delete(filePathToDelete);
+                }
+                catch (UnauthorizedAccessException) { }
+
                 return continueCopy;
             });
 
