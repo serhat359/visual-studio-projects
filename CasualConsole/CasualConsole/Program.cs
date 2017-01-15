@@ -5,6 +5,7 @@ using System.Linq.Expressions;
 using System.Threading.Tasks;
 using System.Reflection;
 using System.Collections;
+using System.Threading;
 
 namespace CasualConsole
 {
@@ -12,16 +13,36 @@ namespace CasualConsole
     {
         public static void Main(string[] args)
         {
-            var x = new GenericClass<int, bool>();
+            Dummy d = new Dummy(3, "ahmet");
+
+            string exprname = Ext.NameOf(() => d.StringProperty);
+
+            Console.WriteLine(exprname);
+
+            byte a = 250;
+            byte b = 255;
+
+            Console.WriteLine(a * b);
 
             // Closing, Do Not Delete!
             Console.WriteLine("Program has terminated, press a key to exit");
             Console.ReadKey();
         }
 
-        static bool testMethod<T,E>(GenericClass<T,E> s)
+        static IEnumerable<int> filter(List<int> list)
         {
-            return false;
+            foreach (var item in list)
+            {
+                if (item < 10)
+                    yield return item;
+            }
+        }
+
+        static IEnumerable<string> GetWords()
+        {
+            yield return "ahmet";
+            yield return "mehmet";
+            yield return "süleyman";
         }
 
         static int DoOrDie(Func<int> action, String errorMessage)
@@ -36,7 +57,7 @@ namespace CasualConsole
             }
         }
 
-        static void printArray<GenericType>(IEnumerable<GenericType> arr)
+        static void PrintArray<GenericType>(IEnumerable<GenericType> arr)
         {
             foreach (var item in arr)
             {
@@ -228,7 +249,7 @@ namespace CasualConsole
     {
         public int index;
         public string text;
-        public string stringProp { get; set; }
+        public string StringProperty { get; set; }
 
         public Dummy()
         {

@@ -1,11 +1,13 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq.Expressions;
+using System.Reflection;
 using System.Text.RegularExpressions;
 
 namespace CasualConsole
 {
-    public static class Extensions
+    public static class Ext
     {
         public static void Each<T>(this IEnumerable<T> list, Action<T, int> action)
         {
@@ -17,13 +19,21 @@ namespace CasualConsole
             }
         }
 
+        public static void Each<T>(this IEnumerable<T> list, Action<T> action)
+        {
+            foreach (T t in list)
+            {
+                action(t);
+            }
+        }
+
         public static V GetValueOrNew<K, V>(this Dictionary<K, V> dic, K key) where V : new()
         {
             V value;
 
             if (dic.TryGetValue(key, out value))
             {
-                
+
             }
             else
             {
@@ -58,6 +68,11 @@ namespace CasualConsole
             {
                 yield return match.Groups[i];
             }
+        }
+
+        public static String NameOf<E>(Expression<Func<E>> expr)
+        {
+            return ((expr.Body as MemberExpression).Member as PropertyInfo).Name;
         }
     }
 }
