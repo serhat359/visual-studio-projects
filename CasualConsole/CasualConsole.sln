@@ -5,6 +5,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CasualConsole", "CasualCons
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleApplication1", "ConsoleApplication1\ConsoleApplication1.csproj", "{29F20C9E-4128-4E84-95D5-7E7384DE66C9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XMLBeautifier", "XMLBeautifier\XMLBeautifier.csproj", "{F950AF46-7A10-4FFE-B7D8-A09DF845FB67}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BackupHomeFolder", "BackupHomeFolder\BackupHomeFolder.csproj", "{C12A56FA-8F39-47CD-A249-6DC0327426E8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x86 = Debug|x86
@@ -19,6 +23,14 @@ Global
 		{29F20C9E-4128-4E84-95D5-7E7384DE66C9}.Debug|x86.Build.0 = Debug|x86
 		{29F20C9E-4128-4E84-95D5-7E7384DE66C9}.Release|x86.ActiveCfg = Release|x86
 		{29F20C9E-4128-4E84-95D5-7E7384DE66C9}.Release|x86.Build.0 = Release|x86
+		{F950AF46-7A10-4FFE-B7D8-A09DF845FB67}.Debug|x86.ActiveCfg = Debug|x86
+		{F950AF46-7A10-4FFE-B7D8-A09DF845FB67}.Debug|x86.Build.0 = Debug|x86
+		{F950AF46-7A10-4FFE-B7D8-A09DF845FB67}.Release|x86.ActiveCfg = Release|x86
+		{F950AF46-7A10-4FFE-B7D8-A09DF845FB67}.Release|x86.Build.0 = Release|x86
+		{C12A56FA-8F39-47CD-A249-6DC0327426E8}.Debug|x86.ActiveCfg = Debug|x86
+		{C12A56FA-8F39-47CD-A249-6DC0327426E8}.Debug|x86.Build.0 = Debug|x86
+		{C12A56FA-8F39-47CD-A249-6DC0327426E8}.Release|x86.ActiveCfg = Release|x86
+		{C12A56FA-8F39-47CD-A249-6DC0327426E8}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
