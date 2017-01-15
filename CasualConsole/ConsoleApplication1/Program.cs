@@ -11,13 +11,13 @@ namespace ConsoleApplication1
     {
         static void Main(string[] args)
         {
-            TestPivot();
+            //TestPivot();
 
             //TestRegex();
 
             //TestSplitWithCondition();
 
-            //TestIntersect();
+            TestIntersect();
 
             Console.WriteLine("Press a key to exit");
             Console.Read();
