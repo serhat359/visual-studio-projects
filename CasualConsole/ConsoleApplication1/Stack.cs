@@ -37,10 +37,11 @@ namespace ConsoleApplication1
 
         public IEnumerator<T> GetEnumerator()
         {
-            while (top != null)
+            Node<T> nodePtr = top;
+            while (nodePtr != null)
             {
-                yield return top.item;
-                top = top.next;
+                yield return nodePtr.item;
+                nodePtr = nodePtr.next;
             }
         }
 
