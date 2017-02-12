@@ -43,7 +43,13 @@ namespace BackupHomeFolder
             {
                 UpdateLabel(fileCopyLabel, string.Format("Copying {0} of {1} files", (i + 1), filesToCopy.Count));
                 Directory.CreateDirectory(Path.GetDirectoryName(copyInfo.DestinationPath));
-                File.Copy(copyInfo.SourcePath, copyInfo.DestinationPath, true);
+
+                try
+                {
+                    File.Copy(copyInfo.SourcePath, copyInfo.DestinationPath, true);
+                }
+                catch (UnauthorizedAccessException) { }
+
                 TaskbarProgress.SetState(handle, TaskbarProgress.TaskbarStates.Normal);
                 TaskbarProgress.SetValue(handle, bytesCopied, IfZero(bytesToCopy, 1));
                 bytesCopied += copyInfo.FileSizeBytes;
