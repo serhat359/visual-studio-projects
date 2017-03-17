@@ -9,7 +9,7 @@ namespace BackupHomeFolder
 
         public static void Set(AppSetting setting)
         {
-            string jsonString = JsonConvert.SerializeObject(setting);
+            string jsonString = JsonConvert.SerializeObject(setting, Formatting.Indented);
 
             File.WriteAllText(settingFileName, jsonString);
         }
