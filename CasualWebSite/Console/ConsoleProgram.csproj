@@ -34,6 +34,9 @@
     <StartupObject />
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>..\..\..\Libraries\JSON\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -46,8 +49,14 @@
     <Compile Include="MapperResult.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RadicalJS.cs" />
+    <Compile Include="RadicalJsonResult.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Data.Factory\Data.csproj">
+      <Project>{B8ABFB8D-4EF6-4E1C-A3F6-DF57349DF13D}</Project>
+      <Name>Data</Name>
+    </ProjectReference>
     <ProjectReference Include="..\MapperTextlibrary\MapperTextlibrary.csproj">
       <Project>{96C15EBF-BF2A-4235-9D22-D002EAFFB841}</Project>
       <Name>MapperTextlibrary</Name>

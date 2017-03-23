@@ -93,27 +93,5 @@ namespace MapperTextlibrary
                 throw new Exception("Error when closing the connection", ex);
             }
         }
-
-        public void RunUpsertQueryOneRow(string sql)
-        {
-            OpenConnection();
-
-            var trans = connection.BeginTransaction();
-
-            DbCommand cmd = new MySqlCommand(sql, connection);
-
-            int numberOfRecords = cmd.ExecuteNonQuery();
-
-            if (numberOfRecords == 1)
-            {
-                trans.Commit();
-                return;
-            }
-            else
-            {
-                trans.Rollback();
-                throw new Exception(string.Format("Affected number of rows was not expected: {0}", numberOfRecords));
-            }
-        }
     }
 }
