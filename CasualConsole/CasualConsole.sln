@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XMLBeautifier", "XMLBeautif
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BackupHomeFolder", "BackupHomeFolder\BackupHomeFolder.csproj", "{C12A56FA-8F39-47CD-A249-6DC0327426E8}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenerateCRC32Checksum", "GenerateCRC32Checksum\GenerateCRC32Checksum.csproj", "{89524161-6D8C-4739-A880-6F242A218248}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x86 = Debug|x86
@@ -31,6 +33,10 @@ Global
 		{C12A56FA-8F39-47CD-A249-6DC0327426E8}.Debug|x86.Build.0 = Debug|x86
 		{C12A56FA-8F39-47CD-A249-6DC0327426E8}.Release|x86.ActiveCfg = Release|x86
 		{C12A56FA-8F39-47CD-A249-6DC0327426E8}.Release|x86.Build.0 = Release|x86
+		{89524161-6D8C-4739-A880-6F242A218248}.Debug|x86.ActiveCfg = Debug|x86
+		{89524161-6D8C-4739-A880-6F242A218248}.Debug|x86.Build.0 = Debug|x86
+		{89524161-6D8C-4739-A880-6F242A218248}.Release|x86.ActiveCfg = Release|x86
+		{89524161-6D8C-4739-A880-6F242A218248}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
