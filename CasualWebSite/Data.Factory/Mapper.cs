@@ -9,6 +9,7 @@ namespace Data
 {
     public class Mapper
     {
+        [Obsolete]
         public static List<T> MapAll<T>(IDataReader dataReader) where T : new()
         {
             List<PropertyInfo> properties = GetCommonProperties<T>(dataReader);
@@ -25,6 +26,7 @@ namespace Data
             return list;
         }
 
+        [Obsolete]
         public static T MapSingle<T>(IDataReader dataReader) where T : class, new()
         {
             List<PropertyInfo> properties = GetCommonProperties<T>(dataReader);

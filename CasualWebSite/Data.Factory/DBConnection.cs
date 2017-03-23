@@ -9,7 +9,8 @@ namespace Data
 {
     public class DBConnection
     {
-        public enum Mode {
+        public enum Mode
+        {
             Read,
             Write
         }
@@ -32,13 +33,36 @@ namespace Data
 
             IDataReader dataReader = cmd.ExecuteReader();
 
-			List<T> list = Mapper.MapAllByExpression<T>(dataReader);
+            List<T> list = Mapper.MapAllByExpression<T>(dataReader);
 
             dataReader.Close();
 
             this.CloseConnection();
 
             return list;
+        }
+
+        public void RunQueryUpdateOneRow(string sql)
+        {
+            OpenConnection();
+
+            var trans = connection.BeginTransaction();
+
+            DbCommand cmd = new MySqlCommand(sql, connection);
+
+            int numberOfRecords = cmd.ExecuteNonQuery();
+
+            if (numberOfRecords == 1)
+            {
+                trans.Commit();
+                this.CloseConnection();
+                return;
+            }
+            else
+            {
+                trans.Rollback();
+                throw new Exception(string.Format("Affected number of rows was not expected: {0}", numberOfRecords));
+            }
         }
 
         private void Initialize(Mode mode)
