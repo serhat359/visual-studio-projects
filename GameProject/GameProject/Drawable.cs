@@ -5,6 +5,6 @@ namespace GameProject
 {
     public interface Drawable
     {
-        void Draw(Graphics graphics);
+        void Draw(Graphics graphics, long microseconds);
     }
 }
