@@ -69,6 +69,7 @@
     <Compile Include="GameFrame.Designer.cs">
       <DependentUpon>GameFrame.cs</DependentUpon>
     </Compile>
+    <Compile Include="Layer.cs" />
     <Compile Include="Objects\Character.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -117,11 +118,12 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Sprites\1.png" />
-    <Content Include="Sprites\2.png" />
-    <Content Include="Sprites\3.png" />
-    <Content Include="Sprites\4.png" />
-    <Content Include="Sprites\5.png" />
+    <Content Include="Sprites\stand1.png" />
+    <Content Include="Sprites\stand2.png" />
+    <Content Include="Sprites\stand3.png" />
+    <Content Include="Sprites\stand4.png" />
+    <Content Include="Sprites\stand5.png" />
+    <Content Include="Sprites\stand6.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

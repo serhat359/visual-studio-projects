@@ -1,16 +1,16 @@
-﻿using System.Windows.Forms;
-using System.Collections.Generic;
-using GameProject.Objects;
-using System.Drawing;
+﻿using System.Collections.Generic;
 using System.ComponentModel;
+using System.Drawing;
 using System.Threading;
-using System;
+using System.Windows.Forms;
+using GameProject.Objects;
 
 namespace GameProject
 {
     public partial class GameFrame : Form
     {
-        private List<Drawable> objects = new List<Drawable>();
+        private const int FPS = 60;
+        private List<Layer> layers = new List<Layer>();
 
         public GameFrame()
         {
@@ -20,10 +20,22 @@ namespace GameProject
 
             FixFlicker();
 
-            objects.Add(new Character(new Point(0, 0)));
-            objects.Add(new Character(new Point(150, 150)));
+            layers.Add(new Layer());
 
-            RunThread();
+            AddObjectToLayer(new Character(new Point(0, 0)), 0);
+            Thread.Sleep(300);
+            AddObjectToLayer(new Character(new Point(100, 0)), 0);
+
+            RunGameThread();
+        }
+
+        private void AddObjectToLayer(Drawable obj, int layerNo)
+        {
+            Layer layer = layers[layerNo];
+
+            layer.Add(obj);
+            //obj.layerNo = layerNo;
+            //obj.layersRef = layers;
         }
 
         private void FixFlicker()
@@ -35,7 +47,7 @@ namespace GameProject
                 true);
         }
 
-        private void RunThread()
+        private void RunGameThread()
         {
             BackgroundWorker bw = new BackgroundWorker();
 
@@ -49,7 +61,7 @@ namespace GameProject
                 while (true)
                 {
                     this.Invalidate();
-                    Thread.Sleep(1000 / 60);
+                    Thread.Sleep(1000 / FPS);
                 }
 
             });
@@ -61,9 +73,13 @@ namespace GameProject
         {
             long microseconds = Extensions.GetMicroSeconds();
 
-            foreach (Drawable obj in objects)
+            foreach (Layer layer in layers)
             {
-                obj.Draw(e.Graphics, microseconds);
+                foreach (Drawable obj in layer.objects)
+                {
+                    if (obj.WillBeDrawn)
+                        obj.Draw(e.Graphics, microseconds);
+                }
             }
         }
     }

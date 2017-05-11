@@ -1,6 +1,5 @@
-﻿using System.Drawing;
-using System.Collections.Generic;
-using System;
+﻿using System.Collections.Generic;
+using System.Drawing;
 
 namespace GameProject.Objects
 {
@@ -10,12 +9,12 @@ namespace GameProject.Objects
         static long animateDelayMs;
         static Character()
         {
-            sprites.Add(new Bitmap(Extensions.GetPath(@"Sprites\1.png")));
-            sprites.Add(new Bitmap(Extensions.GetPath(@"Sprites\2.png")));
-            sprites.Add(new Bitmap(Extensions.GetPath(@"Sprites\3.png")));
-            sprites.Add(new Bitmap(Extensions.GetPath(@"Sprites\4.png")));
-            sprites.Add(new Bitmap(Extensions.GetPath(@"Sprites\5.png")));
-            sprites.Add(new Bitmap(Extensions.GetPath(@"Sprites\6.png")));
+            sprites.Add(new Bitmap(Extensions.GetPath(@"Sprites\stand1.png")));
+            sprites.Add(new Bitmap(Extensions.GetPath(@"Sprites\stand2.png")));
+            sprites.Add(new Bitmap(Extensions.GetPath(@"Sprites\stand3.png")));
+            sprites.Add(new Bitmap(Extensions.GetPath(@"Sprites\stand4.png")));
+            sprites.Add(new Bitmap(Extensions.GetPath(@"Sprites\stand5.png")));
+            sprites.Add(new Bitmap(Extensions.GetPath(@"Sprites\stand6.png")));
 
             animateDelayMs = 1000 / sprites.Count;
         }
@@ -29,7 +28,7 @@ namespace GameProject.Objects
             this.creationTime = Extensions.GetMicroSeconds();
         }
 
-        public void Draw(Graphics g, long microseconds)
+        public override void Draw(Graphics g, long microseconds)
         {
             long timediff = microseconds - creationTime;
             long timediffms = timediff / 1000;
