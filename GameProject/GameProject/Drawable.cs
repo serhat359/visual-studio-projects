@@ -16,5 +16,9 @@ namespace GameProject
             willBeDrawn = false;
         }
 
+        public bool IsKeyDown(KeyBindings.GameInput key)
+        {
+            return frameRef.IsKeyDown(key);
+        }
     }
 }

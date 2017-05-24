@@ -40,6 +40,8 @@ namespace GameProject
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Game Project";
             this.Paint += new System.Windows.Forms.PaintEventHandler(this.GameFrame_Paint);
+            this.KeyDown += new KeyEventHandler(this.GameFrame_KeyDown);
+            this.KeyUp += new KeyEventHandler(this.GameFrame_KeyUp);
             this.ResumeLayout(false);
 
         }

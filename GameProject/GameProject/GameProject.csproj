@@ -69,6 +69,8 @@
     <Compile Include="GameFrame.Designer.cs">
       <DependentUpon>GameFrame.cs</DependentUpon>
     </Compile>
+    <Compile Include="KeyBindings.cs" />
+    <Compile Include="KeyListener.cs" />
     <Compile Include="Layer.cs" />
     <Compile Include="Objects\Character.cs" />
     <Compile Include="Program.cs" />

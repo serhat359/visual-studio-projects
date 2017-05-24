@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace GameProject.Objects
 {
-    class Character : Drawable
+    class Character : Drawable, KeyListener
     {
         private enum State
         {
@@ -73,5 +73,34 @@ namespace GameProject.Objects
             g.DrawImageUnscaled(image, location);
         }
 
+        public void OnKeyDown(KeyBindings.GameInput key)
+        {
+            switch (key)
+            {
+                case KeyBindings.GameInput.Left:
+                    {
+                        state = State.Running;
+                        break;
+                    };
+                case KeyBindings.GameInput.Right:
+                    {
+                        state = State.Running;
+                        break;
+                    };
+                default:
+                    break;
+            }
+        }
+
+        public void OnKeyUp(KeyBindings.GameInput key)
+        {
+            switch (key)
+            {
+                case KeyBindings.GameInput.Left:
+                case KeyBindings.GameInput.Right: state = State.Standing; break;
+                default:
+                    break;
+            }
+        }
     }
 }
