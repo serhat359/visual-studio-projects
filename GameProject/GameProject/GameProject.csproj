@@ -73,6 +73,7 @@
     <Compile Include="Objects\Character.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SpriteSet.cs" />
     <EmbeddedResource Include="GameFrame.resx">
       <DependentUpon>GameFrame.cs</DependentUpon>
     </EmbeddedResource>
@@ -118,6 +119,26 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Sprites\run1.png" />
+    <Content Include="Sprites\run10.png" />
+    <Content Include="Sprites\run11.png" />
+    <Content Include="Sprites\run12.png" />
+    <Content Include="Sprites\run13.png" />
+    <Content Include="Sprites\run14.png" />
+    <Content Include="Sprites\run15.png" />
+    <Content Include="Sprites\run16.png" />
+    <Content Include="Sprites\run17.png" />
+    <Content Include="Sprites\run18.png" />
+    <Content Include="Sprites\run19.png" />
+    <Content Include="Sprites\run2.png" />
+    <Content Include="Sprites\run20.png" />
+    <Content Include="Sprites\run3.png" />
+    <Content Include="Sprites\run4.png" />
+    <Content Include="Sprites\run5.png" />
+    <Content Include="Sprites\run6.png" />
+    <Content Include="Sprites\run7.png" />
+    <Content Include="Sprites\run8.png" />
+    <Content Include="Sprites\run9.png" />
     <Content Include="Sprites\stand1.png" />
     <Content Include="Sprites\stand2.png" />
     <Content Include="Sprites\stand3.png" />

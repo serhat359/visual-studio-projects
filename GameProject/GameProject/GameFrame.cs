@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.Threading;
@@ -12,6 +13,12 @@ namespace GameProject
         private const int FPS = 60;
         private List<Layer> layers = new List<Layer>();
 
+        // Z-index of layers, lower index means closer to the back
+        private enum Layers
+        {
+            Top = 0
+        }
+
         public GameFrame()
         {
             InitializeComponent();
@@ -20,22 +27,23 @@ namespace GameProject
 
             FixFlicker();
 
-            layers.Add(new Layer());
+            // Set up the layers 
+            foreach (var layerName in Enum.GetNames(typeof(Layers)))
+                layers.Add(new Layer());
 
-            AddObjectToLayer(new Character(new Point(0, 0)), 0);
-            Thread.Sleep(300);
-            AddObjectToLayer(new Character(new Point(100, 0)), 0);
+            // Add the objects to layers
+            AddObjectToLayer(new Character(new Point(100, 100)), Layers.Top);
 
+            // Start the game
             RunGameThread();
         }
 
-        private void AddObjectToLayer(Drawable obj, int layerNo)
+        private void AddObjectToLayer(Drawable obj, Layers layerNo)
         {
-            Layer layer = layers[layerNo];
+            Layer layer = layers[(int)layerNo];
 
             layer.Add(obj);
-            //obj.layerNo = layerNo;
-            //obj.layersRef = layers;
+            obj.frameRef = this;
         }
 
         private void FixFlicker()
@@ -63,7 +71,6 @@ namespace GameProject
                     this.Invalidate();
                     Thread.Sleep(1000 / FPS);
                 }
-
             });
 
             bw.RunWorkerAsync();
@@ -82,5 +89,6 @@ namespace GameProject
                 }
             }
         }
+
     }
 }

@@ -5,8 +5,7 @@ namespace GameProject
 {
     public abstract class Drawable
     {
-        private int layerNo;
-        private List<Layer> layersRef;
+        public GameFrame frameRef;
         private bool willBeDrawn = true;
         public bool WillBeDrawn { get { return willBeDrawn; } }
 
@@ -16,5 +15,6 @@ namespace GameProject
         {
             willBeDrawn = false;
         }
+
     }
 }

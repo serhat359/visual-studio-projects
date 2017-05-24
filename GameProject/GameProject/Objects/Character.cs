@@ -1,39 +1,77 @@
 ﻿using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 
 namespace GameProject.Objects
 {
     class Character : Drawable
     {
-        static List<Bitmap> sprites = new List<Bitmap>();
-        static long animateDelayMs;
+        private enum State
+        {
+            Standing,
+            Running
+        }
+
+        static SpriteSet standing;
+        static SpriteSet running;
+
         static Character()
         {
-            sprites.Add(new Bitmap(Extensions.GetPath(@"Sprites\stand1.png")));
-            sprites.Add(new Bitmap(Extensions.GetPath(@"Sprites\stand2.png")));
-            sprites.Add(new Bitmap(Extensions.GetPath(@"Sprites\stand3.png")));
-            sprites.Add(new Bitmap(Extensions.GetPath(@"Sprites\stand4.png")));
-            sprites.Add(new Bitmap(Extensions.GetPath(@"Sprites\stand5.png")));
-            sprites.Add(new Bitmap(Extensions.GetPath(@"Sprites\stand6.png")));
+            List<Bitmap> standSprites = Enumerable.Range(1, 6)
+                .Select(i => string.Format(@"Sprites\stand{0}.png", i))
+                .Select(filename => new Bitmap(Extensions.GetPath(filename)))
+                .ToList();
+            standing = new SpriteSet(standSprites, 1000);
 
-            animateDelayMs = 1000 / sprites.Count;
+            List<Bitmap> runningSprites = Enumerable.Range(1, 20)
+                .Select(i => string.Format(@"Sprites\run{0}.png", i))
+                .Select(filename => new Bitmap(Extensions.GetPath(filename)))
+                .ToList();
+            running = new SpriteSet(runningSprites, 1000);
         }
 
         private Point location;
         private long creationTime;
+        private State state;
 
         public Character(Point location)
         {
             this.location = location;
             this.creationTime = Extensions.GetMicroSeconds();
+            this.state = State.Standing;
         }
 
         public override void Draw(Graphics g, long microseconds)
         {
             long timediff = microseconds - creationTime;
             long timediffms = timediff / 1000;
-            long index = (timediffms / animateDelayMs) % sprites.Count;
-            g.DrawImageUnscaled(sprites[(int)index], location);
+
+            SpriteSet sprites;
+
+            switch (state)
+            {
+                case State.Standing:
+                    sprites = standing;
+                    break;
+                case State.Running:
+                    sprites = running;
+                    break;
+                default:
+                    sprites = null;
+                    break;
+            }
+
+            AnimateSprites(g, sprites, timediffms);
         }
+
+        private void AnimateSprites(Graphics g, SpriteSet spriteSet, long timediffms)
+        {
+            var sprites = spriteSet.GetSprites();
+            long index = (timediffms / spriteSet.animateDelayMs) % sprites.Count;
+            Image image = sprites[(int)index];
+
+            g.DrawImageUnscaled(image, location);
+        }
+
     }
 }
