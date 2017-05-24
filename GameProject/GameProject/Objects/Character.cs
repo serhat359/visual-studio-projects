@@ -12,6 +12,12 @@ namespace GameProject.Objects
             Running
         }
 
+        private enum LookingDirection
+        {
+            Left,
+            Right
+        }
+
         static SpriteSet standing;
         static SpriteSet running;
 
@@ -33,12 +39,14 @@ namespace GameProject.Objects
         private Point location;
         private long creationTime;
         private State state;
+        private LookingDirection lookingDirection;
 
         public Character(Point location)
         {
             this.location = location;
             this.creationTime = Extensions.GetMicroSeconds();
             this.state = State.Standing;
+            this.lookingDirection = LookingDirection.Right;
         }
 
         public override void Draw(Graphics g, long microseconds)
@@ -66,7 +74,7 @@ namespace GameProject.Objects
 
         private void AnimateSprites(Graphics g, SpriteSet spriteSet, long timediffms)
         {
-            var sprites = spriteSet.GetSprites();
+            var sprites = spriteSet.GetSprites(this.lookingDirection == LookingDirection.Left);
             long index = (timediffms / spriteSet.animateDelayMs) % sprites.Count;
             Image image = sprites[(int)index];
 
@@ -80,11 +88,13 @@ namespace GameProject.Objects
                 case KeyBindings.GameInput.Left:
                     {
                         state = State.Running;
+                        lookingDirection = LookingDirection.Left;
                         break;
                     };
                 case KeyBindings.GameInput.Right:
                     {
                         state = State.Running;
+                        lookingDirection = LookingDirection.Right;
                         break;
                     };
                 default:
