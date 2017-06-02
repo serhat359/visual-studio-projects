@@ -20,85 +20,95 @@ namespace BackupHomeFolder
 
         private void checkButton_Click(object sender, EventArgs e)
         {
-            checkButton.Enabled = false;
-
             string sourceFolder = sourceTextBox.Text;
             string destinationFolder = destinationTextBox.Text;
 
             if (IsNotEmpty(sourceFolder) && IsNotEmpty(destinationFolder))
             {
-                AppSetting setting = Settings.Get();
-                setting.SourceFolder = sourceFolder;
-                setting.DestinationFolder = destinationFolder;
-                Settings.Set(setting);
-
-                string[] subfolders = new string[] { "Pictures", "Videos", "Desktop", "Documents", "git", "Downloads", "Music", "workspace" };
-
-                // Copying files to hard drive
-                long fileCountToCopy = 0;
-                long bytesToCopy = 0;
-
-                List<FileCopyInfo> filesToCopy = new List<FileCopyInfo>();
-
-                foreach (var subfolderName in subfolders)
+                if (!Directory.Exists(sourceFolder))
                 {
-                    List<String> allFiles = DirSearch(Path.Combine(sourceFolder, subfolderName), false);
+                    MessageBox.Show("Source folder doesn't exist");
+                }
+                else if (!Directory.Exists(destinationFolder))
+                {
+                    MessageBox.Show("Destination folder doesn't exist");
+                }
+                else
+                {
+                    checkButton.Enabled = false;
 
-                    foreach (String oldFilePath in allFiles)
+                    AppSetting setting = Settings.Get();
+                    setting.SourceFolder = sourceFolder;
+                    setting.DestinationFolder = destinationFolder;
+                    Settings.Set(setting);
+
+                    string[] subfolders = new string[] { "Pictures", "Videos", "Desktop", "Documents", "git", "Downloads", "Music", "workspace" };
+
+                    // Copying files to hard drive
+                    long fileCountToCopy = 0;
+                    long bytesToCopy = 0;
+
+                    List<FileCopyInfo> filesToCopy = new List<FileCopyInfo>();
+
+                    foreach (var subfolderName in subfolders)
                     {
-                        string newFilePath = oldFilePath.Replace(sourceFolder, destinationFolder);
+                        List<string> allFiles = DirSearch(Path.Combine(sourceFolder, subfolderName), false);
 
-                        FileInfo newFileInfo = new FileInfo(newFilePath);
-                        FileInfo oldFileInfo = new FileInfo(oldFilePath);
-
-                        if (!newFileInfo.Exists || oldFileInfo.LastWriteTime > newFileInfo.LastWriteTime)
+                        foreach (string oldFilePath in allFiles)
                         {
-                            fileCountToCopy++;
-                            bytesToCopy += oldFileInfo.Length;
-                            filesToCopy.Add(new FileCopyInfo { SourcePath = oldFilePath, DestinationPath = newFilePath, FileSizeBytes = oldFileInfo.Length });
+                            string newFilePath = oldFilePath.Replace(sourceFolder, destinationFolder);
+
+                            FileInfo newFileInfo = new FileInfo(newFilePath);
+                            FileInfo oldFileInfo = new FileInfo(oldFilePath);
+
+                            if (!newFileInfo.Exists || oldFileInfo.LastWriteTime > newFileInfo.LastWriteTime)
+                            {
+                                fileCountToCopy++;
+                                bytesToCopy += oldFileInfo.Length;
+                                filesToCopy.Add(new FileCopyInfo { SourcePath = oldFilePath, DestinationPath = newFilePath, FileSizeBytes = oldFileInfo.Length });
+                            }
                         }
                     }
-                }
 
-                // Deleting files from hard drive
-                long fileCountToDelete = 0;
-                long bytesToDelete = 0;
+                    // Deleting files from hard drive
+                    long fileCountToDelete = 0;
+                    long bytesToDelete = 0;
 
-                List<string> filesToDelete = new List<string>();
+                    List<string> filesToDelete = new List<string>();
 
-                foreach (var subfolderName in subfolders)
-                {
-                    List<String> allFiles = DirSearch(Path.Combine(destinationFolder, subfolderName), true);
-
-                    foreach (String destFilePath in allFiles)
+                    foreach (var subfolderName in subfolders)
                     {
-                        string srcFilePath = destFilePath.Replace(destinationFolder, sourceFolder);
+                        List<string> allFiles = DirSearch(Path.Combine(destinationFolder, subfolderName), true);
 
-                        FileInfo destFileInfo = new FileInfo(destFilePath);
-
-                        if (!File.Exists(srcFilePath))
+                        foreach (string destFilePath in allFiles)
                         {
-                            fileCountToDelete++;
-                            bytesToDelete += destFileInfo.Length;
-                            filesToDelete.Add(destFilePath);
+                            string srcFilePath = destFilePath.Replace(destinationFolder, sourceFolder);
+
+                            FileInfo destFileInfo = new FileInfo(destFilePath);
+
+                            if (!File.Exists(srcFilePath))
+                            {
+                                fileCountToDelete++;
+                                bytesToDelete += destFileInfo.Length;
+                                filesToDelete.Add(destFilePath);
+                            }
                         }
                     }
-                }
 
-                checkButton.Enabled = true;
+                    checkButton.Enabled = true;
 
-                string dialogtext = string.Format("{0} files and {1} will be copied, {2} files and {3} will be deleted, continue?", fileCountToCopy, ByteSize.SizeSuffix(bytesToCopy), fileCountToDelete, ByteSize.SizeSuffix(bytesToDelete));
+                    string dialogtext = string.Format("{0} files and {1} will be copied, {2} files and {3} will be deleted, continue?", fileCountToCopy, ByteSize.SizeSuffix(bytesToCopy), fileCountToDelete, ByteSize.SizeSuffix(bytesToDelete));
 
-                DialogResult dialogResult = MessageBox.Show(dialogtext, "Copy Files", MessageBoxButtons.YesNo);
-                if (dialogResult == DialogResult.Yes)
-                {
-                    thread = new FileCopyingThread(filesToCopy, this.Handle, bytesToCopy, fileCopyLabel, filesToDelete);
+                    DialogResult dialogResult = MessageBox.Show(dialogtext, "Copy Files", MessageBoxButtons.YesNo);
+                    if (dialogResult == DialogResult.Yes)
+                    {
+                        thread = new FileCopyingThread(filesToCopy, this.Handle, bytesToCopy, fileCopyLabel, filesToDelete);
+                    }
                 }
             }
             else
             {
                 MessageBox.Show("Choose both folders");
-                checkButton.Enabled = true;
             }
         }
 
@@ -107,9 +117,9 @@ namespace BackupHomeFolder
             return !string.IsNullOrEmpty(str);
         }
 
-        private List<String> DirSearch(string sDir, bool suppressEx)
+        private List<string> DirSearch(string sDir, bool suppressEx)
         {
-            List<String> files = new List<String>();
+            List<string> files = new List<string>();
 
             try
             {
