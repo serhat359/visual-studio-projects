@@ -2,10 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
-using System.Threading.Tasks;
-using System.Reflection;
 using System.Collections;
-using System.Threading;
 
 namespace CasualConsole
 {
@@ -21,6 +18,8 @@ namespace CasualConsole
 
             byte a = 250;
             byte b = 255;
+
+            var x = a * b;
 
             Console.WriteLine(a * b);
 
@@ -45,7 +44,7 @@ namespace CasualConsole
             yield return "süleyman";
         }
 
-        static int DoOrDie(Func<int> action, String errorMessage)
+        static int DoOrDie(Func<int> action, string errorMessage)
         {
             try
             {
@@ -153,7 +152,7 @@ namespace CasualConsole
             /*
                  math max
                  (x,y) => { if(x > y) return x; else return y; } 
-                 */
+            */
 
             List<Expression> expList = new List<Expression>();
 

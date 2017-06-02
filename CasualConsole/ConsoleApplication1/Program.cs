@@ -154,7 +154,7 @@ namespace ConsoleApplication1
 
             Regex regex = new Regex(pattern);
 
-            string replaced = regex.Replace(text, new MatchEvaluator(a => new String('*', a.Length)));
+            string replaced = regex.Replace(text, new MatchEvaluator(a => new string('*', a.Length)));
 
             var matchCollection = Regex.Matches(text, pattern);
 

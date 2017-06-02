@@ -70,7 +70,7 @@ namespace CasualConsole
             }
         }
 
-        public static String NameOf<E>(Expression<Func<E>> expr)
+        public static string NameOf<E>(Expression<Func<E>> expr)
         {
             return ((expr.Body as MemberExpression).Member as PropertyInfo).Name;
         }

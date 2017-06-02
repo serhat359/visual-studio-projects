@@ -25,9 +25,9 @@ namespace XMLBeautifier
             richTextBox2.Text = newStr;
         }
 
-        public static String PrintXML(String XML)
+        public static string PrintXML(string XML)
         {
-            String result = "";
+            string result = "";
 
             MemoryStream mStream = new MemoryStream();
             XmlTextWriter writer = new XmlTextWriter(mStream, Encoding.Unicode);
@@ -53,7 +53,7 @@ namespace XMLBeautifier
                 StreamReader sReader = new StreamReader(mStream);
 
                 // Extract the text from the StreamReader.
-                String formattedXML = sReader.ReadToEnd();
+                string formattedXML = sReader.ReadToEnd();
 
                 result = formattedXML.Replace("  ","\t");
 
