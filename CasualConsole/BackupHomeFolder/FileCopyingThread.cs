@@ -12,11 +12,11 @@ namespace BackupHomeFolder
 
         ThreadStart threadAction;
 
-        public FileCopyingThread(List<FileCopyInfo> filesToCopy, IntPtr handle, long bytesToCopy, Label fileCopyLabel, List<string> filesToDelete)
+        public FileCopyingThread(List<FileCopyInfo> filesToCopy, IntPtr windowHandle, long bytesToCopy, Label fileCopyLabel, List<string> filesToDelete)
         {
             threadAction = () =>
             {
-                DoWork(filesToCopy, handle, bytesToCopy, fileCopyLabel, filesToDelete);
+                DoWork(filesToCopy, windowHandle, bytesToCopy, fileCopyLabel, filesToDelete);
             };
 
             Thread thread = new Thread(threadAction);
@@ -70,7 +70,7 @@ namespace BackupHomeFolder
         {
             if (fileCopyLabel.InvokeRequired)
             {
-                fileCopyLabel.BeginInvoke((MethodInvoker)delegate()
+                fileCopyLabel.BeginInvoke((MethodInvoker)delegate ()
                 {
                     fileCopyLabel.Text = text;
                     fileCopyLabel.Refresh();
