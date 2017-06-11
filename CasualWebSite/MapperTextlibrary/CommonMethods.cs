@@ -7,21 +7,21 @@ using System.Reflection;
 
 namespace MapperTextlibrary
 {
-	public class CommonMethods
-	{
-		public static Func<T> GetNewInstanceFunc<T>()
-		{
-			return Expression.Lambda<Func<T>>(Expression.New(typeof(T))).Compile();
-		}
+    public class CommonMethods
+    {
+        public static Func<T> GetNewInstanceFunc<T>()
+        {
+            return Expression.Lambda<Func<T>>(Expression.New(typeof(T))).Compile();
+        }
 
-		public static List<PropertyInfo> GetCommonProperties<T>(IDataReader dataReader)
-		{
-			IEnumerable<string> columnNames = Enumerable.Range(0, dataReader.FieldCount).Select(dataReader.GetName);
+        public static List<PropertyInfo> GetCommonProperties<T>(IDataReader dataReader)
+        {
+            IEnumerable<string> columnNames = Enumerable.Range(0, dataReader.FieldCount).Select(dataReader.GetName);
 
-			List<PropertyInfo> properties = columnNames.Select(x => typeof(T).GetProperty(x)).Where(x => x != null).ToList();
+            List<PropertyInfo> properties = columnNames.Select(x => typeof(T).GetProperty(x)).Where(x => x != null).ToList();
 
-			return properties;
-		}
+            return properties;
+        }
 
-	}
+    }
 }

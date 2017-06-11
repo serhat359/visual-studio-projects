@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Reflection;
+using System.Linq.Expressions;
 
 namespace MapperTextlibrary
 {
@@ -9,11 +10,11 @@ namespace MapperTextlibrary
 	{
 		public LinkedList<T> MapAll(IDataReader dataReader)
 		{
-			Func<T> newInstancer = CommonMethods.GetNewInstanceFunc<T>();
-
 			List<PropertyInfo> properties = CommonMethods.GetCommonProperties<T>(dataReader);
 
 			LinkedList<T> list = new LinkedList<T>();
+
+            Func<T> newInstancer = Expression.Lambda<Func<T>>(Expression.New(typeof(T))).Compile();
 
 			while (dataReader.Read())
 			{

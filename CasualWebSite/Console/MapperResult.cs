@@ -6,12 +6,12 @@ using Model.Data;
 
 namespace ConsoleProgram
 {
-	public class MapperResult
+	public class MapperResult<T>
 	{
 		public string MapperName { get; set; }
 
 		public long ConsumedTime { get; set; }
 
-		public ICollection<Example> ResultingList { get; set; }
+		public ICollection<T> ResultingList { get; set; }
 	}
 }

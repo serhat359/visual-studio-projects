@@ -13,7 +13,10 @@ namespace MapperTextlibrary
 		{
 			LinkedList<T> list = new LinkedList<T>();
 
-			Func<IDataRecord, T> converter = GetMapFunc(dataReader);
+            BlockExpression blockEx;
+            Func<IDataRecord, T> converter = GetMapFunc(dataReader, out blockEx);
+
+            var types = Enumerable.Range(0, dataReader.FieldCount).Select(x => dataReader.GetDataTypeName(x)).ToList();
 
 			while (dataReader.Read())
 			{
@@ -24,7 +27,7 @@ namespace MapperTextlibrary
 			return list;
 		}
 
-		private Func<IDataRecord, T> GetMapFunc(IDataReader dataReader)
+		private Func<IDataRecord, T> GetMapFunc(IDataReader dataReader, out BlockExpression blockEx)
 		{
 			var exps = new List<Expression>();
 
@@ -61,6 +64,8 @@ namespace MapperTextlibrary
 			exps.Add(targetExp);
 
 			var block = Expression.Block(new[] { targetExp }, exps);
+
+            blockEx = block;
 
 			return Expression.Lambda<Func<IDataRecord, T>>(block, paramExp).Compile();
 		}
