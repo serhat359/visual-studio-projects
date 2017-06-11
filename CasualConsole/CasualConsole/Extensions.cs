@@ -74,5 +74,18 @@ namespace CasualConsole
         {
             return ((expr.Body as MemberExpression).Member as PropertyInfo).Name;
         }
+        
+        public static int DoOrDie(Func<int> action, string errorMessage)
+        {
+            try
+            {
+                return action();
+            }
+            catch (Exception e)
+            {
+                throw new Exception(errorMessage, e);
+            }
+        }
+
     }
 }

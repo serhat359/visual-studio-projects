@@ -27,33 +27,12 @@ namespace CasualConsole
             Console.WriteLine("Program has terminated, press a key to exit");
             Console.ReadKey();
         }
-
-        static IEnumerable<int> filter(List<int> list)
-        {
-            foreach (var item in list)
-            {
-                if (item < 10)
-                    yield return item;
-            }
-        }
-
+        
         static IEnumerable<string> GetWords()
         {
             yield return "ahmet";
             yield return "mehmet";
             yield return "süleyman";
-        }
-
-        static int DoOrDie(Func<int> action, string errorMessage)
-        {
-            try
-            {
-                return action();
-            }
-            catch (Exception e)
-            {
-                throw new Exception(errorMessage, e);
-            }
         }
 
         static void PrintArray<GenericType>(IEnumerable<GenericType> arr)

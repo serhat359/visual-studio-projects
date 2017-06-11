@@ -3,13 +3,12 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Text.RegularExpressions;
-using CasualConsole;
 
 namespace ConsoleApplication1
 {
     class Program
     {
-        static void Main(string[] args)
+        public static void Main(string[] args)
         {
             //TestPivot();
 
@@ -17,17 +16,39 @@ namespace ConsoleApplication1
 
             //TestSplitWithCondition();
 
-            TestIntersect();
+            //TestIntersect();
+
+            int fibcount = 40;
+
+            Console.WriteLine("This is main process: " + Fib(fibcount));
 
             Console.WriteLine("Press a key to exit");
             Console.Read();
+        }
+
+        private static int Fib(int x)
+        {
+            switch (x)
+            {
+                case 0:
+                case 1:
+                    return x;
+                default:
+                    return Fib(x - 1) + Fib(x - 2);
+            }
+
+        }
+
+        private static void DoInThread()
+        {
+
         }
 
         private static void TestIntersect()
         {
             int[] firstList = { 2, 5, 3, 7, 4, 8 };
 
-            Debt[] secondList = { 
+            Debt[] secondList = {
                                     new Debt{ From= "asd", To="x", HowMuch = 2, When = 3},
                                     new Debt{ From= "kjs", To="rrtu", HowMuch = 6, When = 2},
                                     new Debt{ From= "ret", To="cc", HowMuch = 9, When = 5}
