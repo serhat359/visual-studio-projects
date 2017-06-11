@@ -68,18 +68,11 @@ namespace BackupHomeFolder
 
         private void UpdateLabel(Label fileCopyLabel, string text)
         {
-            if (fileCopyLabel.InvokeRequired)
+            fileCopyLabel.ThreadSafe(x =>
             {
-                fileCopyLabel.BeginInvoke((MethodInvoker)delegate ()
-                {
-                    fileCopyLabel.Text = text;
-                    fileCopyLabel.Refresh();
-                });
-            }
-            else
-            {
-                fileCopyLabel.Text = text;
-            }
+                x.Text = text;
+                x.Refresh();
+            });
         }
 
         private static long IfZero(long num, long ifZeroVal)

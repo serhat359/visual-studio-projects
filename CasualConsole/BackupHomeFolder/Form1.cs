@@ -47,11 +47,8 @@ namespace BackupHomeFolder
                     MyTask<int> actionthread = MyThread.DoInThread(() =>
                     {
                         CheckResult checkResult = CheckDifferences(sourceFolder, destinationFolder);
-
-                        checkButton.BeginInvoke((MethodInvoker)delegate ()
-                        {
-                            checkButton.Enabled = true;
-                        });
+                        
+                        checkButton.ThreadSafe(x => x.Enabled = true);
 
                         string dialogtext = string.Format("{0} files and {1} will be copied, {2} files and {3} will be deleted, continue?", checkResult.FileCountToCopy, ByteSize.SizeSuffix(checkResult.BytesToCopy), checkResult.FileCountToDelete, ByteSize.SizeSuffix(checkResult.BytesToDelete));
 
