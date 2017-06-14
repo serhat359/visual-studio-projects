@@ -44,7 +44,7 @@ namespace BackupHomeFolder
 
                     IntPtr windowHandle = this.Handle;
 
-                    MyTask<int> actionthread = MyThread.DoInThread(() =>
+                    MyThread<int> actionthread = MyThread.DoInThread(() =>
                     {
                         CheckResult checkResult = CheckDifferences(sourceFolder, destinationFolder);
                         

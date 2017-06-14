@@ -5,19 +5,19 @@ namespace BackupHomeFolder
 {
     public class MyThread
     {
-        public static MyTask<T> DoInThread<T>(Func<T> action)
+        public static MyThread<T> DoInThread<T>(Func<T> action)
         {
-            return new MyTask<T>(action);
+            return new MyThread<T>(action);
         }
     }
 
-    public class MyTask<T>
+    public class MyThread<T>
     {
-        ThreadStart threadAction;
-        T result;
-        bool isRunning = true;
+        private ThreadStart threadAction;
+        private T result;
+        private bool isRunning = true;
 
-        public MyTask(Func<T> action)
+        public MyThread(Func<T> action)
         {
             threadAction = () =>
             {
