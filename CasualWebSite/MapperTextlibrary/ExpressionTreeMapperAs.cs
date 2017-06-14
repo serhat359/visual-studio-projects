@@ -16,13 +16,24 @@ namespace MapperTextlibrary
             BlockExpression blockEx;
             Func<IDataRecord, T> converter = GetMapFunc(dataReader, out blockEx);
 
-            var types = Enumerable.Range(0, dataReader.FieldCount).Select(x => dataReader.GetDataTypeName(x)).ToList();
+            try
+            {
+                while (dataReader.Read())
+                {
+                    T obj = converter(dataReader);
+                    list.AddLast(obj);
+                }
+            }
+            catch
+            {
+                string expectedTypes = string.Join(" , ", Enumerable.Range(0, dataReader.FieldCount).Select(x => dataReader.GetDataTypeName(x)));
 
-			while (dataReader.Read())
-			{
-				T obj = converter(dataReader);
-				list.AddLast(obj);
-			}
+                string receivedTypes = string.Join(" , ", Enumerable.Range(0, dataReader.FieldCount).Select(x => dataReader[x]).Select(x => x.GetType().ToString().Replace("System.","")));
+
+                string receivedValues = string.Join(" , ", Enumerable.Range(0, dataReader.FieldCount).Select(x => dataReader[x]));
+
+                throw;
+            }
 
 			return list;
 		}
