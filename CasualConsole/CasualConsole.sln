@@ -1,9 +1,9 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 11.00
-# Visual C# Express 2010
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CasualConsole", "CasualConsole\CasualConsole.csproj", "{94279BAB-F62C-4D42-BBA5-A6F03CEAD7B0}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleApplication1", "ConsoleApplication1\ConsoleApplication1.csproj", "{29F20C9E-4128-4E84-95D5-7E7384DE66C9}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XMLBeautifier", "XMLBeautifier\XMLBeautifier.csproj", "{F950AF46-7A10-4FFE-B7D8-A09DF845FB67}"
 EndProject
@@ -21,10 +21,6 @@ Global
 		{94279BAB-F62C-4D42-BBA5-A6F03CEAD7B0}.Debug|x86.Build.0 = Debug|x86
 		{94279BAB-F62C-4D42-BBA5-A6F03CEAD7B0}.Release|x86.ActiveCfg = Release|x86
 		{94279BAB-F62C-4D42-BBA5-A6F03CEAD7B0}.Release|x86.Build.0 = Release|x86
-		{29F20C9E-4128-4E84-95D5-7E7384DE66C9}.Debug|x86.ActiveCfg = Debug|x86
-		{29F20C9E-4128-4E84-95D5-7E7384DE66C9}.Debug|x86.Build.0 = Debug|x86
-		{29F20C9E-4128-4E84-95D5-7E7384DE66C9}.Release|x86.ActiveCfg = Release|x86
-		{29F20C9E-4128-4E84-95D5-7E7384DE66C9}.Release|x86.Build.0 = Release|x86
 		{F950AF46-7A10-4FFE-B7D8-A09DF845FB67}.Debug|x86.ActiveCfg = Debug|x86
 		{F950AF46-7A10-4FFE-B7D8-A09DF845FB67}.Debug|x86.Build.0 = Debug|x86
 		{F950AF46-7A10-4FFE-B7D8-A09DF845FB67}.Release|x86.ActiveCfg = Release|x86

@@ -15,7 +15,9 @@ namespace XMLBeautifier
 
         private void richTextBox1_TextChanged(object sender, EventArgs e)
         {
-            string newStr = PrintXML(((RichTextBox)sender).Text);
+            string oldStr = ((RichTextBox)sender).Text;
+
+            string newStr = PrintXML(oldStr);
 
             richTextBox2.Text = newStr;
         }

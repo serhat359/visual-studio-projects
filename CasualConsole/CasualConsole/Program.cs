@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
-using System.Linq.Expressions;
-using System.Collections;
+using System.Text.RegularExpressions;
 
 namespace CasualConsole
 {
@@ -10,32 +10,48 @@ namespace CasualConsole
     {
         public static void Main(string[] args)
         {
+            //TestPivot();
+
+            //TestRegex();
+
+            //TestSplitWithCondition();
+
+            //TestIntersect();
+
             Dummy d = new Dummy(3, "ahmet");
 
             string exprname = Ext.NameOf(() => d.StringProperty);
 
             Console.WriteLine(exprname);
 
-            byte a = 250;
-            byte b = 255;
+            MyThread<int> fibThread = MyThread.DoInThread(() =>
+            {
+                return Fib(1);
+            });
 
-            var x = a * b;
+            int fibResult = fibThread.Await();
 
-            Console.WriteLine(a * b);
+            Console.WriteLine(fibResult);
 
             // Closing, Do Not Delete!
             Console.WriteLine("Program has terminated, press a key to exit");
             Console.ReadKey();
         }
-        
-        static IEnumerable<string> GetWords()
+
+        private static int Fib(int x)
         {
-            yield return "ahmet";
-            yield return "mehmet";
-            yield return "süleyman";
+            switch (x)
+            {
+                case 0:
+                case 1:
+                    return x;
+                default:
+                    return Fib(x - 1) + Fib(x - 2);
+            }
+
         }
 
-        static void PrintArray<GenericType>(IEnumerable<GenericType> arr)
+        private static void PrintArray<T>(IEnumerable<T> arr)
         {
             foreach (var item in arr)
             {
@@ -43,131 +59,7 @@ namespace CasualConsole
             }
         }
 
-        private static Action GetPrinterForInstance(IEnumerable<object> elems)
-        {
-
-            List<Expression> expList = new List<Expression>();
-
-            var printMethodInfo = typeof(Console).GetMethod("WriteLine", new[] { typeof(object) });
-
-            foreach (var elem in elems)
-            {
-                var paramExp = Expression.Constant(elem, typeof(object));
-                expList.Add(Expression.Call(printMethodInfo, paramExp));
-            }
-
-            var blockExp = Expression.Block(expList);
-
-            return Expression.Lambda<Action>(blockExp).Compile();
-        }
-
-        private static Action<IEnumerable<int>> GetPrinter()
-        {
-            Expression<Action<int>> printExp = (x) => Console.WriteLine(x);
-
-            var paramExp = Expression.Parameter(typeof(IEnumerable<int>));
-
-            var loopVar = Expression.Variable(typeof(int));
-
-            var printInvokeExp = Expression.Invoke(printExp, loopVar);
-
-            var foreachExp = ForEach(paramExp, loopVar, printInvokeExp);
-
-            return Expression.Lambda<Action<IEnumerable<int>>>(foreachExp, paramExp).Compile();
-        }
-
-        public static Expression ForEach(Expression collection, ParameterExpression loopVar, Expression loopContent)
-        {
-            var elementType = loopVar.Type;
-            var enumerableType = typeof(IEnumerable<>).MakeGenericType(elementType);
-            var enumeratorType = typeof(IEnumerator<>).MakeGenericType(elementType);
-
-            var enumeratorVar = Expression.Variable(enumeratorType, "enumerator");
-            var getEnumeratorCall = Expression.Call(collection, enumerableType.GetMethod("GetEnumerator"));
-            var enumeratorAssign = Expression.Assign(enumeratorVar, getEnumeratorCall);
-
-            // The MoveNext method's actually on IEnumerator, not IEnumerator<T>
-            var moveNextCall = Expression.Call(enumeratorVar, typeof(IEnumerator).GetMethod("MoveNext"));
-
-            var breakLabel = Expression.Label("LoopBreak");
-
-            var loop = Expression.Block(new[] { enumeratorVar },
-                enumeratorAssign,
-                Expression.Loop(
-                    Expression.IfThenElse(
-                        Expression.Equal(moveNextCall, Expression.Constant(true)),
-                        Expression.Block(new[] { loopVar },
-                            Expression.Assign(loopVar, Expression.Property(enumeratorVar, "Current")),
-                            loopContent
-                        ),
-                        Expression.Break(breakLabel)
-                    ),
-                breakLabel)
-            );
-
-            return loop;
-        }
-
-        private static Func<T> GetNewInstancer<T>() where T : new()
-        {
-            return Expression.Lambda<Func<T>>(Expression.New(typeof(T))).Compile();
-        }
-
-        private static Action<T> GetIntPrinter<T>()
-        {
-            var input = Expression.Parameter(typeof(T));
-
-            Expression<Action<T>> printMethodExp = (x) => System.Console.WriteLine(x);
-
-            var printStatement = Expression.Invoke(printMethodExp, input);
-
-            var printExpression = Expression.Lambda<Action<T>>(printStatement, input);
-
-            return printExpression.Compile();
-        }
-
-        private static Func<int, int, int> GetMax()
-        {
-            /*
-                 math max
-                 (x,y) => { if(x > y) return x; else return y; } 
-            */
-
-            List<Expression> expList = new List<Expression>();
-
-            var paramX = Expression.Parameter(typeof(int));
-            var paramY = Expression.Parameter(typeof(int));
-
-            var resultVar = Expression.Variable(typeof(int));
-
-            var ifExp = Expression.IfThenElse(Expression.GreaterThan(paramX, paramY), Expression.Assign(resultVar, paramX), Expression.Assign(resultVar, paramY));
-
-            expList.Add(ifExp);
-            expList.Add(resultVar);
-
-            var allExpsBody = Expression.Block(new[] { resultVar }, expList);
-
-            var finalExp = Expression.Lambda<Func<int, int, int>>(allExpsBody, paramX, paramY);
-
-            return finalExp.Compile();
-        }
-
-        private static void TestEquality()
-        {
-            List<Dummy> first = new List<Dummy> { new Dummy(1, "asd") };
-            List<Dummy> second = new List<Dummy> { new Dummy(1, "asd") };
-
-            if (Enumerable.SequenceEqual(first, second))
-            {
-                Console.WriteLine("same");
-            }
-            else
-            {
-                Console.WriteLine("not the same");
-            }
-        }
-
-        public static void Dump<T>(T obj)
+        private static void Dump<T>(T obj)
         {
             DumpProperties(obj);
             Console.WriteLine();
@@ -221,6 +113,184 @@ namespace CasualConsole
                 }
             }
         }
+
+        private static void TestSplitWithCondition()
+        {
+            string text = @"a,[a,c,b],c,d,[e,x]";
+
+            Func<string, int, bool> splitCond = (e, i) =>
+            {
+                string leftPart = e.Substring(0, i);
+
+                int bracketIndex = leftPart.LastIndexOfAny(new char[] { '[', ']' });
+
+                if (bracketIndex < 0)
+                    return true;
+                else if (e[bracketIndex] == ']')
+                    return true;
+                else if (e[bracketIndex] == '[')
+                    return false;
+                else
+                    throw new Exception();
+            };
+
+            string[] splitted = SplitWithCondition(text, ',', splitCond);
+        }
+
+        private static string[] SplitWithCondition(string text, char splitChar, Func<string, int, bool> condition)
+        {
+            List<int> matchIndexes = new List<int>();
+
+            for (int lastFound = 0, index = text.IndexOf(splitChar, lastFound); index >= 0; index = text.IndexOf(splitChar, lastFound))
+            {
+                bool isValid = condition(text, index);
+
+                if (isValid)
+                {
+                    matchIndexes.Add(index);
+                }
+
+                lastFound = index + 1;
+            }
+
+            string[] result = new string[matchIndexes.Count + 1];
+            int matchBefore = 0;
+            for (int i = 0; i < matchIndexes.Count; i++)
+            {
+                int currentMatch = matchIndexes[i];
+                result[i] = text.Substring(matchBefore, currentMatch - matchBefore);
+                matchBefore = currentMatch + 1; // length of split character
+            }
+            result[matchIndexes.Count] = text.Substring(matchBefore);
+
+            return result;
+        }
+
+        private static void TestRegex()
+        {
+            string pattern = "<[a-z]+><[0-8]>";
+            string text = "<hey><4><youthere><2>";
+
+            Regex regex = new Regex(pattern);
+
+            string replaced = regex.Replace(text, new MatchEvaluator(a => new string('*', a.Length)));
+
+            var matchCollection = Regex.Matches(text, pattern);
+
+            Match x = matchCollection[0];
+            Match x2 = matchCollection[1];
+
+            Group y = x.Groups[0];
+            Group y2 = x2.Groups[0];
+
+            Capture z = y.Captures[0];
+            Capture z2 = y2.Captures[0];
+
+            foreach (var match in matchCollection)
+            {
+                Group group = match as Group;
+
+                //foreach (var capture in captures)
+                //{
+                //    string resultString = capture.ToString();
+                //}
+
+                //foreach (var group in match.Groups)
+                //{
+                //    string grouoString = group.ToString();
+                //}
+
+                //string nextvalue = match.NextMatch().Value;
+            }
+        }
+
+        private static void TestPivot()
+        {
+            DataTable table = GetTestDebtPivotTable();
+
+            List<FooBar> foobars = new List<FooBar>()
+            {
+                new FooBar{ Text = "a", Date = new DateTime(2015,12,12), Amount = 4},
+                new FooBar{ Text = "b", Date = new DateTime(2015,12,12), Amount = 2},
+                new FooBar{ Text = "a", Date = new DateTime(2015,12,10), Amount = 3},
+                new FooBar{ Text = "a", Date = new DateTime(2015,12,10), Amount = 3},
+                new FooBar{ Text = "b", Date = new DateTime(2015,12,12), Amount = 5},
+                new FooBar{ Text = "b", Date = new DateTime(2015,12,10), Amount = 1},
+                new FooBar{ Text = "b", Date = new DateTime(2015,12,10), Amount = 4},
+            };
+
+            table = DataUtil.PivotAll(foobars, x => x.Date, x => x.Amount, x => x.Average().ToString(), "0", x => x.Month + "-" + x.Day);
+
+            //PrintDataTable(table);
+
+            table = DataUtil.Pivot(foobars, x => x.Text, x => x.Date, x => x.Amount, x => x.Average(), 0, x => x.ToString("MM-dd"));
+
+            PrintDataTable(table);
+        }
+
+        private static DataTable GetTestDebtPivotTable()
+        {
+            List<Debt> debtList = new List<Debt>() {
+                new Debt { From = "a", To = "b", When = 2, HowMuch = 4 },
+                new Debt { From = "a", To = "c", When = 3, HowMuch = 2 },
+                new Debt { From = "b", To = "a", When = 4, HowMuch = 1 },
+                new Debt { From = "a", To = "b", When = 4, HowMuch = 3 },
+                new Debt { From = "b", To = "a", When = 3, HowMuch = 1 },
+                new Debt { From = "a", To = "b", When = 2, HowMuch = 1 },
+                new Debt { From = "b", To = "a", When = 2, HowMuch = 2 },
+            };
+
+            Func<IEnumerable<int>, string> groupConcat = x => string.Join(",", x);
+
+            DataTable table = DataUtil.PivotAll(debtList, x => x.When, x => x.HowMuch, groupConcat, "0");
+
+            return table;
+        }
+
+        private static void PrintDataTable(DataTable table)
+        {
+            for (int i = 0; i < table.Columns.Count; i++)
+            {
+                var column = table.Columns[i];
+                Console.Write(column.ColumnName + "\t");
+            }
+            Console.WriteLine();
+
+            for (int i = 0; i < table.Rows.Count; i++)
+            {
+                var row = table.Rows[i];
+                foreach (object item in row.ItemArray)
+                {
+                    Console.Write(item + "\t");
+                }
+                Console.WriteLine();
+            }
+        }
+    }
+
+    public class Debt
+    {
+        public string From { get; set; }
+
+        public string To { get; set; }
+
+        public int When { get; set; }
+
+        public int HowMuch { get; set; }
+
+        public override string ToString()
+        {
+            return string.Format("From: {0}, To: {1}, When: {2}, HowMuch: {3}", From, To, When, HowMuch);
+        }
+    }
+
+    public class FooBar
+    {
+        public string Text { get; set; }
+
+        public DateTime Date { get; set; }
+
+        public int Amount { get; set; }
     }
 
     public class Dummy : IEquatable<Dummy>
@@ -249,4 +319,5 @@ namespace CasualConsole
             return dummyObj.text == this.text && dummyObj.index == this.index;
         }
     }
+
 }

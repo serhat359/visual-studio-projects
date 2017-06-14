@@ -18,7 +18,8 @@ namespace CasualConsole
         }
     }
 
-    public class Comparer {
+    public class Comparer
+    {
         public enum CompareResult : int
         {
             Greater = 1,
