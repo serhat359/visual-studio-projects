@@ -135,7 +135,7 @@ namespace PicrossSolver
                 isChangeDetected |= testPicture(picture);
 
                 // seri başlarındaki ve sonlarındaki küçük boşluklara çarpı atıyor
-                processStartingAndEndingUnknowns(picture, upColumn, leftColumn);
+                Generic.processStartingAndEndingUnknowns(picture, upColumn, leftColumn);
                 isChangeDetected |= testPicture(picture);
 
                 // seri başlarında ve sonlarında kendini bulmaya çaşılışyor
@@ -284,125 +284,6 @@ namespace PicrossSolver
                         for (int k = i + 1; k < colCount; k++)
                             picture[row, k] = FILLED;
                     }
-                }
-            }
-        }
-
-        private static void processStartingAndEndingUnknowns(int[,] picture, int[][] upColumn, int[][] leftColumn)
-        {
-            for (int col = 0; col < colCount; col++)
-            {
-                int[] values = upColumn[col];
-
-                int unknownCount = 0;
-
-                for (int i = 0; i < rowCount; i++)
-                {
-                    int cell = picture[i, col];
-
-                    if (cell == UNKNOWN)
-                        unknownCount++;
-                    else if (cell == FILLED)
-                    {
-                        unknownCount = 0;
-                        break;
-                    }
-                    else
-                        break;
-                }
-
-                int firstVal = values[0];
-
-                if (unknownCount > 0 && unknownCount < firstVal)
-                {
-                    for (int i = 0; i < unknownCount; i++)
-                        picture[i, col] = EMPTY;
-                }
-
-                // Above is regular iteration
-                // Below is reverse iteration
-
-                unknownCount = 0;
-
-                for (int i = rowCount - 1; i >= 0; i--)
-                {
-                    int cell = picture[i, col];
-
-                    if (cell == UNKNOWN)
-                        unknownCount++;
-                    else if (cell == FILLED)
-                    {
-                        unknownCount = 0;
-                        break;
-                    }
-                    else
-                        break;
-                }
-
-                int lastVal = values[values.Length - 1];
-
-                if (unknownCount > 0 && unknownCount < lastVal)
-                {
-                    for (int i = 0; i < unknownCount; i++)
-                        picture[lastRow - i, col] = EMPTY;
-                }
-            }
-
-            for (int row = 0; row < rowCount; row++)
-            {
-                int[] values = leftColumn[row];
-
-                int unknownCount = 0;
-
-                for (int i = 0; i < colCount; i++)
-                {
-                    int cell = picture[row, i];
-
-                    if (cell == UNKNOWN)
-                        unknownCount++;
-                    else if (cell == FILLED)
-                    {
-                        unknownCount = 0;
-                        break;
-                    }
-                    else
-                        break;
-                }
-
-                int firstVal = values[0];
-
-                if (unknownCount > 0 && unknownCount < firstVal)
-                {
-                    for (int i = 0; i < unknownCount; i++)
-                        picture[row, i] = EMPTY;
-                }
-
-                // Above is regular iteration
-                // Below is reverse iteration
-
-                unknownCount = 0;
-
-                for (int i = colCount - 1; i >= 0; i--)
-                {
-                    int cell = picture[row, i];
-
-                    if (cell == UNKNOWN)
-                        unknownCount++;
-                    else if (cell == FILLED)
-                    {
-                        unknownCount = 0;
-                        break;
-                    }
-                    else
-                        break;
-                }
-
-                int lastVal = values[values.Length - 1];
-
-                if (unknownCount > 0 && unknownCount < lastVal)
-                {
-                    for (int i = 0; i < unknownCount; i++)
-                        picture[row, lastCol - i] = EMPTY;
                 }
             }
         }

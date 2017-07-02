@@ -118,6 +118,40 @@ namespace PicrossSolver
             ApplyDimensionsForwardAndBackward(processing, picture, upColumn, leftColumn);
         }
 
+        public static void processStartingAndEndingUnknowns(int[,] picture, int[][] upColumn, int[][] leftColumn)
+        {
+            Action<Form1.CellSeries> processing = cells =>
+            {
+                var values = cells.cellColumnValues;
+
+                int unknownCount = 0;
+
+                for (int i = 0; i < cells.Length; i++)
+                {
+                    int cell = cells[i];
+
+                    if (cell == Form1.UNKNOWN)
+                        unknownCount++;
+                    else if (cell == Form1.FILLED)
+                    {
+                        unknownCount = 0;
+                        break;
+                    }
+                    else
+                        break;
+                }
+
+                int firstVal = values[0];
+
+                if (unknownCount > 0 && unknownCount < firstVal)
+                {
+                    for (int i = 0; i < unknownCount; i++)
+                        cells[i] = Form1.EMPTY;
+                }
+            };
+
+            ApplyDimensionsForwardAndBackward(processing, picture, upColumn, leftColumn);
+        }
 
 
         // Do not change this method to public!!
