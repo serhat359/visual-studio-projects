@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
+using System.Linq;
 
 namespace PicrossSolver
 {
@@ -121,7 +122,7 @@ namespace PicrossSolver
                 }
 
                 // serilerdeki en büyük değerler dolduysa başına ve sonuna çarpı atıyor
-                processSetEmptiesByMax(picture, upColumn, leftColumn);
+                Generic.processSetEmptiesByMax(picture, upColumn, leftColumn);
                 isChangeDetected |= testPicture(picture);
 
                 // serilerdeki çarpı arası boşlukları boşlukla dolduruyor
@@ -375,6 +376,7 @@ namespace PicrossSolver
             }
         }
 
+        [Obsolete("Dangerous Function")]
         private static void processDividedParts(int[,] picture, int[][] upColumn, int[][] leftColumn)
         {
             for (int col = 0; col < colCount; col++)
@@ -713,99 +715,6 @@ namespace PicrossSolver
             }
         }
 
-        private static void processSetEmptiesByMax(int[,] picture, int[][] upColumn, int[][] leftColumn)
-        {
-            for (int col = 0; col < colCount; col++)
-            {
-                int[] values = upColumn[col];
-
-                // TODO generate table for this
-                int maxValue = getMaxValue(values);
-
-                int first = -1;
-
-                for (int i = 0; i < rowCount; i++)
-                {
-                    if (picture[i, col] != FILLED)
-                        continue;
-                    else
-                    {
-                        first = i;
-
-                        int last = i;
-
-                        for (i++; i < rowCount; i++)
-                        {
-                            if (picture[i, col] == FILLED)
-                                last = i;
-                            else
-                                break;
-                        }
-
-                        int size = last - first + 1;
-                        if (size == maxValue)
-                        {
-                            int leftEmptyRow = first - 1;
-                            int rightEmptyRow = last + 1;
-
-                            if (leftEmptyRow >= 0)
-                                picture[leftEmptyRow, col] = EMPTY;
-
-                            if (rightEmptyRow <= lastRow)
-                                picture[rightEmptyRow, col] = EMPTY;
-                        }
-
-                        i--;
-                    }
-                }
-            }
-
-            for (int row = 0; row < rowCount; row++)
-            {
-                int[] values = leftColumn[row];
-
-                // TODO generate table for this
-                int maxValue = getMaxValue(values);
-
-                int first = -1;
-
-                for (int i = 0; i < colCount; i++)
-                {
-                    if (picture[row, i] != FILLED)
-                        continue;
-                    else
-                    {
-                        first = i;
-
-                        int last = i;
-
-                        for (i++; i < colCount; i++)
-                        {
-                            if (picture[row, i] == FILLED)
-                                last = i;
-                            else
-                                break;
-                        }
-
-                        int size = last - first + 1;
-                        if (size == maxValue)
-                        {
-                            int leftEmptyCol = first - 1;
-                            int rightEmptyCol = last + 1;
-
-                            if (leftEmptyCol >= 0)
-                                picture[row, leftEmptyCol] = EMPTY;
-
-                            if (rightEmptyCol <= lastCol)
-                                picture[row, rightEmptyCol] = EMPTY;
-                        }
-
-                        i--;
-                    }
-                }
-            }
-        }
-
         private static int getMinValue(int[] values)
         {
             int minIndex = 0;
@@ -823,21 +732,31 @@ namespace PicrossSolver
             return minValue;
         }
 
-        private static int getMaxValue(int[] values)
+        public static SearchResult getMaxValue(CellColumnValues values)
         {
-            int maxIndex = 0;
-            int maxValue = values[maxIndex];
+            List<int> indices = new List<int>();
+            indices.Add(0);
+            int maxValue = values[0];
 
             for (int i = 1; i < values.Length; i++)
             {
                 if (values[i] > maxValue)
                 {
-                    maxIndex = i;
-                    maxValue = values[maxIndex];
+                    indices = new List<int>();
+                    indices.Add(i);
+                    maxValue = values[i];
+                }
+                else if (values[i] == maxValue)
+                {
+                    indices.Add(i);
                 }
             }
 
-            return maxValue;
+            return new SearchResult
+            {
+                LocationIndices = indices.ToArray(),
+                Value = maxValue
+            };
         }
 
         private static int getSum(int[] values)
@@ -1417,6 +1336,14 @@ namespace PicrossSolver
             var x = 1;
         }
 
+        public class SearchResult
+        {
+            public int Value { get; set; }
+            public int Count { get { return LocationIndices.Length; } }
+
+            public int[] LocationIndices { get; set; }
+        }
+
         class Range
         {
             public int start;
@@ -1452,11 +1379,13 @@ namespace PicrossSolver
             public IEnumerable<int> asIterable { get { return iterable(); } }
 
             private int _length;
+            private int[] _values;
             private Func<int, int> valueGetter;
 
             public CellColumnValues(int[] values, Direction direction)
             {
-                _length = values.Length;
+                this._length = values.Length;
+                this._values = values;
 
                 switch (direction)
                 {
@@ -1481,6 +1410,10 @@ namespace PicrossSolver
                 for (int i = 0; i < _length; i++)
                     yield return valueGetter(i);
             }
+            public int Sum()
+            {
+                return _values.Sum();
+            }
         }
 
         public class CellSeries
@@ -1493,6 +1426,7 @@ namespace PicrossSolver
                 set { valueSetter(i, value); }
             }
             public IEnumerable<int> asIterable { get { return iterable(); } }
+            public Direction direction;
 
             private CellColumnValues _cellColumnValues;
             private int _length;
@@ -1502,6 +1436,7 @@ namespace PicrossSolver
             public CellSeries(int rowOrCol, int[,] picture, Direction direction, int[] columnValues)
             {
                 _cellColumnValues = new CellColumnValues(columnValues, direction);
+                this.direction = direction;
 
                 switch (direction)
                 {
@@ -1541,6 +1476,25 @@ namespace PicrossSolver
                         break;
                 }
             }
+
+            private CellSeries(CellColumnValues _cellColumnValues, int _length, Func<int, int> valueGetter, Action<int, int> valueSetter)
+            {
+                this._cellColumnValues = _cellColumnValues;
+                this._length = _length;
+                this.valueGetter = valueGetter;
+                this.valueSetter = valueSetter;
+            }
+
+            public static CellSeries Slice(CellSeries cellSeries, int startIndex, int endIndex, int[] newValues)
+            {
+                int size = endIndex - startIndex + 1;
+                Func<int, int> getter = x => cellSeries[startIndex + x];
+                Action<int, int> setter = (x, cell) => cellSeries[startIndex + x] = cell;
+                CellColumnValues cellColumnValues = new CellColumnValues(newValues, cellSeries.direction);
+
+                return new CellSeries(cellColumnValues, size, getter, setter);
+            }
+
             public IEnumerable<int> iterable()
             {
                 for (int i = 0; i < _length; i++)
