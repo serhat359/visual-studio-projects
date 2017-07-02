@@ -110,8 +110,12 @@ namespace PicrossSolver
                 processSingles(picture, upColumn, leftColumn);
                 isChangeDetected |= testPicture(picture);
 
-                // seri başından ve sonundan itibaren bir tarafı kapalı sayıların kalanını ayaralayıp çarpı atıyor
+                // seri başından ve sonundan itibaren bir tarafı kapalı sayıların kalanını ayarlayıp çarpı atıyor
                 processStartsAndEnds(picture, upColumn, leftColumn);
+                isChangeDetected |= testPicture(picture);
+
+                // seri başlarındaki ve sonlarındaki küçük boşluklara çarpı atıyor
+                Generic.processStartingAndEndingUnknowns(picture, upColumn, leftColumn);
                 isChangeDetected |= testPicture(picture);
 
                 // serilerdeki en büyük değerler dolduysa başına ve sonuna çarpı atıyor
@@ -134,10 +138,6 @@ namespace PicrossSolver
                 processCheckAllCounts(picture, upColumn, leftColumn);
                 isChangeDetected |= testPicture(picture);
 
-                // seri başlarındaki ve sonlarındaki küçük boşluklara çarpı atıyor
-                Generic.processStartingAndEndingUnknowns(picture, upColumn, leftColumn);
-                isChangeDetected |= testPicture(picture);
-
                 // seri başlarında ve sonlarında kendini bulmaya çaşılışyor
                 processTryFindingMatchStartingAndEnding(picture, upColumn, leftColumn);
                 isChangeDetected |= testPicture(picture);
@@ -152,7 +152,7 @@ namespace PicrossSolver
                 }
             }
 
-            Console.WriteLine("There was no change after the iteration: " + iteration);
+            Console.WriteLine("There was no change in the iteration: " + iteration);
         }
 
         private static void processTryFindingMatchStartingAndEnding(int[,] picture, int[][] upColumn, int[][] leftColumn)
@@ -629,7 +629,7 @@ namespace PicrossSolver
                     {
                         int asIs = picture[i, j];
                         int correctOne = correct[i, j];
-                        Console.WriteLine("Hata tespit edildi");
+                        Console.WriteLine("Hata tespit edildi, iteration: " + iteration);
                         display(pictureRef, "Hatasız olan");
                         display(picture, "Hatalı olan");
                         display(correct, "Olması gereken", true);

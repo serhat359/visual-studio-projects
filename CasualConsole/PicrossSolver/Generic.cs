@@ -126,7 +126,37 @@ namespace PicrossSolver
 
                 int unknownCount = 0;
 
-                for (int i = 0; i < cells.Length; i++)
+                int startIndex = 0;
+                int valueIndex = 0;
+
+                do
+                {
+                    if (startIndex >= cells.Length)
+                        break;
+
+                    int cell = cells[startIndex];
+
+                    if (cell == Form1.EMPTY)
+                    {
+                        do
+                        {
+                            startIndex++;
+                        } while (startIndex < cells.Length && cells[startIndex] == Form1.EMPTY);
+                    }
+                    else if (cell == Form1.FILLED)
+                    {
+                        valueIndex++;
+
+                        do
+                        {
+                            startIndex++;
+                        } while (startIndex < cells.Length && cells[startIndex] == Form1.FILLED);
+                    }
+                    else
+                        break;
+                } while (true);
+
+                for (int i = startIndex; i < cells.Length; i++)
                 {
                     int cell = cells[i];
 
@@ -141,12 +171,10 @@ namespace PicrossSolver
                         break;
                 }
 
-                int firstVal = values[0];
-
-                if (unknownCount > 0 && unknownCount < firstVal)
+                if (unknownCount > 0 && valueIndex < values.Length && unknownCount < values[valueIndex])
                 {
                     for (int i = 0; i < unknownCount; i++)
-                        cells[i] = Form1.EMPTY;
+                        cells[i + startIndex] = Form1.EMPTY;
                 }
             };
 
