@@ -162,41 +162,37 @@ namespace PicrossSolver
 
         public static void ApplyAlgorithmBackAndForth(int[,] picture, int[][] upColumn, int[][] leftColumn, Algorithm processing)
         {
-            for (int row = 0; row < Form1.rowCount
-                //&& !Form1.isRowCompleted[row]
-                // TODO remove comment
-                ; row++)
+            for (int row = 0; row < Form1.rowCount; row++)
             {
-                processing(new Form1.CellSeries(row, picture, Form1.Direction.Horizontal, leftColumn[row]));
-                processing(new Form1.CellSeries(row, picture, Form1.Direction.HorizontalReverse, leftColumn[row]));
+                if (!Form1.isRowCompleted[row])
+                {
+                    processing(new Form1.CellSeries(row, picture, Form1.Direction.Horizontal, leftColumn[row]));
+                    processing(new Form1.CellSeries(row, picture, Form1.Direction.HorizontalReverse, leftColumn[row]));
+                }
             }
 
-            for (int col = 0; col < Form1.rowCount
-                //&& !Form1.isColCompleted[col]
-                // TODO remove comment
-                ; col++)
+            for (int col = 0; col < Form1.rowCount; col++)
             {
-                processing(new Form1.CellSeries(col, picture, Form1.Direction.Vertical, upColumn[col]));
-                processing(new Form1.CellSeries(col, picture, Form1.Direction.VerticalReverse, upColumn[col]));
+                if (!Form1.isColCompleted[col])
+                {
+                    processing(new Form1.CellSeries(col, picture, Form1.Direction.Vertical, upColumn[col]));
+                    processing(new Form1.CellSeries(col, picture, Form1.Direction.VerticalReverse, upColumn[col]));
+                }
             }
         }
 
         public static void ApplyAlgorithmOneWay(int[,] picture, int[][] upColumn, int[][] leftColumn, Algorithm processing)
         {
-            for (int row = 0; row < Form1.rowCount
-                //&& !Form1.isRowCompleted[row]
-                // TODO remove comment
-                ; row++)
+            for (int row = 0; row < Form1.rowCount; row++)
             {
-                processing(new Form1.CellSeries(row, picture, Form1.Direction.Horizontal, leftColumn[row]));
+                if (!Form1.isRowCompleted[row])
+                    processing(new Form1.CellSeries(row, picture, Form1.Direction.Horizontal, leftColumn[row]));
             }
 
-            for (int col = 0; col < Form1.rowCount
-                //&& !Form1.isColCompleted[col]
-                // TODO remove comment
-                ; col++)
+            for (int col = 0; col < Form1.rowCount; col++)
             {
-                processing(new Form1.CellSeries(col, picture, Form1.Direction.Vertical, upColumn[col]));
+                if (!Form1.isColCompleted[col])
+                    processing(new Form1.CellSeries(col, picture, Form1.Direction.Vertical, upColumn[col]));
             }
         }
 
@@ -224,7 +220,10 @@ namespace PicrossSolver
                     else { }
                 }
 
-                if (supposedFilledCount == actualFilledCount && supposedEmptyCount == actualEmptyCount) { }
+                if (supposedFilledCount == actualFilledCount && supposedEmptyCount == actualEmptyCount)
+                {
+                    isColCompleted[col] = true;
+                }
                 else if (supposedFilledCount == actualFilledCount)
                 {
                     for (int i = 0; i < rowCount; i++)
@@ -265,7 +264,10 @@ namespace PicrossSolver
                     else { }
                 }
 
-                if (supposedFilledCount == actualFilledCount && supposedEmptyCount == actualEmptyCount) { }
+                if (supposedFilledCount == actualFilledCount && supposedEmptyCount == actualEmptyCount)
+                {
+                    isRowCompleted[row] = true;
+                }
                 else if (supposedFilledCount == actualFilledCount)
                 {
                     for (int i = 0; i < colCount; i++)
