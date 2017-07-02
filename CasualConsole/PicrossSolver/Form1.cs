@@ -99,7 +99,7 @@ namespace PicrossSolver
 
         private static void solve(int[,] picture, int[][] upColumn, int[][] leftColumn)
         {
-            ApplyGivenAlgorithmForAll(picture, upColumn, leftColumn, Generic.InitialProcessing);
+            ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.InitialProcessing);
 
             dumpPicture(picture);
 
@@ -110,7 +110,7 @@ namespace PicrossSolver
                 bool isChangeDetected = false;
 
                 // tek sayı olanların ara boşluğunu doldurup, ulaşamayacağı yerlere çarpı atıyor
-                processSingles(picture, upColumn, leftColumn);
+                ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessSingles);
                 isChangeDetected |= testPicture(picture);
 
                 {
@@ -160,7 +160,7 @@ namespace PicrossSolver
             Console.WriteLine("There was no change in the iteration: " + iteration);
         }
 
-        public static void ApplyGivenAlgorithmForAll(int[,] picture, int[][] upColumn, int[][] leftColumn, Algorithm processing)
+        public static void ApplyAlgorithmBackAndForth(int[,] picture, int[][] upColumn, int[][] leftColumn, Algorithm processing)
         {
             for (int row = 0; row < Form1.rowCount
                 //&& !Form1.isRowCompleted[row]
@@ -178,6 +178,25 @@ namespace PicrossSolver
             {
                 processing(new Form1.CellSeries(col, picture, Form1.Direction.Vertical, upColumn[col]));
                 processing(new Form1.CellSeries(col, picture, Form1.Direction.VerticalReverse, upColumn[col]));
+            }
+        }
+
+        public static void ApplyAlgorithmOneWay(int[,] picture, int[][] upColumn, int[][] leftColumn, Algorithm processing)
+        {
+            for (int row = 0; row < Form1.rowCount
+                //&& !Form1.isRowCompleted[row]
+                // TODO remove comment
+                ; row++)
+            {
+                processing(new Form1.CellSeries(row, picture, Form1.Direction.Horizontal, leftColumn[row]));
+            }
+
+            for (int col = 0; col < Form1.rowCount
+                //&& !Form1.isColCompleted[col]
+                // TODO remove comment
+                ; col++)
+            {
+                processing(new Form1.CellSeries(col, picture, Form1.Direction.Vertical, upColumn[col]));
             }
         }
 
@@ -1094,182 +1113,7 @@ namespace PicrossSolver
                 }
             }
         }
-
-        private static void processSingles(int[,] picture, int[][] upColumn, int[][] leftColumn)
-        {
-            // Fill in betweens for each column
-            for (int col = 0; col < colCount; col++)
-            {
-                int[] values = upColumn[col];
-                int count = values.Length;
-
-                if (count == 1)
-                {
-                    int firstFilled = -1;
-                    int lastFilled = -1;
-
-                    int i;
-
-                    for (i = 0; i < rowCount; i++)
-                    {
-                        int cell = picture[i, col];
-
-                        if (cell == FILLED)
-                        {
-                            firstFilled = i;
-                            break;
-                        }
-                    }
-
-                    for (int j = lastRow; j >= i; j--)
-                    {
-                        int cell = picture[j, col];
-
-                        if (cell == FILLED)
-                        {
-                            lastFilled = j;
-                            break;
-                        }
-                    }
-
-                    for (int k = firstFilled + 1; k < lastFilled; k++)
-                        picture[k, col] = FILLED;
-
-                    // Above is for filling in betweens
-                    // Below is for finding reaching
-
-                    if (firstFilled >= 0)
-                    {
-                        int filledSize = lastFilled - firstFilled + 1;
-                        int reach = values[0] - filledSize;
-
-                        int marginStart = reach - firstFilled;
-                        if (marginStart > 0)
-                        {
-                            for (int k = 0; k < marginStart; k++)
-                            {
-                                picture[firstFilled + 1 + k, col] = FILLED;
-                            }
-                        }
-                        else
-                            marginStart = 0;
-
-                        int marginEnd = lastFilled + reach - lastRow;
-                        if (marginEnd > 0)
-                        {
-                            for (int k = 0; k < marginEnd; k++)
-                            {
-                                picture[lastFilled - 1 - k, col] = FILLED;
-                            }
-                        }
-                        else
-                            marginEnd = 0;
-
-                        // Above is for filling reaching
-                        // Below is for setting empties
-
-                        // Update variables
-                        firstFilled -= marginEnd;
-                        lastFilled += marginStart;
-                        filledSize += marginEnd + marginStart;
-                        reach = values[0] - filledSize;
-
-                        for (int k = 0; k < firstFilled - reach; k++)
-                            picture[k, col] = EMPTY;
-
-                        for (int k = lastFilled + reach + 1; k < rowCount; k++)
-                            picture[k, col] = EMPTY;
-                    }
-                }
-            }
-
-            // Fill in betweens for each row
-            for (int row = 0; row < rowCount; row++)
-            {
-                int[] values = leftColumn[row];
-                int count = values.Length;
-
-                if (count == 1)
-                {
-                    int firstFilled = -1;
-                    int lastFilled = -1;
-
-                    int i;
-
-                    for (i = 0; i < colCount; i++)
-                    {
-                        int cell = picture[row, i];
-
-                        if (cell == FILLED)
-                        {
-                            firstFilled = i;
-                            break;
-                        }
-                    }
-
-                    for (int j = lastCol; j >= i; j--)
-                    {
-                        int cell = picture[row, j];
-
-                        if (cell == FILLED)
-                        {
-                            lastFilled = j;
-                            break;
-                        }
-                    }
-
-                    for (int k = firstFilled + 1; k < lastFilled; k++)
-                        picture[row, k] = FILLED;
-
-                    // Above is for filling in betweens
-                    // Below is for finding reaching
-
-                    if (firstFilled >= 0)
-                    {
-                        int filledSize = lastFilled - firstFilled + 1;
-                        int reach = values[0] - filledSize;
-
-                        int marginStart = reach - firstFilled;
-                        if (marginStart > 0)
-                        {
-                            for (int k = 0; k < marginStart; k++)
-                            {
-                                picture[row, firstFilled + 1 + k] = FILLED;
-                            }
-                        }
-                        else
-                            marginStart = 0;
-
-                        int marginEnd = lastFilled + reach - lastCol;
-                        if (marginEnd > 0)
-                        {
-                            for (int k = 0; k < marginEnd; k++)
-                            {
-                                picture[row, lastFilled - 1 - k] = FILLED;
-                            }
-                        }
-                        else
-                            marginEnd = 0;
-
-                        // Above is for filling reaching
-                        // Below is for setting empties
-
-                        // Update variables
-                        firstFilled -= marginEnd;
-                        lastFilled += marginStart;
-                        filledSize += marginEnd + marginStart;
-                        reach = values[0] - filledSize;
-
-                        for (int k = 0; k < firstFilled - reach; k++)
-                            picture[row, k] = EMPTY;
-
-                        for (int k = lastFilled + reach + 1; k < colCount; k++)
-                            picture[row, k] = EMPTY;
-                    }
-                }
-            }
-        }
-
+        
         private static void display(int[,] picture)
         {
             display(picture, "Latest");

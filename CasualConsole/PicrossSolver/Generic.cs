@@ -357,6 +357,91 @@ namespace PicrossSolver
             }
         }
 
+        public static void ProcessSingles(Form1.CellSeries cells)
+        {
+            var values = cells.cellColumnValues;
+            int count = values.Length;
+
+            if (count == 1)
+            {
+                int firstFilled = -1;
+                int lastFilled = -1;
+
+                int i;
+
+                for (i = 0; i < cells.Length; i++)
+                {
+                    int cell = cells[i];
+
+                    if (cell == Form1.FILLED)
+                    {
+                        firstFilled = i;
+                        break;
+                    }
+                }
+
+                for (int j = cells.Length - 1; j >= i; j--)
+                {
+                    int cell = cells[j];
+
+                    if (cell == Form1.FILLED)
+                    {
+                        lastFilled = j;
+                        break;
+                    }
+                }
+
+                for (int k = firstFilled + 1; k < lastFilled; k++)
+                    cells[k] = Form1.FILLED;
+
+                // Above is for filling in betweens
+                // Below is for finding reaching
+
+                if (firstFilled >= 0)
+                {
+                    int filledSize = lastFilled - firstFilled + 1;
+                    int reach = values[0] - filledSize;
+
+                    int marginStart = reach - firstFilled;
+                    if (marginStart > 0)
+                    {
+                        for (int k = 0; k < marginStart; k++)
+                        {
+                            cells[firstFilled + 1 + k] = Form1.FILLED;
+                        }
+                    }
+                    else
+                        marginStart = 0;
+
+                    int marginEnd = lastFilled + reach - (cells.Length - 1);
+                    if (marginEnd > 0)
+                    {
+                        for (int k = 0; k < marginEnd; k++)
+                        {
+                            cells[lastFilled - 1 - k] = Form1.FILLED;
+                        }
+                    }
+                    else
+                        marginEnd = 0;
+
+                    // Above is for filling reaching
+                    // Below is for setting empties
+
+                    // Update variables
+                    firstFilled -= marginEnd;
+                    lastFilled += marginStart;
+                    filledSize += marginEnd + marginStart;
+                    reach = values[0] - filledSize;
+
+                    for (int k = 0; k < firstFilled - reach; k++)
+                        cells[k] = Form1.EMPTY;
+
+                    for (int k = lastFilled + reach + 1; k < (cells.Length - 1); k++)
+                        cells[k] = Form1.EMPTY;
+                }
+            }
+        }
+
         private static IEnumerable<int> MyRange(int from, int to)
         {
             for (int i = from; i < to; i++)
