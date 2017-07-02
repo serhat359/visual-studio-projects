@@ -241,7 +241,7 @@ namespace PicrossSolver
                     {
                         var foundIndex = area;
 
-                        int cellStart = area == 0 ? 0 : filledInfos[area - 1].CellIndexEnd + 1;
+                        int cellStart = area == 0 ? 0 : filledInfos[area - 1].CellIndexEnd + 2;
                         int cellEnd = area == maxValueResult.Count ? cells.Length - 1 : filledInfos[area].CellIndexStart - 1;
 
                         IEnumerable<int> selectedValuesIndices;
@@ -249,7 +249,7 @@ namespace PicrossSolver
                         if (area == 0)
                             selectedValuesIndices = MyRange(0, maxValueResult.LocationIndices[area]);
                         else if (area == maxValueResult.Count)
-                            selectedValuesIndices = MyRange(maxValueResult.LocationIndices[area - 1] + 1, values.Length - 1);
+                            selectedValuesIndices = MyRange(maxValueResult.LocationIndices[area - 1] + 1, values.Length);
                         else
                             selectedValuesIndices = MyRange(maxValueResult.LocationIndices[area - 1] + 1, maxValueResult.LocationIndices[area]);
 
@@ -259,7 +259,7 @@ namespace PicrossSolver
 
                         Form1.CellSeries slice = Form1.CellSeries.Slice(cells, cellStart, cellEnd, newValues);
 
-                        ProcessAllAlgorithms(slice);
+                            ProcessAllAlgorithms(slice);
                     }
                 }
             };
@@ -271,7 +271,7 @@ namespace PicrossSolver
         {
             InitialProcessing(cells);
             RemoveSmallEmpties(cells);
-        }
+            }
 
         public static void RemoveSmallEmpties(Form1.CellSeries cells)
         {
