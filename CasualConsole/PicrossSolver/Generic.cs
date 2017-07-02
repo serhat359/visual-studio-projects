@@ -1,14 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace PicrossSolver
 {
     public static class Generic
     {
-        public static void processGeneric(int[,] picture, int[][] upColumn, int[][] leftColumn)
+        public static void processMatching(int[,] picture, int[][] upColumn, int[][] leftColumn)
         {
             Action<Form1.CellSeries> processing = cells =>
             {
@@ -47,6 +43,7 @@ namespace PicrossSolver
 
                     if (filledFoundIndex >= 0)
                     {
+                        // Dolunun arkasını doluyla doldurma
                         for (int i = filledFoundIndex + 1; i < val; i++)
                             cells[i + startIndex] = Form1.FILLED;
 
@@ -117,18 +114,20 @@ namespace PicrossSolver
             ApplyDimensionsForwardAndBackward(processing, picture, upColumn, leftColumn);
         }
 
+
+
         // Do not change this method to public!!
         private static void ApplyDimensionsForwardAndBackward(Action<Form1.CellSeries> processing, int[,] picture, int[][] upColumn, int[][] leftColumn)
         {
             bool executeBelow = true;
-
-            for (int row = 0; executeBelow && row < Form1.rowCount; row++)
+            
+            for (int row = 0; executeBelow && row < Form1.rowCount && !Form1.isRowCompleted[row]; row++)
             {
                 processing(new Form1.CellSeries(row, picture, Form1.Direction.Horizontal, leftColumn[row]));
                 processing(new Form1.CellSeries(row, picture, Form1.Direction.HorizontalReverse, leftColumn[row]));
             }
 
-            for (int col = 0; executeBelow && col < Form1.rowCount; col++)
+            for (int col = 0; executeBelow && col < Form1.rowCount && !Form1.isColCompleted[col]; col++)
             {
                 processing(new Form1.CellSeries(col, picture, Form1.Direction.Vertical, upColumn[col]));
                 processing(new Form1.CellSeries(col, picture, Form1.Direction.VerticalReverse, upColumn[col]));

@@ -20,6 +20,9 @@ namespace PicrossSolver
         public static int iteration = 0;
         static int[,] pictureRef = null;
 
+        public static bool[] isRowCompleted;
+        public static bool[] isColCompleted;
+
         static int[,] correct = {
             {2,2,2,1,1,1,1,2,2,2,1,1,2,1,1},
             {2,2,2,1,1,1,1,1,2,1,1,1,1,1,2},
@@ -74,6 +77,9 @@ namespace PicrossSolver
             leftColumn[13] = (arr(2, 3));
             leftColumn[14] = (arr(4, 2, 2));
 
+            isRowCompleted = new bool[rowCount];
+            isColCompleted = new bool[colCount];
+
             solveAndDisplay(upColumn, leftColumn);
 
             display(correct, "This is how it should be", true);
@@ -91,7 +97,7 @@ namespace PicrossSolver
         private static void solve(int[,] picture, int[][] upColumn, int[][] leftColumn)
         {
             processInitial(picture, upColumn, leftColumn);
-            
+
             dumpPicture(picture);
 
             testPicture(picture);
@@ -135,11 +141,11 @@ namespace PicrossSolver
                 // seri başlarında ve sonlarında kendini bulmaya çaşılışyor
                 processTryFindingMatchStartingAndEnding(picture, upColumn, leftColumn);
                 isChangeDetected |= testPicture(picture);
-                
+
                 // serileri genel olarak analiz ediyor
-                Generic.processGeneric(picture, upColumn, leftColumn);
+                Generic.processMatching(picture, upColumn, leftColumn);
                 isChangeDetected |= testPicture(picture);
-                
+
                 if (!isChangeDetected)
                 {
                     break;
@@ -431,12 +437,16 @@ namespace PicrossSolver
                     for (int i = 0; i < rowCount; i++)
                         if (picture[i, col] == UNKNOWN)
                             picture[i, col] = EMPTY;
+
+                    isColCompleted[col] = true;
                 }
                 else if (supposedEmptyCount == actualEmptyCount)
                 {
                     for (int i = 0; i < rowCount; i++)
                         if (picture[i, col] == UNKNOWN)
                             picture[i, col] = FILLED;
+
+                    isColCompleted[col] = true;
                 }
             }
 
@@ -468,12 +478,16 @@ namespace PicrossSolver
                     for (int i = 0; i < colCount; i++)
                         if (picture[row, i] == UNKNOWN)
                             picture[row, i] = EMPTY;
+
+                    isRowCompleted[row] = true;
                 }
                 else if (supposedEmptyCount == actualEmptyCount)
                 {
                     for (int i = 0; i < colCount; i++)
                         if (picture[row, i] == UNKNOWN)
                             picture[row, i] = FILLED;
+
+                    isRowCompleted[row] = true;
                 }
             }
         }
