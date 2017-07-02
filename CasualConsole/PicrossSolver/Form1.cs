@@ -124,11 +124,11 @@ namespace PicrossSolver
                 }
 
                 // serilerdeki en büyük değerler dolduysa başına ve sonuna çarpı atıyor
-                Generic.processSetEmptiesByMax(picture, upColumn, leftColumn);
+                ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessSetEmptiesByMax);
                 isChangeDetected |= testPicture(picture);
 
                 // serilerdeki çarpı arası boşlukları boşlukla dolduruyor
-                processFillBetweenEmpties(picture, upColumn, leftColumn);
+                ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessFillBetweenEmpties);
                 isChangeDetected |= testPicture(picture);
 
                 // serideki outlier olan değere karşılık gelen dolmuşları işliyor
@@ -148,7 +148,7 @@ namespace PicrossSolver
                 isChangeDetected |= testPicture(picture);
 
                 // serileri genel olarak analiz ediyor
-                Generic.processMatching(picture, upColumn, leftColumn);
+                ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.ProcessMatching);
                 isChangeDetected |= testPicture(picture);
 
                 if (!isChangeDetected)
@@ -692,83 +692,7 @@ namespace PicrossSolver
 
             return pictureRef;
         }
-
-        private static void processFillBetweenEmpties(int[,] picture, int[][] upColumn, int[][] leftColumn)
-        {
-            for (int col = 0; col < colCount; col++)
-            {
-                int[] values = upColumn[col];
-
-                // TODO generate table for this
-                int minValue = getMinValue(values);
-
-                int lastEmptyIndex = -1;
-
-                for (int i = 0; i < rowCount; i++)
-                {
-                    int cell = picture[i, col];
-
-                    if (cell == FILLED)
-                        lastEmptyIndex = -1;
-                    if (cell == EMPTY)
-                    {
-                        if (lastEmptyIndex >= 0 && i - lastEmptyIndex > 1 && i - lastEmptyIndex - 1 < minValue)
-                        {
-                            for (int k = lastEmptyIndex + 1; k < i; k++)
-                                picture[k, col] = EMPTY;
-                        }
-
-                        lastEmptyIndex = i;
-                    }
-                }
-            }
-
-            for (int row = 0; row < rowCount; row++)
-            {
-                int[] values = leftColumn[row];
-
-                // TODO generate table for this
-                int minValue = getMinValue(values);
-
-                int lastEmptyIndex = -1;
-
-                for (int i = 0; i < colCount; i++)
-                {
-                    int cell = picture[row, i];
-
-                    if (cell == FILLED)
-                        lastEmptyIndex = -1;
-                    if (cell == EMPTY)
-                    {
-                        if (lastEmptyIndex >= 0 && i - lastEmptyIndex > 1 && i - lastEmptyIndex - 1 < minValue)
-                        {
-                            for (int k = lastEmptyIndex + 1; k < i; k++)
-                                picture[row, k] = EMPTY;
-                        }
-
-                        lastEmptyIndex = i;
-                    }
-                }
-            }
-        }
-
-        private static int getMinValue(int[] values)
-        {
-            int minIndex = 0;
-            int minValue = values[minIndex];
-
-            for (int i = 1; i < values.Length; i++)
-            {
-                if (values[i] < minValue)
-                {
-                    minIndex = i;
-                    minValue = values[minIndex];
-                }
-            }
-
-            return minValue;
-        }
-
+        
         public static SearchResult getMaxValue(CellColumnValues values)
         {
             List<int> indices = new List<int>();
