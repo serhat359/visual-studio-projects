@@ -467,11 +467,6 @@ namespace PicrossSolver
 
                         for (int j = range.start + reach; j < range.end - reach + 1; j++)
                         {
-                            if (j == 10)
-                            {
-                                display(picture);
-                                debug();
-                            }
                             picture[row, j] = FILLED;
                         }
 
@@ -1135,13 +1130,7 @@ namespace PicrossSolver
         {
             return values;
         }
-
-        // TODO remove this function when it's over
-        private static void debug()
-        {
-            var x = 1;
-        }
-
+        
         public class SearchResult
         {
             public int Value { get; set; }
