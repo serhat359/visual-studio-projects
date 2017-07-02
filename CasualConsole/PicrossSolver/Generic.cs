@@ -59,6 +59,10 @@ namespace PicrossSolver
 
                         int filledSize = filledLastIndex - filledFoundIndex + 1;
 
+                        // Dolunun önününde ulaşılamayacak yerleri boş ile doldurma
+                        for (int i = 0; i < filledSize + filledFoundIndex - val; i++)
+                            cells[i + startIndex] = Form1.EMPTY;
+
                         if (cells[startIndex] == Form1.FILLED) // İlk karakterin dolu olma ihtimali
                         {
                             if (val + startIndex < cells.Length)
@@ -120,7 +124,7 @@ namespace PicrossSolver
         private static void ApplyDimensionsForwardAndBackward(Action<Form1.CellSeries> processing, int[,] picture, int[][] upColumn, int[][] leftColumn)
         {
             bool executeBelow = true;
-            
+
             for (int row = 0; executeBelow && row < Form1.rowCount && !Form1.isRowCompleted[row]; row++)
             {
                 processing(new Form1.CellSeries(row, picture, Form1.Direction.Horizontal, leftColumn[row]));
