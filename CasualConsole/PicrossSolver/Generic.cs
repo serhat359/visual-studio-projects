@@ -442,6 +442,82 @@ namespace PicrossSolver
             }
         }
 
+        public static void ProcessStartsAndEnds(Form1.CellSeries cells)
+        {
+            var values = cells.cellColumnValues;
+            int valuesIndex = 0;
+
+            int i;
+            for (i = 0; i < cells.Length; i++)
+            {
+                int cell = cells[i];
+
+                if (cell == Form1.UNKNOWN)
+                {
+                    break;
+                }
+                else if (cell == Form1.FILLED)
+                {
+
+                    int val = values[valuesIndex++];
+                    int max = i + val;
+
+                    for (; i < max; i++)
+                    {
+                        cells[i] = Form1.FILLED;
+                    }
+
+                    if (i < cells.Length)
+                        cells[i] = Form1.EMPTY;
+
+                }
+                else if (cell == Form1.EMPTY)
+                {
+
+                }
+            }
+
+            // Below is for checking remaining unknown cells
+            bool isAllUnknown = true;
+            for (int j = i; j < cells.Length; j++)
+                if (cells[j] != Form1.UNKNOWN)
+                {
+                    isAllUnknown = false;
+                    break;
+                }
+
+            // isAllUnknown below
+            if (isAllUnknown)
+            {
+                int unknownSize = cells.Length - i;
+                int valuesNewIndex = valuesIndex;
+
+                int sum = values.Length - 1 - valuesIndex; // CHANGE! sum = Length - 1
+                for (int j = valuesIndex; j < values.Length; j++)
+                    sum += values[j];
+
+                // TODO this needs range process optimization
+                if (unknownSize > 0 && sum == unknownSize)
+                {
+                    for (int colIndex = i, j = valuesNewIndex; j < values.Length; j++, colIndex++)
+                    { // CHANGE colIndex++
+                        int val = values[j];
+
+                        if (colIndex - 1 >= 0)
+                            cells[colIndex - 1] = Form1.EMPTY;
+
+                        for (int k = 0; k < val; k++)
+                            cells[colIndex++] = Form1.FILLED;
+                    }
+                }
+                else if (unknownSize > 0 && valuesNewIndex == -1)
+                {
+                    for (int k = 0; k <= i; k++)
+                        cells[k] = Form1.EMPTY;
+                }
+            }
+        }
+
         private static IEnumerable<int> MyRange(int from, int to)
         {
             for (int i = from; i < to; i++)
