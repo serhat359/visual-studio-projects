@@ -508,7 +508,8 @@ namespace PicrossSolver
             }
         }
 
-        public static void ProcessFillBetweenEmpties(Form1.CellSeries cells) {
+        public static void ProcessFillBetweenEmpties(Form1.CellSeries cells)
+        {
             var values = cells.cellColumnValues;
 
             // TODO generate table for this
@@ -531,6 +532,40 @@ namespace PicrossSolver
                     }
 
                     lastEmptyIndex = i;
+                }
+            }
+        }
+
+        public static void ProcessTryFindingMatchStartingAndEnding(Form1.CellSeries cells)
+        {
+            var values = cells.cellColumnValues;
+
+            int firstValue = values[0];
+
+            bool foundFilled = false;
+            bool foundEmpty = false;
+
+            int i;
+            for (i = 0; i < cells.Length; i++)
+            {
+                int cell = cells[i];
+
+                if (cell == Form1.FILLED)
+                    foundFilled = true;
+                else if (cell == Form1.EMPTY)
+                {
+                    foundEmpty = true;
+                    break;
+                }
+            }
+
+            if (foundEmpty && foundFilled)
+            {
+                // TODO this requires range processing
+                if (i == firstValue)
+                {
+                    for (int k = 0; k < i; k++)
+                        cells[k] = Form1.FILLED;
                 }
             }
         }

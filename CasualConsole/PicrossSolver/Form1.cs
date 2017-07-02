@@ -143,8 +143,8 @@ namespace PicrossSolver
                 processCheckAllCounts(picture, upColumn, leftColumn);
                 isChangeDetected |= testPicture(picture);
 
-                // seri başlarında ve sonlarında kendini bulmaya çaşılışyor
-                processTryFindingMatchStartingAndEnding(picture, upColumn, leftColumn);
+                // seri başlarında ve sonlarında kendini bulmaya çalışıyor
+                ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.ProcessTryFindingMatchStartingAndEnding);
                 isChangeDetected |= testPicture(picture);
 
                 // serileri genel olarak analiz ediyor
@@ -199,140 +199,7 @@ namespace PicrossSolver
                 processing(new Form1.CellSeries(col, picture, Form1.Direction.Vertical, upColumn[col]));
             }
         }
-
-        private static void processTryFindingMatchStartingAndEnding(int[,] picture, int[][] upColumn, int[][] leftColumn)
-        {
-            for (int col = 0; col < colCount; col++)
-            {
-                int[] values = upColumn[col];
-
-                int firstValue = values[0];
-
-                bool foundFilled = false;
-                bool foundEmpty = false;
-
-                int i;
-                for (i = 0; i < rowCount; i++)
-                {
-                    int cell = picture[i, col];
-
-                    if (cell == FILLED)
-                        foundFilled = true;
-                    else if (cell == EMPTY)
-                    {
-                        foundEmpty = true;
-                        break;
-                    }
-                }
-
-                if (foundEmpty && foundFilled)
-                {
-                    // TODO this requires range processing
-                    if (i == firstValue)
-                    {
-                        for (int k = 0; k < i; k++)
-                            picture[k, col] = FILLED;
-                    }
-                }
-
-                // Above is regular iteration
-                // Below is reverse iteration
-
-                int lastValue = values[values.Length - 1];
-
-                foundFilled = false;
-                foundEmpty = false;
-
-                for (i = lastRow; i >= 0; i--)
-                {
-                    int cell = picture[i, col];
-
-                    if (cell == FILLED)
-                        foundFilled = true;
-                    else if (cell == EMPTY)
-                    {
-                        foundEmpty = true;
-                        break;
-                    }
-                }
-
-                if (foundEmpty && foundFilled)
-                {
-                    // TODO this requires range processing
-                    if (lastRow - i == lastValue)
-                    {
-                        for (int k = i + 1; k < rowCount; k++)
-                            picture[k, col] = FILLED;
-                    }
-                }
-            }
-
-            for (int row = 0; row < rowCount; row++)
-            {
-                int[] values = leftColumn[row];
-
-                int firstValue = values[0];
-
-                bool foundFilled = false;
-                bool foundEmpty = false;
-
-                int i;
-                for (i = 0; i < colCount; i++)
-                {
-                    int cell = picture[row, i];
-
-                    if (cell == FILLED)
-                        foundFilled = true;
-                    else if (cell == EMPTY)
-                    {
-                        foundEmpty = true;
-                        break;
-                    }
-                }
-
-                if (foundEmpty && foundFilled)
-                {
-                    // TODO this requires range processing
-                    if (i == firstValue)
-                    {
-                        for (int k = 0; k < i; k++)
-                            picture[row, k] = FILLED;
-                    }
-                }
-
-                // Above is regular iteration
-                // Below is reverse iteration
-
-                int lastValue = values[values.Length - 1];
-
-                foundFilled = false;
-                foundEmpty = false;
-
-                for (i = lastCol; i >= 0; i--)
-                {
-                    int cell = picture[row, i];
-
-                    if (cell == FILLED)
-                        foundFilled = true;
-                    else if (cell == EMPTY)
-                    {
-                        foundEmpty = true;
-                        break;
-                    }
-                }
-
-                if (foundEmpty && foundFilled)
-                {
-                    // TODO this requires range processing
-                    if (lastCol - i == lastValue)
-                    {
-                        for (int k = i + 1; k < colCount; k++)
-                            picture[row, k] = FILLED;
-                    }
-                }
-            }
-        }
-
+        
         private static void processCheckAllCounts(int[,] picture, int[][] upColumn, int[][] leftColumn)
         {
             for (int col = 0; col < colCount; col++)
