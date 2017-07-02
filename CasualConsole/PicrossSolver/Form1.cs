@@ -17,7 +17,7 @@ namespace PicrossSolver
         public const int lastRow = rowCount - 1;
         public const int lastCol = colCount - 1;
 
-        static int iteration = 0;
+        public static int iteration = 0;
         static int[,] pictureRef = null;
 
         static int[,] correct = {
@@ -135,11 +135,11 @@ namespace PicrossSolver
                 // seri başlarında ve sonlarında kendini bulmaya çaşılışyor
                 processTryFindingMatchStartingAndEnding(picture, upColumn, leftColumn);
                 isChangeDetected |= testPicture(picture);
-
+                
                 // serileri genel olarak analiz ediyor
                 Generic.processGeneric(picture, upColumn, leftColumn);
                 isChangeDetected |= testPicture(picture);
-
+                
                 if (!isChangeDetected)
                 {
                     break;
