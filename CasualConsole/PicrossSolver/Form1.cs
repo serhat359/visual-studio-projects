@@ -75,6 +75,8 @@ namespace PicrossSolver
             leftColumn[14] = (arr(4, 2, 2));
 
             solveAndDisplay(upColumn, leftColumn);
+
+            display(correct, "This is how it should be", true);
         }
 
         private static void solveAndDisplay(int[][] upColumn, int[][] leftColumn)
@@ -89,8 +91,10 @@ namespace PicrossSolver
         private static void solve(int[,] picture, int[][] upColumn, int[][] leftColumn)
         {
             processInitial(picture, upColumn, leftColumn);
-
+            
             dumpPicture(picture);
+
+            testPicture(picture);
 
             for (iteration = 0; ; iteration++)
             {
@@ -130,6 +134,10 @@ namespace PicrossSolver
 
                 // seri başlarında ve sonlarında kendini bulmaya çaşılışyor
                 processTryFindingMatchStartingAndEnding(picture, upColumn, leftColumn);
+                isChangeDetected |= testPicture(picture);
+
+                // serileri genel olarak analiz ediyor
+                Generic.processGeneric(picture, upColumn, leftColumn);
                 isChangeDetected |= testPicture(picture);
 
                 if (!isChangeDetected)
@@ -726,8 +734,10 @@ namespace PicrossSolver
                     {
                         int asIs = picture[i, j];
                         int correctOne = correct[i, j];
+                        Console.WriteLine("Hata tespit edildi");
                         display(pictureRef, "Hatasız olan");
                         display(picture, "Hatalı olan");
+                        display(correct, "Olması gereken", true);
                         throw new Exception("Önceki metot yanlış, iteration: " + iteration + ", row: " + i + ", col: " + j);
                     }
 
@@ -1487,7 +1497,7 @@ namespace PicrossSolver
             display(picture, "Latest");
         }
 
-        private static void display(int[,] picture, String title)
+        private static void display(int[,] picture, string title, bool isApplication = false)
         {
             dumpPicture(picture);
 
@@ -1495,7 +1505,8 @@ namespace PicrossSolver
             w.Show();
             w.Invalidate();
 
-            Application.Run(w);
+            if (isApplication)
+                Application.Run(w);
         }
 
         private static int[] arr(params int[] values)
@@ -1526,6 +1537,119 @@ namespace PicrossSolver
             }
         }
 
+        public enum Direction
+        {
+            Horizontal,
+            Vertical,
+            HorizontalReverse,
+            VerticalReverse
+        }
+
+        public class CellColumnValues
+        {
+            public int Length { get { return _length; } }
+            public int this[int i]
+            {
+                get { return valueGetter(i); }
+            }
+            public IEnumerable<int> asIterable { get { return iterable(); } }
+
+            private int _length;
+            private Func<int, int> valueGetter;
+
+            public CellColumnValues(int[] values, Direction direction)
+            {
+                _length = values.Length;
+
+                switch (direction)
+                {
+                    case Direction.Horizontal:
+                    case Direction.Vertical:
+                        {
+                            valueGetter = i => values[i];
+                        }
+                        break;
+                    case Direction.HorizontalReverse:
+                    case Direction.VerticalReverse:
+                        {
+                            valueGetter = i => values[values.Length - 1 - i];
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            }
+            public IEnumerable<int> iterable()
+            {
+                for (int i = 0; i < _length; i++)
+                    yield return valueGetter(i);
+            }
+        }
+
+        public class CellSeries
+        {
+            public CellColumnValues cellColumnValues { get { return _cellColumnValues; } }
+            public int Length { get { return _length; } }
+            public int this[int i]
+            {
+                get { return valueGetter(i); }
+                set { valueSetter(i, value); }
+            }
+            public IEnumerable<int> asIterable { get { return iterable(); } }
+
+            private CellColumnValues _cellColumnValues;
+            private int _length;
+            private Func<int, int> valueGetter;
+            private Action<int, int> valueSetter;
+
+            public CellSeries(int rowOrCol, int[,] picture, Direction direction, int[] columnValues)
+            {
+                _cellColumnValues = new CellColumnValues(columnValues, direction);
+
+                switch (direction)
+                {
+                    case Direction.Horizontal:
+                        {
+                            int row = rowOrCol;
+                            valueGetter = col => picture[row, col];
+                            valueSetter = (col, cell) => picture[row, col] = cell;
+                            _length = colCount;
+                        }
+                        break;
+                    case Direction.Vertical:
+                        {
+                            int col = rowOrCol;
+                            valueGetter = row => picture[row, col];
+                            valueSetter = (row, cell) => picture[row, col] = cell;
+                            _length = rowCount;
+                        }
+                        break;
+                    case Direction.HorizontalReverse:
+                        {
+                            int row = rowOrCol;
+                            valueGetter = col => picture[row, lastCol - col];
+                            valueSetter = (col, cell) => picture[row, lastCol - col] = cell;
+                            _length = colCount;
+                        }
+                        break;
+                    case Direction.VerticalReverse:
+                        {
+                            int col = rowOrCol;
+                            valueGetter = row => picture[lastRow - row, col];
+                            valueSetter = (row, cell) => picture[lastRow - row, col] = cell;
+                            _length = rowCount;
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            }
+            public IEnumerable<int> iterable()
+            {
+                for (int i = 0; i < _length; i++)
+                    yield return valueGetter(i);
+            }
+        }
     }
 
     public class MyWindow : Form
