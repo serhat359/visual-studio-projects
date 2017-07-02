@@ -6,263 +6,22 @@ namespace PicrossSolver
 {
     public static class Generic
     {
-        public static void ProcessMatching(Form1.CellSeries cells)
-        {
-            bool doContinue = false;
-            int valueIndex = 0;
-            int startIndex = 0;
-
-            do
-            {
-                doContinue = false;
-
-                int val = cells.cellColumnValues[valueIndex];
-
-                for (int i = 0; i + startIndex < cells.Length; startIndex++)
-                {
-                    if (cells[i + startIndex] == Form1.EMPTY)
-                    {
-
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-
-                int filledFoundIndex = -1;
-
-                for (int i = 0; i <= val; i++)
-                {
-                    if (i + startIndex < cells.Length && cells[i + startIndex] == Form1.FILLED)
-                    {
-                        filledFoundIndex = i;
-                        break;
-                    }
-                }
-
-                if (filledFoundIndex >= 0)
-                {
-                    // Dolunun arkasını doluyla doldurma
-                    for (int i = filledFoundIndex + 1; i < val; i++)
-                        cells[i + startIndex] = Form1.FILLED;
-
-                    int filledLastIndex = val - 1;
-
-                    for (int i = filledLastIndex + 1; ; i++)
-                    {
-                        if (i + startIndex < cells.Length && cells[i + startIndex] == Form1.FILLED)
-                            filledLastIndex = i;
-                        else
-                            break;
-                    }
-
-                    int filledSize = filledLastIndex - filledFoundIndex + 1;
-
-                    // Dolunun önününde ulaşılamayacak yerleri boş ile doldurma
-                    for (int i = 0; i < filledSize + filledFoundIndex - val; i++)
-                        cells[i + startIndex] = Form1.EMPTY;
-
-                    if (cells[startIndex] == Form1.FILLED) // İlk karakterin dolu olma ihtimali
-                    {
-                        if (val + startIndex < cells.Length)
-                            cells[val + startIndex] = Form1.EMPTY;
-
-                        doContinue = true;
-                        valueIndex++;
-                        startIndex += val + 1;
-                    }
-                    else if (cells[val + startIndex] == Form1.EMPTY) // Doluların arkasının boş olma ihtimali
-                    {
-                        for (int i = 0; i < filledFoundIndex; i++)
-                        {
-                            cells[i + startIndex] = Form1.FILLED;
-                        }
-
-                        doContinue = true;
-                        valueIndex++;
-                        startIndex += val + 1;
-                    }
-                    else if (filledSize == val) // Doluların value ile aynı olma ihtimali
-                    {
-                        int emptyIndex1 = filledFoundIndex - 1;
-                        int emptyIndex2 = filledLastIndex + 1;
-
-                        if (emptyIndex1 + startIndex < cells.Length)
-                            cells[emptyIndex1 + startIndex] = Form1.EMPTY;
-
-                        if (emptyIndex2 + startIndex < cells.Length)
-                            cells[emptyIndex2 + startIndex] = Form1.EMPTY;
-
-                        bool isAllEmpty = true;
-                        for (int i = 0; i < emptyIndex1; i++)
-                        {
-                            if (cells[i + startIndex] != Form1.EMPTY)
-                            {
-                                isAllEmpty = false;
-                                break;
-                            }
-                        }
-
-                        if (isAllEmpty)
-                        {
-                            doContinue = true;
-                            valueIndex++;
-                            startIndex += emptyIndex2 + 1;
-                        }
-                    }
-                }
-            } while (doContinue && valueIndex < cells.cellColumnValues.Length);
-        }
-
-        public static void ProcessSetEmptiesByMax(Form1.CellSeries cells)
-        {
-            var values = cells.cellColumnValues;
-
-            // TODO generate table for this
-            var maxValueResult = Form1.getMaxValue(values);
-
-            int first = -1;
-
-            List<FilledInfo> filledInfos = new List<FilledInfo>();
-
-            for (int i = 0; i < cells.Length; i++)
-            {
-                if (cells[i] != Form1.FILLED)
-                    continue;
-                else
-                {
-                    first = i;
-
-                    int last = i;
-
-                    for (i++; i < cells.Length; i++)
-                    {
-                        if (cells[i] == Form1.FILLED)
-                            last = i;
-                        else
-                            break;
-                    }
-
-                    int size = last - first + 1;
-                    if (size == maxValueResult.Value)
-                    {
-                        int leftEmptyCol = first - 1;
-                        int rightEmptyCol = last + 1;
-
-                        if (leftEmptyCol >= 0)
-                            cells[leftEmptyCol] = Form1.EMPTY;
-
-                        if (rightEmptyCol < cells.Length)
-                            cells[rightEmptyCol] = Form1.EMPTY;
-
-                        filledInfos.Add(new FilledInfo { CellIndexStart = first, Size = size });
-                    }
-
-                    i--;
-                }
-            }
-
-            if (filledInfos.Count == maxValueResult.Count)
-            {
-                // TODO process
-
-                for (int area = 0; area <= maxValueResult.Count; area++)
-                {
-                    var foundIndex = area;
-
-                    int cellStart = area == 0 ? 0 : filledInfos[area - 1].CellIndexEnd + 2;
-                    int cellEnd = area == maxValueResult.Count ? cells.Length - 1 : filledInfos[area].CellIndexStart - 1;
-
-                    IEnumerable<int> selectedValuesIndices;
-
-                    if (area == 0)
-                        selectedValuesIndices = MyRange(0, maxValueResult.LocationIndices[area]);
-                    else if (area == maxValueResult.Count)
-                        selectedValuesIndices = MyRange(maxValueResult.LocationIndices[area - 1] + 1, values.Length);
-                    else
-                        selectedValuesIndices = MyRange(maxValueResult.LocationIndices[area - 1] + 1, maxValueResult.LocationIndices[area]);
-
-                    int[] newValues = selectedValuesIndices.Select(x => values[x]).ToArray();
-
-                    // below is ProcessInitial(cellStart, cellEnd, newValues);
-
-                    Form1.CellSeries slice = Form1.CellSeries.Slice(cells, cellStart, cellEnd, newValues);
-
-                    if (slice.cellColumnValues.Length > 0)
-                        ProcessAllAlgorithms(slice);
-                }
-            }
-        }
-
         public static void ProcessAllAlgorithms(Form1.CellSeries cells)
         {
             InitialProcessing(cells);
-            RemoveSmallEmpties(cells);
             ProcessSingles(cells);
 
             {
                 ProcessStartsAndEnds(cells);
                 ProcessStartingAndEndingUnknowns(cells);
             }
-        }
 
-        public static void RemoveSmallEmpties(Form1.CellSeries cells)
-        {
-            var values = cells.cellColumnValues;
-
-            int unknownCount = 0;
-
-            int startIndex = 0;
-            int valueIndex = 0;
-
-            do
-            {
-                if (startIndex >= cells.Length)
-                    break;
-
-                int cell = cells[startIndex];
-
-                if (cell == Form1.EMPTY)
-                {
-                    do
-                    {
-                        startIndex++;
-                    } while (startIndex < cells.Length && cells[startIndex] == Form1.EMPTY);
-                }
-                else if (cell == Form1.FILLED)
-                {
-                    valueIndex++;
-
-                    do
-                    {
-                        startIndex++;
-                    } while (startIndex < cells.Length && cells[startIndex] == Form1.FILLED);
-                }
-                else
-                    break;
-            } while (true);
-
-            for (int i = startIndex; i < cells.Length; i++)
-            {
-                int cell = cells[i];
-
-                if (cell == Form1.UNKNOWN)
-                    unknownCount++;
-                else if (cell == Form1.FILLED)
-                {
-                    unknownCount = 0;
-                    break;
-                }
-                else
-                    break;
-            }
-
-            if (unknownCount > 0 && valueIndex < values.Length && unknownCount < values[valueIndex])
-            {
-                for (int i = 0; i < unknownCount; i++)
-                    cells[i + startIndex] = Form1.EMPTY;
-            }
+            ProcessSetEmptiesByMax(cells);
+            RemoveSmallEmpties(cells);
+            ProcessFillBetweenEmpties(cells);
+            ProcessMaxValues(cells);
+            ProcessTryFindingMatchStartingAndEnding(cells);
+            ProcessMatching(cells);
         }
 
         public static void InitialProcessing(Form1.CellSeries cells)
@@ -508,6 +267,144 @@ namespace PicrossSolver
             }
         }
 
+        public static void ProcessSetEmptiesByMax(Form1.CellSeries cells)
+        {
+            var values = cells.cellColumnValues;
+
+            // TODO generate table for this
+            var maxValueResult = Form1.getMaxValue(values);
+
+            int first = -1;
+
+            List<FilledInfo> filledInfos = new List<FilledInfo>();
+
+            for (int i = 0; i < cells.Length; i++)
+            {
+                if (cells[i] != Form1.FILLED)
+                    continue;
+                else
+                {
+                    first = i;
+
+                    int last = i;
+
+                    for (i++; i < cells.Length; i++)
+                    {
+                        if (cells[i] == Form1.FILLED)
+                            last = i;
+                        else
+                            break;
+                    }
+
+                    int size = last - first + 1;
+                    if (size == maxValueResult.Value)
+                    {
+                        int leftEmptyCol = first - 1;
+                        int rightEmptyCol = last + 1;
+
+                        if (leftEmptyCol >= 0)
+                            cells[leftEmptyCol] = Form1.EMPTY;
+
+                        if (rightEmptyCol < cells.Length)
+                            cells[rightEmptyCol] = Form1.EMPTY;
+
+                        filledInfos.Add(new FilledInfo { CellIndexStart = first, Size = size });
+                    }
+
+                    i--;
+                }
+            }
+
+            if (filledInfos.Count == maxValueResult.Count)
+            {
+                // TODO process
+
+                for (int area = 0; area <= maxValueResult.Count; area++)
+                {
+                    var foundIndex = area;
+
+                    int cellStart = area == 0 ? 0 : filledInfos[area - 1].CellIndexEnd + 2;
+                    int cellEnd = area == maxValueResult.Count ? cells.Length - 1 : filledInfos[area].CellIndexStart - 1;
+
+                    IEnumerable<int> selectedValuesIndices;
+
+                    if (area == 0)
+                        selectedValuesIndices = MyRange(0, maxValueResult.LocationIndices[area]);
+                    else if (area == maxValueResult.Count)
+                        selectedValuesIndices = MyRange(maxValueResult.LocationIndices[area - 1] + 1, values.Length);
+                    else
+                        selectedValuesIndices = MyRange(maxValueResult.LocationIndices[area - 1] + 1, maxValueResult.LocationIndices[area]);
+
+                    int[] newValues = selectedValuesIndices.Select(x => values[x]).ToArray();
+
+                    // below is ProcessInitial(cellStart, cellEnd, newValues);
+
+                    Form1.CellSeries slice = Form1.CellSeries.Slice(cells, cellStart, cellEnd, newValues);
+
+                    if (slice.cellColumnValues.Length > 0)
+                        ProcessAllAlgorithms(slice);
+                }
+            }
+        }
+
+        public static void RemoveSmallEmpties(Form1.CellSeries cells)
+        {
+            var values = cells.cellColumnValues;
+
+            int unknownCount = 0;
+
+            int startIndex = 0;
+            int valueIndex = 0;
+
+            do
+            {
+                if (startIndex >= cells.Length)
+                    break;
+
+                int cell = cells[startIndex];
+
+                if (cell == Form1.EMPTY)
+                {
+                    do
+                    {
+                        startIndex++;
+                    } while (startIndex < cells.Length && cells[startIndex] == Form1.EMPTY);
+                }
+                else if (cell == Form1.FILLED)
+                {
+                    valueIndex++;
+
+                    do
+                    {
+                        startIndex++;
+                    } while (startIndex < cells.Length && cells[startIndex] == Form1.FILLED);
+                }
+                else
+                    break;
+            } while (true);
+
+            for (int i = startIndex; i < cells.Length; i++)
+            {
+                int cell = cells[i];
+
+                if (cell == Form1.UNKNOWN)
+                    unknownCount++;
+                else if (cell == Form1.FILLED)
+                {
+                    unknownCount = 0;
+                    break;
+                }
+                else
+                    break;
+            }
+
+            if (unknownCount > 0 && valueIndex < values.Length && unknownCount < values[valueIndex])
+            {
+                for (int i = 0; i < unknownCount; i++)
+                    cells[i + startIndex] = Form1.EMPTY;
+            }
+        }
+
         public static void ProcessFillBetweenEmpties(Form1.CellSeries cells)
         {
             var values = cells.cellColumnValues;
@@ -532,40 +429,6 @@ namespace PicrossSolver
                     }
 
                     lastEmptyIndex = i;
-                }
-            }
-        }
-
-        public static void ProcessTryFindingMatchStartingAndEnding(Form1.CellSeries cells)
-        {
-            var values = cells.cellColumnValues;
-
-            int firstValue = values[0];
-
-            bool foundFilled = false;
-            bool foundEmpty = false;
-
-            int i;
-            for (i = 0; i < cells.Length; i++)
-            {
-                int cell = cells[i];
-
-                if (cell == Form1.FILLED)
-                    foundFilled = true;
-                else if (cell == Form1.EMPTY)
-                {
-                    foundEmpty = true;
-                    break;
-                }
-            }
-
-            if (foundEmpty && foundFilled)
-            {
-                // TODO this requires range processing
-                if (i == firstValue)
-                {
-                    for (int k = 0; k < i; k++)
-                        cells[k] = Form1.FILLED;
                 }
             }
         }
@@ -651,6 +514,149 @@ namespace PicrossSolver
                     }
                 }
             }
+        }
+
+        public static void ProcessTryFindingMatchStartingAndEnding(Form1.CellSeries cells)
+        {
+            var values = cells.cellColumnValues;
+
+            int firstValue = values[0];
+
+            bool foundFilled = false;
+            bool foundEmpty = false;
+
+            int i;
+            for (i = 0; i < cells.Length; i++)
+            {
+                int cell = cells[i];
+
+                if (cell == Form1.FILLED)
+                    foundFilled = true;
+                else if (cell == Form1.EMPTY)
+                {
+                    foundEmpty = true;
+                    break;
+                }
+            }
+
+            if (foundEmpty && foundFilled)
+            {
+                // TODO this requires range processing
+                if (i == firstValue)
+                {
+                    for (int k = 0; k < i; k++)
+                        cells[k] = Form1.FILLED;
+                }
+            }
+        }
+
+        public static void ProcessMatching(Form1.CellSeries cells)
+        {
+            bool doContinue = false;
+            int valueIndex = 0;
+            int startIndex = 0;
+
+            do
+            {
+                doContinue = false;
+
+                int val = cells.cellColumnValues[valueIndex];
+
+                for (int i = 0; i + startIndex < cells.Length; startIndex++)
+                {
+                    if (cells[i + startIndex] == Form1.EMPTY)
+                    {
+
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+
+                int filledFoundIndex = -1;
+
+                for (int i = 0; i <= val; i++)
+                {
+                    if (i + startIndex < cells.Length && cells[i + startIndex] == Form1.FILLED)
+                    {
+                        filledFoundIndex = i;
+                        break;
+                    }
+                }
+
+                if (filledFoundIndex >= 0)
+                {
+                    // Dolunun arkasını doluyla doldurma
+                    for (int i = filledFoundIndex + 1; i < val; i++)
+                        cells[i + startIndex] = Form1.FILLED;
+
+                    int filledLastIndex = val - 1;
+
+                    for (int i = filledLastIndex + 1; ; i++)
+                    {
+                        if (i + startIndex < cells.Length && cells[i + startIndex] == Form1.FILLED)
+                            filledLastIndex = i;
+                        else
+                            break;
+                    }
+
+                    int filledSize = filledLastIndex - filledFoundIndex + 1;
+
+                    // Dolunun önününde ulaşılamayacak yerleri boş ile doldurma
+                    for (int i = 0; i < filledSize + filledFoundIndex - val; i++)
+                        cells[i + startIndex] = Form1.EMPTY;
+
+                    if (cells[startIndex] == Form1.FILLED) // İlk karakterin dolu olma ihtimali
+                    {
+                        if (val + startIndex < cells.Length)
+                            cells[val + startIndex] = Form1.EMPTY;
+
+                        doContinue = true;
+                        valueIndex++;
+                        startIndex += val + 1;
+                    }
+                    else if (cells[val + startIndex] == Form1.EMPTY) // Doluların arkasının boş olma ihtimali
+                    {
+                        for (int i = 0; i < filledFoundIndex; i++)
+                        {
+                            cells[i + startIndex] = Form1.FILLED;
+                        }
+
+                        doContinue = true;
+                        valueIndex++;
+                        startIndex += val + 1;
+                    }
+                    else if (filledSize == val) // Doluların value ile aynı olma ihtimali
+                    {
+                        int emptyIndex1 = filledFoundIndex - 1;
+                        int emptyIndex2 = filledLastIndex + 1;
+
+                        if (emptyIndex1 + startIndex < cells.Length)
+                            cells[emptyIndex1 + startIndex] = Form1.EMPTY;
+
+                        if (emptyIndex2 + startIndex < cells.Length)
+                            cells[emptyIndex2 + startIndex] = Form1.EMPTY;
+
+                        bool isAllEmpty = true;
+                        for (int i = 0; i < emptyIndex1; i++)
+                        {
+                            if (cells[i + startIndex] != Form1.EMPTY)
+                            {
+                                isAllEmpty = false;
+                                break;
+                            }
+                        }
+
+                        if (isAllEmpty)
+                        {
+                            doContinue = true;
+                            valueIndex++;
+                            startIndex += emptyIndex2 + 1;
+                        }
+                    }
+                }
+            } while (doContinue && valueIndex < cells.cellColumnValues.Length);
         }
 
         private static int getMinValue(Form1.CellColumnValues values)
