@@ -267,13 +267,13 @@ namespace PicrossSolver
             ApplyDimensionsForward(processing, picture, upColumn, leftColumn);
         }
 
-        private static void ProcessAllAlgorithms(Form1.CellSeries cells)
+        public static void ProcessAllAlgorithms(Form1.CellSeries cells)
         {
             InitialProcessing(cells);
             RemoveSmallEmpties(cells);
         }
 
-        private static void RemoveSmallEmpties(Form1.CellSeries cells)
+        public static void RemoveSmallEmpties(Form1.CellSeries cells)
         {
             var values = cells.cellColumnValues;
 
@@ -331,27 +331,29 @@ namespace PicrossSolver
             }
         }
 
-        private static void InitialProcessing(Form1.CellSeries cells)
+        public static void InitialProcessing(Form1.CellSeries cells)
         {
-            int cellCount = cells.Length;
-            var newValues = cells.cellColumnValues;
+            var values = cells.cellColumnValues;
 
-            int minCellOccupation = newValues.Sum() + newValues.Length - 1;
-            int rem = cellCount - minCellOccupation;
+            int sum = values.Length - 1;
 
-            int innerRange = 0;
-            for (int i = 0; i < newValues.Length; i++)
+            sum += values.Sum();
+
+            int rem = cells.Length - sum;
+
+            int formerSize = 0;
+            for (int i = 0; i < values.Length; i++)
             {
-                int val = newValues[i];
+                int elem = values[i];
 
-                int k;
-                for (k = rem; k < val; k++)
-                    cells[innerRange + k] = Form1.FILLED;
+                int diff = elem - rem;
 
-                if (rem == 0)
-                    cells[innerRange + k] = Form1.EMPTY;
-
-                innerRange += val + 1;
+                if (diff > 0)
+                {
+                    for (int j = 0; j < diff; j++)
+                        cells[j + rem + formerSize] = Form1.FILLED;
+                }
+                formerSize += 1 + elem;
             }
         }
 
@@ -369,6 +371,7 @@ namespace PicrossSolver
 
             for (int row = 0; executeBelow && row < Form1.rowCount
                 //&& !Form1.isRowCompleted[row]
+                // TODO remove comment
                 ; row++)
             {
                 processing(new Form1.CellSeries(row, picture, Form1.Direction.Horizontal, leftColumn[row]));
@@ -377,6 +380,7 @@ namespace PicrossSolver
 
             for (int col = 0; executeBelow && col < Form1.rowCount
                 //&& !Form1.isColCompleted[col]
+                // TODO remove comment
                 ; col++)
             {
                 processing(new Form1.CellSeries(col, picture, Form1.Direction.Vertical, upColumn[col]));

@@ -8,6 +8,8 @@ namespace PicrossSolver
 {
     public class Form1
     {
+        public delegate void Algorithm(CellSeries s);
+
         public const int UNKNOWN = 0;
         public const int FILLED = 1;
         public const int EMPTY = 2;
@@ -97,7 +99,7 @@ namespace PicrossSolver
 
         private static void solve(int[,] picture, int[][] upColumn, int[][] leftColumn)
         {
-            processInitial(picture, upColumn, leftColumn);
+            ApplyGivenAlgorithmForAll(picture, upColumn, leftColumn, Generic.InitialProcessing);
 
             dumpPicture(picture);
 
@@ -156,6 +158,27 @@ namespace PicrossSolver
             }
 
             Console.WriteLine("There was no change in the iteration: " + iteration);
+        }
+
+        public static void ApplyGivenAlgorithmForAll(int[,] picture, int[][] upColumn, int[][] leftColumn, Algorithm processing)
+        {
+            for (int row = 0; row < Form1.rowCount
+                //&& !Form1.isRowCompleted[row]
+                // TODO remove comment
+                ; row++)
+            {
+                processing(new Form1.CellSeries(row, picture, Form1.Direction.Horizontal, leftColumn[row]));
+                processing(new Form1.CellSeries(row, picture, Form1.Direction.HorizontalReverse, leftColumn[row]));
+            }
+
+            for (int col = 0; col < Form1.rowCount
+                //&& !Form1.isColCompleted[col]
+                // TODO remove comment
+                ; col++)
+            {
+                processing(new Form1.CellSeries(col, picture, Form1.Direction.Vertical, upColumn[col]));
+                processing(new Form1.CellSeries(col, picture, Form1.Direction.VerticalReverse, upColumn[col]));
+            }
         }
 
         private static void processTryFindingMatchStartingAndEnding(int[,] picture, int[][] upColumn, int[][] leftColumn)
@@ -1243,67 +1266,6 @@ namespace PicrossSolver
                         for (int k = lastFilled + reach + 1; k < colCount; k++)
                             picture[row, k] = EMPTY;
                     }
-                }
-            }
-        }
-
-        private static void processInitial(int[,] picture, int[][] upColumn, int[][] leftColumn)
-        {
-            for (int col = 0; col < colCount; col++)
-            {
-                int[] values = upColumn[col];
-
-                int sum = values.Length - 1;
-
-                foreach (int elem in values)
-                {
-                    sum += elem;
-                }
-
-                int rem = rowCount - sum;
-
-                int formerSize = 0;
-                for (int i = 0; i < values.Length; i++)
-                {
-                    int elem = values[i];
-
-                    int diff = elem - rem;
-
-                    if (diff > 0)
-                    {
-                        for (int j = 0; j < diff; j++)
-                            picture[j + rem + formerSize, col] = FILLED;
-                    }
-                    formerSize += 1 + elem;
-                }
-            }
-
-            for (int row = 0; row < rowCount; row++)
-            {
-                int[] values = leftColumn[row];
-
-                int sum = values.Length - 1;
-
-                foreach (int elem in values)
-                {
-                    sum += elem;
-                }
-
-                int rem = colCount - sum;
-
-                int formerSize = 0;
-                for (int i = 0; i < values.Length; i++)
-                {
-                    int elem = values[i];
-
-                    int diff = elem - rem;
-
-                    if (diff > 0)
-                    {
-                        for (int j = 0; j < diff; j++)
-                            picture[row, j + rem + formerSize] = FILLED;
-                    }
-                    formerSize += 1 + elem;
                 }
             }
         }
