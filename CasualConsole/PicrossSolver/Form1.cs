@@ -119,7 +119,7 @@ namespace PicrossSolver
                     isChangeDetected |= testPicture(picture);
 
                     // seri başlarındaki ve sonlarındaki küçük boşluklara çarpı atıyor, BU METOD processStartsAndEnds METODUNDAN HEMEN SONRA ÇALIŞMALI!!!
-                    Generic.processStartingAndEndingUnknowns(picture, upColumn, leftColumn);
+                    ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.ProcessStartingAndEndingUnknowns);
                     isChangeDetected |= testPicture(picture);
                 }
 

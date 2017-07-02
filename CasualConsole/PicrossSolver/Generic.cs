@@ -120,69 +120,6 @@ namespace PicrossSolver
             ApplyDimensionsForwardAndBackward(processing, picture, upColumn, leftColumn);
         }
 
-        public static void processStartingAndEndingUnknowns(int[,] picture, int[][] upColumn, int[][] leftColumn)
-        {
-            Action<Form1.CellSeries> processing = cells =>
-            {
-                var values = cells.cellColumnValues;
-
-                int unknownCount = 0;
-
-                int startIndex = 0;
-                int valueIndex = 0;
-
-                do
-                {
-                    if (startIndex >= cells.Length)
-                        break;
-
-                    int cell = cells[startIndex];
-
-                    if (cell == Form1.EMPTY)
-                    {
-                        do
-                        {
-                            startIndex++;
-                        } while (startIndex < cells.Length && cells[startIndex] == Form1.EMPTY);
-                    }
-                    else if (cell == Form1.FILLED)
-                    {
-                        valueIndex++;
-
-                        do
-                        {
-                            startIndex++;
-                        } while (startIndex < cells.Length && cells[startIndex] == Form1.FILLED);
-                    }
-                    else
-                        break;
-                } while (true);
-
-                for (int i = startIndex; i < cells.Length; i++)
-                {
-                    int cell = cells[i];
-
-                    if (cell == Form1.UNKNOWN)
-                        unknownCount++;
-                    else if (cell == Form1.FILLED)
-                    {
-                        unknownCount = 0;
-                        break;
-                    }
-                    else
-                        break;
-                }
-
-                if (unknownCount > 0 && valueIndex < values.Length && unknownCount < values[valueIndex])
-                {
-                    for (int i = 0; i < unknownCount; i++)
-                        cells[i + startIndex] = Form1.EMPTY;
-                }
-            };
-
-            ApplyDimensionsForwardAndBackward(processing, picture, upColumn, leftColumn);
-        }
-
         public static void processSetEmptiesByMax(int[,] picture, int[][] upColumn, int[][] leftColumn)
         {
             Action<Form1.CellSeries> processing = cells =>
@@ -259,6 +196,7 @@ namespace PicrossSolver
 
                         Form1.CellSeries slice = Form1.CellSeries.Slice(cells, cellStart, cellEnd, newValues);
 
+                        if (slice.cellColumnValues.Length > 0)
                             ProcessAllAlgorithms(slice);
                     }
                 }
@@ -271,7 +209,13 @@ namespace PicrossSolver
         {
             InitialProcessing(cells);
             RemoveSmallEmpties(cells);
+            ProcessSingles(cells);
+
+            {
+                ProcessStartsAndEnds(cells);
+                ProcessStartingAndEndingUnknowns(cells);
             }
+        }
 
         public static void RemoveSmallEmpties(Form1.CellSeries cells)
         {
@@ -458,7 +402,6 @@ namespace PicrossSolver
                 }
                 else if (cell == Form1.FILLED)
                 {
-
                     int val = values[valuesIndex++];
                     int max = i + val;
 
@@ -469,7 +412,6 @@ namespace PicrossSolver
 
                     if (i < cells.Length)
                         cells[i] = Form1.EMPTY;
-
                 }
                 else if (cell == Form1.EMPTY)
                 {
@@ -515,6 +457,64 @@ namespace PicrossSolver
                     for (int k = 0; k <= i; k++)
                         cells[k] = Form1.EMPTY;
                 }
+            }
+        }
+
+        public static void ProcessStartingAndEndingUnknowns(Form1.CellSeries cells)
+        {
+            var values = cells.cellColumnValues;
+
+            int unknownCount = 0;
+
+            int startIndex = 0;
+            int valueIndex = 0;
+
+            do
+            {
+                if (startIndex >= cells.Length)
+                    break;
+
+                int cell = cells[startIndex];
+
+                if (cell == Form1.EMPTY)
+                {
+                    do
+                    {
+                        startIndex++;
+                    } while (startIndex < cells.Length && cells[startIndex] == Form1.EMPTY);
+                }
+                else if (cell == Form1.FILLED)
+                {
+                    valueIndex++;
+
+                    do
+                    {
+                        startIndex++;
+                    } while (startIndex < cells.Length && cells[startIndex] == Form1.FILLED);
+                }
+                else
+                    break;
+            } while (true);
+
+            for (int i = startIndex; i < cells.Length; i++)
+            {
+                int cell = cells[i];
+
+                if (cell == Form1.UNKNOWN)
+                    unknownCount++;
+                else if (cell == Form1.FILLED)
+                {
+                    unknownCount = 0;
+                    break;
+                }
+                else
+                    break;
+            }
+
+            if (unknownCount > 0 && valueIndex < values.Length && unknownCount < values[valueIndex])
+            {
+                for (int i = 0; i < unknownCount; i++)
+                    cells[i + startIndex] = Form1.EMPTY;
             }
         }
 
