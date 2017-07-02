@@ -110,13 +110,15 @@ namespace PicrossSolver
                 processSingles(picture, upColumn, leftColumn);
                 isChangeDetected |= testPicture(picture);
 
-                // seri başından ve sonundan itibaren bir tarafı kapalı sayıların kalanını ayarlayıp çarpı atıyor
-                processStartsAndEnds(picture, upColumn, leftColumn);
-                isChangeDetected |= testPicture(picture);
+                {
+                    // seri başından ve sonundan itibaren bir tarafı kapalı sayıların kalanını ayarlayıp çarpı atıyor
+                    processStartsAndEnds(picture, upColumn, leftColumn);
+                    isChangeDetected |= testPicture(picture);
 
-                // seri başlarındaki ve sonlarındaki küçük boşluklara çarpı atıyor
-                Generic.processStartingAndEndingUnknowns(picture, upColumn, leftColumn);
-                isChangeDetected |= testPicture(picture);
+                    // seri başlarındaki ve sonlarındaki küçük boşluklara çarpı atıyor, BU METOD processStartsAndEnds METODUNDAN HEMEN SONRA ÇALIŞMALI!!!
+                    Generic.processStartingAndEndingUnknowns(picture, upColumn, leftColumn);
+                    isChangeDetected |= testPicture(picture);
+                }
 
                 // serilerdeki en büyük değerler dolduysa başına ve sonuna çarpı atıyor
                 processSetEmptiesByMax(picture, upColumn, leftColumn);
