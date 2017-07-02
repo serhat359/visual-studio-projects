@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Windows.Forms;
 using System.Linq;
+using System.Windows.Forms;
 
 namespace PicrossSolver
 {
@@ -132,7 +132,7 @@ namespace PicrossSolver
                 isChangeDetected |= testPicture(picture);
 
                 // serideki outlier olan değere karşılık gelen dolmuşları işliyor
-                processMaxValues(picture, upColumn, leftColumn);
+                ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessMaxValues);
                 isChangeDetected |= testPicture(picture);
 
                 // serideki çarpılarla ayrılmış kısımları bulup işliyor, tasarım hatasından dolayı kaldırıldı
@@ -199,7 +199,7 @@ namespace PicrossSolver
                 processing(new Form1.CellSeries(col, picture, Form1.Direction.Vertical, upColumn[col]));
             }
         }
-        
+
         private static void processCheckAllCounts(int[,] picture, int[][] upColumn, int[][] leftColumn)
         {
             for (int col = 0; col < colCount; col++)
@@ -343,175 +343,6 @@ namespace PicrossSolver
             }
         }
 
-        private static void processMaxValues(int[,] picture, int[][] upColumn, int[][] leftColumn)
-        {
-            for (int col = 0; col < colCount; col++)
-            {
-                int[] values = upColumn[col];
-
-                if (values.Length > 1)
-                {
-                    int secondMaxValue = values[0];
-                    int maxValue = values[0];
-
-                    int i;
-                    for (i = 1; i < values.Length; i++)
-                    {
-                        int val = values[i];
-
-                        if (val > maxValue)
-                        {
-                            if (maxValue > secondMaxValue)
-                                secondMaxValue = maxValue;
-
-                            maxValue = val;
-                        }
-                        else if (val > secondMaxValue)
-                            secondMaxValue = val;
-                    }
-
-                    int filledIndex = -1;
-                    i = 0;
-
-                    for (i = 0; i < rowCount; i++)
-                    {
-                        int cell = picture[i, col];
-
-                        if (cell == FILLED && filledIndex < 0)
-                        {
-                            filledIndex = i;
-                        }
-                        else if (cell != FILLED && filledIndex >= 0)
-                        {
-                            int filledSize = i - filledIndex;
-                            if (filledSize > secondMaxValue)
-                            {
-                                int filledEndIndex = i - 1;
-
-                                int leftOfFilled = filledIndex - 1;
-                                int rightOfFilled = filledEndIndex + 1;
-                                if (leftOfFilled < 0 || picture[leftOfFilled, col] == EMPTY)
-                                {
-                                    int k;
-                                    for (k = rightOfFilled; k < filledIndex + maxValue; k++)
-                                    {
-                                        picture[k, col] = FILLED;
-                                    }
-                                    if (k < rowCount)
-                                        picture[k, col] = EMPTY;
-
-                                    filledIndex = -1;
-                                }
-                                else if (rightOfFilled > lastRow || picture[rightOfFilled, col] == EMPTY)
-                                {
-                                    int k;
-                                    for (k = leftOfFilled; k > filledEndIndex - maxValue; k--)
-                                    {
-                                        picture[k, col] = FILLED;
-                                    }
-                                    if (k > 0)
-                                        picture[k, col] = EMPTY;
-
-                                    filledIndex = -1;
-                                }
-                                else
-                                {
-                                    // TODO other process
-                                }
-                            }
-                            else
-                            {
-                                filledIndex = -1;
-                            }
-                        }
-                    }
-                }
-            }
-
-            for (int row = 0; row < rowCount; row++)
-            {
-                int[] values = leftColumn[row];
-
-                if (values.Length > 1)
-                {
-                    int secondMaxValue = values[0];
-                    int maxValue = values[0];
-
-                    int i;
-                    for (i = 1; i < values.Length; i++)
-                    {
-                        int val = values[i];
-
-                        if (val > maxValue)
-                        {
-                            if (maxValue > secondMaxValue)
-                                secondMaxValue = maxValue;
-
-                            maxValue = val;
-                        }
-                        else if (val > secondMaxValue)
-                            secondMaxValue = val;
-                    }
-
-                    int filledIndex = -1;
-                    i = 0;
-
-                    for (i = 0; i < colCount; i++)
-                    {
-                        int cell = picture[row, i];
-
-                        if (cell == FILLED && filledIndex < 0)
-                        {
-                            filledIndex = i;
-                        }
-                        else if (cell != FILLED && filledIndex >= 0)
-                        {
-                            int filledSize = i - filledIndex;
-                            if (filledSize > secondMaxValue)
-                            {
-                                int filledEndIndex = i - 1;
-
-                                int leftOfFilled = filledIndex - 1;
-                                int rightOfFilled = filledEndIndex + 1;
-                                if (leftOfFilled < 0 || picture[row, leftOfFilled] == EMPTY)
-                                {
-                                    int k;
-                                    for (k = rightOfFilled; k < filledIndex + maxValue; k++)
-                                    {
-                                        picture[row, k] = FILLED;
-                                    }
-                                    if (k < colCount)
-                                        picture[row, k] = EMPTY;
-
-                                    filledIndex = -1;
-                                }
-                                else if (rightOfFilled > lastCol || picture[row, rightOfFilled] == EMPTY)
-                                {
-                                    int k;
-                                    for (k = leftOfFilled; k > filledEndIndex - maxValue; k--)
-                                    {
-                                        picture[row, k] = FILLED;
-                                    }
-                                    if (k > 0)
-                                        picture[row, k] = EMPTY;
-
-                                    filledIndex = -1;
-                                }
-                                else
-                                {
-                                    // TODO other process
-                                }
-                            }
-                            else
-                            {
-                                filledIndex = -1;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         private static bool testPicture(int[,] picture)
         {
             bool isChangeDetected = false;
@@ -559,7 +390,7 @@ namespace PicrossSolver
 
             return pictureRef;
         }
-        
+
         public static SearchResult getMaxValue(CellColumnValues values)
         {
             List<int> indices = new List<int>();

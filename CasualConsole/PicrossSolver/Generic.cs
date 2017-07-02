@@ -570,6 +570,89 @@ namespace PicrossSolver
             }
         }
 
+        public static void ProcessMaxValues(Form1.CellSeries cells)
+        {
+            var values = cells.cellColumnValues;
+
+            if (values.Length > 1)
+            {
+                int secondMaxValue = values[0];
+                int maxValue = values[0];
+
+                int i;
+                for (i = 1; i < values.Length; i++)
+                {
+                    int val = values[i];
+
+                    if (val > maxValue)
+                    {
+                        if (maxValue > secondMaxValue)
+                            secondMaxValue = maxValue;
+
+                        maxValue = val;
+                    }
+                    else if (val > secondMaxValue)
+                        secondMaxValue = val;
+                }
+
+                int filledIndex = -1;
+                i = 0;
+
+                for (i = 0; i < cells.Length; i++)
+                {
+                    int cell = cells[i];
+
+                    if (cell == Form1.FILLED && filledIndex < 0)
+                    {
+                        filledIndex = i;
+                    }
+                    else if (cell != Form1.FILLED && filledIndex >= 0)
+                    {
+                        int filledSize = i - filledIndex;
+                        if (filledSize > secondMaxValue)
+                        {
+                            int filledEndIndex = i - 1;
+
+                            int leftOfFilled = filledIndex - 1;
+                            int rightOfFilled = filledEndIndex + 1;
+                            if (leftOfFilled < 0 || cells[leftOfFilled] == Form1.EMPTY)
+                            {
+                                int k;
+                                for (k = rightOfFilled; k < filledIndex + maxValue; k++)
+                                {
+                                    cells[k] = Form1.FILLED;
+                                }
+                                if (k < cells.Length)
+                                    cells[k] = Form1.EMPTY;
+
+                                filledIndex = -1;
+                            }
+                            else if (rightOfFilled > cells.Length - 1 || cells[rightOfFilled] == Form1.EMPTY)
+                            {
+                                int k;
+                                for (k = leftOfFilled; k > filledEndIndex - maxValue; k--)
+                                {
+                                    cells[k] = Form1.FILLED;
+                                }
+                                if (k > 0)
+                                    cells[k] = Form1.EMPTY;
+
+                                filledIndex = -1;
+                            }
+                            else
+                            {
+                                // TODO other process
+                            }
+                        }
+                        else
+                        {
+                            filledIndex = -1;
+                        }
+                    }
+                }
+            }
+        }
+
         private static int getMinValue(Form1.CellColumnValues values)
         {
             int minIndex = 0;
@@ -592,50 +675,7 @@ namespace PicrossSolver
             for (int i = from; i < to; i++)
                 yield return i;
         }
-
-        // Do not change these methods to public!!
-        #region Private Methods
-        private static void ApplyDimensionsForwardAndBackward(Action<Form1.CellSeries> processing, int[,] picture, int[][] upColumn, int[][] leftColumn)
-        {
-            bool executeBelow = true;
-
-            for (int row = 0; executeBelow && row < Form1.rowCount
-                //&& !Form1.isRowCompleted[row]
-                // TODO remove comment
-                ; row++)
-            {
-                processing(new Form1.CellSeries(row, picture, Form1.Direction.Horizontal, leftColumn[row]));
-                processing(new Form1.CellSeries(row, picture, Form1.Direction.HorizontalReverse, leftColumn[row]));
-            }
-
-            for (int col = 0; executeBelow && col < Form1.rowCount
-                //&& !Form1.isColCompleted[col]
-                // TODO remove comment
-                ; col++)
-            {
-                processing(new Form1.CellSeries(col, picture, Form1.Direction.Vertical, upColumn[col]));
-                processing(new Form1.CellSeries(col, picture, Form1.Direction.VerticalReverse, upColumn[col]));
-            }
-        }
-        private static void ApplyDimensionsForward(Action<Form1.CellSeries> processing, int[,] picture, int[][] upColumn, int[][] leftColumn)
-        {
-            bool executeBelow = true;
-
-            for (int row = 0; executeBelow && row < Form1.rowCount
-                //&& !Form1.isRowCompleted[row]
-                ; row++)
-            {
-                processing(new Form1.CellSeries(row, picture, Form1.Direction.Horizontal, leftColumn[row]));
-            }
-
-            for (int col = 0; executeBelow && col < Form1.rowCount
-                //&& !Form1.isColCompleted[col]
-                ; col++)
-            {
-                processing(new Form1.CellSeries(col, picture, Form1.Direction.Vertical, upColumn[col]));
-            }
-        }
-        #endregion
+        
     }
 
     public class FilledInfo
