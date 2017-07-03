@@ -141,6 +141,8 @@ namespace PicrossSolver
             var values = cells.cellColumnValues;
             int valuesIndex = 0;
 
+            string oldCells = cells.asString;
+
             int i;
             for (i = 0; i < cells.Length; i++)
             {
@@ -207,6 +209,22 @@ namespace PicrossSolver
                     for (int k = 0; k <= i; k++)
                         cells[k] = Form1.EMPTY;
                 }
+            }
+
+            if (i > 0)
+            {
+                int startIndex = i;
+                int endIndex = cells.Length - 1;
+
+                int[] newValues = MyRange(valuesIndex, values.Length).Select(x => values[x]).ToArray();
+
+                var slice = Form1.CellSeries.Slice(cells, startIndex, endIndex, newValues);
+
+                if (slice.Length == cells.Length)
+                    throw new Exception("You've done it again");
+
+                ProcessAllAlgorithms(slice);
+                ProcessAllAlgorithms(Form1.CellSeries.Reverse(slice));
             }
         }
 
@@ -316,7 +334,7 @@ namespace PicrossSolver
                 }
             }
 
-            if (filledInfos.Count == maxValueResult.Count)
+            if (maxValueResult.Count > 0 && filledInfos.Count == maxValueResult.Count)
             {
                 // TODO process
 
@@ -521,32 +539,35 @@ namespace PicrossSolver
         {
             var values = cells.cellColumnValues;
 
-            int firstValue = values[0];
-
-            bool foundFilled = false;
-            bool foundEmpty = false;
-
-            int i;
-            for (i = 0; i < cells.Length; i++)
+            if (values.Length > 0)
             {
-                int cell = cells[i];
+                int firstValue = values[0];
 
-                if (cell == Form1.FILLED)
-                    foundFilled = true;
-                else if (cell == Form1.EMPTY)
+                bool foundFilled = false;
+                bool foundEmpty = false;
+
+                int i;
+                for (i = 0; i < cells.Length; i++)
                 {
-                    foundEmpty = true;
-                    break;
+                    int cell = cells[i];
+
+                    if (cell == Form1.FILLED)
+                        foundFilled = true;
+                    else if (cell == Form1.EMPTY)
+                    {
+                        foundEmpty = true;
+                        break;
+                    }
                 }
-            }
 
-            if (foundEmpty && foundFilled)
-            {
-                // TODO this requires range processing
-                if (i == firstValue)
+                if (foundEmpty && foundFilled)
                 {
-                    for (int k = 0; k < i; k++)
-                        cells[k] = Form1.FILLED;
+                    // TODO this requires range processing
+                    if (i == firstValue)
+                    {
+                        for (int k = 0; k < i; k++)
+                            cells[k] = Form1.FILLED;
+                    }
                 }
             }
         }
@@ -557,107 +578,110 @@ namespace PicrossSolver
             int valueIndex = 0;
             int startIndex = 0;
 
-            do
+            if (cells.cellColumnValues.Length > 0)
             {
-                doContinue = false;
-
-                int val = cells.cellColumnValues[valueIndex];
-
-                for (int i = 0; i + startIndex < cells.Length; startIndex++)
+                do
                 {
-                    if (cells[i + startIndex] == Form1.EMPTY)
+                    doContinue = false;
+
+                    int val = cells.cellColumnValues[valueIndex];
+
+                    for (int i = 0; i + startIndex < cells.Length; startIndex++)
                     {
+                        if (cells[i + startIndex] == Form1.EMPTY)
+                        {
 
+                        }
+                        else
+                        {
+                            break;
+                        }
                     }
-                    else
-                    {
-                        break;
-                    }
-                }
 
-                int filledFoundIndex = -1;
+                    int filledFoundIndex = -1;
 
-                for (int i = 0; i <= val; i++)
-                {
-                    if (i + startIndex < cells.Length && cells[i + startIndex] == Form1.FILLED)
-                    {
-                        filledFoundIndex = i;
-                        break;
-                    }
-                }
-
-                if (filledFoundIndex >= 0)
-                {
-                    // Dolunun arkasını doluyla doldurma
-                    for (int i = filledFoundIndex + 1; i < val; i++)
-                        cells[i + startIndex] = Form1.FILLED;
-
-                    int filledLastIndex = val - 1;
-
-                    for (int i = filledLastIndex + 1; ; i++)
+                    for (int i = 0; i <= val; i++)
                     {
                         if (i + startIndex < cells.Length && cells[i + startIndex] == Form1.FILLED)
-                            filledLastIndex = i;
-                        else
+                        {
+                            filledFoundIndex = i;
                             break;
+                        }
                     }
 
-                    int filledSize = filledLastIndex - filledFoundIndex + 1;
-
-                    // Dolunun önününde ulaşılamayacak yerleri boş ile doldurma
-                    for (int i = 0; i < filledSize + filledFoundIndex - val; i++)
-                        cells[i + startIndex] = Form1.EMPTY;
-
-                    if (cells[startIndex] == Form1.FILLED) // İlk karakterin dolu olma ihtimali
+                    if (filledFoundIndex >= 0)
                     {
-                        if (val + startIndex < cells.Length)
-                            cells[val + startIndex] = Form1.EMPTY;
-
-                        doContinue = true;
-                        valueIndex++;
-                        startIndex += val + 1;
-                    }
-                    else if (cells[val + startIndex] == Form1.EMPTY) // Doluların arkasının boş olma ihtimali
-                    {
-                        for (int i = 0; i < filledFoundIndex; i++)
-                        {
+                        // Dolunun arkasını doluyla doldurma
+                        for (int i = filledFoundIndex + 1; i < val; i++)
                             cells[i + startIndex] = Form1.FILLED;
-                        }
 
-                        doContinue = true;
-                        valueIndex++;
-                        startIndex += val + 1;
-                    }
-                    else if (filledSize == val) // Doluların value ile aynı olma ihtimali
-                    {
-                        int emptyIndex1 = filledFoundIndex - 1;
-                        int emptyIndex2 = filledLastIndex + 1;
+                        int filledLastIndex = val - 1;
 
-                        if (emptyIndex1 + startIndex < cells.Length)
-                            cells[emptyIndex1 + startIndex] = Form1.EMPTY;
-
-                        if (emptyIndex2 + startIndex < cells.Length)
-                            cells[emptyIndex2 + startIndex] = Form1.EMPTY;
-
-                        bool isAllEmpty = true;
-                        for (int i = 0; i < emptyIndex1; i++)
+                        for (int i = filledLastIndex + 1; ; i++)
                         {
-                            if (cells[i + startIndex] != Form1.EMPTY)
-                            {
-                                isAllEmpty = false;
+                            if (i + startIndex < cells.Length && cells[i + startIndex] == Form1.FILLED)
+                                filledLastIndex = i;
+                            else
                                 break;
-                            }
                         }
 
-                        if (isAllEmpty)
+                        int filledSize = filledLastIndex - filledFoundIndex + 1;
+
+                        // Dolunun önününde ulaşılamayacak yerleri boş ile doldurma
+                        for (int i = 0; i < filledSize + filledFoundIndex - val; i++)
+                            cells[i + startIndex] = Form1.EMPTY;
+
+                        if (cells[startIndex] == Form1.FILLED) // İlk karakterin dolu olma ihtimali
                         {
+                            if (val + startIndex < cells.Length)
+                                cells[val + startIndex] = Form1.EMPTY;
+
                             doContinue = true;
                             valueIndex++;
-                            startIndex += emptyIndex2 + 1;
+                            startIndex += val + 1;
+                        }
+                        else if (cells[val + startIndex] == Form1.EMPTY) // Doluların arkasının boş olma ihtimali
+                        {
+                            for (int i = 0; i < filledFoundIndex; i++)
+                            {
+                                cells[i + startIndex] = Form1.FILLED;
+                            }
+
+                            doContinue = true;
+                            valueIndex++;
+                            startIndex += val + 1;
+                        }
+                        else if (filledSize == val) // Doluların value ile aynı olma ihtimali
+                        {
+                            int emptyIndex1 = filledFoundIndex - 1;
+                            int emptyIndex2 = filledLastIndex + 1;
+
+                            if (emptyIndex1 + startIndex < cells.Length)
+                                cells[emptyIndex1 + startIndex] = Form1.EMPTY;
+
+                            if (emptyIndex2 + startIndex < cells.Length)
+                                cells[emptyIndex2 + startIndex] = Form1.EMPTY;
+
+                            bool isAllEmpty = true;
+                            for (int i = 0; i < emptyIndex1; i++)
+                            {
+                                if (cells[i + startIndex] != Form1.EMPTY)
+                                {
+                                    isAllEmpty = false;
+                                    break;
+                                }
+                            }
+
+                            if (isAllEmpty)
+                            {
+                                doContinue = true;
+                                valueIndex++;
+                                startIndex += emptyIndex2 + 1;
+                            }
                         }
                     }
-                }
-            } while (doContinue && valueIndex < cells.cellColumnValues.Length);
+                } while (doContinue && valueIndex < cells.cellColumnValues.Length);
+            }
         }
 
         public static void ProcessDividedParts(Form1.CellSeries cells)
@@ -665,10 +689,7 @@ namespace PicrossSolver
             var values = cells.cellColumnValues;
 
             List<Range> areaList = new List<Range>();
-
-            if (Form1.iteration == 1 && Enumerable.SequenceEqual(values.asIterable, new int[] { 1, 1, 2, 1 }))
-                debug();
-
+            
             int nonEmpty = -1;
             for (int i = 0; i < cells.Length; i++)
             {
@@ -785,25 +806,15 @@ namespace PicrossSolver
                     }
                 }
             }
-
         }
 
         #region Private Methods
         private static int getMinValue(Form1.CellColumnValues values)
         {
-            int minIndex = 0;
-            int minValue = values[minIndex];
-
-            for (int i = 1; i < values.Length; i++)
-            {
-                if (values[i] < minValue)
-                {
-                    minIndex = i;
-                    minValue = values[minIndex];
-                }
-            }
-
-            return minValue;
+            if (values.Length > 0)
+                return values.asIterable.Min();
+            else
+                return 0;
         }
 
         private static IEnumerable<int> MyRange(int from, int to)
@@ -819,7 +830,7 @@ namespace PicrossSolver
         }
         #endregion
 
-        private static void debug() { }
+        //private static void debug() { }
     }
 
     public class Range

@@ -10,6 +10,7 @@ namespace PicrossSolver
     {
         public delegate void Algorithm(CellSeries s);
 
+        public static char[] chars = { ' ', '■', '.' };
         public const int UNKNOWN = 0;
         public const int FILLED = 1;
         public const int EMPTY = 2;
@@ -25,6 +26,24 @@ namespace PicrossSolver
 
         public static bool[] isRowCompleted;
         public static bool[] isColCompleted;
+
+        static int[,] correct = {
+            {2,2,2,2,2,2,2,2,2,1,2,1,1,2,1,2,2,1,1,2,},
+            {2,2,2,2,2,2,2,2,1,1,1,1,2,1,2,2,2,2,1,1,},
+            {2,2,2,2,2,2,1,1,1,2,2,2,1,1,2,2,2,2,2,1,},
+            {2,2,2,2,2,1,1,2,2,2,2,2,2,1,1,2,2,2,2,1,},
+            {2,1,1,1,2,1,2,2,2,2,2,2,2,2,1,1,2,2,2,1,},
+            {1,1,2,2,1,1,2,1,2,2,1,2,1,2,2,1,2,2,2,1,},
+            {1,2,2,2,1,2,2,2,2,2,2,2,2,2,2,1,1,2,2,1,},
+            {1,2,2,1,2,2,1,2,2,2,2,2,1,2,2,2,1,2,2,1,},
+            {1,2,2,1,2,1,1,2,2,2,2,1,1,2,2,2,1,2,1,1,},
+            {1,1,2,1,2,1,1,2,2,2,2,1,1,2,2,2,1,2,1,2,},
+            {2,1,1,2,1,2,2,1,1,1,2,2,2,2,2,1,1,2,1,2,},
+            {2,2,1,1,1,1,2,2,1,1,2,2,2,2,1,1,2,2,1,1,},
+            {2,2,2,2,1,1,1,1,2,2,2,1,1,1,1,2,2,2,2,1,},
+            {2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,2,2,2,},
+            {2,2,2,2,2,2,2,1,1,2,1,1,1,2,2,2,1,1,1,1,},
+        };
 
         public Form1()
         {
@@ -72,8 +91,7 @@ namespace PicrossSolver
 
             solveAndDisplay(upColumn, leftColumn);
 
-            //display(correct, "This is how it should be", true);
-
+            display(correct, "This is how it should be", true);
         }
 
         private static void solveAndDisplay(int[][] upColumn, int[][] leftColumn)
@@ -82,16 +100,14 @@ namespace PicrossSolver
 
             solve(picture, upColumn, leftColumn);
 
-            display(picture, "This is the solver one", true);
+            display(picture, "This is the solved one", true);
         }
 
         private static void solve(int[,] picture, int[][] upColumn, int[][] leftColumn)
         {
-            ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.InitialProcessing);
-
             dumpPicture(picture);
 
-            testPicture(picture);
+            ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.InitialProcessing);
 
             for (iteration = 0; ; iteration++)
             {
@@ -150,37 +166,40 @@ namespace PicrossSolver
 
         public static void ApplyAlgorithmBackAndForth(int[,] picture, int[][] upColumn, int[][] leftColumn, Algorithm processing)
         {
-            for (int row = 0; row < rowCount; row++)
-            {
-                if (!isRowCompleted[row])
-                {
-                    processing(new CellSeries(row, picture, Direction.Horizontal, leftColumn[row]));
-                    processing(new CellSeries(row, picture, Direction.HorizontalReverse, leftColumn[row]));
-                }
-            }
-
-            for (int col = 0; col < colCount; col++)
-            {
-                if (!isColCompleted[col])
-                {
-                    processing(new CellSeries(col, picture, Direction.Vertical, upColumn[col]));
-                    processing(new CellSeries(col, picture, Direction.VerticalReverse, upColumn[col]));
-                }
-            }
+            ApplyAlgorithm(picture, upColumn, leftColumn, processing, true);
         }
 
         public static void ApplyAlgorithmOneWay(int[,] picture, int[][] upColumn, int[][] leftColumn, Algorithm processing)
         {
+            ApplyAlgorithm(picture, upColumn, leftColumn, processing, false);
+        }
+
+        private static void ApplyAlgorithm(int[,] picture, int[][] upColumn, int[][] leftColumn, Algorithm processing, bool isTwoWay)
+        {
             for (int row = 0; row < rowCount; row++)
             {
                 if (!isRowCompleted[row])
+                {
                     processing(new CellSeries(row, picture, Direction.Horizontal, leftColumn[row]));
+
+                    if (isTwoWay)
+                    {
+                        processing(new CellSeries(row, picture, Direction.HorizontalReverse, leftColumn[row]));
+                    }
+                }
             }
 
             for (int col = 0; col < colCount; col++)
             {
                 if (!isColCompleted[col])
+                {
                     processing(new CellSeries(col, picture, Direction.Vertical, upColumn[col]));
+
+                    if (isTwoWay)
+                    {
+                        processing(new CellSeries(col, picture, Direction.VerticalReverse, upColumn[col]));
+                    }
+                }
             }
         }
 
@@ -294,7 +313,18 @@ namespace PicrossSolver
                     break;
             }
 
-
+            for (int i = 0; i < rowCount; i++)
+                for (int j = 0; j < colCount; j++)
+                    if (picture[i, j] != UNKNOWN && picture[i, j] != correct[i, j])
+                    {
+                        int asIs = picture[i, j];
+                        int correctOne = correct[i, j];
+                        Console.WriteLine("Hata tespit edildi, iteration: " + iteration);
+                        display(pictureRef, "Hatasız olan");
+                        display(picture, "Hatalı olan");
+                        display(correct, "Olması gereken", true);
+                        throw new Exception("Önceki metot yanlış, iteration: " + iteration + ", row: " + i + ", col: " + j);
+                    }
 
             dumpPicture(picture);
 
@@ -314,29 +344,40 @@ namespace PicrossSolver
 
         public static SearchResult getMaxValue(CellColumnValues values)
         {
-            List<int> indices = new List<int>();
-            indices.Add(0);
-            int maxValue = values[0];
-
-            for (int i = 1; i < values.Length; i++)
+            if (values.Length > 0)
             {
-                if (values[i] > maxValue)
+                List<int> indices = new List<int>();
+                indices.Add(0);
+                int maxValue = values[0];
+
+                for (int i = 1; i < values.Length; i++)
                 {
-                    indices = new List<int>();
-                    indices.Add(i);
-                    maxValue = values[i];
+                    if (values[i] > maxValue)
+                    {
+                        indices = new List<int>();
+                        indices.Add(i);
+                        maxValue = values[i];
+                    }
+                    else if (values[i] == maxValue)
+                    {
+                        indices.Add(i);
+                    }
                 }
-                else if (values[i] == maxValue)
+
+                return new SearchResult
                 {
-                    indices.Add(i);
-                }
+                    LocationIndices = indices.ToArray(),
+                    Value = maxValue
+                };
             }
-
-            return new SearchResult
+            else
             {
-                LocationIndices = indices.ToArray(),
-                Value = maxValue
-            };
+                return new SearchResult
+                {
+                    LocationIndices = new int[] { },
+                    Value = 0
+                };
+            }
         }
 
         private static int getSum(int[] values)
@@ -370,6 +411,8 @@ namespace PicrossSolver
         {
             return values;
         }
+
+        //private static void debug() { }
 
         public class SearchResult
         {
@@ -414,13 +457,11 @@ namespace PicrossSolver
             public IEnumerable<int> asIterable { get { return iterable(); } }
 
             private int _length;
-            private int[] _values;
             private Func<int, int> valueGetter;
 
             public CellColumnValues(int[] values, Direction direction)
             {
                 this._length = values.Length;
-                this._values = values;
 
                 switch (direction)
                 {
@@ -447,14 +488,14 @@ namespace PicrossSolver
             }
             public int Sum()
             {
-                return _values.Sum();
+                return iterable().Sum();
             }
         }
 
         public class CellSeries
         {
             public CellColumnValues cellColumnValues { get { return _cellColumnValues; } }
-            public int Length { get { return _length; } }
+            public int Length { get { return _length >= 0 ? _length : 0; } }
             public int this[int i]
             {
                 get { return valueGetter(i); }
@@ -462,6 +503,8 @@ namespace PicrossSolver
             }
             public IEnumerable<int> asIterable { get { return iterable(); } }
             public Direction direction;
+            public String asString { get { return new string(asIterable.Select(x => Form1.chars[x]).ToArray()); } }
+            public string firstTimeString { get; set; }
 
             private CellColumnValues _cellColumnValues;
             private int _length;
@@ -510,6 +553,8 @@ namespace PicrossSolver
                     default:
                         break;
                 }
+
+                this.firstTimeString = this.asString;
             }
 
             private CellSeries(CellColumnValues _cellColumnValues, int _length, Func<int, int> valueGetter, Action<int, int> valueSetter)
@@ -518,6 +563,8 @@ namespace PicrossSolver
                 this._length = _length;
                 this.valueGetter = valueGetter;
                 this.valueSetter = valueSetter;
+
+                this.firstTimeString = this.asString;
             }
 
             public static CellSeries Slice(CellSeries cellSeries, int startIndex, int endIndex, int[] newValues)
@@ -527,6 +574,9 @@ namespace PicrossSolver
                 Action<int, int> setter = (x, cell) => cellSeries[startIndex + x] = cell;
                 CellColumnValues cellColumnValues = new CellColumnValues(newValues, cellSeries.direction);
 
+                if (size < newValues.Sum() + newValues.Length - 1)
+                    throw new Exception("Bre insafsız!");
+
                 return new CellSeries(cellColumnValues, size, getter, setter);
             }
 
@@ -534,6 +584,21 @@ namespace PicrossSolver
             {
                 for (int i = 0; i < _length; i++)
                     yield return valueGetter(i);
+            }
+
+            public static CellSeries Reverse(CellSeries old)
+            {
+                int[] newValues = old.cellColumnValues.asIterable.Reverse().ToArray();
+
+                int cellLength = old.Length;
+                int lastCellIndex = old.Length - 1;
+                Func<int, int> getter = x => old[lastCellIndex - x];
+                Action<int, int> setter = (x, cell) => old[lastCellIndex - x] = cell;
+                CellColumnValues cellColumnValues = new CellColumnValues(newValues, Direction.Horizontal);
+
+                CellSeries cells = new CellSeries(cellColumnValues, cellLength, getter, setter);
+
+                return cells;
             }
         }
     }
