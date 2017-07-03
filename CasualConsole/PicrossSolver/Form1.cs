@@ -14,8 +14,8 @@ namespace PicrossSolver
         public const int FILLED = 1;
         public const int EMPTY = 2;
 
-        public const int rowCount = 10;
-        public const int colCount = 10;
+        public const int rowCount = 15;
+        public const int colCount = 20;
         public const int displaySize = 20;
         public const int lastRow = rowCount - 1;
         public const int lastCol = colCount - 1;
@@ -29,28 +29,43 @@ namespace PicrossSolver
         public Form1()
         {
             int[][] upColumn = new int[colCount][];
-            upColumn[0] = (arr(1, 2));
-            upColumn[1] = (arr(5, 1));
+            upColumn[0] = (arr(5));
+            upColumn[1] = (arr(2, 2));
             upColumn[2] = (arr(1, 2));
-            upColumn[3] = (arr(2, 1));
-            upColumn[4] = (arr(1, 2));
-            upColumn[5] = (arr(1, 6));
-            upColumn[6] = (arr(1, 2, 2, 1));
-            upColumn[7] = (arr(2));
-            upColumn[8] = (arr(2, 1, 2));
-            upColumn[9] = (arr(2));
+            upColumn[3] = (arr(1, 3, 1));
+            upColumn[4] = (arr(2, 3));
+            upColumn[5] = (arr(3, 2, 2));
+            upColumn[6] = (arr(2, 3, 2));
+            upColumn[7] = (arr(1, 1, 1, 3));
+            upColumn[8] = (arr(2, 2, 2));
+            upColumn[9] = (arr(2, 2, 1));
+            upColumn[10] = (arr(1, 1, 2));
+            upColumn[11] = (arr(2, 2, 3));
+            upColumn[12] = (arr(1, 1, 1, 3, 3));
+            upColumn[13] = (arr(3, 2));
+            upColumn[14] = (arr(1, 2, 3));
+            upColumn[15] = (arr(3, 2, 1));
+            upColumn[16] = (arr(5, 2));
+            upColumn[17] = (arr(1, 1));
+            upColumn[18] = (arr(2, 4, 1));
+            upColumn[19] = (arr(8, 2, 1));
 
             int[][] leftColumn = new int[rowCount][];
-            leftColumn[0] = (arr(1, 1, 2));
-            leftColumn[1] = (arr(1));
-            leftColumn[2] = (arr(1, 1, 2, 1));
-            leftColumn[3] = (arr(1, 1, 2, 1));
-            leftColumn[4] = (arr(1, 1));
-            leftColumn[5] = (arr(2, 2, 1));
-            leftColumn[6] = (arr(8));
-            leftColumn[7] = (arr(1, 1));
-            leftColumn[8] = (arr(1, 1, 1));
-            leftColumn[9] = (arr(2, 1, 1, 1));
+            leftColumn[0] = (arr(1, 2, 1, 2));
+            leftColumn[1] = (arr(4, 1, 2));
+            leftColumn[2] = (arr(3, 2, 1));
+            leftColumn[3] = (arr(2, 2, 1));
+            leftColumn[4] = (arr(3, 1, 2, 1));
+            leftColumn[5] = (arr(2, 2, 1, 1, 1, 1, 1));
+            leftColumn[6] = (arr(1, 1, 2, 1));
+            leftColumn[7] = (arr(1, 1, 1, 1, 1, 1));
+            leftColumn[8] = (arr(1, 1, 2, 2, 1, 2));
+            leftColumn[9] = (arr(2, 1, 2, 2, 1, 1));
+            leftColumn[10] = (arr(2, 1, 3, 2, 1));
+            leftColumn[11] = (arr(4, 2, 2, 2));
+            leftColumn[12] = (arr(4, 4, 1));
+            leftColumn[13] = (arr(11));
+            leftColumn[14] = (arr(2, 3, 4));
 
             isRowCompleted = new bool[rowCount];
             isColCompleted = new bool[colCount];
