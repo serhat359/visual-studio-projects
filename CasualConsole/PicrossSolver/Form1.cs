@@ -144,7 +144,7 @@ namespace PicrossSolver
                 }
             }
 
-            for (int col = 0; col < rowCount; col++)
+            for (int col = 0; col < colCount; col++)
             {
                 if (!isColCompleted[col])
                 {
@@ -162,7 +162,7 @@ namespace PicrossSolver
                     processing(new CellSeries(row, picture, Direction.Horizontal, leftColumn[row]));
             }
 
-            for (int col = 0; col < rowCount; col++)
+            for (int col = 0; col < colCount; col++)
             {
                 if (!isColCompleted[col])
                     processing(new CellSeries(col, picture, Direction.Vertical, upColumn[col]));
