@@ -572,7 +572,7 @@ namespace PicrossSolver
                 int size = endIndex - startIndex + 1;
                 Func<int, int> getter = x => cellSeries[startIndex + x];
                 Action<int, int> setter = (x, cell) => cellSeries[startIndex + x] = cell;
-                CellColumnValues cellColumnValues = new CellColumnValues(newValues, cellSeries.direction);
+                CellColumnValues cellColumnValues = new CellColumnValues(newValues, Direction.Horizontal);
 
                 if (size < newValues.Sum() + newValues.Length - 1)
                     throw new Exception("Bre insafsız!");
