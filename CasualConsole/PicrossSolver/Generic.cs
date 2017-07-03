@@ -20,6 +20,7 @@ namespace PicrossSolver
             RemoveSmallEmpties(cells);
             ProcessFillBetweenEmpties(cells);
             ProcessMaxValues(cells);
+            ProcessDividedParts(cells);
             ProcessTryFindingMatchStartingAndEnding(cells);
             ProcessMatching(cells);
         }
@@ -659,6 +660,135 @@ namespace PicrossSolver
             } while (doContinue && valueIndex < cells.cellColumnValues.Length);
         }
 
+        public static void ProcessDividedParts(Form1.CellSeries cells)
+        {
+            var values = cells.cellColumnValues;
+
+            List<Range> areaList = new List<Range>();
+
+            if (Form1.iteration == 1 && Enumerable.SequenceEqual(values.asIterable, new int[] { 1, 1, 2, 1 }))
+                debug();
+
+            int nonEmpty = -1;
+            for (int i = 0; i < cells.Length; i++)
+            {
+                int cell = cells[i];
+
+                if (cell != Form1.EMPTY && nonEmpty < 0)
+                {
+                    nonEmpty = i;
+                }
+                else if (cell == Form1.EMPTY && i - 1 >= 0 && cells[i - 1] != Form1.EMPTY && nonEmpty >= 0)
+                {
+                    areaList.Add(new Range(nonEmpty, i - 1));
+                    nonEmpty = -1;
+                }
+            }
+
+            if (nonEmpty > 0)
+            {
+                areaList.Add(new Range(nonEmpty, cells.Length - 1));
+                nonEmpty = -1;
+            }
+
+            // Above is preparing ranges
+            // Below is range-values matching
+
+            if (areaList.Count > 0)
+            {
+                int[][] forwardMatching = new int[areaList.Count][];
+                int[][] backwardMatching = new int[areaList.Count][];
+
+                int loopValueIndex = 0;
+                for (int area = 0; area < forwardMatching.Length; area++)
+                {
+                    Range range = areaList[area];
+
+                    int valueIndex = loopValueIndex;
+
+                    if (valueIndex < values.Length)
+                    {
+                        int currentSize = values[valueIndex];
+
+                        while (currentSize <= range.size)
+                        {
+                            if (++valueIndex < values.Length)
+                                currentSize += values[valueIndex] + 1;
+                            else
+                                break;
+                        }
+
+                        forwardMatching[area] = MyRange(loopValueIndex, valueIndex).Select(x => values[x]).ToArray();
+                    }
+                    else
+                    {
+                        forwardMatching[area] = new int[] { };
+                    }
+
+                    loopValueIndex = valueIndex;
+                }
+
+                // Above is regular iteration
+                // Below is reverse iteration
+
+                loopValueIndex = values.Length - 1;
+
+                for (int area = forwardMatching.Length - 1; area >= 0; area--)
+                {
+                    Range range = areaList[area];
+
+                    int valueIndex = loopValueIndex;
+
+                    if (valueIndex >= 0)
+                    {
+                        int currentSize = values[valueIndex];
+
+                        while (currentSize <= range.size)
+                        {
+                            if (--valueIndex >= 0)
+                                currentSize += values[valueIndex] + 1;
+                            else
+                                break;
+                        }
+
+                        backwardMatching[area] = MyRangeDesc(loopValueIndex, valueIndex).Select(x => values[x]).ToArray();
+                    }
+                    else
+                    {
+                        backwardMatching[area] = new int[] { };
+                    }
+
+                    loopValueIndex = valueIndex;
+                }
+
+                // Below is comparing the two range matchings
+
+                bool checkResult = Enumerable.Range(0, forwardMatching.Length).Select(x =>
+                {
+                    int[] forwardMatch = forwardMatching[x];
+                    int[] backwardMatch = backwardMatching[x];
+
+                    return Enumerable.SequenceEqual(forwardMatch, backwardMatch.Reverse());
+                }).All(x => x == true);
+
+                if (checkResult)
+                {
+                    for (int area = 0; area < areaList.Count; area++)
+                    {
+                        Range range = areaList[area];
+                        int[] newValues = forwardMatching[area];
+
+                        Form1.CellSeries slice = Form1.CellSeries.Slice(cells, range.start, range.end, newValues);
+
+                        if (slice.cellColumnValues.Length > 0)
+                            ProcessAllAlgorithms(slice);
+                    }
+                }
+            }
+
+        }
+
+        #region Private Methods
         private static int getMinValue(Form1.CellColumnValues values)
         {
             int minIndex = 0;
@@ -681,7 +811,33 @@ namespace PicrossSolver
             for (int i = from; i < to; i++)
                 yield return i;
         }
-        
+
+        private static IEnumerable<int> MyRangeDesc(int from, int to)
+        {
+            for (int i = from; i > to; i--)
+                yield return i;
+        }
+        #endregion
+
+        private static void debug() { }
+    }
+
+    public class Range
+    {
+        public int start;
+        public int end;
+        public int size { get { return end - start + 1; } }
+
+        public Range(int start, int end)
+        {
+            this.start = start;
+            this.end = end;
+        }
+
+        public string toString()
+        {
+            return "{start: " + start + ", end: " + end + "}";
+        }
     }
 
     public class FilledInfo

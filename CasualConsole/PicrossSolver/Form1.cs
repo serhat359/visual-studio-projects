@@ -14,8 +14,8 @@ namespace PicrossSolver
         public const int FILLED = 1;
         public const int EMPTY = 2;
 
-        public const int rowCount = 15;
-        public const int colCount = 15;
+        public const int rowCount = 10;
+        public const int colCount = 10;
         public const int displaySize = 20;
         public const int lastRow = rowCount - 1;
         public const int lastCol = colCount - 1;
@@ -26,66 +26,39 @@ namespace PicrossSolver
         public static bool[] isRowCompleted;
         public static bool[] isColCompleted;
 
-        static int[,] correct = {
-            {2,2,2,1,1,1,1,2,2,2,1,1,2,1,1},
-            {2,2,2,1,1,1,1,1,2,1,1,1,1,1,2},
-            {2,2,2,1,1,1,2,2,1,1,2,1,1,2,2},
-            {2,2,2,1,1,2,2,1,1,2,2,1,2,2,2},
-            {2,2,2,1,1,1,1,1,1,1,1,1,2,2,2},
-            {2,2,1,2,1,1,1,1,1,1,1,1,2,2,1},
-            {1,1,1,2,2,1,1,1,2,2,1,1,2,1,1},
-            {2,2,1,1,2,1,1,2,2,1,1,1,2,2,1},
-            {2,2,2,1,1,1,1,1,1,1,2,1,2,1,1},
-            {2,1,1,1,1,1,1,1,2,1,2,2,1,2,2},
-            {1,2,1,2,1,1,1,2,2,2,1,1,2,2,1},
-            {2,2,1,2,1,2,2,1,1,1,2,2,2,2,1},
-            {2,2,1,2,1,1,1,2,2,2,2,2,2,1,1},
-            {2,1,1,2,2,2,2,2,2,2,2,2,1,1,1},
-            {1,1,1,1,2,2,2,2,2,2,1,1,2,1,1}
-        };
-
         public Form1()
         {
             int[][] upColumn = new int[colCount][];
-            upColumn[0] = (arr(1, 1, 1));
-            upColumn[1] = (arr(1, 1, 2));
-            upColumn[2] = (arr(3, 6));
-            upColumn[3] = (arr(5, 3, 1));
-            upColumn[4] = (arr(6, 5));
-            upColumn[5] = (arr(3, 7, 1));
-            upColumn[6] = (arr(2, 7, 1));
-            upColumn[7] = (arr(1, 4, 2, 1));
-            upColumn[8] = (arr(4, 1, 1));
-            upColumn[9] = (arr(2, 2, 3, 1));
-            upColumn[10] = (arr(2, 4, 1, 1));
-            upColumn[11] = (arr(9, 1, 1));
-            upColumn[12] = (arr(2, 1, 1));
-            upColumn[13] = (arr(2, 1, 1, 3));
-            upColumn[14] = (arr(1, 4, 5));
+            upColumn[0] = (arr(1, 2));
+            upColumn[1] = (arr(5, 1));
+            upColumn[2] = (arr(1, 2));
+            upColumn[3] = (arr(2, 1));
+            upColumn[4] = (arr(1, 2));
+            upColumn[5] = (arr(1, 6));
+            upColumn[6] = (arr(1, 2, 2, 1));
+            upColumn[7] = (arr(2));
+            upColumn[8] = (arr(2, 1, 2));
+            upColumn[9] = (arr(2));
 
             int[][] leftColumn = new int[rowCount][];
-            leftColumn[0] = (arr(4, 2, 2));
-            leftColumn[1] = (arr(5, 5));
-            leftColumn[2] = (arr(3, 2, 2));
-            leftColumn[3] = (arr(2, 2, 1));
-            leftColumn[4] = (arr(9));
-            leftColumn[5] = (arr(1, 8, 1));
-            leftColumn[6] = (arr(3, 3, 2, 2));
-            leftColumn[7] = (arr(2, 2, 3, 1));
-            leftColumn[8] = (arr(7, 1, 2));
-            leftColumn[9] = (arr(7, 1, 1));
-            leftColumn[10] = (arr(1, 1, 3, 2, 1));
-            leftColumn[11] = (arr(1, 1, 3, 1));
-            leftColumn[12] = (arr(1, 3, 2));
-            leftColumn[13] = (arr(2, 3));
-            leftColumn[14] = (arr(4, 2, 2));
+            leftColumn[0] = (arr(1, 1, 2));
+            leftColumn[1] = (arr(1));
+            leftColumn[2] = (arr(1, 1, 2, 1));
+            leftColumn[3] = (arr(1, 1, 2, 1));
+            leftColumn[4] = (arr(1, 1));
+            leftColumn[5] = (arr(2, 2, 1));
+            leftColumn[6] = (arr(8));
+            leftColumn[7] = (arr(1, 1));
+            leftColumn[8] = (arr(1, 1, 1));
+            leftColumn[9] = (arr(2, 1, 1, 1));
 
             isRowCompleted = new bool[rowCount];
             isColCompleted = new bool[colCount];
 
             solveAndDisplay(upColumn, leftColumn);
 
-            display(correct, "This is how it should be", true);
+            //display(correct, "This is how it should be", true);
+
         }
 
         private static void solveAndDisplay(int[][] upColumn, int[][] leftColumn)
@@ -94,7 +67,7 @@ namespace PicrossSolver
 
             solve(picture, upColumn, leftColumn);
 
-            display(picture);
+            display(picture, "This is the solver one", true);
         }
 
         private static void solve(int[,] picture, int[][] upColumn, int[][] leftColumn)
@@ -135,8 +108,8 @@ namespace PicrossSolver
                 ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessMaxValues);
                 isChangeDetected |= testPicture(picture);
 
-                // serideki çarpılarla ayrılmış kısımları bulup işliyor, tasarım hatasından dolayı kaldırıldı
-                // processDividedParts(picture, upColumn, leftColumn);
+                // serideki çarpılarla ayrılmış kısımları bulup işliyor
+                ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessDividedParts);
                 isChangeDetected |= testPicture(picture);
 
                 // serideki dolu ve boş sayılarını kontrol ediyor
@@ -287,64 +260,6 @@ namespace PicrossSolver
             }
         }
 
-        [Obsolete("Dangerous Function")]
-        private static void processDividedParts(int[,] picture, int[][] upColumn, int[][] leftColumn)
-        {
-            for (int col = 0; col < colCount; col++)
-            {
-
-                int[] values = upColumn[col];
-                // TODO Auto-generated method stub
-            }
-
-            for (int row = 0; row < rowCount; row++)
-            {
-                int[] values = leftColumn[row];
-
-                List<Range> dividedParts = new List<Range>();
-
-                int nonEmpty = -1;
-                for (int i = 0; i < colCount; i++)
-                {
-                    int cell = picture[row, i];
-
-                    if (cell != EMPTY && nonEmpty < 0)
-                    {
-                        nonEmpty = i;
-                    }
-                    else if (cell == EMPTY && i - 1 >= 0 && picture[row, i - 1] != EMPTY && nonEmpty >= 0)
-                    {
-                        dividedParts.Add(new Range(nonEmpty, i - 1));
-                        nonEmpty = -1;
-                    }
-                }
-
-                if (nonEmpty > 0)
-                {
-                    dividedParts.Add(new Range(nonEmpty, colCount - 1));
-                    nonEmpty = -1;
-                }
-
-                if (dividedParts.Count == values.Length)
-                {
-                    int i = 0;
-                    foreach (Range range in dividedParts)
-                    {
-                        int val = values[i];
-                        int rangeVal = range.end - range.start + 1;
-                        int reach = rangeVal - val;
-
-                        for (int j = range.start + reach; j < range.end - reach + 1; j++)
-                        {
-                            picture[row, j] = FILLED;
-                        }
-
-                        i++;
-                    }
-                }
-            }
-        }
-
         private static bool testPicture(int[,] picture)
         {
             bool isChangeDetected = false;
@@ -364,18 +279,7 @@ namespace PicrossSolver
                     break;
             }
 
-            for (int i = 0; i < rowCount; i++)
-                for (int j = 0; j < colCount; j++)
-                    if (picture[i, j] != UNKNOWN && picture[i, j] != correct[i, j])
-                    {
-                        int asIs = picture[i, j];
-                        int correctOne = correct[i, j];
-                        Console.WriteLine("Hata tespit edildi, iteration: " + iteration);
-                        display(pictureRef, "Hatasız olan");
-                        display(picture, "Hatalı olan");
-                        display(correct, "Olması gereken", true);
-                        throw new Exception("Önceki metot yanlış, iteration: " + iteration + ", row: " + i + ", col: " + j);
-                    }
+
 
             dumpPicture(picture);
 
