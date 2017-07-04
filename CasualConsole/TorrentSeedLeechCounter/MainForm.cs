@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -13,7 +14,6 @@ namespace TorrentSeedLeechCounter
     {
         const int intervalSeconds = 60;
         const int oneMinuteMillis = 1000 * intervalSeconds;
-        const string searchQuery = "horriblesubs 720p ashibe 45";
         const string urlBase = "https://nyaa.si/?page=rss&q={0}&c=1_2&f=0";
         const string trackerUrl = "http://nyaa.tracker.wf:7777/announce";
 
@@ -46,6 +46,8 @@ namespace TorrentSeedLeechCounter
                 throw new Exception("Cannot connect to database, please check if the database server is running.");
 
             WriteToConsole("Database connection established.");
+
+            string searchQuery = ConfigurationManager.AppSettings["searchQuery"];
 
             string url = string.Format(urlBase, Uri.EscapeDataString(searchQuery));
 
