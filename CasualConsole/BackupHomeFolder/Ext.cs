@@ -22,7 +22,7 @@ namespace BackupHomeFolder
         }
 
         // An extension to access UI elements from another thread safely
-        public static void ThreadSafe(this Control control, Action<Control> action)
+        public static void ThreadSafe<T>(this T control, Action<T> action) where T : Control
         {
             if (control.InvokeRequired)
             {
