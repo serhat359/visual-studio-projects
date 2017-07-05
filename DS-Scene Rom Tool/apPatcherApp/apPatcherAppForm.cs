@@ -436,7 +436,7 @@ namespace apPatcherApp
 
         private void apPatcherApp_DragDrop(object sender, DragEventArgs e)
         {
-            string[] data = (string[]) e.Data.GetData(DataFormats.FileDrop, false);
+            string[] data = (string[])e.Data.GetData(DataFormats.FileDrop, false);
             if (data.Length > 1)
             {
                 MessageBox.Show("You can only drop one file at a time, the first file will be loaded.\n\nPlease use the batch process menu for multiple files", "Multiple Files Detected", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
@@ -472,6 +472,8 @@ namespace apPatcherApp
 
         private void apPatcherAppForm_Shown(object sender, EventArgs e)
         {
+            FixWindowLocation(sender);
+
             if (!System.IO.File.Exists("updater_v0.2.exe"))
             {
                 if (MessageBox.Show("The required sub application could not be found:\r\nupdater_v0.2.exe\r\n\r\nThe application will not start if this file is missing.\n\nDo you want to try an automatic installation now via the web?", "Missing Sub-Application", MessageBoxButtons.YesNo, MessageBoxIcon.Hand) == DialogResult.Yes)
@@ -557,6 +559,13 @@ namespace apPatcherApp
                     this.collectionBrowserToolStripMenuItem_Click(null, null);
                 }
             }
+        }
+
+        private static void FixWindowLocation(object sender)
+        {
+            var screen = Screen.PrimaryScreen.Bounds;
+            var form = ((apPatcherAppForm)sender);
+            form.Location = new Point(screen.Width / 2, (screen.Height - form.Size.Height) / 2);
         }
 
         private void apPatchSupported(bool supported, crcDupes.romTypes type, patchdb.patchdb_PatchClass patch = null)
@@ -648,7 +657,8 @@ namespace apPatcherApp
             }
             else
             {
-                SaveFileDialog dialog = new SaveFileDialog {
+                SaveFileDialog dialog = new SaveFileDialog
+                {
                     Title = "DS-Scene Rom Tool: Save AP Patch File",
                     Filter = "DS-Scene Rom Tool Encrypted AP Patch File|*.dsapf|DS-Scene Rom Tool Raw AP Patch File|*.txt|Open Patch Raw AP Patch File|*.txt",
                     FilterIndex = 1
@@ -865,7 +875,8 @@ namespace apPatcherApp
             crcDupes.possibleCrcType type = this.crcDb.crcToCleanCrc(this.romHeader.romHeader.hash.ToUpper());
             if ((type == null) || (type.hash == ""))
             {
-                type = new crcDupes.possibleCrcType {
+                type = new crcDupes.possibleCrcType
+                {
                     hash = this.romHeader.romHeader.hash.ToUpper(),
                     type = crcDupes.romTypes.unknown
                 };
@@ -875,7 +886,8 @@ namespace apPatcherApp
 
         private void buttonSaveIcon_Click(object sender, EventArgs e)
         {
-            SaveFileDialog dialog = new SaveFileDialog {
+            SaveFileDialog dialog = new SaveFileDialog
+            {
                 Title = "Nintendo DS Icon",
                 Filter = "(Nintendo DS Icon *.png)|*.png",
                 RestoreDirectory = true,
@@ -1008,65 +1020,66 @@ namespace apPatcherApp
                     switch (this.updateViewer.ShowDialog(this))
                     {
                         case DialogResult.Yes:
-                        {
-                            string str6 = "DS-Scene Rom Tool";
-                            try
                             {
-                                url = "http://files-ds-scene.net/romtool/download.php?f=releases/" + str6 + " v" + newVersion + ".rar";
-                                if (!this.downloadFile(url, "data/temp/", str6 + " v" + newVersion + ".rar", str6 + " v" + newVersion + ".rar", null, null))
+                                string str6 = "DS-Scene Rom Tool";
+                                try
                                 {
-                                    this.toolStripStatusLabel.Text = "Update Failed";
-                                    this.enableMainForm();
-                                    MessageBox.Show("Update check failed, please check your internet connection\r\nor the site may be down!", "Update Failure", MessageBoxButtons.OK, MessageBoxIcon.Hand);
+                                    url = "http://files-ds-scene.net/romtool/download.php?f=releases/" + str6 + " v" + newVersion + ".rar";
+                                    if (!this.downloadFile(url, "data/temp/", str6 + " v" + newVersion + ".rar", str6 + " v" + newVersion + ".rar", null, null))
+                                    {
+                                        this.toolStripStatusLabel.Text = "Update Failed";
+                                        this.enableMainForm();
+                                        MessageBox.Show("Update check failed, please check your internet connection\r\nor the site may be down!", "Update Failure", MessageBoxButtons.OK, MessageBoxIcon.Hand);
+                                        return;
+                                    }
+                                }
+                                catch (Exception exception2)
+                                {
+                                    MessageBox.Show(exception2.Message);
+                                }
+                                try
+                                {
+                                    this.compressor.outFile = "data/temp/";
+                                    if (!this.compressor.extractRar("data/temp/" + str6 + " v" + newVersion + ".rar", this.toolStripProgressBar, this.toolStripStatusLabel, false))
+                                    {
+                                        this.toolStripStatusLabel.Text = "Update Failed";
+                                        this.enableMainForm();
+                                        MessageBox.Show("Update extraction failed, please check you have the unrar.dll installed", "Update Failure", MessageBoxButtons.OK, MessageBoxIcon.Hand);
+                                        return;
+                                    }
+                                }
+                                catch (Exception exception3)
+                                {
+                                    MessageBox.Show("extract error " + exception3.Message);
+                                }
+                                try
+                                {
+                                    System.IO.File.Delete("data/" + str2);
+                                    System.IO.File.Move("data/temp/" + str2, "data/" + str2);
+                                    System.IO.File.Delete("data/temp/" + str2);
+                                }
+                                catch (Exception exception4)
+                                {
+                                    MessageBox.Show(str2 + " move error" + exception4.Message);
+                                }
+                                try
+                                {
+                                    ProcessStartInfo startInfo = new ProcessStartInfo
+                                    {
+                                        FileName = "updater_v0.2.exe",
+                                        UseShellExecute = true
+                                    };
+                                    Process.Start(startInfo);
+                                    Environment.Exit(0);
                                     return;
                                 }
-                            }
-                            catch (Exception exception2)
-                            {
-                                MessageBox.Show(exception2.Message);
-                            }
-                            try
-                            {
-                                this.compressor.outFile = "data/temp/";
-                                if (!this.compressor.extractRar("data/temp/" + str6 + " v" + newVersion + ".rar", this.toolStripProgressBar, this.toolStripStatusLabel, false))
+                                catch (Exception exception5)
                                 {
-                                    this.toolStripStatusLabel.Text = "Update Failed";
-                                    this.enableMainForm();
-                                    MessageBox.Show("Update extraction failed, please check you have the unrar.dll installed", "Update Failure", MessageBoxButtons.OK, MessageBoxIcon.Hand);
+                                    MessageBox.Show("could not start updater" + exception5.Message);
                                     return;
                                 }
+                                break;
                             }
-                            catch (Exception exception3)
-                            {
-                                MessageBox.Show("extract error " + exception3.Message);
-                            }
-                            try
-                            {
-                                System.IO.File.Delete("data/" + str2);
-                                System.IO.File.Move("data/temp/" + str2, "data/" + str2);
-                                System.IO.File.Delete("data/temp/" + str2);
-                            }
-                            catch (Exception exception4)
-                            {
-                                MessageBox.Show(str2 + " move error" + exception4.Message);
-                            }
-                            try
-                            {
-                                ProcessStartInfo startInfo = new ProcessStartInfo {
-                                    FileName = "updater_v0.2.exe",
-                                    UseShellExecute = true
-                                };
-                                Process.Start(startInfo);
-                                Environment.Exit(0);
-                                return;
-                            }
-                            catch (Exception exception5)
-                            {
-                                MessageBox.Show("could not start updater" + exception5.Message);
-                                return;
-                            }
-                            break;
-                        }
                         case DialogResult.No:
                             break;
 
@@ -1739,7 +1752,7 @@ namespace apPatcherApp
 
         public void copyBytes(BinaryReader br, BinaryWriter writer, long bytes, int chunk, long pos, long endPos, ProgressBar progress, Label status, string romOut)
         {
-            long num = bytes / ((long) chunk);
+            long num = bytes / ((long)chunk);
             while ((num * chunk) > bytes)
             {
                 num -= 1L;
@@ -1750,7 +1763,7 @@ namespace apPatcherApp
                 byte[] buffer = br.ReadBytes(chunk);
                 if (this.run.hexAndMathFunction.bytesToMbit(pos) != progress.Value)
                 {
-                    progress.Value = (int) (pos / endPos);
+                    progress.Value = (int)(pos / endPos);
                     status.Text = string.Concat(new object[] { "Saving ", this.origFileLocToNewFileName(romOut, false, false, ""), " ", this.run.hexAndMathFunction.getPercentage(progress.Value, progress.Maximum), "%" });
                     Application.DoEvents();
                 }
@@ -1760,10 +1773,10 @@ namespace apPatcherApp
             if ((num * chunk) < bytes)
             {
                 pos += bytes - (num * chunk);
-                byte[] buffer2 = br.ReadBytes((int) (bytes - (num * chunk)));
+                byte[] buffer2 = br.ReadBytes((int)(bytes - (num * chunk)));
                 if (this.run.hexAndMathFunction.bytesToMbit(pos) != progress.Value)
                 {
-                    progress.Value = (int) (pos / endPos);
+                    progress.Value = (int)(pos / endPos);
                     status.Text = string.Concat(new object[] { "Saving ", this.origFileLocToNewFileName(romOut, false, false, ""), " ", this.run.hexAndMathFunction.getPercentage(progress.Value, progress.Maximum), "%" });
                     Application.DoEvents();
                 }
@@ -2008,8 +2021,8 @@ namespace apPatcherApp
                     {
                         num2 *= 2;
                     }
-                    this.cardSizeText.Text = string.Concat(new object[] { ((int) 1) << this.romHeader.romHeader.cardSize, "Mb (", this.run.hexAndMathFunction.mbitToBytes((long) (((int) 1) << this.romHeader.romHeader.cardSize)), " bytes)" });
-                    this.fileSizeText.Text = string.Concat(new object[] { this.run.hexAndMathFunction.bytesToMbit((long) this.romHeader.romHeader.fileSize), "Mb (", this.romHeader.romHeader.fileSize, " bytes)" });
+                    this.cardSizeText.Text = string.Concat(new object[] { ((int)1) << this.romHeader.romHeader.cardSize, "Mb (", this.run.hexAndMathFunction.mbitToBytes((long)(((int)1) << this.romHeader.romHeader.cardSize)), " bytes)" });
+                    this.fileSizeText.Text = string.Concat(new object[] { this.run.hexAndMathFunction.bytesToMbit((long)this.romHeader.romHeader.fileSize), "Mb (", this.romHeader.romHeader.fileSize, " bytes)" });
                     this.crc32Text.Text = this.romHeader.romHeader.hash.ToUpper();
                     this.makerCodeText.Text = this.romHeader.romHeader.makerCode;
                     this.makerNameText.Text = this.romHeader.makerNameFromCode(this.makerCodeText.Text);
@@ -2083,54 +2096,54 @@ namespace apPatcherApp
                             case "error:hash not found":
                             case "error:bad hash":
                             case "romsize":
-                            {
-                                continue;
-                            }
-                            case "romnum":
-                            {
-                                this.romIcon3.Image = this.romIcon.Image;
-                                this.webInfo_number.Text = class3.val;
-                                if (!class3.val.ToUpper().StartsWith("3DS"))
                                 {
-                                    break;
+                                    continue;
                                 }
-                                this.romIcon.Image = Resources._0000;
-                                this.romIcon2.Image = Resources._0000;
-                                this.pic3DSCard.Visible = true;
-                                this.picDSCard.Visible = false;
-                                continue;
-                            }
+                            case "romnum":
+                                {
+                                    this.romIcon3.Image = this.romIcon.Image;
+                                    this.webInfo_number.Text = class3.val;
+                                    if (!class3.val.ToUpper().StartsWith("3DS"))
+                                    {
+                                        break;
+                                    }
+                                    this.romIcon.Image = Resources._0000;
+                                    this.romIcon2.Image = Resources._0000;
+                                    this.pic3DSCard.Visible = true;
+                                    this.picDSCard.Visible = false;
+                                    continue;
+                                }
                             case "romnam":
-                            {
-                                this.webInfo_name.Text = class3.val;
-                                continue;
-                            }
+                                {
+                                    this.webInfo_name.Text = class3.val;
+                                    continue;
+                                }
                             case "romgrp":
-                            {
-                                this.webInfo_grp.Text = class3.val;
-                                continue;
-                            }
+                                {
+                                    this.webInfo_grp.Text = class3.val;
+                                    continue;
+                                }
                             case "romsav":
-                            {
-                                this.webInfo_save.Text = class3.val;
-                                continue;
-                            }
+                                {
+                                    this.webInfo_save.Text = class3.val;
+                                    continue;
+                                }
                             case "romzip":
-                            {
-                                this.webInfo_arc.Text = class3.val;
-                                continue;
-                            }
+                                {
+                                    this.webInfo_arc.Text = class3.val;
+                                    continue;
+                                }
                             case "romdir":
-                            {
-                                this.webInfo_dir.Text = class3.val;
-                                continue;
-                            }
+                                {
+                                    this.webInfo_dir.Text = class3.val;
+                                    continue;
+                                }
                             case "id":
-                            {
-                                this.webInfo_id.Text = class3.val;
-                                this.buttonForumLink.Enabled = true;
-                                continue;
-                            }
+                                {
+                                    this.webInfo_id.Text = class3.val;
+                                    this.buttonForumLink.Enabled = true;
+                                    continue;
+                                }
                             case "wifi":
                                 if (class3.val != "YES")
                                 {
@@ -2140,87 +2153,87 @@ namespace apPatcherApp
                                 goto Label_0347;
 
                             case "boxart":
-                            {
-                                if (System.IO.File.Exists("data/web/images/" + hash + ".jpg"))
                                 {
-                                    using (FileStream stream = new FileStream("data/web/images/" + hash + ".jpg", FileMode.Open))
+                                    if (System.IO.File.Exists("data/web/images/" + hash + ".jpg"))
                                     {
-                                        this.webBoxart = new Bitmap(stream);
-                                        stream.Close();
+                                        using (FileStream stream = new FileStream("data/web/images/" + hash + ".jpg", FileMode.Open))
+                                        {
+                                            this.webBoxart = new Bitmap(stream);
+                                            stream.Close();
+                                        }
+                                        this.webInfo_Boxart.Image = this.webBoxart;
                                     }
-                                    this.webInfo_Boxart.Image = this.webBoxart;
+                                    continue;
                                 }
-                                continue;
-                            }
                             case "icon":
-                            {
-                                if (System.IO.File.Exists("data/web/images/" + hash + ".png"))
                                 {
-                                    using (FileStream stream2 = new FileStream("data/web/images/" + hash + ".png", FileMode.Open))
+                                    if (System.IO.File.Exists("data/web/images/" + hash + ".png"))
                                     {
-                                        this.romHeader.romHeader.icon.gfx = new Bitmap(stream2);
-                                        stream2.Close();
+                                        using (FileStream stream2 = new FileStream("data/web/images/" + hash + ".png", FileMode.Open))
+                                        {
+                                            this.romHeader.romHeader.icon.gfx = new Bitmap(stream2);
+                                            stream2.Close();
+                                        }
+                                        this.romIcon3.Image = this.romHeader.romHeader.icon.gfx;
                                     }
-                                    this.romIcon3.Image = this.romHeader.romHeader.icon.gfx;
+                                    continue;
                                 }
-                                continue;
-                            }
                             case "dscompat":
-                            {
-                                if (class3.val != "YES")
                                 {
-                                    goto Label_0486;
-                                }
-                                this.webInfo_dscompat.Visible = true;
-                                continue;
-                            }
-                            case "date":
-                            {
-                                if (class3.val == "")
-                                {
-                                    goto Label_04CF;
-                                }
-                                this.webInfo_date.Text = this.run.hexAndMathFunction.dateStringFormatFromUTC(class3.val);
-                                continue;
-                            }
-                            case "newsdate":
-                            {
-                                if (class3.val == "")
-                                {
-                                    goto Label_051C;
-                                }
-                                this.webInfo_newsdate.Text = this.run.hexAndMathFunction.dateStringFormatFromUTC(class3.val);
-                                continue;
-                            }
-                            case "romrgn":
-                            {
-                                if (System.IO.File.Exists("data/web/images/flag_" + class3.val + ".gif"))
-                                {
-                                    using (FileStream stream3 = new FileStream("data/web/images/flag_" + class3.val + ".gif", FileMode.Open))
+                                    if (class3.val != "YES")
                                     {
-                                        this.webRegionFlag = new Bitmap(stream3);
-                                        stream3.Close();
+                                        goto Label_0486;
                                     }
-                                    this.webInfo_rgn.Image = this.webRegionFlag;
+                                    this.webInfo_dscompat.Visible = true;
+                                    continue;
                                 }
-                                continue;
-                            }
-                            case "nfolink":
-                            {
-                                if (class3.val != "")
+                            case "date":
                                 {
-                                    this.btnNFO.Enabled = true;
+                                    if (class3.val == "")
+                                    {
+                                        goto Label_04CF;
+                                    }
+                                    this.webInfo_date.Text = this.run.hexAndMathFunction.dateStringFormatFromUTC(class3.val);
+                                    continue;
                                 }
-                                continue;
-                            }
+                            case "newsdate":
+                                {
+                                    if (class3.val == "")
+                                    {
+                                        goto Label_051C;
+                                    }
+                                    this.webInfo_newsdate.Text = this.run.hexAndMathFunction.dateStringFormatFromUTC(class3.val);
+                                    continue;
+                                }
+                            case "romrgn":
+                                {
+                                    if (System.IO.File.Exists("data/web/images/flag_" + class3.val + ".gif"))
+                                    {
+                                        using (FileStream stream3 = new FileStream("data/web/images/flag_" + class3.val + ".gif", FileMode.Open))
+                                        {
+                                            this.webRegionFlag = new Bitmap(stream3);
+                                            stream3.Close();
+                                        }
+                                        this.webInfo_rgn.Image = this.webRegionFlag;
+                                    }
+                                    continue;
+                                }
+                            case "nfolink":
+                                {
+                                    if (class3.val != "")
+                                    {
+                                        this.btnNFO.Enabled = true;
+                                    }
+                                    continue;
+                                }
                             case "n3dsopt":
-                            {
-                                string[] strArray = class3.val.Split(new char[] { ',' });
-                                num = 0;
-                                strArray2 = strArray;
-                                num4 = 0;
-                                goto Label_061C;
-                            }
+                                {
+                                    string[] strArray = class3.val.Split(new char[] { ',' });
+                                    num = 0;
+                                    strArray2 = strArray;
+                                    num4 = 0;
+                                    goto Label_061C;
+                                }
                             default:
                                 goto Label_0626;
                         }
@@ -2567,7 +2580,7 @@ namespace apPatcherApp
                 int num3;
                 WebResponse response = WebRequest.Create(url).GetResponse();
                 Stream responseStream = response.GetResponseStream();
-                int contentLength = (int) response.ContentLength;
+                int contentLength = (int)response.ContentLength;
                 if ((contentLength == -1) && (url.Substring(0, "http://www.ds-scene.net/romtool.php?version=2&hash=".Length) == "http://www.ds-scene.net/romtool.php?version=2&hash="))
                 {
                     contentLength = 10;
@@ -2658,7 +2671,7 @@ namespace apPatcherApp
                             span = utcNow.Subtract(time2);
                             if (span.TotalMilliseconds < 60000.0)
                             {
-                                MessageBox.Show(string.Concat(new object[] { "You must wait ", 60, " seconds between refreshes\n\nPlease wait ", (int) (60.0 - (span.TotalMilliseconds / 1000.0)), " seconds longer" }), "Please Wait", MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
+                                MessageBox.Show(string.Concat(new object[] { "You must wait ", 60, " seconds between refreshes\n\nPlease wait ", (int)(60.0 - (span.TotalMilliseconds / 1000.0)), " seconds longer" }), "Please Wait", MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
                                 return false;
                             }
                         }
@@ -2667,7 +2680,7 @@ namespace apPatcherApp
                             span = time2.Subtract(utcNow);
                             if (span.TotalMilliseconds > 0.0)
                             {
-                                MessageBox.Show("You must wait between refreshes\n\nPlease wait " + ((int) (span.TotalMilliseconds / 1000.0)) + " seconds longer", "Please Wait", MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
+                                MessageBox.Show("You must wait between refreshes\n\nPlease wait " + ((int)(span.TotalMilliseconds / 1000.0)) + " seconds longer", "Please Wait", MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
                                 return false;
                             }
                         }
@@ -2879,7 +2892,7 @@ namespace apPatcherApp
             if (num != -1)
             {
                 this.compressor.outFile = path_dest;
-                if (this.compressor.extract(path_src, (uint) num, arcType, progress, status))
+                if (this.compressor.extract(path_src, (uint)num, arcType, progress, status))
                 {
                     return true;
                 }
@@ -2890,7 +2903,7 @@ namespace apPatcherApp
                 if (num != -1)
                 {
                     this.compressor.outFile = path_dest;
-                    if (this.compressor.extract(path_src, (uint) num, arcType, progress, status))
+                    if (this.compressor.extract(path_src, (uint)num, arcType, progress, status))
                     {
                         return true;
                     }
@@ -2976,7 +2989,7 @@ namespace apPatcherApp
             }
             if (this.romHeader.romHeader.fileSize != -1)
             {
-                return (long) this.romHeader.romHeader.fileSize;
+                return (long)this.romHeader.romHeader.fileSize;
             }
             return this.romHeader.romHeader.fileSize_3ds;
         }
@@ -3092,8 +3105,8 @@ namespace apPatcherApp
                         this.trimbuffer = reader.ReadBytes(count);
                         if ((num2 - this.run.hexAndMathFunction.bytesToMbit(i)) != this.toolStripProgressBar.Value)
                         {
-                            progress.Value = (int) ((num2 - this.run.hexAndMathFunction.bytesToMbit(i)) / num2);
-                            status.Text = string.Concat(new object[] { "Calculating Trim ", this.origFileLocToNewFileName(romIn, false, false, ""), " ", (int) ((num2 - this.run.hexAndMathFunction.bytesToMbit(i)) / num2), "%" });
+                            progress.Value = (int)((num2 - this.run.hexAndMathFunction.bytesToMbit(i)) / num2);
+                            status.Text = string.Concat(new object[] { "Calculating Trim ", this.origFileLocToNewFileName(romIn, false, false, ""), " ", (int)((num2 - this.run.hexAndMathFunction.bytesToMbit(i)) / num2), "%" });
                             Application.DoEvents();
                         }
                         int index = 0;
@@ -3339,20 +3352,20 @@ namespace apPatcherApp
             this.tabControlMain.SuspendLayout();
             this.tabWebInfo.SuspendLayout();
             this.groupBox2.SuspendLayout();
-            ((ISupportInitialize) this.picNinNetwork).BeginInit();
-            ((ISupportInitialize) this.n3dsopt_5).BeginInit();
-            ((ISupportInitialize) this.n3dsopt_2).BeginInit();
-            ((ISupportInitialize) this.n3dsopt_4).BeginInit();
-            ((ISupportInitialize) this.n3dsopt_1).BeginInit();
-            ((ISupportInitialize) this.n3dsopt_3).BeginInit();
-            ((ISupportInitialize) this.n3dsopt_0).BeginInit();
-            ((ISupportInitialize) this.webInfo_wifi).BeginInit();
-            ((ISupportInitialize) this.romIcon3).BeginInit();
-            ((ISupportInitialize) this.webInfo_Boxart).BeginInit();
-            ((ISupportInitialize) this.webInfo_rgn).BeginInit();
-            ((ISupportInitialize) this.picDSCard).BeginInit();
-            ((ISupportInitialize) this.pic3DSCard).BeginInit();
-            ((ISupportInitialize) this.webInfo_dscompat).BeginInit();
+            ((ISupportInitialize)this.picNinNetwork).BeginInit();
+            ((ISupportInitialize)this.n3dsopt_5).BeginInit();
+            ((ISupportInitialize)this.n3dsopt_2).BeginInit();
+            ((ISupportInitialize)this.n3dsopt_4).BeginInit();
+            ((ISupportInitialize)this.n3dsopt_1).BeginInit();
+            ((ISupportInitialize)this.n3dsopt_3).BeginInit();
+            ((ISupportInitialize)this.n3dsopt_0).BeginInit();
+            ((ISupportInitialize)this.webInfo_wifi).BeginInit();
+            ((ISupportInitialize)this.romIcon3).BeginInit();
+            ((ISupportInitialize)this.webInfo_Boxart).BeginInit();
+            ((ISupportInitialize)this.webInfo_rgn).BeginInit();
+            ((ISupportInitialize)this.picDSCard).BeginInit();
+            ((ISupportInitialize)this.pic3DSCard).BeginInit();
+            ((ISupportInitialize)this.webInfo_dscompat).BeginInit();
             this.tabRomInfo.SuspendLayout();
             this.iconEditorGroup.SuspendLayout();
             this.tabControlLang.SuspendLayout();
@@ -3362,10 +3375,10 @@ namespace apPatcherApp
             this.tabLangGer.SuspendLayout();
             this.tabLangIta.SuspendLayout();
             this.tabLangSpa.SuspendLayout();
-            ((ISupportInitialize) this.romIcon).BeginInit();
+            ((ISupportInitialize)this.romIcon).BeginInit();
             this.tabApPatch.SuspendLayout();
             this.apPatchInfoGrp.SuspendLayout();
-            ((ISupportInitialize) this.romIcon2).BeginInit();
+            ((ISupportInitialize)this.romIcon2).BeginInit();
             this.tabExport.SuspendLayout();
             this.groupBox5.SuspendLayout();
             this.groupBox4.SuspendLayout();
@@ -3444,7 +3457,7 @@ namespace apPatcherApp
             this.patchingToolStripMenuItem.Size = new Size(0xc3, 0x16);
             this.patchingToolStripMenuItem.Text = "Patch, Trim and Pack";
             this.patchingToolStripMenuItem.Click += new EventHandler(this.patchingToolStripMenuItem_Click);
-            this.nFOViewerToolStripMenuItem.Image = (Image) manager.GetObject("nFOViewerToolStripMenuItem.Image");
+            this.nFOViewerToolStripMenuItem.Image = (Image)manager.GetObject("nFOViewerToolStripMenuItem.Image");
             this.nFOViewerToolStripMenuItem.Name = "nFOViewerToolStripMenuItem";
             this.nFOViewerToolStripMenuItem.Size = new Size(0x9a, 0x16);
             this.nFOViewerToolStripMenuItem.Text = "NFO Viewer";
@@ -3742,7 +3755,7 @@ namespace apPatcherApp
             this.groupBox2.TabIndex = 0x5d;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "DS-Scene.net Info";
-            this.picNinNetwork.Image = (Image) manager.GetObject("picNinNetwork.Image");
+            this.picNinNetwork.Image = (Image)manager.GetObject("picNinNetwork.Image");
             this.picNinNetwork.Location = new Point(0xb9, 0x4f);
             this.picNinNetwork.Name = "picNinNetwork";
             this.picNinNetwork.Size = new Size(20, 20);
@@ -4700,7 +4713,7 @@ namespace apPatcherApp
             this.buttonApply.TextImageRelation = TextImageRelation.ImageBeforeText;
             this.buttonApply.UseVisualStyleBackColor = true;
             this.buttonApply.Click += new EventHandler(this.buttonApply_Click);
-            this.imageList1.ImageStream = (ImageListStreamer) manager.GetObject("imageList1.ImageStream");
+            this.imageList1.ImageStream = (ImageListStreamer)manager.GetObject("imageList1.ImageStream");
             this.imageList1.TransparentColor = Color.Transparent;
             this.imageList1.Images.SetKeyName(0, "rominfo.png");
             this.imageList1.Images.SetKeyName(1, "favicon.gif");
@@ -4743,7 +4756,7 @@ namespace apPatcherApp
             base.Controls.Add(this.btnBrowse);
             base.Controls.Add(this.menuStrip1);
             this.Font = new Font("Verdana", 8.25f, FontStyle.Regular, GraphicsUnit.Point, 0);
-            base.Icon = (Icon) manager.GetObject("$this.Icon");
+            base.Icon = (Icon)manager.GetObject("$this.Icon");
             base.MainMenuStrip = this.menuStrip1;
             this.MaximumSize = new Size(0x196, 0x1da);
             this.MinimumSize = new Size(0x196, 0x1da);
@@ -4760,20 +4773,20 @@ namespace apPatcherApp
             this.tabWebInfo.ResumeLayout(false);
             this.groupBox2.ResumeLayout(false);
             this.groupBox2.PerformLayout();
-            ((ISupportInitialize) this.picNinNetwork).EndInit();
-            ((ISupportInitialize) this.n3dsopt_5).EndInit();
-            ((ISupportInitialize) this.n3dsopt_2).EndInit();
-            ((ISupportInitialize) this.n3dsopt_4).EndInit();
-            ((ISupportInitialize) this.n3dsopt_1).EndInit();
-            ((ISupportInitialize) this.n3dsopt_3).EndInit();
-            ((ISupportInitialize) this.n3dsopt_0).EndInit();
-            ((ISupportInitialize) this.webInfo_wifi).EndInit();
-            ((ISupportInitialize) this.romIcon3).EndInit();
-            ((ISupportInitialize) this.webInfo_Boxart).EndInit();
-            ((ISupportInitialize) this.webInfo_rgn).EndInit();
-            ((ISupportInitialize) this.picDSCard).EndInit();
-            ((ISupportInitialize) this.pic3DSCard).EndInit();
-            ((ISupportInitialize) this.webInfo_dscompat).EndInit();
+            ((ISupportInitialize)this.picNinNetwork).EndInit();
+            ((ISupportInitialize)this.n3dsopt_5).EndInit();
+            ((ISupportInitialize)this.n3dsopt_2).EndInit();
+            ((ISupportInitialize)this.n3dsopt_4).EndInit();
+            ((ISupportInitialize)this.n3dsopt_1).EndInit();
+            ((ISupportInitialize)this.n3dsopt_3).EndInit();
+            ((ISupportInitialize)this.n3dsopt_0).EndInit();
+            ((ISupportInitialize)this.webInfo_wifi).EndInit();
+            ((ISupportInitialize)this.romIcon3).EndInit();
+            ((ISupportInitialize)this.webInfo_Boxart).EndInit();
+            ((ISupportInitialize)this.webInfo_rgn).EndInit();
+            ((ISupportInitialize)this.picDSCard).EndInit();
+            ((ISupportInitialize)this.pic3DSCard).EndInit();
+            ((ISupportInitialize)this.webInfo_dscompat).EndInit();
             this.tabRomInfo.ResumeLayout(false);
             this.tabRomInfo.PerformLayout();
             this.iconEditorGroup.ResumeLayout(false);
@@ -4785,11 +4798,11 @@ namespace apPatcherApp
             this.tabLangGer.ResumeLayout(false);
             this.tabLangIta.ResumeLayout(false);
             this.tabLangSpa.ResumeLayout(false);
-            ((ISupportInitialize) this.romIcon).EndInit();
+            ((ISupportInitialize)this.romIcon).EndInit();
             this.tabApPatch.ResumeLayout(false);
             this.tabApPatch.PerformLayout();
             this.apPatchInfoGrp.ResumeLayout(false);
-            ((ISupportInitialize) this.romIcon2).EndInit();
+            ((ISupportInitialize)this.romIcon2).EndInit();
             this.tabExport.ResumeLayout(false);
             this.groupBox5.ResumeLayout(false);
             this.groupBox5.PerformLayout();
@@ -4835,12 +4848,13 @@ namespace apPatcherApp
             {
                 MessageBox.Show("Error! Incorrect type sent to function");
             }
-            else if (this.cmpCheckFile[((int) type) - 1].installed)
+            else if (this.cmpCheckFile[((int)type) - 1].installed)
             {
                 try
                 {
                     string path = "";
-                    FolderBrowserDialog dialog = new FolderBrowserDialog {
+                    FolderBrowserDialog dialog = new FolderBrowserDialog
+                    {
                         ShowNewFolderButton = true,
                         Description = "Select a folder to install the CMP Database to. Please make sure you install the correct file to your card in the correct location. If you need more help, please visit our homepage for more information"
                     };
@@ -4852,7 +4866,7 @@ namespace apPatcherApp
                     {
                         return;
                     }
-                    string archiveName = "data/databases/" + this.cmpCheckFile[((int) type) - 1].fn;
+                    string archiveName = "data/databases/" + this.cmpCheckFile[((int)type) - 1].fn;
                     this.compressor.outFile = "data/temp/";
                     this.compressor.extractRar(archiveName, this.toolStripProgressBar, this.toolStripStatusLabel, false);
                     string sourceFileName = "data/temp/" + this.compressor.extracting_file;
@@ -4917,7 +4931,8 @@ namespace apPatcherApp
                     if ((this.options.getValue("endrypts") != "") || System.IO.File.Exists(this.options.getValue("endrypts")))
                     {
                         System.IO.File.Copy(this.options.getValue("endrypts"), str2 + "endrypts.exe");
-                        ProcessStartInfo info = new ProcessStartInfo {
+                        ProcessStartInfo info = new ProcessStartInfo
+                        {
                             WorkingDirectory = str2,
                             FileName = str2 + "endrypts.exe"
                         };
@@ -4933,7 +4948,8 @@ namespace apPatcherApp
                         MessageBox.Show("The eNDryptS location is not set or was not found.\n\nPlease check the emulator options\n\nNO$GBA uses decrypted roms and you can check your rom using eNDrypts", "eNDrypts not Found", MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
                     }
                 }
-                ProcessStartInfo startInfo = new ProcessStartInfo {
+                ProcessStartInfo startInfo = new ProcessStartInfo
+                {
                     WorkingDirectory = str2,
                     FileName = path,
                     Arguments = "\"" + fn + "\""
@@ -4976,7 +4992,7 @@ namespace apPatcherApp
                         }
                         if (this.cmpCheckFile[num].installed)
                         {
-                            this.enableCMPInstall((cmpDownloadType) (num + 1), infoArray[num].ver);
+                            this.enableCMPInstall((cmpDownloadType)(num + 1), infoArray[num].ver);
                         }
                         num++;
                         if (num >= 20)
@@ -5031,7 +5047,8 @@ namespace apPatcherApp
         private string openSaveDialogue()
         {
             string fn = null;
-            SaveFileDialog dialog = new SaveFileDialog {
+            SaveFileDialog dialog = new SaveFileDialog
+            {
                 Title = "Nintendo DS Rom"
             };
             string newExt = "";
@@ -5220,10 +5237,10 @@ namespace apPatcherApp
                 {
                     return -10L;
                 }
-                this.copyBytes(br, writer, (long) (num2 - ((int) offset)), 0x400, (long) ((int) offset), endPos, progress, status, romOut);
+                this.copyBytes(br, writer, (long)(num2 - ((int)offset)), 0x400, (long)((int)offset), endPos, progress, status, romOut);
                 offset = num2;
                 string str = this.romHeader.readHex(br, &offset, this.patchInfo.patchline[i].find.Length / 2);
-                num = (int) this.run.hexAndMathFunction.bytesToMbit(offset);
+                num = (int)this.run.hexAndMathFunction.bytesToMbit(offset);
                 progress.Value = num;
                 status.Text = string.Concat(new object[] { "Saving ", this.origFileLocToNewFileName(romOut, false, false, ""), " ", this.run.hexAndMathFunction.getPercentage(this.toolStripProgressBar.Value, this.toolStripProgressBar.Maximum), "%" });
                 Application.DoEvents();
@@ -5241,12 +5258,12 @@ namespace apPatcherApp
                 }
                 for (int j = 0; j < (this.patchInfo.patchline[i].replace.Length / 2); j++)
                 {
-                    num = (int) this.run.hexAndMathFunction.bytesToMbit(offset + j);
+                    num = (int)this.run.hexAndMathFunction.bytesToMbit(offset + j);
                     progress.Value = num;
                     status.Text = string.Concat(new object[] { "Saving ", this.origFileLocToNewFileName(romOut, false, false, ""), " ", this.run.hexAndMathFunction.getPercentage(this.toolStripProgressBar.Value, this.toolStripProgressBar.Maximum), "%" });
                     Application.DoEvents();
                     string s = this.patchInfo.patchline[i].replace.Substring(j * 2, 2);
-                    writer.Write((byte) int.Parse(s, NumberStyles.HexNumber));
+                    writer.Write((byte)int.Parse(s, NumberStyles.HexNumber));
                 }
             }
             return offset;
@@ -5314,7 +5331,7 @@ namespace apPatcherApp
                 long num2 = err;
                 if ((num2 <= 1L) && (num2 >= -13L))
                 {
-                    switch (((int) (num2 - -13L)))
+                    switch (((int)(num2 - -13L)))
                     {
                         case 0:
                             return "This rom appears to be AP Patched already";
@@ -5359,7 +5376,7 @@ namespace apPatcherApp
                 {
                     goto Label_0129;
                 }
-                switch (((int) (num - -44L)))
+                switch (((int)(num - -44L)))
                 {
                     case 0:
                         return "Failed to copy original file to new location";
@@ -5379,7 +5396,7 @@ namespace apPatcherApp
             }
             if ((num <= 1L) && (num >= -13L))
             {
-                switch (((int) (num - -13L)))
+                switch (((int)(num - -13L)))
                 {
                     case 0:
                         return ("This rom appears to be AP Patched already] [Output may be corrupt: " + destfn);
@@ -5460,7 +5477,7 @@ namespace apPatcherApp
                         }
                         else
                         {
-                            num3 = (int) endPos;
+                            num3 = (int)endPos;
                         }
                         this.copyBytes(reader, writer, endPos, num3, offset, endPos, progress, status, romOut);
                     }
@@ -5496,7 +5513,7 @@ namespace apPatcherApp
                     this.crcDb.addNewFileCRCToDb(this.romHeader.romHeader.hash, romOut, clean, progress, status);
                 }
             }
-            return (long) num;
+            return (long)num;
         }
 
         [DllImport("user32.dll")]
@@ -5679,7 +5696,7 @@ namespace apPatcherApp
         {
             for (Process process = Process.GetCurrentProcess(); process.WorkingSet64 > 0x61a8000L; process = Process.GetCurrentProcess())
             {
-                status.Text = "Traffic Jam! Waiting for free memory [using " + $"{((int) (process.WorkingSet64 / 0x400L)):n0}" + "kb]";
+                status.Text = "Traffic Jam! Waiting for free memory [using " + $"{((int)(process.WorkingSet64 / 0x400L)):n0}" + "kb]";
                 Application.DoEvents();
             }
         }
