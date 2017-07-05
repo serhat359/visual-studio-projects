@@ -230,19 +230,16 @@ namespace TorrentSeedLeechCounter
             if (FormWindowState.Minimized == this.WindowState)
             {
                 this.Hide();
-                notifyIcon.Visible = true;
-                notifyIcon.ShowBalloonTip(500);
             }
             else if (FormWindowState.Normal == this.WindowState)
             {
-                notifyIcon.Visible = false;
+                
             }
         }
 
         private void NotifyIcon_MouseDoubleClick(object sender, MouseEventArgs e)
         {
             this.Show();
-            notifyIcon.Visible = false;
             this.WindowState = FormWindowState.Normal;
             this.Focus();
         }
