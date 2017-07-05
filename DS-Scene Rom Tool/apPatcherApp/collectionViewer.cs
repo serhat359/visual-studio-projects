@@ -1163,6 +1163,27 @@ namespace apPatcherApp
             this.panel1.ResumeLayout(false);
             this.contextMenuStrip1.ResumeLayout(false);
             base.ResumeLayout(false);
+
+            SetTooltips();
+        }
+
+        private void SetTooltips()
+        {
+            ToolTip toolTip = new ToolTip();
+            // Set up the delays for the ToolTip.
+            toolTip.AutoPopDelay = 2000;
+            toolTip.InitialDelay = 500;
+            toolTip.ReshowDelay = 500;
+            // Force the ToolTip text to be displayed whether or not the form is active.
+            toolTip.ShowAlways = true;
+
+            toolTip.SetToolTip(this.chk_3ds_downloadplay, "Download Play");
+            toolTip.SetToolTip(this.chk_3ds_ninnet, "Nintendo Network");
+            toolTip.SetToolTip(this.chk_3ds_slidepad, "Slide Pad");
+            toolTip.SetToolTip(this.chk_3ds_streetpass, "Street Pass");
+            toolTip.SetToolTip(this.chk_3ds_spotpass, "Spot Pass");
+            toolTip.SetToolTip(this.chk_3ds_multicartplay, "Multicard Play");
+            toolTip.SetToolTip(this.chk_3ds_onlineplay, "Online Play");
         }
 
         private void keyPressTimer_Tick(object sender, EventArgs e)
