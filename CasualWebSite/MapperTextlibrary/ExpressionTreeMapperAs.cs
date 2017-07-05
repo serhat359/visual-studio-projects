@@ -42,7 +42,7 @@ namespace MapperTextlibrary
 		{
 			var exps = new List<Expression>();
 
-			var paramExp = Expression.Parameter(typeof(IDataRecord), "o7thDR");
+            var paramExp = Expression.Parameter(typeof(IDataRecord), "record");
 
 			var targetExp = Expression.Variable(typeof(T));
 			exps.Add(Expression.Assign(targetExp, Expression.New(targetExp.Type)));

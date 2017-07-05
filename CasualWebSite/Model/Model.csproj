@@ -42,10 +42,19 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Data\Example.cs" />
-    <Compile Include="Data\Radical.cs" />
-    <Compile Include="Data\RadicalTemp.cs" />
-    <Compile Include="Data\Stat.cs" />
+    <Compile Include="Data\Example.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Data\FaaliyetMSSQL.cs" />
+    <Compile Include="Data\Radical.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Data\RadicalTemp.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Data\Stat.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Web\PokemonModel.cs" />
   </ItemGroup>

@@ -6,6 +6,7 @@ using System.Data.Common;
 using System.Data;
 using MySql.Data.MySqlClient;
 using System.Configuration;
+using System.Data.SqlClient;
 
 namespace MapperTextlibrary
 {
@@ -14,16 +15,19 @@ namespace MapperTextlibrary
         public enum Mode
         {
             Read,
-            Write
+            Write,
+            MSSQL
         }
 
-        private MySqlConnection connection;
+        private DbConnection connection;
+        private Mode mode;
 
         private const int CONNECTION_ERROR = 0;
         private const int INVALID_USERNAME_PASSWORD = 1045;
 
         public DBConnection(Mode mode)
         {
+            this.mode = mode;
             Initialize(mode);
         }
 
@@ -31,7 +35,12 @@ namespace MapperTextlibrary
         {
             OpenConnection();
 
-            DbCommand cmd = new MySqlCommand(sql, connection);
+            DbCommand cmd;
+
+            if (mode == Mode.MSSQL)
+                cmd = new SqlCommand(sql, (SqlConnection)connection);
+            else
+                cmd = new MySqlCommand(sql, (MySqlConnection)connection);
 
             IDataReader dataReader = cmd.ExecuteReader();
 
@@ -48,7 +57,10 @@ namespace MapperTextlibrary
         {
             ConnectionStringSettings connectionStringSetting = GetConnectionString(mode);
 
-            connection = new MySqlConnection(connectionStringSetting.ConnectionString);
+            if (mode == Mode.MSSQL)
+                connection = new SqlConnection(connectionStringSetting.ConnectionString);
+            else
+                connection = new MySqlConnection(connectionStringSetting.ConnectionString);
         }
 
         private ConnectionStringSettings GetConnectionString(Mode mode)
@@ -59,6 +71,8 @@ namespace MapperTextlibrary
                     return ConfigurationManager.ConnectionStrings["MySQLReaderConnection"];
                 case Mode.Write:
                     return ConfigurationManager.ConnectionStrings["MySQLWriterConnection"];
+                case Mode.MSSQL:
+                    return ConfigurationManager.ConnectionStrings["MSSQL"];
                 default:
                     throw new Exception("Invalid operation mode");
             }

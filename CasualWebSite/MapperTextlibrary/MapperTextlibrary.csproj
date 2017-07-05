@@ -43,14 +43,19 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ActivatorNewMapper.cs" />
+    <Compile Include="ActivatorNewMapperTemp.cs" />
     <Compile Include="ConstructorNewMapper.cs" />
     <Compile Include="CommonMethods.cs" />
     <Compile Include="DBConnection.cs" />
     <Compile Include="ExampleMapper.cs" />
     <Compile Include="ExampleMapperByIndex.cs" />
+    <Compile Include="ExpressionMapperWithActivator.cs" />
+    <Compile Include="ExpressionMapperWithInnerActivator.cs" />
     <Compile Include="ExpressionTreeMapperAs.cs" />
     <Compile Include="ExpressionTreeMapperNullCheck.cs" />
     <Compile Include="ExpressionNewMapper.cs" />
+    <Compile Include="FaaliyetMapper.cs" />
+    <Compile Include="FaaliyetMapperByIndex.cs" />
     <Compile Include="IMapper.cs" />
     <Compile Include="MyMapper.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
