@@ -7,11 +7,12 @@ namespace apPatcherApp
     using System.ComponentModel;
     using System.Drawing;
     using System.IO;
-    using System.Runtime.InteropServices;
     using System.Windows.Forms;
 
     public class collectionViewer : Form
     {
+        //private const string gameFilterPlaceHolder = "Search for a game by name...";
+
         public Button btnAddCollection;
         private CheckBox checkBoxFilterAp;
         private CheckBox checkBoxFilterCmp;
@@ -249,7 +250,7 @@ namespace apPatcherApp
                     this.comboFilterGroup.Items.Clear();
                     this.comboFilterRegion.Items.Clear();
                     this.comboFilterRomNum.Items.Clear();
-                    this.txtFilterName.Text = "";
+                    //this.txtFilterName.Text = gameFilterPlaceHolder;
                     this.checkBoxFilterWifi.Checked = false;
                     this.checkBoxFilterWifi.Enabled = false;
                     this.checkBoxFilterAp.Checked = false;
@@ -304,13 +305,13 @@ namespace apPatcherApp
                             Application.DoEvents();
                             num2 += Program.form.collectiondb.db[this.listCollectionDbs.SelectedIndex].filled / 50;
                         }
-                        bool flag3 = true;
+                        bool displayRom = true;
                         ListViewItem item = new ListViewItem();
                         collectionDb.collectionDbItemType type = Program.form.collectiondb.db[this.listCollectionDbs.SelectedIndex].item[i];
                         crcDupes.possibleCrcType type2 = Program.form.crcDb.crcToCleanCrc(type.crc);
                         if (!type.favourite && (this.comboFilterRomNum.SelectedIndex == 1))
                         {
-                            flag3 = false;
+                            displayRom = false;
                             continue;
                         }
                         item.Tag = i;
@@ -346,55 +347,67 @@ namespace apPatcherApp
                                 switch (class3.key)
                                 {
                                     case "error:hash not found":
-                                    {
-                                        flag4 = true;
-                                        continue;
-                                    }
+                                        {
+                                            flag4 = true;
+                                            continue;
+                                        }
                                     case "error:bad hash":
-                                    {
-                                        flag4 = true;
-                                        continue;
-                                    }
+                                        {
+                                            flag4 = true;
+                                            continue;
+                                        }
                                     case "romnum":
-                                    {
-                                        if (buildRomFilters)
                                         {
-                                            this.addComboFilter(this.comboFilterRomNum, Program.form.organiseForm.romnumToFolder(class3.val), "- All Releases -");
-                                            this.addComboFilter(this.comboFilterRomNum, "- Favorite Releases -", "- Favorite Releases -");
+                                            if (buildRomFilters)
+                                            {
+                                                this.addComboFilter(this.comboFilterRomNum, Program.form.organiseForm.romnumToFolder(class3.val), "- All Releases -");
+                                                this.addComboFilter(this.comboFilterRomNum, "- Favorite Releases -", "- Favorite Releases -");
+                                            }
+                                            if ((this.comboFilterRomNum.SelectedIndex > 1) && (this.comboFilterRomNum.SelectedItem.ToString() != Program.form.organiseForm.romnumToFolder(class3.val)))
+                                            {
+                                                displayRom = false;
+                                            }
+                                            item.Text = class3.val;
+                                            item.Text = Program.form.run.hexAndMathFunction.string_replace("3DS", "", class3.val);
+                                            continue;
                                         }
-                                        if ((this.comboFilterRomNum.SelectedIndex > 1) && (this.comboFilterRomNum.SelectedItem.ToString() != Program.form.organiseForm.romnumToFolder(class3.val)))
-                                        {
-                                            flag3 = false;
-                                        }
-                                        item.Text = class3.val;
-                                        item.Text = Program.form.run.hexAndMathFunction.string_replace("3DS", "", class3.val);
-                                        continue;
-                                    }
                                     case "romnam":
-                                    {
-                                        if (((this.txtFilterName.Text.Length > 1) && (Program.form.run.hexAndMathFunction.string_replace(this.txtFilterName.Text.ToLower(), "", class3.val.ToLower()) == class3.val.ToLower())) && (this.txtFilterName.Text != "Search for a game by name..."))
                                         {
-                                            flag3 = false;
+                                            if (((this.txtFilterName.Text.Length > 1)) &&
+                                                    (Program.form.run.hexAndMathFunction.string_replace(this.txtFilterName.Text.ToLower(), "", class3.val.ToLower()) == class3.val.ToLower()))
+                                            {
+                                                string filterName = this.txtFilterName.Text.ToLower();
+                                                string[] filters = filterName.Split(' ');
+                                                string gameName = class3.val.ToLower();
+
+                                                foreach (var filter in filters)
+                                                {
+                                                    if (!gameName.Contains(filter))
+                                                    {
+                                                        displayRom = false;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                            item.SubItems.Add(class3.val);
+                                            continue;
                                         }
-                                        item.SubItems.Add(class3.val);
-                                        continue;
-                                    }
                                     case "romgrp":
-                                    {
-                                        item.SubItems.Add(class3.val);
-                                        if (buildRomFilters)
                                         {
-                                            this.addComboFilter(this.comboFilterGroup, class3.val, "- All Groups -");
+                                            item.SubItems.Add(class3.val);
+                                            if (buildRomFilters)
+                                            {
+                                                this.addComboFilter(this.comboFilterGroup, class3.val, "- All Groups -");
+                                            }
+                                            if ((this.comboFilterGroup.SelectedIndex > 0) && (this.comboFilterGroup.SelectedItem.ToString() != class3.val))
+                                            {
+                                                displayRom = false;
+                                            }
+                                            item.SubItems.Add(type.gameLoc);
+                                            item.SubItems.Add(type.crc);
+                                            item.SubItems.Add(i + "");
+                                            continue;
                                         }
-                                        if ((this.comboFilterGroup.SelectedIndex > 0) && (this.comboFilterGroup.SelectedItem.ToString() != class3.val))
-                                        {
-                                            flag3 = false;
-                                        }
-                                        item.SubItems.Add(type.gameLoc);
-                                        item.SubItems.Add(type.crc);
-                                        item.SubItems.Add(i+"");
-                                        continue;
-                                    }
                                     case "romsav":
                                     case "romzip":
                                     case "romdir":
@@ -405,9 +418,9 @@ namespace apPatcherApp
                                     case "newsdate":
                                     case "romsize":
                                     case "nfolink":
-                                    {
-                                        continue;
-                                    }
+                                        {
+                                            continue;
+                                        }
                                     case "wifi":
                                         if (class3.val != "YES")
                                         {
@@ -418,165 +431,165 @@ namespace apPatcherApp
                                         goto Label_080F;
 
                                     case "dscompat":
-                                    {
-                                        if (class3.val != "YES")
                                         {
-                                            goto Label_08A6;
+                                            if (class3.val != "YES")
+                                            {
+                                                goto Label_08A6;
+                                            }
+                                            item.SubItems.Add(class3.val);
+                                            this.checkBoxFilterDsi.Enabled = true;
+                                            continue;
                                         }
-                                        item.SubItems.Add(class3.val);
-                                        this.checkBoxFilterDsi.Enabled = true;
-                                        continue;
-                                    }
                                     case "romrgn":
-                                    {
-                                        if (buildRomFilters)
                                         {
-                                            this.addComboFilter(this.comboFilterRegion, Program.form.organiseForm.romRegionChange(class3.val), "- All Regions -");
+                                            if (buildRomFilters)
+                                            {
+                                                this.addComboFilter(this.comboFilterRegion, Program.form.organiseForm.romRegionChange(class3.val), "- All Regions -");
+                                            }
+                                            if ((this.comboFilterRegion.SelectedIndex > 0) && (this.comboFilterRegion.SelectedItem.ToString() != Program.form.organiseForm.romRegionChange(class3.val)))
+                                            {
+                                                displayRom = false;
+                                            }
+                                            item.SubItems.Add(Program.form.organiseForm.romRegionChange(class3.val));
+                                            continue;
                                         }
-                                        if ((this.comboFilterRegion.SelectedIndex > 0) && (this.comboFilterRegion.SelectedItem.ToString() != Program.form.organiseForm.romRegionChange(class3.val)))
-                                        {
-                                            flag3 = false;
-                                        }
-                                        item.SubItems.Add(Program.form.organiseForm.romRegionChange(class3.val));
-                                        continue;
-                                    }
                                     case "n3dsopt":
-                                    {
-                                        string[] strArray = class3.val.Split(new char[] { ',' });
-                                        bool flag5 = false;
-                                        if (((this.chk_3ds_downloadplay.Checked || this.chk_3ds_onlineplay.Checked) || (this.chk_3ds_multicartplay.Checked || this.chk_3ds_streetpass.Checked)) || (this.chk_3ds_slidepad.Checked || this.chk_3ds_spotpass.Checked))
                                         {
-                                            flag5 = true;
-                                        }
-                                        int num4 = 0;
-                                        foreach (string str in strArray)
-                                        {
-                                            if (str == "")
+                                            string[] strArray = class3.val.Split(new char[] { ',' });
+                                            bool flag5 = false;
+                                            if (((this.chk_3ds_downloadplay.Checked || this.chk_3ds_onlineplay.Checked) || (this.chk_3ds_multicartplay.Checked || this.chk_3ds_streetpass.Checked)) || (this.chk_3ds_slidepad.Checked || this.chk_3ds_spotpass.Checked))
                                             {
+                                                flag5 = true;
+                                            }
+                                            int num4 = 0;
+                                            foreach (string str in strArray)
+                                            {
+                                                if (str == "")
+                                                {
+                                                    continue;
+                                                }
+                                                num4++;
+                                                switch (str)
+                                                {
+                                                    case "downloadplay":
+                                                        {
+                                                            this.chk_3ds_downloadplay.Enabled = true;
+                                                            if ((this.chk_3ds_downloadplay.Checked || !flag5) || flag2)
+                                                            {
+                                                                break;
+                                                            }
+                                                            displayRom = false;
+                                                            continue;
+                                                        }
+                                                    case "onlineplay":
+                                                        {
+                                                            this.chk_3ds_onlineplay.Enabled = true;
+                                                            if ((this.chk_3ds_onlineplay.Checked || !flag5) || flag2)
+                                                            {
+                                                                goto Label_0B0A;
+                                                            }
+                                                            displayRom = false;
+                                                            continue;
+                                                        }
+                                                    case "multicartplay":
+                                                        {
+                                                            this.chk_3ds_multicartplay.Enabled = true;
+                                                            if ((this.chk_3ds_multicartplay.Checked || !flag5) || flag2)
+                                                            {
+                                                                goto Label_0B4E;
+                                                            }
+                                                            displayRom = false;
+                                                            continue;
+                                                        }
+                                                    case "streetpass":
+                                                        {
+                                                            this.chk_3ds_streetpass.Enabled = true;
+                                                            if ((this.chk_3ds_streetpass.Checked || !flag5) || flag2)
+                                                            {
+                                                                goto Label_0B92;
+                                                            }
+                                                            displayRom = false;
+                                                            continue;
+                                                        }
+                                                    case "pushcontent":
+                                                        {
+                                                            this.chk_3ds_spotpass.Enabled = true;
+                                                            if ((this.chk_3ds_spotpass.Checked || !flag5) || flag2)
+                                                            {
+                                                                goto Label_0BD3;
+                                                            }
+                                                            displayRom = false;
+                                                            continue;
+                                                        }
+                                                    case "slidepad":
+                                                        {
+                                                            this.chk_3ds_slidepad.Enabled = true;
+                                                            if ((this.chk_3ds_slidepad.Checked || !flag5) || flag2)
+                                                            {
+                                                                goto Label_0C0E;
+                                                            }
+                                                            displayRom = false;
+                                                            continue;
+                                                        }
+                                                    default:
+                                                        goto Label_0C23;
+                                                }
+                                                if (this.chk_3ds_downloadplay.Checked)
+                                                {
+                                                    displayRom = true;
+                                                    flag2 = true;
+                                                }
                                                 continue;
+                                            Label_0B0A:
+                                                if (this.chk_3ds_onlineplay.Checked)
+                                                {
+                                                    displayRom = true;
+                                                    flag2 = true;
+                                                }
+                                                continue;
+                                            Label_0B4E:
+                                                if (this.chk_3ds_multicartplay.Checked)
+                                                {
+                                                    displayRom = true;
+                                                    flag2 = true;
+                                                }
+                                                continue;
+                                            Label_0B92:
+                                                if (this.chk_3ds_streetpass.Checked)
+                                                {
+                                                    displayRom = true;
+                                                    flag2 = true;
+                                                }
+                                                continue;
+                                            Label_0BD3:
+                                                if (this.chk_3ds_spotpass.Checked)
+                                                {
+                                                    displayRom = true;
+                                                    flag2 = true;
+                                                }
+                                                continue;
+                                            Label_0C0E:
+                                                if (this.chk_3ds_slidepad.Checked)
+                                                {
+                                                    displayRom = true;
+                                                    flag2 = true;
+                                                }
+                                                continue;
+                                            Label_0C23:
+                                                MessageBox.Show("unsupported 3DS option: " + str);
                                             }
-                                            num4++;
-                                            switch (str)
+                                            if ((num4 == 0) && flag5)
                                             {
-                                                case "downloadplay":
-                                                {
-                                                    this.chk_3ds_downloadplay.Enabled = true;
-                                                    if ((this.chk_3ds_downloadplay.Checked || !flag5) || flag2)
-                                                    {
-                                                        break;
-                                                    }
-                                                    flag3 = false;
-                                                    continue;
-                                                }
-                                                case "onlineplay":
-                                                {
-                                                    this.chk_3ds_onlineplay.Enabled = true;
-                                                    if ((this.chk_3ds_onlineplay.Checked || !flag5) || flag2)
-                                                    {
-                                                        goto Label_0B0A;
-                                                    }
-                                                    flag3 = false;
-                                                    continue;
-                                                }
-                                                case "multicartplay":
-                                                {
-                                                    this.chk_3ds_multicartplay.Enabled = true;
-                                                    if ((this.chk_3ds_multicartplay.Checked || !flag5) || flag2)
-                                                    {
-                                                        goto Label_0B4E;
-                                                    }
-                                                    flag3 = false;
-                                                    continue;
-                                                }
-                                                case "streetpass":
-                                                {
-                                                    this.chk_3ds_streetpass.Enabled = true;
-                                                    if ((this.chk_3ds_streetpass.Checked || !flag5) || flag2)
-                                                    {
-                                                        goto Label_0B92;
-                                                    }
-                                                    flag3 = false;
-                                                    continue;
-                                                }
-                                                case "pushcontent":
-                                                {
-                                                    this.chk_3ds_spotpass.Enabled = true;
-                                                    if ((this.chk_3ds_spotpass.Checked || !flag5) || flag2)
-                                                    {
-                                                        goto Label_0BD3;
-                                                    }
-                                                    flag3 = false;
-                                                    continue;
-                                                }
-                                                case "slidepad":
-                                                {
-                                                    this.chk_3ds_slidepad.Enabled = true;
-                                                    if ((this.chk_3ds_slidepad.Checked || !flag5) || flag2)
-                                                    {
-                                                        goto Label_0C0E;
-                                                    }
-                                                    flag3 = false;
-                                                    continue;
-                                                }
-                                                default:
-                                                    goto Label_0C23;
-                                            }
-                                            if (this.chk_3ds_downloadplay.Checked)
-                                            {
-                                                flag3 = true;
-                                                flag2 = true;
+                                                displayRom = false;
                                             }
                                             continue;
-                                        Label_0B0A:
-                                            if (this.chk_3ds_onlineplay.Checked)
-                                            {
-                                                flag3 = true;
-                                                flag2 = true;
-                                            }
-                                            continue;
-                                        Label_0B4E:
-                                            if (this.chk_3ds_multicartplay.Checked)
-                                            {
-                                                flag3 = true;
-                                                flag2 = true;
-                                            }
-                                            continue;
-                                        Label_0B92:
-                                            if (this.chk_3ds_streetpass.Checked)
-                                            {
-                                                flag3 = true;
-                                                flag2 = true;
-                                            }
-                                            continue;
-                                        Label_0BD3:
-                                            if (this.chk_3ds_spotpass.Checked)
-                                            {
-                                                flag3 = true;
-                                                flag2 = true;
-                                            }
-                                            continue;
-                                        Label_0C0E:
-                                            if (this.chk_3ds_slidepad.Checked)
-                                            {
-                                                flag3 = true;
-                                                flag2 = true;
-                                            }
-                                            continue;
-                                        Label_0C23:
-                                            MessageBox.Show("unsupported 3DS option: " + str);
                                         }
-                                        if ((num4 == 0) && flag5)
-                                        {
-                                            flag3 = false;
-                                        }
-                                        continue;
-                                    }
                                     default:
                                         goto Label_0C56;
                                 }
                                 if (this.checkBoxFilterWifi.Checked)
                                 {
-                                    flag3 = false;
+                                    displayRom = false;
                                 }
                                 item.SubItems.Add("NO");
                             Label_080F:
@@ -589,7 +602,7 @@ namespace apPatcherApp
                                 {
                                     if (this.chk_3ds_ninnet.Checked)
                                     {
-                                        flag3 = false;
+                                        displayRom = false;
                                     }
                                     item.SubItems.Add("NO");
                                 }
@@ -597,7 +610,7 @@ namespace apPatcherApp
                             Label_08A6:
                                 if (this.checkBoxFilterDsi.Checked)
                                 {
-                                    flag3 = false;
+                                    displayRom = false;
                                 }
                                 item.SubItems.Add("NO");
                                 continue;
@@ -619,11 +632,11 @@ namespace apPatcherApp
                                 MessageBox.Show("A rom was found with missing web information.\n\nYou should re-scan for missing information", "Missing Web Information", MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
                                 flag = true;
                             }
-                            flag3 = false;
+                            displayRom = false;
                         }
                         if (this.checkBoxFilterAp.Checked && (Program.form.patchDb.findPatchInDb(type.crc) == null))
                         {
-                            flag3 = false;
+                            displayRom = false;
                         }
                         else if (Program.form.patchDb.findPatchInDb(type.crc) != null)
                         {
@@ -631,7 +644,7 @@ namespace apPatcherApp
                         }
                         if (this.checkBoxFilterCmp.Checked && !Program.form.hasCheats(type.gameCode))
                         {
-                            flag3 = false;
+                            displayRom = false;
                         }
                         else if (Program.form.hasCheats(type.gameCode))
                         {
@@ -642,7 +655,7 @@ namespace apPatcherApp
                         {
                             item.ImageIndex = 0;
                         }
-                        if (flag3)
+                        if (displayRom)
                         {
                             if (type.favourite)
                             {
@@ -671,7 +684,7 @@ namespace apPatcherApp
 
         private void filters_Changed(object sender, EventArgs e)
         {
-            if (((sender != this.txtFilterName) || ((this.txtFilterName.Text != "") && (this.txtFilterName.Text != "Search for a game by name..."))) && !this.loadingFilters)
+            if (!this.loadingFilters)
             {
                 this.stopRomListing = true;
                 this.startKeyPressTimer(false);
@@ -761,10 +774,10 @@ namespace apPatcherApp
             this.groupBoxFilters.SuspendLayout();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
-            ((ISupportInitialize) this.pictureBox3).BeginInit();
-            ((ISupportInitialize) this.pictureBox4).BeginInit();
-            ((ISupportInitialize) this.pictureBox1).BeginInit();
-            ((ISupportInitialize) this.pictureBox2).BeginInit();
+            ((ISupportInitialize)this.pictureBox3).BeginInit();
+            ((ISupportInitialize)this.pictureBox4).BeginInit();
+            ((ISupportInitialize)this.pictureBox1).BeginInit();
+            ((ISupportInitialize)this.pictureBox2).BeginInit();
             this.tabPage2.SuspendLayout();
             this.panel1.SuspendLayout();
             this.contextMenuStrip1.SuspendLayout();
@@ -792,13 +805,13 @@ namespace apPatcherApp
             this.columnRomNam.Width = 170;
             this.columnRomRgn.Text = "Region";
             this.columnRomGrp.Text = "Group";
-            this.imageList2.ImageStream = (ImageListStreamer) manager.GetObject("imageList2.ImageStream");
+            this.imageList2.ImageStream = (ImageListStreamer)manager.GetObject("imageList2.ImageStream");
             this.imageList2.TransparentColor = Color.Transparent;
             this.imageList2.Images.SetKeyName(0, "n3ds.gif");
             this.imageList2.Images.SetKeyName(1, "ndsrom.gif");
             this.imageList2.Images.SetKeyName(2, "n3ds.gif");
             this.imageList2.Images.SetKeyName(3, "ndsrom.gif");
-            this.imageList1.ImageStream = (ImageListStreamer) manager.GetObject("imageList1.ImageStream");
+            this.imageList1.ImageStream = (ImageListStreamer)manager.GetObject("imageList1.ImageStream");
             this.imageList1.TransparentColor = Color.Transparent;
             this.imageList1.Images.SetKeyName(0, "n3ds.gif");
             this.imageList1.Images.SetKeyName(1, "ndsrom.gif");
@@ -1029,7 +1042,7 @@ namespace apPatcherApp
             this.txtFilterName.Name = "txtFilterName";
             this.txtFilterName.Size = new Size(0x16f, 0x12);
             this.txtFilterName.TabIndex = 0;
-            this.txtFilterName.Text = "Search for a game by name...";
+            //this.txtFilterName.Text = gameFilterPlaceHolder;
             this.txtFilterName.TextChanged += new EventHandler(this.filters_Changed);
             this.txtFilterName.Enter += new EventHandler(this.txtFilterName_Enter);
             this.txtFilterName.Leave += new EventHandler(this.txtFilterName_Leave);
@@ -1051,7 +1064,7 @@ namespace apPatcherApp
             this.comboFilterRegion.Sorted = true;
             this.comboFilterRegion.TabIndex = 8;
             this.comboFilterRegion.SelectedIndexChanged += new EventHandler(this.filters_Changed);
-            this.keyPressTimer.Interval = 0x3e8;
+            this.keyPressTimer.Interval = 250;
             this.keyPressTimer.Tick += new EventHandler(this.keyPressTimer_Tick);
             this.panel1.BackColor = SystemColors.Control;
             this.panel1.Controls.Add(this.toolStripStatusLabel);
@@ -1100,7 +1113,7 @@ namespace apPatcherApp
             base.Controls.Add(this.groupBoxFilters);
             base.Controls.Add(this.listViewRoms);
             this.Font = new Font("Verdana", 8.25f, FontStyle.Regular, GraphicsUnit.Point, 0);
-            base.Icon = (Icon) manager.GetObject("$this.Icon");
+            base.Icon = (Icon)manager.GetObject("$this.Icon");
             this.MaximumSize = new Size(650, 0x2710);
             this.MinimumSize = new Size(0x196, 0x1da);
             base.Name = "collectionViewer";
@@ -1117,10 +1130,10 @@ namespace apPatcherApp
             this.tabControl1.ResumeLayout(false);
             this.tabPage1.ResumeLayout(false);
             this.tabPage1.PerformLayout();
-            ((ISupportInitialize) this.pictureBox3).EndInit();
-            ((ISupportInitialize) this.pictureBox4).EndInit();
-            ((ISupportInitialize) this.pictureBox1).EndInit();
-            ((ISupportInitialize) this.pictureBox2).EndInit();
+            ((ISupportInitialize)this.pictureBox3).EndInit();
+            ((ISupportInitialize)this.pictureBox4).EndInit();
+            ((ISupportInitialize)this.pictureBox1).EndInit();
+            ((ISupportInitialize)this.pictureBox2).EndInit();
             this.tabPage2.ResumeLayout(false);
             this.panel1.ResumeLayout(false);
             this.contextMenuStrip1.ResumeLayout(false);
@@ -1292,15 +1305,12 @@ namespace apPatcherApp
 
         private void txtFilterName_Enter(object sender, EventArgs e)
         {
-            this.txtFilterName.Text = "";
+
         }
 
         private void txtFilterName_Leave(object sender, EventArgs e)
         {
-            if (this.txtFilterName.Text == "")
-            {
-                this.txtFilterName.Text = "Search for a game by name...";
-            }
+
         }
 
         public class ListViewItemComparer : IComparer
@@ -1325,7 +1335,7 @@ namespace apPatcherApp
             public int Compare(object x, object y)
             {
                 int num = -1;
-                num = string.Compare(((ListViewItem) x).SubItems[this.col].Text, ((ListViewItem) y).SubItems[this.col].Text);
+                num = string.Compare(((ListViewItem)x).SubItems[this.col].Text, ((ListViewItem)y).SubItems[this.col].Text);
                 if (this.order == SortOrder.Descending)
                 {
                     num *= -1;
