@@ -249,7 +249,7 @@ namespace apPatcherApp
                     this.comboFilterGroup.Items.Clear();
                     this.comboFilterRegion.Items.Clear();
                     this.comboFilterRomNum.Items.Clear();
-                    this.txtFilterName.Text = "Search for a game by name...";
+                    this.txtFilterName.Text = "";
                     this.checkBoxFilterWifi.Checked = false;
                     this.checkBoxFilterWifi.Enabled = false;
                     this.checkBoxFilterAp.Checked = false;
