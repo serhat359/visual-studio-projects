@@ -4,10 +4,11 @@ using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using System.Windows.Forms;
 
 namespace CasualConsole
 {
-    public static class Ext
+    public static class Extensions
     {
         public static void Each<T>(this IEnumerable<T> list, Action<T, int> action)
         {
@@ -84,6 +85,29 @@ namespace CasualConsole
             catch (Exception e)
             {
                 throw new Exception(errorMessage, e);
+            }
+        }
+
+        public static string ReplaceOnce(this string text, string oldValue, string newValue)
+        {
+            var regex = new Regex(Regex.Escape(oldValue));
+            var newText = regex.Replace(text, newValue, 1);
+            return newText;
+        }
+
+        // An extension to access UI elements from another thread safely
+        public static void ThreadSafe<T>(this T control, Action<T> action) where T : Control
+        {
+            if (control.InvokeRequired)
+            {
+                control.BeginInvoke((MethodInvoker)delegate ()
+                {
+                    action(control);
+                });
+            }
+            else
+            {
+                action(control);
             }
         }
 
