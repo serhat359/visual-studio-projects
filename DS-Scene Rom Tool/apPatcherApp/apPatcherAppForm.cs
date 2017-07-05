@@ -2422,6 +2422,7 @@ namespace apPatcherApp
                 MessageBox.Show("Sorry, the file you have selected could not be found\n\n" + this.fdlg.FileName, "File Error", MessageBoxButtons.OK, MessageBoxIcon.Hand);
                 return false;
             }
+
             switch (this.getFileExtension(this.fdlg.FileName).ToLower())
             {
                 case "zip":
@@ -2448,12 +2449,15 @@ namespace apPatcherApp
                     arcType = "";
                     break;
             }
-            if (arcType == "")
+
+            // DEBUG this code did not seem to make sense and was disabled
+            if (false && arcType == "")
             {
                 MessageBox.Show("Sorry, the file you have selected is incompatible with this application", "File Error", MessageBoxButtons.OK, MessageBoxIcon.Hand);
                 this.cmpCheatsFound(false);
                 return false;
             }
+
             bool flag2 = false;
             if (flag)
             {
