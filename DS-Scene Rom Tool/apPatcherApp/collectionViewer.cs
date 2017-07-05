@@ -395,22 +395,28 @@ namespace apPatcherApp
                                     case "romgrp":
                                         {
                                             item.SubItems.Add(class3.val);
-                                            if (buildRomFilters)
-                                            {
-                                                this.addComboFilter(this.comboFilterGroup, class3.val, "- All Groups -");
-                                            }
-                                            if ((this.comboFilterGroup.SelectedIndex > 0) && (this.comboFilterGroup.SelectedItem.ToString() != class3.val))
-                                            {
-                                                displayRom = false;
-                                            }
+
                                             item.SubItems.Add(type.gameLoc);
                                             item.SubItems.Add(type.crc);
                                             item.SubItems.Add(i + "");
                                             continue;
                                         }
+                                    case "romdir":
+                                        {
+                                            string console = GetConsole(class3.val);
+
+                                            if (buildRomFilters)
+                                                this.addComboFilter(this.comboFilterGroup, console, "- All Consoles -");
+
+                                            if ((this.comboFilterGroup.SelectedIndex > 0) && (this.comboFilterGroup.SelectedItem.ToString() != console))
+                                            {
+                                                displayRom = false;
+                                            }
+
+                                            continue;
+                                        }
                                     case "romsav":
                                     case "romzip":
-                                    case "romdir":
                                     case "id":
                                     case "boxart":
                                     case "icon":
@@ -680,6 +686,25 @@ namespace apPatcherApp
                 Program.form.enableMainForm();
             }
             this.listViewRoms.ResumeLayout();
+        }
+
+        private string GetConsole(string romdir)
+        {
+            bool isNds = romdir.Contains("NDS");
+            bool is3ds = romdir.Contains("3DS");
+
+            string console;
+
+            if (is3ds && !isNds)
+                console = "3DS";
+            else if (!is3ds && isNds)
+                console = "NDS";
+            else if (is3ds && isNds)
+                throw new Exception("Could not tell if NDS or 3DS, please debug");
+            else
+                throw new Exception("Something went wrong with telling whether console is NDS or 3DS, please debug");
+
+            return console;
         }
 
         private void filters_Changed(object sender, EventArgs e)
