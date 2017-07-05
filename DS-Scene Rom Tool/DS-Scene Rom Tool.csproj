@@ -30,6 +30,14 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>ds_scene_rom_tool_XOl_icon.ico</ApplicationIcon>
+  </PropertyGroup>
+  <PropertyGroup />
+  <PropertyGroup>
+    <Win32Resource>
+    </Win32Resource>
+  </PropertyGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
     <Reference Include="System.Windows.Forms" />
@@ -136,5 +144,8 @@
     <EmbeddedResource Include="apPatcherApp.batchOrganiseForm.resources" />
     <EmbeddedResource Include="apPatcherApp.collectionViewer.resources" />
     <EmbeddedResource Include="apPatcherApp.changeLogForm.resources" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="ds_scene_rom_tool_XOl_icon.ico" />
   </ItemGroup>
 </Project>
