@@ -497,6 +497,7 @@ namespace PicrossSolver
 
                             int leftOfFilled = filledIndex - 1;
                             int rightOfFilled = filledEndIndex + 1;
+
                             if (leftOfFilled < 0 || cells[leftOfFilled] == Form1.EMPTY)
                             {
                                 int k;
@@ -506,8 +507,6 @@ namespace PicrossSolver
                                 }
                                 if (k < cells.Length)
                                     cells[k] = Form1.EMPTY;
-
-                                filledIndex = -1;
                             }
                             else if (rightOfFilled > cells.Length - 1 || cells[rightOfFilled] == Form1.EMPTY)
                             {
@@ -518,18 +517,14 @@ namespace PicrossSolver
                                 }
                                 if (k > 0)
                                     cells[k] = Form1.EMPTY;
-
-                                filledIndex = -1;
                             }
                             else
                             {
                                 // TODO other process
                             }
                         }
-                        else
-                        {
-                            filledIndex = -1;
-                        }
+
+                        filledIndex = -1;
                     }
                 }
             }
