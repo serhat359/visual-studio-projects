@@ -155,8 +155,6 @@ namespace PicrossSolver
             var values = cells.cellColumnValues;
             int valuesIndex = 0;
 
-            string oldCells = cells.asString;
-
             int i;
             for (i = 0; i < cells.Length; i++)
             {
@@ -988,9 +986,6 @@ namespace PicrossSolver
         {
             if (filledRanges.Count == values.Length + 1)
             {
-                if (values.SequenceEqual(new int[] { 14, 3 }))
-                    debug();
-
                 List<int> candidates = new List<int>();
 
                 for (int rangeIndex = 0; rangeIndex < filledRanges.Count - 1; rangeIndex++)

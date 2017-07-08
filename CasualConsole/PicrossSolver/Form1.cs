@@ -205,7 +205,7 @@ namespace PicrossSolver
                 isChangeDetected |= testPicture(picture);
 
                 // serilerdeki dolu grup sayısı değer sayısını geçtiğinde bakıyor
-                ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.FillBetweenFilled);
+                ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.FillBetweenFilled);
                 isChangeDetected |= testPicture(picture);
                 
                 if (!isChangeDetected)
