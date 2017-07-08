@@ -28,9 +28,14 @@ namespace PicrossSolver
             }
             else
             {
-                for (int i = 0; i < cells.Length; i++)
-                    cells[i] = Form1.EMPTY;
+                EmptyAll(cells);
             }
+        }
+
+        public static void EmptyAll(Form1.CellSeries cells)
+        {
+            for (int i = 0; i < cells.Length; i++)
+                cells[i] = Form1.EMPTY;
         }
 
         public static void InitialProcessing(Form1.CellSeries cells)
@@ -240,8 +245,6 @@ namespace PicrossSolver
         {
             var values = cells.cellColumnValues;
 
-            int unknownCount = 0;
-
             int startIndex = 0;
             int valueIndex = 0;
 
@@ -271,7 +274,10 @@ namespace PicrossSolver
                     break;
             } while (true);
 
-            for (int i = startIndex; i < cells.Length; i++)
+            int unknownCount = 0;
+
+            int i;
+            for (i = startIndex; i < cells.Length; i++)
             {
                 int cell = cells[i];
 
@@ -282,14 +288,46 @@ namespace PicrossSolver
                     unknownCount = 0;
                     break;
                 }
-                else
+                else if (cell == Form1.EMPTY)
                     break;
             }
 
             if (unknownCount > 0 && valueIndex < values.Length && unknownCount < values[valueIndex])
             {
-                for (int i = 0; i < unknownCount; i++)
-                    cells[i + startIndex] = Form1.EMPTY;
+                for (int j = 0; j < unknownCount; j++)
+                    cells[j + startIndex] = Form1.EMPTY;
+            }
+
+            // Above is first check
+            // Below is second check
+            if (unknownCount > 0)
+            {
+                int secondUnknownCount = 0;
+
+                while (i < cells.Length && cells[i] == Form1.EMPTY)
+                    i++;
+
+                startIndex = i;
+                for (; i < cells.Length; i++)
+                {
+                    int cell = cells[i];
+
+                    if (cell == Form1.UNKNOWN)
+                        secondUnknownCount++;
+                    else if (cell == Form1.FILLED)
+                    {
+                        secondUnknownCount = 0;
+                        break;
+                    }
+                    else if (cell == Form1.EMPTY)
+                        break;
+                }
+
+                if (secondUnknownCount > 0 && valueIndex + 1 < values.Length && secondUnknownCount < values[valueIndex] && secondUnknownCount < values[valueIndex + 1])
+                {
+                    for (int j = 0; j < secondUnknownCount; j++)
+                        cells[j + startIndex] = Form1.EMPTY;
+                }
             }
         }
 
