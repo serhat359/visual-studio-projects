@@ -8,21 +8,29 @@ namespace PicrossSolver
     {
         public static void ProcessAllAlgorithms(Form1.CellSeries cells)
         {
-            InitialProcessing(cells);
-            ProcessSingles(cells);
-
+            if (cells.cellColumnValues.asIterable.Any())
             {
-                ProcessStartsAndEnds(cells);
-                ProcessStartingAndEndingUnknowns(cells);
-            }
+                InitialProcessing(cells);
+                ProcessSingles(cells);
 
-            ProcessSetEmptiesByMax(cells);
-            RemoveSmallEmpties(cells);
-            ProcessFillBetweenEmpties(cells);
-            ProcessMaxValues(cells);
-            ProcessDividedParts(cells);
-            ProcessTryFindingMatchStartingAndEnding(cells);
-            ProcessMatching(cells);
+                {
+                    ProcessStartsAndEnds(cells);
+                    ProcessStartingAndEndingUnknowns(cells);
+                }
+
+                ProcessSetEmptiesByMax(cells);
+                RemoveSmallEmpties(cells);
+                ProcessFillBetweenEmpties(cells);
+                ProcessMaxValues(cells);
+                ProcessDividedParts(cells);
+                ProcessTryFindingMatchStartingAndEnding(cells);
+                ProcessMatching(cells);
+            }
+            else
+            {
+                for (int i = 0; i < cells.Length; i++)
+                    cells[i] = Form1.EMPTY;
+            }
         }
 
         public static void InitialProcessing(Form1.CellSeries cells)
@@ -821,7 +829,7 @@ namespace PicrossSolver
                     int[] forwardValues = forwardMatching[area];
                     int[] backwardValues = backwardMatching[area];
 
-                    if (Enumerable.SequenceEqual(forwardValues, backwardValues.Reverse()))
+                    if (range.containsFilled && Enumerable.SequenceEqual(forwardValues, backwardValues.Reverse()))
                     {
                         Form1.CellSeries slice = Form1.CellSeries.Slice(cells, range.start, range.end, forwardValues);
 
@@ -837,7 +845,7 @@ namespace PicrossSolver
                 {
                     for (int area = 0; area < filledContainingAreas.Count; area++)
                     {
-                        Range range = areaList[area];
+                        Range range = filledContainingAreas[area];
 
                         int[] newValues = new int[] { values[area] };
 
@@ -872,7 +880,7 @@ namespace PicrossSolver
         }
         #endregion
 
-        //private static void debug() { }
+        private static void debug() { }
     }
 
     public class Range
