@@ -1041,6 +1041,97 @@ namespace PicrossSolver
                     FillBetweenFilled(cells, newValues, filledRanges);
                 }
             }
+            else if (filledRanges.Count < values.Length && filledRanges.Count > 0)
+            {
+                if (Form1.iteration == 1 && cells.rowOrCol == 6 && cells.direction == Form1.Direction.Horizontal)
+                    debug();
+
+                // Forward matching
+                List<int>[] forwardFilledCandidates = Enumerable.Range(0, filledRanges.Count).Select(x => new List<int>()).ToArray();
+                {
+                    int filledRangeIndex = 0;
+
+                    int valueIndex = 0;
+
+                    int i = -1;
+
+                    while (filledRangeIndex < filledRanges.Count && valueIndex < values.Length)
+                    {
+                        Range filledRange = filledRanges[filledRangeIndex];
+
+                        int val = values[valueIndex];
+                        i += val + 1;
+
+                        if (i >= filledRange.start)
+                        {
+                            forwardFilledCandidates[filledRangeIndex].Add(valueIndex);
+
+                            filledRangeIndex++;
+                            i = filledRange.end + 1;
+                        }
+
+                        valueIndex++;
+                    }
+                }
+
+                // Backward matching
+                List<int>[] backwardFilledCandidates = Enumerable.Range(0, filledRanges.Count).Select(x => new List<int>()).ToArray();
+                {
+                    int filledRangeIndex = filledRanges.Count - 1;
+
+                    int valueIndex = values.Length - 1;
+
+                    int i = cells.Length + 1;
+
+                    while (filledRangeIndex >= 0 && valueIndex >= 0)
+                    {
+                        Range filledRange = filledRanges[filledRangeIndex];
+                        int val = values[valueIndex];
+                        i -= val + 1;
+
+                        if (i <= filledRange.end + 1)
+                        {
+                            backwardFilledCandidates[filledRangeIndex].Add(valueIndex);
+
+                            filledRangeIndex--;
+
+                            i = filledRange.start;
+                        }
+
+                        valueIndex--;
+                    }
+                }
+
+                for (int i = 0; i < filledRanges.Count; i++)
+                {
+                    Range filledRange = filledRanges[i];
+                    List<int> forwardCandidates = forwardFilledCandidates[i];
+                    List<int> backwardCandidates = backwardFilledCandidates[i];
+
+                    if (forwardCandidates.Count > 0 && backwardCandidates.Count > 0)
+                    {
+                        int forwardMin = forwardCandidates.Min();
+                        int backwardMin = backwardCandidates.Min();
+
+                        int forwardMax = forwardCandidates.Max();
+                        int backwardMax = backwardCandidates.Max();
+
+                        int minValueIndex = forwardMin < backwardMin ? forwardMin : backwardMin;
+                        int maxValueIndex = forwardMax >= backwardMax ? forwardMax : backwardMax;
+
+                        var newValues = MyRange(minValueIndex, maxValueIndex + 1).Select(x => values[x]).ToList();
+
+                        if (newValues.All(x => x == filledRange.size))
+                        {
+                            if (filledRange.start - 1 >= 0)
+                                cells[filledRange.start - 1] = Form1.EMPTY;
+
+                            if (filledRange.end + 1 < cells.Length)
+                                cells[filledRange.end + 1] = Form1.EMPTY;
+                        }
+                    }
+                }
+            }
         }
 
         #region Private Methods
