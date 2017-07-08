@@ -812,7 +812,7 @@ namespace PicrossSolver
                                 break;
                         }
 
-                        backwardMatching[area] = MyRangeDesc(loopValueIndex, valueIndex).Select(x => values[x]).ToArray();
+                        backwardMatching[area] = MyRangeDesc(loopValueIndex, valueIndex).Select(x => values[x]).Reverse().ToArray();
                     }
                     else
                     {
@@ -829,12 +829,29 @@ namespace PicrossSolver
                     int[] forwardValues = forwardMatching[area];
                     int[] backwardValues = backwardMatching[area];
 
-                    if (range.containsFilled && Enumerable.SequenceEqual(forwardValues, backwardValues.Reverse()))
+                    if (range.containsFilled && Enumerable.SequenceEqual(forwardValues, backwardValues))
                     {
                         Form1.CellSeries slice = Form1.CellSeries.Slice(cells, range.start, range.end, forwardValues);
 
                         ProcessAllAlgorithms(slice);
                         ProcessAllAlgorithms(Form1.CellSeries.Reverse(slice));
+                    }
+                }
+
+                // Below is for minimum matching
+                int lastAreaIndex = areaList.Count - 1;
+                Range lastRange = areaList[lastAreaIndex];
+                if (lastRange.containsFilled)
+                {
+                    int[] forwardValues = forwardMatching[lastAreaIndex];
+
+                    if (forwardValues.Any())
+                    {
+                        Range range = lastRange;
+
+                        Form1.CellSeries slice = Form1.CellSeries.Slice(cells, range.start, range.end, forwardValues);
+
+                        InitialProcessing(slice);
                     }
                 }
 
