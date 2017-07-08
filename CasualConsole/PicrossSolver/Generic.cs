@@ -25,6 +25,7 @@ namespace PicrossSolver
                 ProcessDividedParts(cells);
                 ProcessTryFindingMatchStartingAndEnding(cells);
                 ProcessMatching(cells);
+                FillBetweenFilled(cells);
             }
             else
             {
@@ -910,6 +911,80 @@ namespace PicrossSolver
                         ProcessAllAlgorithms(Form1.CellSeries.Reverse(slice));
                     }
                 }
+            }
+        }
+
+        public static void FillBetweenFilled(Form1.CellSeries cells)
+        {
+            var values = cells.cellColumnValues;
+
+            List<Range> filledRanges = new List<Range>();
+
+            int filledStartIndex = -1;
+            for (int i = 0; i < cells.Length; i++)
+            {
+                int cell = cells[i];
+
+                if (cell == Form1.FILLED && filledStartIndex < 0)
+                {
+                    filledStartIndex = i;
+                }
+                else if (cell != Form1.FILLED && filledStartIndex >= 0)
+                {
+                    filledRanges.Add(new Range(filledStartIndex, i - 1, true));
+                    filledStartIndex = -1;
+                }
+            }
+
+            if (filledStartIndex > 0)
+            {
+                filledRanges.Add(new Range(filledStartIndex, cells.Length - 1, true));
+                filledStartIndex = -1;
+            }
+
+            if (filledRanges.Count == values.Length + 1)
+            {
+                if (values.asIterable.SequenceEqual(new int[] { 14, 3 }))
+                    debug();
+
+                List<int> candidates = new List<int>();
+
+                for (int rangeIndex = 0; rangeIndex < filledRanges.Count - 1; rangeIndex++)
+                {
+                    Range thisRange = filledRanges[rangeIndex];
+                    Range nextRange = filledRanges[rangeIndex + 1];
+
+                    int val = values[rangeIndex];
+
+                    int start = thisRange.start;
+                    int end = nextRange.end;
+
+                    int rangeSize = end - start + 1;
+
+                    if (rangeSize <= val)
+                        candidates.Add(rangeIndex);
+                }
+
+                if (candidates.Count == 0)
+                    throw new Exception("You messed up the candidates");
+                else if (candidates.Count == 1)
+                {
+                    int rangeIndex = candidates[0];
+
+                    Range thisRange = filledRanges[rangeIndex];
+                    Range nextRange = filledRanges[rangeIndex + 1];
+
+                    for (int i = thisRange.end + 1; i < nextRange.start; i++)
+                        cells[i] = Form1.FILLED;
+                }
+                else
+                {
+                    // TODO process sometime
+                }
+            }
+            else if (filledRanges.Count == values.Length)
+            {
+                // TODO process some other time
             }
         }
 
