@@ -437,12 +437,11 @@ namespace PicrossSolver
                 }
                 else if (cell == Form1.FILLED)
                 {
+                    int val = values[valueIndex];
+
                     valueIndex++;
 
-                    do
-                    {
-                        startIndex++;
-                    } while (startIndex < cells.Length && cells[startIndex] == Form1.FILLED);
+                    startIndex += val;
                 }
                 else
                     break;
@@ -555,8 +554,8 @@ namespace PicrossSolver
                             }
                             else if (maxCount == 1) // TODO it's possible to make this a loop
                             {
-                                var leftValues = values.asIterable.TakeWhile(x => x != maxValue);
-                                var rightValues = values.asIterable.SkipWhile(x => x < maxValue).Skip(1);
+                                var leftValues = values.asIterable.TakeWhile(x => x != maxValue).ToList();
+                                var rightValues = values.asIterable.SkipWhile(x => x < maxValue).Skip(1).ToList();
 
                                 int reachRange = maxValue - filledSize;
 
@@ -565,11 +564,57 @@ namespace PicrossSolver
                                     for (int k = 0; k < filledIndex - reachRange; k++)
                                         cells[k] = Form1.EMPTY;
                                 }
+                                else if (leftValues.Count == 1)
+                                {
+                                    List<Range> leftFilledList = FindFilledGroups(cells, 0, leftOfFilled - 1);
+
+                                    if (leftFilledList.Count == 1)
+                                    {
+                                        Range leftFilled = leftFilledList[0];
+                                        int leftVal = leftValues[0];
+
+                                        if (leftFilled.start < filledIndex - reachRange)
+                                        {
+                                            int leftReach = leftVal - leftFilled.size;
+
+                                            // setting the empties on the left of the filled one on the left
+                                            for (int k = 0; k < leftFilled.start - leftReach; k++)
+                                                cells[k] = Form1.EMPTY;
+
+                                            // setting the empties in between
+                                            for (int k = leftFilled.end + leftReach + 1; k < filledIndex - reachRange; k++)
+                                                cells[k] = Form1.EMPTY;
+                                        }
+                                    }
+                                }
 
                                 if (!rightValues.Any())
                                 {
                                     for (int k = rightOfFilled + reachRange; k < cells.Length; k++)
                                         cells[k] = Form1.EMPTY;
+                                }
+                                else if (rightValues.Count == 1)
+                                {
+                                    List<Range> rightFilledList = FindFilledGroups(cells, rightOfFilled + 1, cells.Length - 1);
+
+                                    if (rightFilledList.Count == 1)
+                                    {
+                                        Range rightFilled = rightFilledList[0];
+                                        int rightVal = rightValues[0];
+
+                                        if (rightFilled.end > filledEndIndex + reachRange)
+                                        {
+                                            int rightReach = rightVal - rightFilled.size;
+
+                                            // setting the empties on the right of the filled one on the right
+                                            for (int k = rightFilled.end + rightReach + 1; k < cells.Length; k++)
+                                                cells[k] = Form1.EMPTY;
+
+                                            // setting the empties in between
+                                            for (int k = filledEndIndex + reachRange + 1; k < rightFilled.start - rightReach; k++)
+                                                cells[k] = Form1.EMPTY;
+                                        }
+                                    }
                                 }
                             }
                             else
@@ -934,33 +979,16 @@ namespace PicrossSolver
         {
             var values = cells.cellColumnValues;
 
-            List<Range> filledRanges = new List<Range>();
+            List<Range> filledRanges = FindFilledGroups(cells, 0, cells.Length - 1);
 
-            int filledStartIndex = -1;
-            for (int i = 0; i < cells.Length; i++)
-            {
-                int cell = cells[i];
+            FillBetweenFilled(cells, values.asIterable.ToArray(), filledRanges);
+        }
 
-                if (cell == Form1.FILLED && filledStartIndex < 0)
-                {
-                    filledStartIndex = i;
-                }
-                else if (cell != Form1.FILLED && filledStartIndex >= 0)
-                {
-                    filledRanges.Add(new Range(filledStartIndex, i - 1, true));
-                    filledStartIndex = -1;
-                }
-            }
-
-            if (filledStartIndex > 0)
-            {
-                filledRanges.Add(new Range(filledStartIndex, cells.Length - 1, true));
-                filledStartIndex = -1;
-            }
-
+        private static void FillBetweenFilled(Form1.CellSeries cells, int[] values, List<Range> filledRanges)
+        {
             if (filledRanges.Count == values.Length + 1)
             {
-                if (values.asIterable.SequenceEqual(new int[] { 14, 3 }))
+                if (values.SequenceEqual(new int[] { 14, 3 }))
                     debug();
 
                 List<int> candidates = new List<int>();
@@ -1013,33 +1041,43 @@ namespace PicrossSolver
 
                 if (violatingValueIndex >= 0)
                 {
-                    if (violatingValueIndex == 0)
-                    {
-                        Range thisRange = filledRanges[violatingValueIndex];
-                        Range nextRange = filledRanges[violatingValueIndex + 1];
+                    int[] newValues = values.Where((e, i) => i != violatingValueIndex).ToArray();
 
-                        for (int i = thisRange.end + 1; i < nextRange.start; i++)
-                            cells[i] = Form1.FILLED;
-                    }
-                    else if (violatingValueIndex == values.Length - 1)
-                    {
-                        int nextValueIndex = values.Length - 1;
-
-                        Range thisRange = filledRanges[nextValueIndex - 1];
-                        Range nextRange = filledRanges[nextValueIndex];
-
-                        for (int i = thisRange.end + 1; i < nextRange.start; i++)
-                            cells[i] = Form1.FILLED;
-                    }
-                    else
-                    {
-                        // TODO You're gonna have a baaad time here
-                    }
+                    FillBetweenFilled(cells, newValues, filledRanges);
                 }
             }
         }
 
         #region Private Methods
+        private static List<Range> FindFilledGroups(Form1.CellSeries cells, int start, int end)
+        {
+            List<Range> filledRanges = new List<Range>();
+
+            int filledStartIndex = -1;
+            for (int i = start; i <= end; i++)
+            {
+                int cell = cells[i];
+
+                if (cell == Form1.FILLED && filledStartIndex < 0)
+                {
+                    filledStartIndex = i;
+                }
+                else if (cell != Form1.FILLED && filledStartIndex >= 0)
+                {
+                    filledRanges.Add(new Range(filledStartIndex, i - 1, true));
+                    filledStartIndex = -1;
+                }
+            }
+
+            if (filledStartIndex > 0)
+            {
+                filledRanges.Add(new Range(filledStartIndex, end, true));
+                filledStartIndex = -1;
+            }
+
+            return filledRanges;
+        }
+
         private static int getMinValue(Form1.CellColumnValues values)
         {
             if (values.Length > 0)
