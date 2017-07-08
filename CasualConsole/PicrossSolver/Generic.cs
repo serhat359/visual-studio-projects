@@ -511,6 +511,8 @@ namespace PicrossSolver
 
                 int filledIndex = -1;
 
+                List<Range> greaterThanSecondMaxList = new List<Range>();
+
                 for (int i = 0; i < cells.Length; i++)
                 {
                     int cell = cells[i];
@@ -525,6 +527,8 @@ namespace PicrossSolver
                         if (filledSize > secondMaxValue)
                         {
                             int filledEndIndex = i - 1;
+
+                            greaterThanSecondMaxList.Add(new Range(filledIndex, filledEndIndex, true));
 
                             int leftOfFilled = filledIndex - 1;
                             int rightOfFilled = filledEndIndex + 1;
@@ -575,6 +579,18 @@ namespace PicrossSolver
                         }
 
                         filledIndex = -1;
+                    }
+                }
+
+                if (greaterThanSecondMaxList.Count > 1 && maxCount == 1)
+                {
+                    for (int i = 0; i < greaterThanSecondMaxList.Count - 1; i++)
+                    {
+                        Range thisRange = greaterThanSecondMaxList[i];
+                        Range nextRange = greaterThanSecondMaxList[i + 1];
+
+                        for (int k = thisRange.end + 1; k < nextRange.start; k++)
+                            cells[k] = Form1.FILLED;
                     }
                 }
             }
