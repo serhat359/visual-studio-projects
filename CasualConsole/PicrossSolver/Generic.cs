@@ -359,8 +359,8 @@ namespace PicrossSolver
 
                     Form1.CellSeries slice = Form1.CellSeries.Slice(cells, cellStart, cellEnd, newValues);
 
-                    if (slice.cellColumnValues.Length > 0)
-                        ProcessAllAlgorithms(slice);
+                    ProcessAllAlgorithms(slice);
+                    ProcessAllAlgorithms(Form1.CellSeries.Reverse(slice));
                 }
             }
         }
@@ -457,29 +457,14 @@ namespace PicrossSolver
 
             if (values.Length > 1)
             {
-                int secondMaxValue = values[0];
-                int maxValue = values[0];
+                int maxValue = values.asIterable.Max();
+                int secondMaxValue = values.asIterable.Where(x => x != maxValue).DefaultIfEmpty(0).Max();
 
-                int i;
-                for (i = 1; i < values.Length; i++)
-                {
-                    int val = values[i];
-
-                    if (val > maxValue)
-                    {
-                        if (maxValue > secondMaxValue)
-                            secondMaxValue = maxValue;
-
-                        maxValue = val;
-                    }
-                    else if (val > secondMaxValue)
-                        secondMaxValue = val;
-                }
+                int maxCount = values.asIterable.Count(x => x == maxValue);
 
                 int filledIndex = -1;
-                i = 0;
 
-                for (i = 0; i < cells.Length; i++)
+                for (int i = 0; i < cells.Length; i++)
                 {
                     int cell = cells[i];
 
@@ -516,6 +501,25 @@ namespace PicrossSolver
                                 }
                                 if (k > 0)
                                     cells[k] = Form1.EMPTY;
+                            }
+                            else if (maxCount == 1) // TODO it's possible to make this a loop
+                            {
+                                var leftValues = values.asIterable.TakeWhile(x => x != maxValue);
+                                var rightValues = values.asIterable.SkipWhile(x => x < maxValue).Skip(1);
+
+                                int reachRange = maxValue - filledSize;
+
+                                if (!leftValues.Any())
+                                {
+                                    for (int k = 0; k < filledIndex - reachRange; k++)
+                                        cells[k] = Form1.EMPTY;
+                                }
+
+                                if (!rightValues.Any())
+                                {
+                                    for (int k = rightOfFilled + reachRange; k < cells.Length; k++)
+                                        cells[k] = Form1.EMPTY;
+                                }
                             }
                             else
                             {
@@ -807,25 +811,18 @@ namespace PicrossSolver
 
                 // Below is comparing the two range matchings
 
-                bool checkResult = Enumerable.Range(0, forwardMatching.Length).Select(x =>
+                for (int area = 0; area < areaList.Count; area++)
                 {
-                    int[] forwardMatch = forwardMatching[x];
-                    int[] backwardMatch = backwardMatching[x];
+                    Range range = areaList[area];
+                    int[] forwardValues = forwardMatching[area];
+                    int[] backwardValues = backwardMatching[area];
 
-                    return Enumerable.SequenceEqual(forwardMatch, backwardMatch.Reverse());
-                }).All(x => x == true);
-
-                if (checkResult)
-                {
-                    for (int area = 0; area < areaList.Count; area++)
+                    if (Enumerable.SequenceEqual(forwardValues, backwardValues.Reverse()))
                     {
-                        Range range = areaList[area];
-                        int[] newValues = forwardMatching[area];
+                        Form1.CellSeries slice = Form1.CellSeries.Slice(cells, range.start, range.end, forwardValues);
 
-                        Form1.CellSeries slice = Form1.CellSeries.Slice(cells, range.start, range.end, newValues);
-
-                        if (slice.cellColumnValues.Length > 0)
-                            ProcessAllAlgorithms(slice);
+                        ProcessAllAlgorithms(slice);
+                        ProcessAllAlgorithms(Form1.CellSeries.Reverse(slice));
                     }
                 }
             }
