@@ -984,7 +984,42 @@ namespace PicrossSolver
             }
             else if (filledRanges.Count == values.Length)
             {
-                // TODO process some other time
+                int violatingValueIndex = -1;
+
+                for (int valueIndex = 0; valueIndex < values.Length; valueIndex++)
+                {
+                    if (filledRanges[valueIndex].size > values[valueIndex])
+                    {
+                        violatingValueIndex = valueIndex;
+                        break;
+                    }
+                }
+
+                if (violatingValueIndex >= 0)
+                {
+                    if (violatingValueIndex == 0)
+                    {
+                        Range thisRange = filledRanges[violatingValueIndex];
+                        Range nextRange = filledRanges[violatingValueIndex + 1];
+
+                        for (int i = thisRange.end + 1; i < nextRange.start; i++)
+                            cells[i] = Form1.FILLED;
+                    }
+                    else if (violatingValueIndex == values.Length - 1)
+                    {
+                        int nextValueIndex = values.Length - 1;
+
+                        Range thisRange = filledRanges[nextValueIndex - 1];
+                        Range nextRange = filledRanges[nextValueIndex];
+
+                        for (int i = thisRange.end + 1; i < nextRange.start; i++)
+                            cells[i] = Form1.FILLED;
+                    }
+                    else
+                    {
+                        // TODO You're gonna have a baaad time here
+                    }
+                }
             }
         }
 
