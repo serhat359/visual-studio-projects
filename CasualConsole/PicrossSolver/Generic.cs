@@ -718,9 +718,13 @@ namespace PicrossSolver
             List<Range> areaList = new List<Range>();
 
             int nonEmpty = -1;
+            bool containsFilled = false;
             for (int i = 0; i < cells.Length; i++)
             {
                 int cell = cells[i];
+
+                if (cell == Form1.FILLED)
+                    containsFilled = true;
 
                 if (cell != Form1.EMPTY && nonEmpty < 0)
                 {
@@ -728,14 +732,15 @@ namespace PicrossSolver
                 }
                 else if (cell == Form1.EMPTY && i - 1 >= 0 && cells[i - 1] != Form1.EMPTY && nonEmpty >= 0)
                 {
-                    areaList.Add(new Range(nonEmpty, i - 1));
+                    areaList.Add(new Range(nonEmpty, i - 1, containsFilled));
                     nonEmpty = -1;
+                    containsFilled = false;
                 }
             }
 
             if (nonEmpty > 0)
             {
-                areaList.Add(new Range(nonEmpty, cells.Length - 1));
+                areaList.Add(new Range(nonEmpty, cells.Length - 1, containsFilled));
                 nonEmpty = -1;
             }
 
@@ -810,7 +815,6 @@ namespace PicrossSolver
                 }
 
                 // Below is comparing the two range matchings
-
                 for (int area = 0; area < areaList.Count; area++)
                 {
                     Range range = areaList[area];
@@ -820,6 +824,24 @@ namespace PicrossSolver
                     if (Enumerable.SequenceEqual(forwardValues, backwardValues.Reverse()))
                     {
                         Form1.CellSeries slice = Form1.CellSeries.Slice(cells, range.start, range.end, forwardValues);
+
+                        ProcessAllAlgorithms(slice);
+                        ProcessAllAlgorithms(Form1.CellSeries.Reverse(slice));
+                    }
+                }
+
+                // Below is matching filled areas with values
+                List<Range> filledContainingAreas = areaList.Where(x => x.containsFilled).ToList();
+
+                if (filledContainingAreas.Count == values.Length)
+                {
+                    for (int area = 0; area < filledContainingAreas.Count; area++)
+                    {
+                        Range range = areaList[area];
+
+                        int[] newValues = new int[] { values[area] };
+
+                        Form1.CellSeries slice = Form1.CellSeries.Slice(cells, range.start, range.end, newValues);
 
                         ProcessAllAlgorithms(slice);
                         ProcessAllAlgorithms(Form1.CellSeries.Reverse(slice));
@@ -858,11 +880,13 @@ namespace PicrossSolver
         public int start;
         public int end;
         public int size { get { return end - start + 1; } }
+        public bool containsFilled;
 
-        public Range(int start, int end)
+        public Range(int start, int end, bool containsFilled)
         {
             this.start = start;
             this.end = end;
+            this.containsFilled = containsFilled;
         }
 
         public string toString()
