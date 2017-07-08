@@ -491,24 +491,7 @@ namespace PicrossSolver
 
             public int[] LocationIndices { get; set; }
         }
-
-        class Range
-        {
-            public int start;
-            public int end;
-
-            public Range(int start, int end)
-            {
-                this.start = start;
-                this.end = end;
-            }
-
-            public string toString()
-            {
-                return "{start: " + start + ", end: " + end + "}";
-            }
-        }
-
+        
         public enum Direction
         {
             Horizontal,
