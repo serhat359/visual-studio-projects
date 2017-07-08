@@ -586,16 +586,14 @@ namespace PicrossSolver
 
                     int val = cells.cellColumnValues[valueIndex];
 
-                    for (int i = 0; i + startIndex < cells.Length; startIndex++)
+                    for (int i = 0; i + startIndex < cells.Length;)
                     {
-                        if (cells[i + startIndex] == Form1.EMPTY)
-                        {
-
-                        }
-                        else
+                        if (cells[i + startIndex] != Form1.EMPTY)
                         {
                             break;
                         }
+
+                        startIndex++;
                     }
 
                     int filledFoundIndex = -1;
@@ -626,6 +624,7 @@ namespace PicrossSolver
                         }
 
                         int filledSize = filledLastIndex - filledFoundIndex + 1;
+                        int reachRange = val - filledSize;
 
                         // Dolunun önününde ulaşılamayacak yerleri boş ile doldurma
                         for (int i = 0; i < filledSize + filledFoundIndex - val; i++)
@@ -679,6 +678,36 @@ namespace PicrossSolver
                                 startIndex += emptyIndex2 + 1;
                             }
                         }
+                        else if (reachRange > 0 &&
+                            filledLastIndex + reachRange + 1 + startIndex < cells.Length &&
+                            cells[filledLastIndex + reachRange + 1 + startIndex] == Form1.FILLED) // Ulaşılamayacak yerin dolu olma ihtimali
+                        {
+                            bool containsEmpty = false;
+                            int unknownCount = 0;
+                            int unknownIndex = -1;
+
+                            int checkStartIndex = filledLastIndex + 1;
+                            for (int i = checkStartIndex; i < checkStartIndex + reachRange; i++)
+                            {
+                                int cell = cells[i + startIndex];
+
+                                if (cell == Form1.EMPTY)
+                                {
+                                    containsEmpty = true;
+                                    break;
+                                }
+                                else if (cell == Form1.UNKNOWN)
+                                {
+                                    unknownCount++;
+                                    unknownIndex = i;
+                                }
+                            }
+
+                            if (!containsEmpty && unknownCount == 1)
+                            {
+                                cells[unknownIndex + startIndex] = Form1.EMPTY;
+                            }
+                        }
                     }
                 } while (doContinue && valueIndex < cells.cellColumnValues.Length);
             }
@@ -689,7 +718,7 @@ namespace PicrossSolver
             var values = cells.cellColumnValues;
 
             List<Range> areaList = new List<Range>();
-            
+
             int nonEmpty = -1;
             for (int i = 0; i < cells.Length; i++)
             {
