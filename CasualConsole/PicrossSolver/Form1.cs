@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Text;
 using System.Windows.Forms;
 
 namespace PicrossSolver
@@ -15,8 +16,8 @@ namespace PicrossSolver
         public const int FILLED = 1;
         public const int EMPTY = 2;
 
-        public const int rowCount = 15;
-        public const int colCount = 20;
+        public const int rowCount = 25;
+        public const int colCount = 25;
         public const int displaySize = 20;
         public const int lastRow = rowCount - 1;
         public const int lastCol = colCount - 1;
@@ -28,66 +29,97 @@ namespace PicrossSolver
         public static bool[] isColCompleted;
 
         static int[,] correct = {
-            {2,2,2,2,2,2,2,2,2,1,2,1,1,2,1,2,2,1,1,2,},
-            {2,2,2,2,2,2,2,2,1,1,1,1,2,1,2,2,2,2,1,1,},
-            {2,2,2,2,2,2,1,1,1,2,2,2,1,1,2,2,2,2,2,1,},
-            {2,2,2,2,2,1,1,2,2,2,2,2,2,1,1,2,2,2,2,1,},
-            {2,1,1,1,2,1,2,2,2,2,2,2,2,2,1,1,2,2,2,1,},
-            {1,1,2,2,1,1,2,1,2,2,1,2,1,2,2,1,2,2,2,1,},
-            {1,2,2,2,1,2,2,2,2,2,2,2,2,2,2,1,1,2,2,1,},
-            {1,2,2,1,2,2,1,2,2,2,2,2,1,2,2,2,1,2,2,1,},
-            {1,2,2,1,2,1,1,2,2,2,2,1,1,2,2,2,1,2,1,1,},
-            {1,1,2,1,2,1,1,2,2,2,2,1,1,2,2,2,1,2,1,2,},
-            {2,1,1,2,1,2,2,1,1,1,2,2,2,2,2,1,1,2,1,2,},
-            {2,2,1,1,1,1,2,2,1,1,2,2,2,2,1,1,2,2,1,1,},
-            {2,2,2,2,1,1,1,1,2,2,2,1,1,1,1,2,2,2,2,1,},
-            {2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,2,2,2,},
-            {2,2,2,2,2,2,2,1,1,2,1,1,1,2,2,2,1,1,1,1,},
+            {2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+{2,2,2,2,1,2,2,2,2,2,1,1,1,1,1,1,1,2,1,1,1,1,1,1,2},
+{2,2,2,1,1,2,2,2,2,2,2,1,1,1,1,2,2,2,2,1,1,1,1,1,1},
+{2,2,2,1,1,1,2,2,2,2,2,2,2,2,1,2,2,2,1,1,1,1,1,1,1},
+{2,2,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,2,2,1,1},
+{2,2,2,1,1,1,1,2,2,2,2,2,1,2,2,2,2,1,1,1,1,2,2,1,1},
+{2,1,1,1,1,1,1,2,2,2,2,1,1,1,1,2,2,2,1,1,1,1,1,1,1},
+{2,2,2,1,1,1,1,2,2,2,2,1,1,1,1,2,2,2,1,1,1,1,1,1,1},
+{2,1,1,1,2,1,2,1,2,2,1,1,1,1,1,2,2,2,1,1,1,1,1,1,1},
+{2,2,2,1,1,1,1,1,1,1,1,2,1,1,1,2,2,2,2,2,1,2,2,1,1},
+{1,1,1,1,1,1,1,1,1,2,1,2,1,2,2,2,2,2,2,2,2,2,2,1,1},
+{2,2,2,2,1,1,1,2,2,1,1,2,2,2,2,2,2,2,1,2,2,2,2,2,2},
+{2,2,2,2,1,1,1,1,2,2,1,1,2,2,2,2,1,2,1,2,2,2,2,2,2},
+{2,2,2,2,2,2,1,2,2,1,1,2,2,2,2,2,1,1,1,1,1,2,2,1,2},
+{2,1,2,2,2,1,1,1,1,1,1,2,1,2,2,2,2,2,1,1,1,2,2,2,2},
+{1,1,1,1,1,2,1,2,1,1,1,2,1,2,2,2,2,2,2,1,1,2,2,2,1},
+{1,1,1,1,1,1,1,2,1,2,2,2,2,2,2,2,2,2,2,2,1,2,2,2,1},
+{1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,1,1,1,1,1,1},
+{1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1},
+{1,1,1,2,2,1,1,1,1,1,1,2,2,2,2,2,2,2,2,1,1,1,2,2,2},
+{1,1,1,2,2,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,1,2,1,1},
+{1,1,1,2,2,2,1,1,1,2,2,2,2,2,2,2,2,1,2,1,1,1,1,2,1},
+{1,1,1,2,2,2,1,1,1,2,2,2,2,2,2,2,2,2,2,2,1,1,1,2,2},
+{1,1,1,1,1,1,1,2,2,1,1,1,1,1,2,2,2,2,2,1,1,1,1,2,2},
+{1,1,1,2,1,1,1,2,1,1,1,1,1,1,2,2,2,2,2,1,1,1,2,2,2},
         };
 
         public Form1()
         {
             int[][] upColumn = new int[colCount][];
-            upColumn[0] = (arr(5));
-            upColumn[1] = (arr(2, 2));
-            upColumn[2] = (arr(1, 2));
-            upColumn[3] = (arr(1, 3, 1));
-            upColumn[4] = (arr(2, 3));
-            upColumn[5] = (arr(3, 2, 2));
-            upColumn[6] = (arr(2, 3, 2));
-            upColumn[7] = (arr(1, 1, 1, 3));
-            upColumn[8] = (arr(2, 2, 2));
-            upColumn[9] = (arr(2, 2, 1));
-            upColumn[10] = (arr(1, 1, 2));
-            upColumn[11] = (arr(2, 2, 3));
-            upColumn[12] = (arr(1, 1, 1, 3, 3));
-            upColumn[13] = (arr(3, 2));
-            upColumn[14] = (arr(1, 2, 3));
-            upColumn[15] = (arr(3, 2, 1));
-            upColumn[16] = (arr(5, 2));
-            upColumn[17] = (arr(1, 1));
-            upColumn[18] = (arr(2, 4, 1));
-            upColumn[19] = (arr(8, 2, 1));
+            upColumn[0] = (arr(1, 10));
+            upColumn[1] = (arr(1, 1, 1, 11));
+            upColumn[2] = (arr(1, 1, 1, 1, 10));
+            upColumn[3] = (arr(9, 4, 1));
+            upColumn[4] = (arr(7, 4, 4, 2));
+            upColumn[5] = (arr(1, 8, 1, 5, 2));
+            upColumn[6] = (arr(3, 16));
+            upColumn[7] = (arr(3, 1, 1, 6));
+            upColumn[8] = (arr(2, 9, 1));
+            upColumn[9] = (arr(1, 1, 3, 4, 2));
+            upColumn[10] = (arr(2, 8, 1, 1, 2));
+            upColumn[11] = (arr(3, 3, 1, 2));
+            upColumn[12] = (arr(3, 6, 2, 2));
+            upColumn[13] = (arr(3, 4, 2));
+            upColumn[14] = (arr(4, 4));
+            upColumn[15] = (arr(2));
+            upColumn[16] = (arr(2, 2));
+            upColumn[17] = (arr(1, 2, 1, 1));
+            upColumn[18] = (arr(2, 6, 4));
+            upColumn[19] = (arr(9, 3, 3, 1, 2));
+            upColumn[20] = (arr(10, 7, 4));
+            upColumn[21] = (arr(4, 3, 8));
+            upColumn[22] = (arr(4, 3, 2, 3));
+            upColumn[23] = (arr(11, 1, 2, 1));
+            upColumn[24] = (arr(1, 9, 4, 2));
 
             int[][] leftColumn = new int[rowCount][];
-            leftColumn[0] = (arr(1, 2, 1, 2));
-            leftColumn[1] = (arr(4, 1, 2));
-            leftColumn[2] = (arr(3, 2, 1));
-            leftColumn[3] = (arr(2, 2, 1));
-            leftColumn[4] = (arr(3, 1, 2, 1));
-            leftColumn[5] = (arr(2, 2, 1, 1, 1, 1, 1));
-            leftColumn[6] = (arr(1, 1, 2, 1));
-            leftColumn[7] = (arr(1, 1, 1, 1, 1, 1));
-            leftColumn[8] = (arr(1, 1, 2, 2, 1, 2));
-            leftColumn[9] = (arr(2, 1, 2, 2, 1, 1));
-            leftColumn[10] = (arr(2, 1, 3, 2, 1));
-            leftColumn[11] = (arr(4, 2, 2, 2));
-            leftColumn[12] = (arr(4, 4, 1));
-            leftColumn[13] = (arr(11));
-            leftColumn[14] = (arr(2, 3, 4));
+            leftColumn[0] = (arr(15));
+            leftColumn[1] = (arr(1, 7, 6));
+            leftColumn[2] = (arr(2, 4, 6));
+            leftColumn[3] = (arr(3, 1, 7));
+            leftColumn[4] = (arr(3, 4, 2));
+            leftColumn[5] = (arr(4, 1, 4, 2));
+            leftColumn[6] = (arr(6, 4, 7));
+            leftColumn[7] = (arr(4, 4, 7));
+            leftColumn[8] = (arr(3, 1, 1, 5, 7));
+            leftColumn[9] = (arr(8, 3, 1, 2));
+            leftColumn[10] = (arr(9, 1, 1, 2));
+            leftColumn[11] = (arr(3, 2, 1));
+            leftColumn[12] = (arr(4, 2, 1, 1));
+            leftColumn[13] = (arr(1, 2, 5, 1));
+            leftColumn[14] = (arr(1, 6, 1, 3));
+            leftColumn[15] = (arr(5, 1, 3, 1, 2, 1));
+            leftColumn[16] = (arr(7, 1, 1, 1));
+            leftColumn[17] = (arr(11, 6));
+            leftColumn[18] = (arr(10, 6));
+            leftColumn[19] = (arr(3, 6, 3));
+            leftColumn[20] = (arr(3, 5, 1, 2));
+            leftColumn[21] = (arr(3, 3, 1, 4, 1));
+            leftColumn[22] = (arr(3, 3, 3));
+            leftColumn[23] = (arr(7, 5, 4));
+            leftColumn[24] = (arr(3, 3, 6, 3));
 
             isRowCompleted = new bool[rowCount];
             isColCompleted = new bool[colCount];
+
+            int leftSum = leftColumn.Sum(x => x.Sum());
+            int upSum = upColumn.Sum(x => x.Sum());
+
+            if (leftSum != upSum)
+                throw new Exception("Numbers are entered wrong!");
 
             solveAndDisplay(upColumn, leftColumn);
 
@@ -100,7 +132,19 @@ namespace PicrossSolver
 
             solve(picture, upColumn, leftColumn);
 
+            string joined = string.Join(",\n", array2dAsEnumerable(picture).Select(x => string.Join(",", x)));
+
             display(picture, "This is the solved one", true);
+        }
+
+        private static IEnumerable<IEnumerable<int>> array2dAsEnumerable(int[,] picture)
+        {
+            for (int row = 0; row < rowCount; row++)
+            {
+                IEnumerable<int> rowList = Enumerable.Range(0, colCount).Select(col => picture[row, col]);
+
+                yield return rowList;
+            }
         }
 
         private static void solve(int[,] picture, int[][] upColumn, int[][] leftColumn)
@@ -111,6 +155,8 @@ namespace PicrossSolver
 
             for (iteration = 0; ; iteration++)
             {
+                Console.WriteLine("Running iteration: " + iteration);
+
                 bool isChangeDetected = false;
 
                 // tek sayı olanların ara boşluğunu doldurup, ulaşamayacağı yerlere çarpı atıyor
@@ -395,6 +441,22 @@ namespace PicrossSolver
             display(picture, "Latest");
         }
 
+        private static string pictureToString(int[,] picture)
+        {
+            StringBuilder ss = new StringBuilder();
+
+            for (int row = 0; row < rowCount; row++)
+            {
+                for (int col = 0; col < colCount; col++)
+                {
+                    ss.Append(chars[picture[row, col]]);
+                }
+                ss.Append("\n");
+            }
+
+            return ss.ToString();
+        }
+
         private static void display(int[,] picture, string title, bool isApplication = false)
         {
             dumpPicture(picture);
@@ -444,7 +506,8 @@ namespace PicrossSolver
             Horizontal,
             Vertical,
             HorizontalReverse,
-            VerticalReverse
+            VerticalReverse,
+            NotSet
         }
 
         public class CellColumnValues
@@ -495,26 +558,43 @@ namespace PicrossSolver
         public class CellSeries
         {
             public CellColumnValues cellColumnValues { get { return _cellColumnValues; } }
-            public int Length { get { return _length >= 0 ? _length : 0; } }
+            public int Length { get { return _length; } }
             public int this[int i]
             {
                 get { return valueGetter(i); }
-                set { valueSetter(i, value); }
+                set
+                {
+                    var oldCell = valueGetter(i);
+                    if ((oldCell == EMPTY && value == FILLED) || (oldCell == FILLED && value == EMPTY))
+                        throw new Exception("Error Detected");
+
+                    if (_correctValueGetter != null)
+                    {
+                        var correctCell = _correctValueGetter(i);
+                        if (correctCell != value)
+                            throw new Exception("Error Detected");
+                    }
+
+                    valueSetter(i, value);
+                }
             }
             public IEnumerable<int> asIterable { get { return iterable(); } }
-            public Direction direction;
-            public String asString { get { return new string(asIterable.Select(x => Form1.chars[x]).ToArray()); } }
+            public Direction direction = Direction.NotSet;
+            public int? rowOrCol = null;
+            public string asString { get { return new string(asIterable.Select(x => Form1.chars[x]).ToArray()); } }
             public string firstTimeString { get; set; }
 
             private CellColumnValues _cellColumnValues;
             private int _length;
             private Func<int, int> valueGetter;
+            private Func<int, int> _correctValueGetter;
             private Action<int, int> valueSetter;
 
             public CellSeries(int rowOrCol, int[,] picture, Direction direction, int[] columnValues)
             {
                 _cellColumnValues = new CellColumnValues(columnValues, direction);
                 this.direction = direction;
+                this.rowOrCol = rowOrCol;
 
                 switch (direction)
                 {
@@ -522,6 +602,7 @@ namespace PicrossSolver
                         {
                             int row = rowOrCol;
                             valueGetter = col => picture[row, col];
+                            _correctValueGetter = col => correct[row, col];
                             valueSetter = (col, cell) => picture[row, col] = cell;
                             _length = colCount;
                         }
@@ -530,6 +611,7 @@ namespace PicrossSolver
                         {
                             int col = rowOrCol;
                             valueGetter = row => picture[row, col];
+                            _correctValueGetter = row => correct[row, col];
                             valueSetter = (row, cell) => picture[row, col] = cell;
                             _length = rowCount;
                         }
@@ -538,6 +620,7 @@ namespace PicrossSolver
                         {
                             int row = rowOrCol;
                             valueGetter = col => picture[row, lastCol - col];
+                            _correctValueGetter = col => correct[row, lastCol - col];
                             valueSetter = (col, cell) => picture[row, lastCol - col] = cell;
                             _length = colCount;
                         }
@@ -546,6 +629,7 @@ namespace PicrossSolver
                         {
                             int col = rowOrCol;
                             valueGetter = row => picture[lastRow - row, col];
+                            _correctValueGetter = row => correct[lastRow - row, col];
                             valueSetter = (row, cell) => picture[lastRow - row, col] = cell;
                             _length = rowCount;
                         }
@@ -577,6 +661,9 @@ namespace PicrossSolver
                 if (size < newValues.Sum() + newValues.Length - 1)
                     throw new Exception("Bre insafsız!");
 
+                if (size < 0)
+                    size = 0;
+
                 return new CellSeries(cellColumnValues, size, getter, setter);
             }
 
@@ -597,6 +684,12 @@ namespace PicrossSolver
                 CellColumnValues cellColumnValues = new CellColumnValues(newValues, Direction.Horizontal);
 
                 CellSeries cells = new CellSeries(cellColumnValues, cellLength, getter, setter);
+
+                var oldvals = old.cellColumnValues.asIterable;
+                var newvals = cells.cellColumnValues.asIterable;
+
+                if (!Enumerable.SequenceEqual(oldvals, newvals.Reverse()))
+                    throw new Exception("Error at reversing");
 
                 return cells;
             }
