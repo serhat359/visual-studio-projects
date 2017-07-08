@@ -796,8 +796,8 @@ namespace PicrossSolver
 
             if (areaList.Count > 0)
             {
-                int[][] forwardMatching = new int[areaList.Count][];
-                int[][] backwardMatching = new int[areaList.Count][];
+                ColumnValue[][] forwardMatching = new ColumnValue[areaList.Count][];
+                ColumnValue[][] backwardMatching = new ColumnValue[areaList.Count][];
 
                 int loopValueIndex = 0;
                 for (int area = 0; area < forwardMatching.Length; area++)
@@ -818,11 +818,13 @@ namespace PicrossSolver
                                 break;
                         }
 
-                        forwardMatching[area] = MyRange(loopValueIndex, valueIndex).Select(x => values[x]).ToArray();
+                        forwardMatching[area] = MyRange(loopValueIndex, valueIndex)
+                            .Select(i => new ColumnValue { Value = values[i], Index = i })
+                            .ToArray();
                     }
                     else
                     {
-                        forwardMatching[area] = new int[] { };
+                        forwardMatching[area] = new ColumnValue[] { };
                     }
 
                     loopValueIndex = valueIndex;
@@ -851,11 +853,14 @@ namespace PicrossSolver
                                 break;
                         }
 
-                        backwardMatching[area] = MyRangeDesc(loopValueIndex, valueIndex).Select(x => values[x]).Reverse().ToArray();
+                        backwardMatching[area] = MyRangeDesc(loopValueIndex, valueIndex)
+                            .Select(i => new ColumnValue { Value = values[i], Index = i })
+                            .Reverse()
+                            .ToArray();
                     }
                     else
                     {
-                        backwardMatching[area] = new int[] { };
+                        backwardMatching[area] = new ColumnValue[] { };
                     }
 
                     loopValueIndex = valueIndex;
@@ -865,32 +870,27 @@ namespace PicrossSolver
                 for (int area = 0; area < areaList.Count; area++)
                 {
                     Range range = areaList[area];
-                    int[] forwardValues = forwardMatching[area];
-                    int[] backwardValues = backwardMatching[area];
+                    var forwardValues = forwardMatching[area];
+                    var backwardValues = backwardMatching[area];
 
-                    if (range.containsFilled && Enumerable.SequenceEqual(forwardValues, backwardValues))
+                    if (range.containsFilled && forwardValues.Any() && Enumerable.SequenceEqual(forwardValues, backwardValues))
                     {
-                        Form1.CellSeries slice = Form1.CellSeries.Slice(cells, range.start, range.end, forwardValues);
+                        Form1.CellSeries slice = Form1.CellSeries.Slice(cells, range.start, range.end, forwardValues.Select(x => x.Value).ToArray());
 
                         ProcessAllAlgorithms(slice);
                         ProcessAllAlgorithms(Form1.CellSeries.Reverse(slice));
                     }
-                }
-
-                // Below is for minimum matching
-                int lastAreaIndex = areaList.Count - 1;
-                Range lastRange = areaList[lastAreaIndex];
-                if (lastRange.containsFilled)
-                {
-                    int[] forwardValues = forwardMatching[lastAreaIndex];
-
-                    if (forwardValues.Any())
+                    else
                     {
-                        Range range = lastRange;
+                        // Below is for minimum matching
+                        int[] newValues = ColumnValue.GetCommon(forwardValues, backwardValues);
 
-                        Form1.CellSeries slice = Form1.CellSeries.Slice(cells, range.start, range.end, forwardValues);
+                        if (newValues.Any())
+                        {
+                            Form1.CellSeries slice = Form1.CellSeries.Slice(cells, range.start, range.end, newValues);
 
-                        InitialProcessing(slice);
+                            InitialProcessing(slice);
+                        }
                     }
                 }
 
@@ -1073,5 +1073,36 @@ namespace PicrossSolver
         public int CellIndexStart { get; set; }
         public int CellIndexEnd { get { return CellIndexStart + Size - 1; } }
         public int Size { get; set; }
+    }
+
+    public class ColumnValue : IEquatable<ColumnValue>
+    {
+        public int Index { get; set; }
+        public int Value { get; set; }
+
+        public static int[] GetCommon(ColumnValue[] forward, ColumnValue[] backward)
+        {
+            HashSet<int> commonIndices = new HashSet<int>();
+
+            foreach (var item in forward)
+            {
+                if (backward.Any(x => x.Index == item.Index))
+                    commonIndices.Add(item.Index);
+            }
+
+            foreach (var item in backward)
+            {
+                if (forward.Any(x => x.Index == item.Index))
+                    commonIndices.Add(item.Index);
+            }
+
+            return commonIndices.Select(i => forward.First(e => e.Index == i).Value).ToArray();
+        }
+
+        public bool Equals(ColumnValue ex)
+        {
+            return this.Index == ex.Index
+                && this.Value == ex.Value;
+        }
     }
 }
