@@ -253,12 +253,11 @@ namespace PicrossSolver
                 }
                 else if (cell == Form1.FILLED)
                 {
+                    int val = values[valueIndex];
+
                     valueIndex++;
 
-                    do
-                    {
-                        startIndex++;
-                    } while (startIndex < cells.Length && cells[startIndex] == Form1.FILLED);
+                    startIndex += val;
                 }
                 else
                     break;
