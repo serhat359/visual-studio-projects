@@ -1008,6 +1008,8 @@ namespace PicrossSolver
                 }
             }
             else FillBetweenFilled(cells, values.asIterable.ToArray(), filledRanges);
+
+            TryMerging(cells, values.asIterable.ToArray(), filledRanges);
         }
 
         private static void FillBetweenFilled(Form1.CellSeries cells, int[] values, List<Range> filledRanges)
@@ -1215,6 +1217,23 @@ namespace PicrossSolver
                                 cells[filledRange.end + 1] = Form1.EMPTY;
                         }
                     }
+                }
+            }
+        }
+
+        private static void TryMerging(Form1.CellSeries cells, int[] values, List<Range> filledRanges)
+        {
+            for (int i = 1; i < filledRanges.Count; i++)
+            {
+                Range thisRange = filledRanges[i - 1];
+                Range nextRange = filledRanges[i];
+
+                if (nextRange.start - thisRange.end == 2)
+                {
+                    int mergedSize = nextRange.end - thisRange.start + 1;
+
+                    if (!values.Any(x => x >= mergedSize))
+                        cells[nextRange.start - 1] = Form1.EMPTY;
                 }
             }
         }
