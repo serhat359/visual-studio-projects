@@ -817,7 +817,23 @@ namespace PicrossSolver
                                 cells[unknownIndex + startIndex] = Form1.EMPTY;
                             }
                         }
+                        else if (valueIndex + 1 < cells.cellColumnValues.Length) // sıradaki value da bulunursa
+                        {
+                            int nextVal = cells.cellColumnValues[valueIndex + 1];
+
+                            int lastCheckIndex = filledLastIndex + 1 + nextVal;
+                            for (int i = filledLastIndex + reachRange + 1; i <= lastCheckIndex; i++)
+                            {
+                                int cell = cells[i + startIndex];
+
+                                if (cell == Form1.FILLED)
+                                {
+                                    for (int k = i + 1; k <= lastCheckIndex; k++)
+                                        cells[k + startIndex] = Form1.FILLED;
                                 }
+                            }
+                        }
+                    }
                 } while (doContinue && valueIndex < cells.cellColumnValues.Length);
             }
         }
@@ -1260,7 +1276,7 @@ namespace PicrossSolver
         #endregion
 
         private static void debug() { }
-    }
+        }
 
     public class Range
     {
