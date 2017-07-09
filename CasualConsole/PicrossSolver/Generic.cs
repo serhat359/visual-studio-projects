@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using CasualConsole;
 
 namespace PicrossSolver
 {
@@ -1046,7 +1047,7 @@ namespace PicrossSolver
                 if (Form1.iteration == 1 && cells.rowOrCol == 6 && cells.direction == Form1.Direction.Horizontal)
                     debug();
 
-                // Forward matching
+                // Forward candidate matching
                 List<int>[] forwardFilledCandidates = Enumerable.Range(0, filledRanges.Count).Select(x => new List<int>()).ToArray();
                 {
                     int filledRangeIndex = 0;
@@ -1074,7 +1075,17 @@ namespace PicrossSolver
                     }
                 }
 
-                // Backward matching
+                forwardFilledCandidates.Each((e, i) =>
+                {
+                    if (e.Count == 0)
+                    {
+                        int indexDiff = forwardFilledCandidates.Length - 1 - i;
+
+                        e.Add(values.Length - 1 - indexDiff);
+                    }
+                });
+
+                // Backward candidate matching
                 List<int>[] backwardFilledCandidates = Enumerable.Range(0, filledRanges.Count).Select(x => new List<int>()).ToArray();
                 {
                     int filledRangeIndex = filledRanges.Count - 1;
@@ -1102,6 +1113,16 @@ namespace PicrossSolver
                     }
                 }
 
+                backwardFilledCandidates.Each((e, i) =>
+                {
+                    if (e.Count == 0)
+                    {
+                        int indexDiff = i;
+
+                        e.Add(indexDiff);
+                    }
+                });
+
                 for (int i = 0; i < filledRanges.Count; i++)
                 {
                     Range filledRange = filledRanges[i];
@@ -1120,6 +1141,8 @@ namespace PicrossSolver
                         int maxValueIndex = forwardMax >= backwardMax ? forwardMax : backwardMax;
 
                         var newValues = MyRange(minValueIndex, maxValueIndex + 1).Select(x => values[x]).ToList();
+
+                        // Buradan daha fazla devam etmek gerek
 
                         if (newValues.All(x => x == filledRange.size))
                         {
