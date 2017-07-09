@@ -984,8 +984,20 @@ namespace PicrossSolver
 
             List<Range> filledRanges = FindFilledGroups(cells, 0, cells.Length - 1);
 
-            FillBetweenFilled(cells, values.asIterable.ToArray(), filledRanges);
+            if (filledRanges.Count > 1 && filledRanges.All(x => x.size == 1) && values.asIterable.First() != 1 && values.asIterable.Skip(1).All(x => x == 1))
+            {
+                for (int i = 1; i < filledRanges.Count; i++)
+                {
+                    Range lastRange = filledRanges[i];
+
+                    if (lastRange.start - 1 >= 0)
+                        cells[lastRange.start - 1] = Form1.EMPTY;
+                    if (lastRange.end + 1 < cells.Length)
+                        cells[lastRange.end + 1] = Form1.EMPTY;
                 }
+            }
+            else FillBetweenFilled(cells, values.asIterable.ToArray(), filledRanges);
+        }
 
         private static void FillBetweenFilled(Form1.CellSeries cells, int[] values, List<Range> filledRanges)
         {
@@ -1248,7 +1260,7 @@ namespace PicrossSolver
         #endregion
 
         private static void debug() { }
-        }
+    }
 
     public class Range
     {
