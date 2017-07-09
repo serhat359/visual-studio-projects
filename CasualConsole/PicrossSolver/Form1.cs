@@ -1,6 +1,8 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
@@ -11,16 +13,12 @@ namespace PicrossSolver
     {
         public delegate void Algorithm(CellSeries s);
 
-        public static char[] chars = { ' ', '■', '.' };
+        public const string chars = " ■.";
         public const int UNKNOWN = 0;
         public const int FILLED = 1;
         public const int EMPTY = 2;
 
-        public const int rowCount = 25;
-        public const int colCount = 25;
         public const int displaySize = 20;
-        public const int lastRow = rowCount - 1;
-        public const int lastCol = colCount - 1;
 
         public static int iteration = 0;
         static int[,] pictureRef = null;
@@ -28,123 +26,77 @@ namespace PicrossSolver
         public static bool[] isRowCompleted;
         public static bool[] isColCompleted;
 
-        static int[,] correct = {
-            {2,2,2,2,2,2,2,2,2,1,2,2,2,2,2,1,1,1,2,2,2,2,1,1,1},
-{2,2,2,2,2,2,2,2,2,1,2,2,2,2,2,1,1,2,2,2,2,2,1,1,1},
-{1,2,2,2,2,1,1,1,1,1,2,2,2,2,1,1,1,2,2,2,2,2,1,1,1},
-{1,2,2,2,2,1,1,1,1,1,1,2,1,2,1,1,1,1,1,2,2,1,1,1,1},
-{2,2,2,2,2,1,1,1,1,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1},
-{2,2,2,2,2,2,1,1,1,2,2,2,1,2,2,2,1,1,1,1,1,1,1,1,1},
-{2,2,2,2,2,1,1,2,2,2,2,2,2,1,2,2,2,2,2,2,1,2,2,2,2},
-{1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,1,1,2,2,2,2,2,2,2,2},
-{1,1,2,1,1,1,2,2,2,2,2,2,2,1,1,1,2,2,2,2,2,2,2,2,2},
-{1,1,1,1,1,1,2,2,2,2,2,2,2,1,1,1,2,2,2,2,2,2,1,2,2},
-{2,1,1,1,1,2,2,2,2,1,2,2,2,1,1,1,2,2,2,2,1,1,1,2,2},
-{2,1,1,1,1,2,2,1,1,1,2,2,2,1,1,1,1,2,1,2,1,1,1,1,2},
-{1,2,2,2,1,1,2,1,1,1,2,2,1,1,1,1,1,2,2,2,1,1,1,1,1},
-{1,2,2,2,2,1,1,1,1,1,2,2,1,1,1,1,1,2,2,2,1,1,1,1,1},
-{1,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,1,1,2,2,2},
-{2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,1,1,1,2,2,2},
-{2,2,1,1,1,1,1,2,1,1,1,1,1,1,1,1,2,1,2,1,1,1,2,2,2},
-{2,2,2,2,1,1,1,1,1,1,1,1,1,1,2,2,2,1,1,1,1,1,1,1,2},
-{2,2,2,2,2,2,1,2,2,1,1,1,1,1,2,2,2,1,2,1,1,1,1,1,1},
-{2,2,2,2,1,2,1,2,2,2,2,1,1,1,1,1,2,2,2,2,2,1,1,1,1},
-{2,2,2,2,2,2,1,2,2,2,2,1,1,1,1,1,1,1,2,2,2,2,2,2,1},
-{1,1,1,1,1,1,1,1,1,2,2,1,1,1,1,1,1,1,2,2,2,2,2,2,2},
-{1,1,1,2,1,1,1,1,1,1,1,1,1,1,2,1,1,1,2,2,2,2,2,2,2},
-{1,1,1,1,2,1,1,1,1,1,1,2,1,2,2,2,2,2,2,1,2,2,2,2,2},
-{2,2,2,2,2,1,1,1,1,1,1,2,2,2,2,2,2,2,2,1,2,2,2,2,2},
-        };
+        static int[,] correct = null;
 
-        static bool checkCorrect = correct.Length > 0;
+        static bool checkCorrect;
 
         public Form1()
         {
-            int[][] upColumn = new int[colCount][];
-            upColumn[0] = (arr(2, 3, 3, 3));
-            upColumn[1] = (arr(5, 3));
-            upColumn[2] = (arr(1, 3, 2, 3));
-            upColumn[3] = (arr(5, 2, 1, 1));
-            upColumn[4] = (arr(6, 4, 1, 2));
-            upColumn[5] = (arr(3, 4, 6, 4));
-            upColumn[6] = (arr(6, 12));
-            upColumn[7] = (arr(4, 1, 5, 1, 4));
-            upColumn[8] = (arr(4, 7, 4));
-            upColumn[9] = (arr(4, 9, 3));
-            upColumn[10] = (arr(1, 5, 3));
-            upColumn[11] = (arr(9));
-            upColumn[12] = (arr(3, 12));
-            upColumn[13] = (arr(1, 1, 15));
-            upColumn[14] = (arr(3, 9, 3));
-            upColumn[15] = (arr(5, 10, 4));
-            upColumn[16] = (arr(6, 1, 3, 3));
-            upColumn[17] = (arr(1, 3, 3, 3));
-            upColumn[18] = (arr(3, 1, 1));
-            upColumn[19] = (arr(2, 4, 2));
-            upColumn[20] = (arr(3, 9));
-            upColumn[21] = (arr(3, 10));
-            upColumn[22] = (arr(6, 5, 3));
-            upColumn[23] = (arr(6, 3, 3));
-            upColumn[24] = (arr(6, 2, 3));
+            string puzzlesHavingSolution = @"C:\Users\Xhertas\Documents\Visual Studio 2010\Projects\CasualConsole\PicrossSolver\Puzzles\has_solution\";
 
-            int[][] leftColumn = new int[rowCount][];
-            leftColumn[0] = (arr(1, 3, 3));
-            leftColumn[1] = (arr(1, 2, 3));
-            leftColumn[2] = (arr(1, 5, 3, 3));
-            leftColumn[3] = (arr(1, 6, 1, 5, 4));
-            leftColumn[4] = (arr(4, 13));
-            leftColumn[5] = (arr(3, 1, 9));
-            leftColumn[6] = (arr(2, 1, 1));
-            leftColumn[7] = (arr(8, 2));
-            leftColumn[8] = (arr(2, 3, 3));
-            leftColumn[9] = (arr(6, 3, 1));
-            leftColumn[10] = (arr(4, 1, 3, 3));
-            leftColumn[11] = (arr(4, 3, 4, 1, 4));
-            leftColumn[12] = (arr(1, 2, 3, 5, 5));
-            leftColumn[13] = (arr(1, 5, 5, 5));
-            leftColumn[14] = (arr(1, 12, 2));
-            leftColumn[15] = (arr(14, 3));
-            leftColumn[16] = (arr(5, 8, 1, 3));
-            leftColumn[17] = (arr(10, 7));
-            leftColumn[18] = (arr(1, 5, 1, 6));
-            leftColumn[19] = (arr(1, 1, 5, 4));
-            leftColumn[20] = (arr(1, 7, 1));
-            leftColumn[21] = (arr(9, 7));
-            leftColumn[22] = (arr(3, 10, 3));
-            leftColumn[23] = (arr(4, 6, 1, 1));
-            leftColumn[24] = (arr(6, 1));
+            SolveHavingSolution(puzzlesHavingSolution);
 
-            isRowCompleted = new bool[rowCount];
-            isColCompleted = new bool[colCount];
+            string puzzlesNotHavingSolution = @"C:\Users\Xhertas\Documents\Visual Studio 2010\Projects\CasualConsole\PicrossSolver\Puzzles\has_no_solution\";
 
-            int leftSum = leftColumn.Sum(x => x.Sum());
-            int upSum = upColumn.Sum(x => x.Sum());
-
-            if (leftSum != upSum)
-                throw new Exception("Numbers are entered wrong!");
-
-            solveAndDisplay(upColumn, leftColumn);
-
-            if (checkCorrect)
-                display(correct, "This is how it should be", true);
+            SolveHavingSolution(puzzlesNotHavingSolution);
         }
 
-        private static void solveAndDisplay(int[][] upColumn, int[][] leftColumn)
+        private static void SolveHavingSolution(string puzzleLocation)
         {
-            int[,] picture = new int[rowCount, colCount];
+            string[] allpuzzles = Directory.GetFiles(puzzleLocation);
+
+            for (int i = 0; i < allpuzzles.Length; i++)
+            {
+                string puzzleName = allpuzzles[i];
+                string fileName = new FileInfo(puzzleName).Name;
+                PuzzleJson puzzle = JsonConvert.DeserializeObject<PuzzleJson>(File.ReadAllText(puzzleName));
+                Console.WriteLine("solving: " + fileName);
+
+                var leftColumn = puzzle.LeftColumn;
+                var upColumn = puzzle.UpColumn;
+                correct = puzzle.Correct;
+                int rowCount = leftColumn.Length;
+                int colCount = upColumn.Length;
+                checkCorrect = correct.Length > 0;
+
+                isRowCompleted = new bool[rowCount];
+                isColCompleted = new bool[colCount];
+
+                int leftSum = leftColumn.Sum(x => x.Sum());
+                int upSum = upColumn.Sum(x => x.Sum());
+
+                if (leftSum != upSum)
+                    throw new Exception("Numbers are entered wrong!");
+
+                var solvedPicture = solveAndDisplay(upColumn, leftColumn);
+
+                if (checkCorrect)
+                    display(correct, "This is how it should be", true);
+                else
+                {
+                    string solvedCase = JsonConvert.SerializeObject(solvedPicture);
+                }
+            }
+        }
+
+        private static int[,] solveAndDisplay(int[][] upColumn, int[][] leftColumn)
+        {
+            int[,] picture = new int[leftColumn.Length, upColumn.Length];
 
             solve(picture, upColumn, leftColumn);
 
             string joined = string.Join(",\n", array2dAsEnumerable(picture).Select(x => string.Join(",", x)));
 
             display(picture, "This is the solved one", true);
+
+            return picture;
         }
 
         private static IEnumerable<IEnumerable<int>> array2dAsEnumerable(int[,] picture)
         {
-            for (int row = 0; row < rowCount; row++)
+            for (int row = 0; row < picture.rowCount(); row++)
             {
-                IEnumerable<int> rowList = Enumerable.Range(0, colCount).Select(col => picture[row, col]);
+                IEnumerable<int> rowList = Enumerable.Range(0, picture.colCount()).Select(col => picture[row, col]);
 
                 yield return rowList;
             }
@@ -192,10 +144,6 @@ namespace PicrossSolver
                 ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessDividedParts);
                 isChangeDetected |= testPicture(picture);
 
-                // serideki dolu ve boş sayılarını kontrol ediyor
-                processCheckAllCounts(picture, upColumn, leftColumn);
-                isChangeDetected |= testPicture(picture);
-
                 // seri başlarında ve sonlarında kendini bulmaya çalışıyor
                 ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.ProcessTryFindingMatchStartingAndEnding);
                 isChangeDetected |= testPicture(picture);
@@ -204,14 +152,21 @@ namespace PicrossSolver
                 ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.ProcessMatching);
                 isChangeDetected |= testPicture(picture);
 
-                // serilerdeki dolu grup sayısı değer sayısını geçtiğinde bakıyor
-                ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.FillBetweenFilled);
-                isChangeDetected |= testPicture(picture);
-                
                 if (!isChangeDetected)
                 {
-                    break;
+                    // serilerdeki dolu grup sayısı değer sayısını geçtiğinde bakıyor
+                    ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.FillBetweenFilled);
+                    isChangeDetected |= testPicture(picture);
+
+                    if (!isChangeDetected)
+                    {
+                        break;
+                    }
                 }
+
+                // serideki dolu ve boş sayılarını kontrol ediyor
+                processCheckAllCounts(picture, upColumn, leftColumn);
+                isChangeDetected |= testPicture(picture);
             }
 
             Console.WriteLine("There was no change in the iteration: " + iteration);
@@ -229,7 +184,7 @@ namespace PicrossSolver
 
         private static void ApplyAlgorithm(int[,] picture, int[][] upColumn, int[][] leftColumn, Algorithm processing, bool isTwoWay)
         {
-            for (int row = 0; row < rowCount; row++)
+            for (int row = 0; row < picture.rowCount(); row++)
             {
                 if (!isRowCompleted[row])
                 {
@@ -242,7 +197,7 @@ namespace PicrossSolver
                 }
             }
 
-            for (int col = 0; col < colCount; col++)
+            for (int col = 0; col < picture.colCount(); col++)
             {
                 if (!isColCompleted[col])
                 {
@@ -258,18 +213,18 @@ namespace PicrossSolver
 
         private static void processCheckAllCounts(int[,] picture, int[][] upColumn, int[][] leftColumn)
         {
-            for (int col = 0; col < colCount; col++)
+            for (int col = 0; col < picture.colCount(); col++)
             {
                 int[] values = upColumn[col];
 
                 // TODO bunun için tablo oluştur
                 int supposedFilledCount = getSum(values);
-                int supposedEmptyCount = rowCount - supposedFilledCount;
+                int supposedEmptyCount = picture.rowCount() - supposedFilledCount;
 
                 int actualFilledCount = 0;
                 int actualEmptyCount = 0;
 
-                for (int i = 0; i < rowCount; i++)
+                for (int i = 0; i < picture.rowCount(); i++)
                 {
                     int cell = picture[i, col];
 
@@ -286,7 +241,7 @@ namespace PicrossSolver
                 }
                 else if (supposedFilledCount == actualFilledCount)
                 {
-                    for (int i = 0; i < rowCount; i++)
+                    for (int i = 0; i < picture.rowCount(); i++)
                         if (picture[i, col] == UNKNOWN)
                             picture[i, col] = EMPTY;
 
@@ -294,7 +249,7 @@ namespace PicrossSolver
                 }
                 else if (supposedEmptyCount == actualEmptyCount)
                 {
-                    for (int i = 0; i < rowCount; i++)
+                    for (int i = 0; i < picture.rowCount(); i++)
                         if (picture[i, col] == UNKNOWN)
                             picture[i, col] = FILLED;
 
@@ -302,18 +257,18 @@ namespace PicrossSolver
                 }
             }
 
-            for (int row = 0; row < rowCount; row++)
+            for (int row = 0; row < picture.rowCount(); row++)
             {
                 int[] values = leftColumn[row];
 
                 // TODO bunun için tablo oluştur
                 int supposedFilledCount = getSum(values);
-                int supposedEmptyCount = colCount - supposedFilledCount;
+                int supposedEmptyCount = picture.colCount() - supposedFilledCount;
 
                 int actualFilledCount = 0;
                 int actualEmptyCount = 0;
 
-                for (int i = 0; i < colCount; i++)
+                for (int i = 0; i < picture.colCount(); i++)
                 {
                     int cell = picture[row, i];
 
@@ -330,7 +285,7 @@ namespace PicrossSolver
                 }
                 else if (supposedFilledCount == actualFilledCount)
                 {
-                    for (int i = 0; i < colCount; i++)
+                    for (int i = 0; i < picture.colCount(); i++)
                         if (picture[row, i] == UNKNOWN)
                             picture[row, i] = EMPTY;
 
@@ -338,7 +293,7 @@ namespace PicrossSolver
                 }
                 else if (supposedEmptyCount == actualEmptyCount)
                 {
-                    for (int i = 0; i < colCount; i++)
+                    for (int i = 0; i < picture.colCount(); i++)
                         if (picture[row, i] == UNKNOWN)
                             picture[row, i] = FILLED;
 
@@ -351,9 +306,9 @@ namespace PicrossSolver
         {
             bool isChangeDetected = false;
 
-            for (int i = 0; i < rowCount; i++)
+            for (int i = 0; i < picture.rowCount(); i++)
             {
-                for (int j = 0; j < colCount; j++)
+                for (int j = 0; j < picture.colCount(); j++)
                 {
                     if (pictureRef[i, j] != picture[i, j])
                     {
@@ -367,8 +322,8 @@ namespace PicrossSolver
             }
 
             if (checkCorrect)
-                for (int i = 0; i < rowCount; i++)
-                    for (int j = 0; j < colCount; j++)
+                for (int i = 0; i < picture.rowCount(); i++)
+                    for (int j = 0; j < picture.colCount(); j++)
                         if (picture[i, j] != UNKNOWN && picture[i, j] != correct[i, j])
                         {
                             int asIs = picture[i, j];
@@ -387,10 +342,10 @@ namespace PicrossSolver
 
         private static int[,] dumpPicture(int[,] picture)
         {
-            pictureRef = new int[rowCount, colCount];
+            pictureRef = new int[picture.rowCount(), picture.colCount()];
 
-            for (int i = 0; i < rowCount; i++)
-                for (int j = 0; j < colCount; j++)
+            for (int i = 0; i < picture.rowCount(); i++)
+                for (int j = 0; j < picture.colCount(); j++)
                     pictureRef[i, j] = picture[i, j];
 
             return pictureRef;
@@ -453,9 +408,9 @@ namespace PicrossSolver
         {
             StringBuilder ss = new StringBuilder();
 
-            for (int row = 0; row < rowCount; row++)
+            for (int row = 0; row < picture.rowCount(); row++)
             {
-                for (int col = 0; col < colCount; col++)
+                for (int col = 0; col < picture.colCount(); col++)
                 {
                     ss.Append(chars[picture[row, col]]);
                 }
@@ -491,7 +446,7 @@ namespace PicrossSolver
 
             public int[] LocationIndices { get; set; }
         }
-        
+
         public enum Direction
         {
             Horizontal,
@@ -595,7 +550,7 @@ namespace PicrossSolver
                             valueGetter = col => picture[row, col];
                             _correctValueGetter = col => correct[row, col];
                             valueSetter = (col, cell) => picture[row, col] = cell;
-                            _length = colCount;
+                            _length = picture.colCount();
                         }
                         break;
                     case Direction.Vertical:
@@ -604,25 +559,27 @@ namespace PicrossSolver
                             valueGetter = row => picture[row, col];
                             _correctValueGetter = row => correct[row, col];
                             valueSetter = (row, cell) => picture[row, col] = cell;
-                            _length = rowCount;
+                            _length = picture.rowCount();
                         }
                         break;
                     case Direction.HorizontalReverse:
                         {
                             int row = rowOrCol;
+                            int lastCol = picture.colCount() - 1;
                             valueGetter = col => picture[row, lastCol - col];
                             _correctValueGetter = col => correct[row, lastCol - col];
                             valueSetter = (col, cell) => picture[row, lastCol - col] = cell;
-                            _length = colCount;
+                            _length = picture.colCount();
                         }
                         break;
                     case Direction.VerticalReverse:
                         {
                             int col = rowOrCol;
+                            int lastRow = picture.rowCount() - 1;
                             valueGetter = row => picture[lastRow - row, col];
                             _correctValueGetter = row => correct[lastRow - row, col];
                             valueSetter = (row, cell) => picture[lastRow - row, col] = cell;
-                            _length = rowCount;
+                            _length = picture.rowCount();
                         }
                         break;
                     default:
@@ -685,6 +642,13 @@ namespace PicrossSolver
                 return cells;
             }
         }
+
+        public class PuzzleJson
+        {
+            public int[,] Correct { get; set; }
+            public int[][] LeftColumn { get; set; }
+            public int[][] UpColumn { get; set; }
+        }
     }
 
     public class MyWindow : Form
@@ -697,7 +661,7 @@ namespace PicrossSolver
             this.Name = title;
             this.Text = title;
 
-            this.Size = new Size(20 + Form1.displaySize * Form1.colCount, 40 + Form1.displaySize * Form1.rowCount);
+            this.Size = new Size(18 + Form1.displaySize * picture.colCount(), 40 + Form1.displaySize * picture.rowCount());
             this.SetDesktopLocation(500, 300);
 
             this.Paint += new PaintEventHandler(this.GameFrame_Paint);
@@ -710,9 +674,12 @@ namespace PicrossSolver
             int quarter = Form1.displaySize / 4;
             int threeQuarter = quarter + 2 * quarter;
 
-            for (int row = 0; row < Form1.rowCount; row++)
+            int rowCount = picture.rowCount();
+            int colCount = picture.colCount();
+
+            for (int row = 0; row < rowCount; row++)
             {
-                for (int col = 0; col < Form1.colCount; col++)
+                for (int col = 0; col < colCount; col++)
                 {
                     int value = picture[row, col];
 
@@ -740,6 +707,15 @@ namespace PicrossSolver
                 }
             }
 
+            for (int row = 0; row < rowCount; row++)
+            {
+                for (int col = 0; col < colCount; col++)
+                {
+                    g2d.DrawLine(new Pen(Brushes.Orange), (col + 1) * Form1.displaySize, 0, (col + 1) * Form1.displaySize, rowCount * Form1.displaySize);
+                }
+
+                g2d.DrawLine(new Pen(Brushes.Orange), 0, (row + 1) * Form1.displaySize, colCount * Form1.displaySize, (row + 1) * Form1.displaySize);
+            }
         }
     }
 }

@@ -695,13 +695,8 @@ namespace PicrossSolver
 
                     int val = cells.cellColumnValues[valueIndex];
 
-                    for (int i = 0; i + startIndex < cells.Length;)
+                    while (startIndex < cells.Length && cells[startIndex] == Form1.EMPTY)
                     {
-                        if (cells[i + startIndex] != Form1.EMPTY)
-                        {
-                            break;
-                        }
-
                         startIndex++;
                     }
 
@@ -718,7 +713,7 @@ namespace PicrossSolver
 
                     if (filledFoundIndex >= 0)
                     {
-                        // Dolunun arkasını doluyla doldurma
+                        // Dolunun arkasını doluyla doldurma (reach kadar)
                         for (int i = filledFoundIndex + 1; i < val; i++)
                             cells[i + startIndex] = Form1.FILLED;
 
@@ -1273,10 +1268,27 @@ namespace PicrossSolver
             for (int i = from; i > to; i--)
                 yield return i;
         }
+
+        private static int Max(int a, int b)
+        {
+            return a > b ? a : b;
+        }
         #endregion
 
         private static void debug() { }
+
+        #region Extensions
+        public static int rowCount(this int[,] picture)
+        {
+            return picture.GetLength(0);
         }
+
+        public static int colCount(this int[,] picture)
+        {
+            return picture.GetLength(1);
+        }
+        #endregion
+    }
 
     public class Range
     {
