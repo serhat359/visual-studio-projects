@@ -940,6 +940,27 @@ namespace PicrossSolver
 
                     loopValueIndex = valueIndex;
                 }
+                
+                // Assuring filled containing areas contain values on both forward and backward
+                if (areaList.Count > 1)
+                {
+                    Range firstArea = areaList[0];
+                    Range lastArea = areaList[areaList.Count - 1];
+
+                    if (firstArea.containsFilled && backwardMatching[0].Length == 0)
+                    {
+                        backwardMatching[0] = new ColumnValue[] {
+                            new ColumnValue { Index = 0, Value = values[0] }
+                        };
+                    }
+
+                    if (lastArea.containsFilled && forwardMatching[forwardMatching.Length - 1].Length == 0)
+                    {
+                        forwardMatching[forwardMatching.Length - 1] = new ColumnValue[] {
+                            new ColumnValue { Index = values.Length - 1, Value = values[values.Length - 1] }
+                        };
+                    }
+                }
 
                 // Below is comparing the two range matchings
                 for (int area = 0; area < areaList.Count; area++)
