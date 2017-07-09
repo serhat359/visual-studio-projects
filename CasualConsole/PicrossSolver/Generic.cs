@@ -323,7 +323,11 @@ namespace PicrossSolver
                         break;
                 }
 
-                if (secondUnknownCount > 0 && valueIndex + 1 < values.Length && secondUnknownCount < values[valueIndex] && secondUnknownCount < values[valueIndex + 1])
+                if (secondUnknownCount > 0 &&
+                    valueIndex + 1 < values.Length &&
+                    secondUnknownCount < values[valueIndex] &&
+                    secondUnknownCount < values[valueIndex + 1] &&
+                    unknownCount < values[valueIndex] + values[valueIndex + 1] + 1)
                 {
                     for (int j = 0; j < secondUnknownCount; j++)
                         cells[j + startIndex] = Form1.EMPTY;
@@ -1209,7 +1213,7 @@ namespace PicrossSolver
         #endregion
 
         private static void debug() { }
-    }
+        }
 
     public class Range
     {
