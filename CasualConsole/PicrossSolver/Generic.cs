@@ -817,7 +817,7 @@ namespace PicrossSolver
                                 cells[unknownIndex + startIndex] = Form1.EMPTY;
                             }
                         }
-                    }
+                                }
                 } while (doContinue && valueIndex < cells.cellColumnValues.Length);
             }
         }
@@ -985,7 +985,7 @@ namespace PicrossSolver
             List<Range> filledRanges = FindFilledGroups(cells, 0, cells.Length - 1);
 
             FillBetweenFilled(cells, values.asIterable.ToArray(), filledRanges);
-        }
+                }
 
         private static void FillBetweenFilled(Form1.CellSeries cells, int[] values, List<Range> filledRanges)
         {
@@ -1044,6 +1044,41 @@ namespace PicrossSolver
                     int[] newValues = values.Where((e, i) => i != violatingValueIndex).ToArray();
 
                     FillBetweenFilled(cells, newValues, filledRanges);
+                }
+                else
+                {
+                    bool canMerge = false;
+
+                    for (int i = 0; i < filledRanges.Count - 1; i++)
+                    {
+                        Range thisRange = filledRanges[i];
+                        Range nextRange = filledRanges[i + 1];
+
+                        int mergedSize = nextRange.end - thisRange.start + 1;
+
+                        if (values.Any(x => x >= mergedSize))
+                        {
+                            canMerge = true;
+                            break;
+                        }
+                    }
+
+                    if (!canMerge)
+                    {
+                        for (int areaIndex = 0; areaIndex <= filledRanges.Count; areaIndex++)
+                        {
+                            Range leftRange = areaIndex == 0 ? null : filledRanges[areaIndex - 1];
+                            Range rightRange = areaIndex == filledRanges.Count ? null : filledRanges[areaIndex];
+                            int? leftVal = areaIndex == 0 ? (int?)null : values[areaIndex - 1];
+                            int? rightVal = areaIndex == filledRanges.Count ? (int?)null : values[areaIndex];
+
+                            int startIndex = leftRange == null ? 0 : leftRange.end + (leftVal.Value - leftRange.size) + 1;
+                            int quitIndex = rightRange == null ? cells.Length : rightRange.start - (rightVal.Value - rightRange.size);
+
+                            for (int i = startIndex; i < quitIndex; i++)
+                                cells[i] = Form1.EMPTY;
+                        }
+                    }
                 }
             }
             else if (filledRanges.Count < values.Length && filledRanges.Count > 0)
