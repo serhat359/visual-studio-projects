@@ -1267,6 +1267,19 @@ namespace PicrossSolver
 
                     if (range.start >= i && range.end < i + val)
                     {
+                        if (filledRangeIndex == 0)
+                        {
+                            var formerValues = Enumerable.Range(0, valueIndex + 1).Select(x => values[x]);
+
+                            if (formerValues.All(x => x == range.size))
+                            {
+                                if (range.start - 1 >= 0)
+                                    cells[range.start - 1] = Form1.EMPTY;
+                                if (range.end + 1 < cells.Length)
+                                    cells[range.end + 1] = Form1.EMPTY;
+                            }
+                        }
+
                         forwardFilledCandidates[filledRangeIndex].Add(valueIndex);
                         filledRangeIndex++;
                     }
