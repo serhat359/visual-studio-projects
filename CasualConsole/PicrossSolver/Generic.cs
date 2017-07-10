@@ -1149,80 +1149,22 @@ namespace PicrossSolver
                     debug();
 
                 // Forward candidate matching
-                List<int>[] forwardFilledCandidates = Enumerable.Range(0, filledRanges.Count).Select(x => new List<int>()).ToArray();
-                {
-                    int filledRangeIndex = 0;
+                List<int>[] forwardFilledCandidates = GetCandidates(cells, values, filledRanges);
 
-                    int valueIndex = 0;
+                int cellsLastIndex = cells.Length - 1;
+                // New Backward candidate matching
+                List<int>[] backwardFilledCandidates = GetCandidates(
+                    Form1.CellSeries.Reverse(cells), values.Reverse().ToArray(),
+                    filledRanges.Select(x => new Range(cellsLastIndex - x.end, cellsLastIndex - x.start, x.containsFilled)).OrderBy(x => x.start).ToList()
+                );
 
-                    int i = -1;
-
-                    while (filledRangeIndex < filledRanges.Count && valueIndex < values.Length)
-                    {
-                        Range filledRange = filledRanges[filledRangeIndex];
-
-                        int val = values[valueIndex];
-                        i += val + 1;
-
-                        if (i >= filledRange.start)
-                        {
-                            forwardFilledCandidates[filledRangeIndex].Add(valueIndex);
-
-                            filledRangeIndex++;
-                            i = filledRange.end + 1;
-                        }
-
-                        valueIndex++;
-                    }
-                }
-
-                forwardFilledCandidates.Each((e, i) =>
-                {
-                    if (e.Count == 0)
-                    {
-                        int indexDiff = forwardFilledCandidates.Length - 1 - i;
-
-                        e.Add(values.Length - 1 - indexDiff);
-                    }
-                });
-
-                // Backward candidate matching
-                List<int>[] backwardFilledCandidates = Enumerable.Range(0, filledRanges.Count).Select(x => new List<int>()).ToArray();
-                {
-                    int filledRangeIndex = filledRanges.Count - 1;
-
-                    int valueIndex = values.Length - 1;
-
-                    int i = cells.Length + 1;
-
-                    while (filledRangeIndex >= 0 && valueIndex >= 0)
-                    {
-                        Range filledRange = filledRanges[filledRangeIndex];
-                        int val = values[valueIndex];
-                        i -= val + 1;
-
-                        if (i <= filledRange.end + 1)
-                        {
-                            backwardFilledCandidates[filledRangeIndex].Add(valueIndex);
-
-                            filledRangeIndex--;
-
-                            i = filledRange.start;
-                        }
-
-                        valueIndex--;
-                    }
-                }
-
-                backwardFilledCandidates.Each((e, i) =>
-                {
-                    if (e.Count == 0)
-                    {
-                        int indexDiff = i;
-
-                        e.Add(indexDiff);
-                    }
-                });
+                backwardFilledCandidates = backwardFilledCandidates
+                    .Select(candList => candList
+                        .Select(x => values.Length - 1 - x)
+                        .ToList()
+                    )
+                    .Reverse()
+                    .ToArray();
 
                 for (int i = 0; i < filledRanges.Count; i++)
                 {
@@ -1256,6 +1198,67 @@ namespace PicrossSolver
                     }
                 }
             }
+        }
+
+        private static List<int>[] GetCandidates(Form1.CellSeries cells, int[] values, List<Range> filledRanges)
+        {
+            if (cells.Length == 13 && Form1.iteration == 5 && values.SequenceEqual(new int[] { 3, 1, 2 }))
+                debug();
+
+            List<int>[] forwardFilledCandidates = Enumerable.Range(0, filledRanges.Count).Select(x => new List<int>()).ToArray();
+
+            int i = 0;
+
+            int valueIndex = 0;
+            int filledRangeIndex = 0;
+
+            for (; valueIndex < values.Length && filledRangeIndex < filledRanges.Count; valueIndex++)
+            {
+                int val = values[valueIndex];
+                Range range = filledRanges[filledRangeIndex];
+
+                // Skip the all and possible empties
+                bool doContinue = true;
+                while (doContinue)
+                {
+                    doContinue = false;
+                    for (int k = val - 1; k >= 0; k--)
+                    {
+                        if (cells[i + k] == Form1.EMPTY)
+                        {
+                            i += k + 1;
+                            doContinue = true;
+                            break;
+                        }
+                    }
+                }
+
+                // Check one over for filled
+                while (i + val < cells.Length && cells[i + val] == Form1.FILLED)
+                {
+                    i++;
+                }
+
+                while (true)
+                {
+                    if (filledRangeIndex >= filledRanges.Count)
+                        break;
+
+                    range = filledRanges[filledRangeIndex];
+
+                    if (range.start >= i && range.end < i + val)
+                    {
+                        forwardFilledCandidates[filledRangeIndex].Add(valueIndex);
+                        filledRangeIndex++;
+                    }
+                    else
+                        break;
+                }
+
+                i += 1 + val;
+            }
+
+            return forwardFilledCandidates;
         }
 
         private static void TryMerging(Form1.CellSeries cells, int[] values, List<Range> filledRanges)
