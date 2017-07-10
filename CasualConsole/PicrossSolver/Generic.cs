@@ -678,6 +678,21 @@ namespace PicrossSolver
                             cells[k] = Form1.FILLED;
                     }
                 }
+
+                if (foundEmpty)
+                {
+                    for (int k = 0; k < firstValue; k++)
+                    {
+                        if (cells[k] == Form1.FILLED)
+                        {
+                            for (k++; k < firstValue; k++)
+                            {
+                                cells[k] = Form1.FILLED;
+                            }
+                            break;
+                        }
+                    }
+                }
             }
         }
 
@@ -940,7 +955,7 @@ namespace PicrossSolver
 
                     loopValueIndex = valueIndex;
                 }
-                
+
                 // Assuring filled containing areas contain values on both forward and backward
                 if (areaList.Count > 1)
                 {
