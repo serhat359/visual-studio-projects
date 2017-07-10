@@ -1145,6 +1145,23 @@ namespace PicrossSolver
                     }
                 }
             }
+            else if (filledRanges.Count == values.Length - 1)
+            {
+                for (int i = 0; i < filledRanges.Count - 1; i++)
+                {
+                    Range thisRange = filledRanges[i];
+                    int thisVal = values[i];
+                    int nextVal = values[i + 1];
+
+                    if (thisVal == nextVal && nextVal == thisRange.size)
+                    {
+                        if (thisRange.start - 1 >= 0)
+                            cells[thisRange.start - 1] = Form1.EMPTY;
+                        if (thisRange.end + 1 < cells.Length)
+                            cells[thisRange.end + 1] = Form1.EMPTY;
+                    }
+                }
+            }
             else if (filledRanges.Count < values.Length && filledRanges.Count > 0)
             {
                 if (Form1.iteration == 1 && cells.rowOrCol == 6 && cells.direction == Form1.Direction.Horizontal)
