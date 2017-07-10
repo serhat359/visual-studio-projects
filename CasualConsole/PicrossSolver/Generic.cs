@@ -27,6 +27,8 @@ namespace PicrossSolver
                 ProcessTryFindingMatchStartingAndEnding(cells);
                 ProcessMatching(cells);
                 ProcessInitialByMatching(cells);
+                DivideByEnclosed(cells);
+
                 FillBetweenFilled(cells);
             }
             else
@@ -1385,6 +1387,50 @@ namespace PicrossSolver
                 }
 
                 i += val + 1;
+            }
+        }
+
+        public static void DivideByEnclosed(Form1.CellSeries cells)
+        {
+            var values = cells.cellColumnValues;
+
+            if (Form1.iteration == 11 && values.asIterable.SequenceEqual(new int[] { 2, 1, 5 }))
+                debug();
+
+            List<Range> enclosedFilleds = new List<Range>();
+
+            for (int i = 0; i < cells.Length; i++)
+            {
+                while (i < cells.Length && cells[i] != Form1.FILLED)
+                    i++;
+
+                int filledIndex = i;
+
+                while (i < cells.Length && cells[i] == Form1.FILLED)
+                    i++;
+
+                int filledEndIndex = i - 1;
+
+                if (filledIndex - 1 >= 0 && cells[filledIndex - 1] == Form1.EMPTY && filledEndIndex + 1 < cells.Length && cells[filledEndIndex + 1] == Form1.EMPTY)
+                    enclosedFilleds.Add(new Range(filledIndex, filledEndIndex, true));
+            }
+
+            foreach (var filled in enclosedFilleds)
+            {
+                var valuesMatched = values.asIterable.Select((x, i) => new { Index = i, Value = x }).Where(x => x.Value == filled.size).ToList();
+
+                if (valuesMatched.Count == 1)
+                {
+                    var leftSlice = Form1.CellSeries.Slice(cells, 0, filled.start - 2, values.asIterable.Take(valuesMatched[0].Index).ToArray());
+
+                    var rightSlice = Form1.CellSeries.Slice(cells, filled.end + 2, cells.Length - 1, values.asIterable.Skip(valuesMatched[0].Index + 1).ToArray());
+
+                    ProcessAllAlgorithms(leftSlice);
+                    ProcessAllAlgorithms(Form1.CellSeries.Reverse(leftSlice));
+
+                    ProcessAllAlgorithms(rightSlice);
+                    ProcessAllAlgorithms(Form1.CellSeries.Reverse(rightSlice));
+                }
             }
         }
 

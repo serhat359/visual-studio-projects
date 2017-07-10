@@ -151,11 +151,15 @@ namespace PicrossSolver
                 // serileri genel olarak analiz ediyor
                 ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.ProcessMatching);
                 isChangeDetected |= testPicture(picture);
-                
+
                 // serideki dolulara bakarak eşleştirip initial processing yaptırıyor
                 ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.ProcessInitialByMatching);
                 isChangeDetected |= testPicture(picture);
-                
+
+                // seriyi önü arkası kapalı dolu gruplara göre ayırıp işliyor
+                ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.DivideByEnclosed);
+                isChangeDetected |= testPicture(picture);
+
                 if (!isChangeDetected)
                 {
                     // serilerdeki dolu grup sayısı değer sayısını geçtiğinde bakıyor
