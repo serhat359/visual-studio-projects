@@ -26,6 +26,7 @@ namespace PicrossSolver
                 ProcessDividedParts(cells);
                 ProcessTryFindingMatchStartingAndEnding(cells);
                 ProcessMatching(cells);
+                ProcessInitialByMatching(cells);
                 FillBetweenFilled(cells);
             }
             else
@@ -1329,6 +1330,60 @@ namespace PicrossSolver
             return a > b ? a : b;
         }
         #endregion
+
+        public static void ProcessInitialByMatching(Form1.CellSeries cells)
+        {
+            var values = cells.cellColumnValues;
+
+            // i : size covered
+            int i = 0;
+
+            for (int valueIndex = 0; valueIndex < values.Length; valueIndex++)
+            {
+                int val = values[valueIndex];
+
+                bool emptyFound = false;
+                // This whole loop skips empties and really small empties
+                bool willContinue = true;
+                while (willContinue)
+                {
+                    willContinue = false;
+
+                    // Check for empties in this range
+                    for (int k = val - 1; k >= 0; k--)
+                    {
+                        if (k + i < cells.Length && cells[k + i] == Form1.EMPTY)
+                        {
+                            i += k + 1;
+                            willContinue = true;
+                            emptyFound = true;
+                            break;
+                        }
+                    }
+                }
+
+                //if (!emptyFound && valueIndex != 0)
+                //    i++;
+
+                if (i + val < cells.Length && cells[i + val] == Form1.FILLED)
+                {
+                    int k = i + val + 1;
+
+                    while (k < cells.Length && cells[k] == Form1.FILLED)
+                    {
+                        k++;
+                    }
+
+                    int lastFilled = k - 1;
+
+                    var slice = Form1.CellSeries.Slice(cells, lastFilled + 2, cells.Length - 1, values.asIterable.Skip(valueIndex + 1).ToArray());
+
+                    InitialProcessing(slice);
+                }
+
+                i += val + 1;
+            }
+        }
 
         private static void debug() { }
 

@@ -132,7 +132,7 @@ namespace PicrossSolver
                 ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessSetEmptiesByMax);
                 isChangeDetected |= testPicture(picture);
 
-                // serilerdeki çarpı arası boşlukları boşlukla dolduruyor
+                // serilerdeki çarpı arası boşluklara çarpı atıyor
                 ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessFillBetweenEmpties);
                 isChangeDetected |= testPicture(picture);
 
@@ -151,7 +151,11 @@ namespace PicrossSolver
                 // serileri genel olarak analiz ediyor
                 ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.ProcessMatching);
                 isChangeDetected |= testPicture(picture);
-
+                
+                // serideki dolulara bakarak eşleştirip initial processing yaptırıyor
+                ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.ProcessInitialByMatching);
+                isChangeDetected |= testPicture(picture);
+                
                 if (!isChangeDetected)
                 {
                     // serilerdeki dolu grup sayısı değer sayısını geçtiğinde bakıyor
@@ -661,7 +665,7 @@ namespace PicrossSolver
             this.Name = title;
             this.Text = title;
 
-            this.Size = new Size(18 + Form1.displaySize * picture.colCount(), 40 + Form1.displaySize * picture.rowCount());
+            this.Size = new Size(16 + Form1.displaySize * picture.colCount(), 38 + Form1.displaySize * picture.rowCount());
             this.SetDesktopLocation(500, 300);
 
             this.Paint += new PaintEventHandler(this.GameFrame_Paint);
