@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Data;
+using System.Data.Common;
 using System.Data.SqlClient;
 
 namespace TorrentSeedLeechCounter
 {
-    class Database
+    public class Database
     {
         public static void Insert(TorrentAnnounceInfo parsedTorrentAnnounceInfo)
         {
@@ -23,6 +25,28 @@ namespace TorrentSeedLeechCounter
             parameters.Add(new SqlParameter("MinInterval", parsedTorrentAnnounceInfo.MinInterval));
 
             RunQueryUpdateOneRow(query, parameters);
+        }
+
+        public static void UpdateCorrected(TorrentPeerState torrentPeerState)
+        {
+            string query = "UPDATE TorrentPeerState" + "\n" +
+                "SET SeedCorrected = @CorrectedSeed, LeechCorrected = @CorrectedLeech" + "\n" +
+                "WHERE ID = @ID";
+
+            List<SqlParameter> parameters = new List<SqlParameter>();
+            parameters.Add(new SqlParameter("ID", torrentPeerState.ID));
+            parameters.Add(new SqlParameter("CorrectedSeed", NullCheck(torrentPeerState.SeedCorrected)));
+            parameters.Add(new SqlParameter("CorrectedLeech", NullCheck(torrentPeerState.LeechCorrected)));
+
+            RunQueryUpdateOneRow(query, parameters);
+        }
+
+        public static object NullCheck(object obj)
+        {
+            if (obj != null)
+                return obj;
+            else
+                return DBNull.Value;
         }
 
         public static bool CheckAvailability()
@@ -82,6 +106,27 @@ namespace TorrentSeedLeechCounter
                 connection.Close();
                 throw new Exception(string.Format("Affected number of rows was not as expected: {0}", numberOfRecords));
             }
+        }
+
+        public static List<T> RunSelectQuery<T>(string sql) where T : new()
+        {
+            ConnectionStringSettings connectionStringSetting = GetConnectionString();
+
+            SqlConnection connection = new SqlConnection(connectionStringSetting.ConnectionString);
+
+            connection.Open();
+
+            DbCommand cmd = new SqlCommand(sql, (SqlConnection)connection);
+
+            IDataReader dataReader = cmd.ExecuteReader();
+
+            List<T> list = new ExpressionTreeMapperAs<T>().MapAll(dataReader);
+
+            dataReader.Close();
+
+            connection.Close();
+
+            return list;
         }
 
         private static ConnectionStringSettings GetConnectionString()

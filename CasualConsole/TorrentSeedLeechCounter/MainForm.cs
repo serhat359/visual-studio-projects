@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Data;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -233,7 +234,7 @@ namespace TorrentSeedLeechCounter
             }
             else if (FormWindowState.Normal == this.WindowState)
             {
-                
+
             }
         }
 
@@ -245,7 +246,7 @@ namespace TorrentSeedLeechCounter
         }
     }
 
-    class TorrentAnnounceInfo
+    public class TorrentAnnounceInfo
     {
         public string FullText { get; set; }
         public int? Interval { get; set; }
@@ -254,5 +255,15 @@ namespace TorrentSeedLeechCounter
         public int? Complete { get; set; }
         public int? Incomplete { get; set; }
         public string TorrentHash { get; set; }
+    }
+
+    public class TorrentPeerState
+    {
+        public int ID { get; set; }
+        public DateTime Datetime { get; set; }
+        public int Seed { get; set; }
+        public int Leech { get; set; }
+        public int? SeedCorrected { get; set; }
+        public int? LeechCorrected { get; set; }
     }
 }
