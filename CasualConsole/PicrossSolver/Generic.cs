@@ -226,7 +226,7 @@ namespace PicrossSolver
                         cells[k] = Form1.EMPTY;
                 }
             }
-
+            
             if (i > 0)
             {
                 int startIndex = i;
@@ -1049,6 +1049,29 @@ namespace PicrossSolver
             else FillBetweenFilled(cells, values.asIterable.ToArray(), filledRanges);
 
             TryMerging(cells, values.asIterable.ToArray(), filledRanges);
+
+            MarkStartsAndEnds(cells, values.asIterable.ToArray(), filledRanges);
+        }
+
+        private static void MarkStartsAndEnds(Form1.CellSeries cells, int[] values, List<Range> filledRanges)
+        {
+            var distinctValues = values.Distinct().ToArray();
+
+            if (distinctValues.Length == 1)
+            {
+                int val = distinctValues[0];
+
+                foreach (var range in filledRanges)
+                {
+                    if (range.size == val)
+                    {
+                        if (range.start - 1 >= 0)
+                            cells[range.start - 1] = Form1.EMPTY;
+                        if (range.end + 1 < cells.Length)
+                            cells[range.end + 1] = Form1.EMPTY;
+                    }
+                }
+            }
         }
 
         private static void FillBetweenFilled(Form1.CellSeries cells, int[] values, List<Range> filledRanges)
@@ -1377,7 +1400,6 @@ namespace PicrossSolver
             {
                 int val = values[valueIndex];
 
-                bool emptyFound = false;
                 // This whole loop skips empties and really small empties
                 bool willContinue = true;
                 while (willContinue)
@@ -1391,7 +1413,6 @@ namespace PicrossSolver
                         {
                             i += k + 1;
                             willContinue = true;
-                            emptyFound = true;
                             break;
                         }
                     }
