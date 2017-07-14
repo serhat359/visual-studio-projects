@@ -14,19 +14,19 @@ namespace PicrossSolver
         public delegate void Algorithm(CellSeries s);
 
         public const string chars = " ■.";
-        public const int UNKNOWN = 0;
-        public const int FILLED = 1;
-        public const int EMPTY = 2;
+        public const byte UNKNOWN = 0;
+        public const byte FILLED = 1;
+        public const byte EMPTY = 2;
 
         public const int displaySize = 20;
 
         public static int iteration = 0;
-        static int[,] pictureRef = null;
+        static byte[,] pictureRef = null;
 
         public static bool[] isRowCompleted;
         public static bool[] isColCompleted;
 
-        static int[,] correct = null;
+        static byte[,] correct = null;
 
         static bool checkCorrect;
 
@@ -79,9 +79,9 @@ namespace PicrossSolver
             }
         }
 
-        private static int[,] solveAndDisplay(int[][] upColumn, int[][] leftColumn)
+        private static byte[,] solveAndDisplay(int[][] upColumn, int[][] leftColumn)
         {
-            int[,] picture = new int[leftColumn.Length, upColumn.Length];
+            byte[,] picture = new byte[leftColumn.Length, upColumn.Length];
 
             solve(picture, upColumn, leftColumn);
 
@@ -92,17 +92,17 @@ namespace PicrossSolver
             return picture;
         }
 
-        private static IEnumerable<IEnumerable<int>> array2dAsEnumerable(int[,] picture)
+        private static IEnumerable<IEnumerable<byte>> array2dAsEnumerable(byte[,] picture)
         {
             for (int row = 0; row < picture.rowCount(); row++)
             {
-                IEnumerable<int> rowList = Enumerable.Range(0, picture.colCount()).Select(col => picture[row, col]);
+                IEnumerable<byte> rowList = Enumerable.Range(0, picture.colCount()).Select(col => picture[row, col]);
 
                 yield return rowList;
             }
         }
 
-        private static void solve(int[,] picture, int[][] upColumn, int[][] leftColumn)
+        private static void solve(byte[,] picture, int[][] upColumn, int[][] leftColumn)
         {
             dumpPicture(picture);
 
@@ -180,17 +180,17 @@ namespace PicrossSolver
             Console.WriteLine("There was no change in the iteration: " + iteration);
         }
 
-        public static void ApplyAlgorithmBackAndForth(int[,] picture, int[][] upColumn, int[][] leftColumn, Algorithm processing)
+        public static void ApplyAlgorithmBackAndForth(byte[,] picture, int[][] upColumn, int[][] leftColumn, Algorithm processing)
         {
             ApplyAlgorithm(picture, upColumn, leftColumn, processing, true);
         }
 
-        public static void ApplyAlgorithmOneWay(int[,] picture, int[][] upColumn, int[][] leftColumn, Algorithm processing)
+        public static void ApplyAlgorithmOneWay(byte[,] picture, int[][] upColumn, int[][] leftColumn, Algorithm processing)
         {
             ApplyAlgorithm(picture, upColumn, leftColumn, processing, false);
         }
 
-        private static void ApplyAlgorithm(int[,] picture, int[][] upColumn, int[][] leftColumn, Algorithm processing, bool isTwoWay)
+        private static void ApplyAlgorithm(byte[,] picture, int[][] upColumn, int[][] leftColumn, Algorithm processing, bool isTwoWay)
         {
             for (int row = 0; row < picture.rowCount(); row++)
             {
@@ -219,7 +219,7 @@ namespace PicrossSolver
             }
         }
 
-        private static void processCheckAllCounts(int[,] picture, int[][] upColumn, int[][] leftColumn)
+        private static void processCheckAllCounts(byte[,] picture, int[][] upColumn, int[][] leftColumn)
         {
             for (int col = 0; col < picture.colCount(); col++)
             {
@@ -310,7 +310,7 @@ namespace PicrossSolver
             }
         }
 
-        private static bool testPicture(int[,] picture)
+        private static bool testPicture(byte[,] picture)
         {
             bool isChangeDetected = false;
 
@@ -348,9 +348,9 @@ namespace PicrossSolver
             return isChangeDetected;
         }
 
-        private static int[,] dumpPicture(int[,] picture)
+        private static byte[,] dumpPicture(byte[,] picture)
         {
-            pictureRef = new int[picture.rowCount(), picture.colCount()];
+            pictureRef = new byte[picture.rowCount(), picture.colCount()];
 
             for (int i = 0; i < picture.rowCount(); i++)
                 for (int j = 0; j < picture.colCount(); j++)
@@ -407,12 +407,12 @@ namespace PicrossSolver
             return sum;
         }
 
-        private static void display(int[,] picture)
+        private static void display(byte[,] picture)
         {
             display(picture, "Latest");
         }
 
-        private static string pictureToString(int[,] picture)
+        private static string pictureToString(byte[,] picture)
         {
             StringBuilder ss = new StringBuilder();
 
@@ -428,7 +428,7 @@ namespace PicrossSolver
             return ss.ToString();
         }
 
-        private static void display(int[,] picture, string title, bool isApplication = false)
+        private static void display(byte[,] picture, string title, bool isApplication = false)
         {
             dumpPicture(picture);
 
@@ -513,12 +513,12 @@ namespace PicrossSolver
         {
             public CellColumnValues cellColumnValues { get { return _cellColumnValues; } }
             public int Length { get { return _length; } }
-            public int this[int i]
+            public byte this[int i]
             {
                 get { return valueGetter(i); }
                 set
                 {
-                    var oldCell = valueGetter(i);
+                    byte oldCell = valueGetter(i);
                     if ((oldCell == EMPTY && value == FILLED) || (oldCell == FILLED && value == EMPTY))
                         throw new Exception("Error Detected");
 
@@ -540,11 +540,11 @@ namespace PicrossSolver
 
             private CellColumnValues _cellColumnValues;
             private int _length;
-            private Func<int, int> valueGetter;
-            private Func<int, int> _correctValueGetter;
-            private Action<int, int> valueSetter;
+            private Func<int, byte> valueGetter;
+            private Func<int, byte> _correctValueGetter;
+            private Action<int, byte> valueSetter;
 
-            public CellSeries(int rowOrCol, int[,] picture, Direction direction, int[] columnValues)
+            public CellSeries(int rowOrCol, byte[,] picture, Direction direction, int[] columnValues)
             {
                 _cellColumnValues = new CellColumnValues(columnValues, direction);
                 this.direction = direction;
@@ -597,7 +597,7 @@ namespace PicrossSolver
                 this.firstTimeString = this.asString;
             }
 
-            private CellSeries(CellColumnValues _cellColumnValues, int _length, Func<int, int> valueGetter, Action<int, int> valueSetter)
+            private CellSeries(CellColumnValues _cellColumnValues, int _length, Func<int, byte> valueGetter, Action<int, byte> valueSetter)
             {
                 this._cellColumnValues = _cellColumnValues;
                 this._length = _length;
@@ -610,8 +610,8 @@ namespace PicrossSolver
             public static CellSeries Slice(CellSeries cellSeries, int startIndex, int endIndex, int[] newValues)
             {
                 int size = endIndex - startIndex + 1;
-                Func<int, int> getter = x => cellSeries[startIndex + x];
-                Action<int, int> setter = (x, cell) => cellSeries[startIndex + x] = cell;
+                Func<int, byte> getter = x => cellSeries[startIndex + x];
+                Action<int, byte> setter = (x, cell) => cellSeries[startIndex + x] = cell;
                 CellColumnValues cellColumnValues = new CellColumnValues(newValues, Direction.Horizontal);
 
                 if (size < newValues.Sum() + newValues.Length - 1)
@@ -635,8 +635,8 @@ namespace PicrossSolver
 
                 int cellLength = old.Length;
                 int lastCellIndex = old.Length - 1;
-                Func<int, int> getter = x => old[lastCellIndex - x];
-                Action<int, int> setter = (x, cell) => old[lastCellIndex - x] = cell;
+                Func<int, byte> getter = x => old[lastCellIndex - x];
+                Action<int, byte> setter = (x, cell) => old[lastCellIndex - x] = cell;
                 CellColumnValues cellColumnValues = new CellColumnValues(newValues, Direction.Horizontal);
 
                 CellSeries cells = new CellSeries(cellColumnValues, cellLength, getter, setter);
@@ -649,11 +649,22 @@ namespace PicrossSolver
 
                 return cells;
             }
+
+            public bool SafeCheck(int index, Func<byte, bool> checker)
+            {
+                return index >= 0 && index < this.Length && checker(this[index]);
+            }
+
+            public void SafeSet(int index, byte value)
+            {
+                if (index >= 0 && index < this.Length)
+                    this[index] = value;
+            }
         }
 
         public class PuzzleJson
         {
-            public int[,] Correct { get; set; }
+            public byte[,] Correct { get; set; }
             public int[][] LeftColumn { get; set; }
             public int[][] UpColumn { get; set; }
         }
@@ -661,9 +672,9 @@ namespace PicrossSolver
 
     public class MyWindow : Form
     {
-        int[,] picture;
+        byte[,] picture;
 
-        public MyWindow(int[,] picture, string title)
+        public MyWindow(byte[,] picture, string title)
         {
             this.picture = picture;
             this.Name = title;

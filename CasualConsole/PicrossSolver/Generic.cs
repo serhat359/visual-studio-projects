@@ -178,8 +178,7 @@ namespace PicrossSolver
                         cells[i] = Form1.FILLED;
                     }
 
-                    if (i < cells.Length)
-                        cells[i] = Form1.EMPTY;
+                    cells.SafeSet(i, Form1.EMPTY);
                 }
                 else if (cell == Form1.EMPTY)
                 {
@@ -263,7 +262,7 @@ namespace PicrossSolver
                     do
                     {
                         startIndex++;
-                    } while (startIndex < cells.Length && cells[startIndex] == Form1.EMPTY);
+                    } while (cells.SafeCheck(startIndex, x => x == Form1.EMPTY));
                 }
                 else if (cell == Form1.FILLED)
                 {
@@ -373,11 +372,8 @@ namespace PicrossSolver
                         int leftEmptyCol = first - 1;
                         int rightEmptyCol = last + 1;
 
-                        if (leftEmptyCol >= 0)
-                            cells[leftEmptyCol] = Form1.EMPTY;
-
-                        if (rightEmptyCol < cells.Length)
-                            cells[rightEmptyCol] = Form1.EMPTY;
+                        cells.SafeSet(leftEmptyCol, Form1.EMPTY);
+                        cells.SafeSet(rightEmptyCol, Form1.EMPTY);
 
                         filledInfos.Add(new FilledInfo { CellIndexStart = first, Size = size });
                     }
@@ -490,7 +486,7 @@ namespace PicrossSolver
 
                 if (cell == Form1.FILLED)
                     lastEmptyIndex = -1;
-                if (cell == Form1.EMPTY)
+                else if (cell == Form1.EMPTY)
                 {
                     if (lastEmptyIndex >= 0 && i - lastEmptyIndex > 1 && i - lastEmptyIndex - 1 < minValue)
                     {
@@ -722,7 +718,7 @@ namespace PicrossSolver
 
                     for (int i = 0; i <= val; i++)
                     {
-                        if (i + startIndex < cells.Length && cells[i + startIndex] == Form1.FILLED)
+                        if (cells.SafeCheck(i + startIndex, x => x == Form1.FILLED))
                         {
                             filledFoundIndex = i;
                             break;
@@ -739,7 +735,7 @@ namespace PicrossSolver
 
                         for (int i = filledLastIndex + 1; ; i++)
                         {
-                            if (i + startIndex < cells.Length && cells[i + startIndex] == Form1.FILLED)
+                            if (cells.SafeCheck(i + startIndex, x => x == Form1.FILLED))
                                 filledLastIndex = i;
                             else
                                 break;
@@ -754,8 +750,7 @@ namespace PicrossSolver
 
                         if (cells[startIndex] == Form1.FILLED) // İlk karakterin dolu olma ihtimali
                         {
-                            if (val + startIndex < cells.Length)
-                                cells[val + startIndex] = Form1.EMPTY;
+                            cells.SafeSet(val + startIndex, Form1.EMPTY);
 
                             doContinue = true;
                             valueIndex++;
@@ -777,11 +772,8 @@ namespace PicrossSolver
                             int emptyIndex1 = filledFoundIndex - 1;
                             int emptyIndex2 = filledLastIndex + 1;
 
-                            if (emptyIndex1 + startIndex < cells.Length)
-                                cells[emptyIndex1 + startIndex] = Form1.EMPTY;
-
-                            if (emptyIndex2 + startIndex < cells.Length)
-                                cells[emptyIndex2 + startIndex] = Form1.EMPTY;
+                            cells.SafeSet(emptyIndex1 + startIndex, Form1.EMPTY);
+                            cells.SafeSet(emptyIndex2 + startIndex, Form1.EMPTY);
 
                             bool isAllEmpty = true;
                             for (int i = 0; i < emptyIndex1; i++)
@@ -801,8 +793,7 @@ namespace PicrossSolver
                             }
                         }
                         else if (reachRange > 0 &&
-                            filledLastIndex + reachRange + 1 + startIndex < cells.Length &&
-                            cells[filledLastIndex + reachRange + 1 + startIndex] == Form1.FILLED) // Ulaşılamayacak yerin dolu olma ihtimali
+                            cells.SafeCheck(filledLastIndex + reachRange + 1 + startIndex, x => x == Form1.FILLED)) // Ulaşılamayacak yerin dolu olma ihtimali
                         {
                             bool containsEmpty = false;
                             int unknownCount = 0;
@@ -876,7 +867,7 @@ namespace PicrossSolver
                 {
                     nonEmpty = i;
                 }
-                else if (cell == Form1.EMPTY && i - 1 >= 0 && cells[i - 1] != Form1.EMPTY && nonEmpty >= 0)
+                else if (cell == Form1.EMPTY && cells.SafeCheck(i - 1, x => x != Form1.EMPTY) && nonEmpty >= 0)
                 {
                     areaList.Add(new Range(nonEmpty, i - 1, containsFilled));
                     nonEmpty = -1;
@@ -1051,10 +1042,8 @@ namespace PicrossSolver
                 {
                     Range lastRange = filledRanges[i];
 
-                    if (lastRange.start - 1 >= 0)
-                        cells[lastRange.start - 1] = Form1.EMPTY;
-                    if (lastRange.end + 1 < cells.Length)
-                        cells[lastRange.end + 1] = Form1.EMPTY;
+                    cells.SafeSet(lastRange.start - 1, Form1.EMPTY);
+                    cells.SafeSet(lastRange.end + 1, Form1.EMPTY);
                 }
             }
             else FillBetweenFilled(cells, values.asIterable.ToArray(), filledRanges);
@@ -1076,10 +1065,8 @@ namespace PicrossSolver
                 {
                     if (range.size == val)
                     {
-                        if (range.start - 1 >= 0)
-                            cells[range.start - 1] = Form1.EMPTY;
-                        if (range.end + 1 < cells.Length)
-                            cells[range.end + 1] = Form1.EMPTY;
+                        cells.SafeSet(range.start - 1, Form1.EMPTY);
+                        cells.SafeSet(range.end + 1, Form1.EMPTY);
                     }
                 }
             }
@@ -1242,11 +1229,8 @@ namespace PicrossSolver
 
                         if (newValues.All(x => x == filledRange.size))
                         {
-                            if (filledRange.start - 1 >= 0)
-                                cells[filledRange.start - 1] = Form1.EMPTY;
-
-                            if (filledRange.end + 1 < cells.Length)
-                                cells[filledRange.end + 1] = Form1.EMPTY;
+                            cells.SafeSet(filledRange.start - 1, Form1.EMPTY);
+                            cells.SafeSet(filledRange.end + 1, Form1.EMPTY);
                         }
                     }
                 }
@@ -1255,9 +1239,6 @@ namespace PicrossSolver
 
         private static List<int>[] GetCandidates(Form1.CellSeries cells, int[] values, List<Range> filledRanges)
         {
-            if (cells.Length == 13 && Form1.iteration == 5 && values.SequenceEqual(new int[] { 3, 1, 2 }))
-                debug();
-
             List<int>[] forwardFilledCandidates = Enumerable.Range(0, filledRanges.Count).Select(x => new List<int>()).ToArray();
 
             int i = 0;
@@ -1287,7 +1268,7 @@ namespace PicrossSolver
                 }
 
                 // Check one over for filled
-                while (i + val < cells.Length && cells[i + val] == Form1.FILLED)
+                while (cells.SafeCheck(i + val, x => x == Form1.FILLED))
                 {
                     i++;
                 }
@@ -1307,10 +1288,8 @@ namespace PicrossSolver
 
                             if (formerValues.All(x => x == range.size))
                             {
-                                if (range.start - 1 >= 0)
-                                    cells[range.start - 1] = Form1.EMPTY;
-                                if (range.end + 1 < cells.Length)
-                                    cells[range.end + 1] = Form1.EMPTY;
+                                cells.SafeSet(range.start - 1, Form1.EMPTY);
+                                cells.SafeSet(range.end + 1, Form1.EMPTY);
                             }
                         }
 
@@ -1347,13 +1326,11 @@ namespace PicrossSolver
                 {
                     if (values[0] == 1)
                     {
-                        if (thisRange.start - 1 >= 0)
-                            cells[thisRange.start - 1] = Form1.EMPTY;
+                        cells.SafeSet(thisRange.start - 1, Form1.EMPTY);
                     }
                     else if (values[1] == 1)
                     {
-                        if (nextRange.end + 1 < cells.Length)
-                            cells[nextRange.end + 1] = Form1.EMPTY;
+                        cells.SafeSet(nextRange.end + 1, Form1.EMPTY);
                     }
                 }
             }
@@ -1435,7 +1412,7 @@ namespace PicrossSolver
                     // Check for empties in this range
                     for (int k = val - 1; k >= 0; k--)
                     {
-                        if (k + i < cells.Length && cells[k + i] == Form1.EMPTY)
+                        if (cells.SafeCheck(k + i, x => x == Form1.EMPTY))
                         {
                             i += k + 1;
                             willContinue = true;
@@ -1447,11 +1424,11 @@ namespace PicrossSolver
                 //if (!emptyFound && valueIndex != 0)
                 //    i++;
 
-                if (i + val < cells.Length && cells[i + val] == Form1.FILLED)
+                if (cells.SafeCheck(i + val, x => x == Form1.FILLED))
                 {
                     int k = i + val + 1;
 
-                    while (k < cells.Length && cells[k] == Form1.FILLED)
+                    while (cells.SafeCheck(k, x => x == Form1.FILLED))
                     {
                         k++;
                     }
@@ -1488,7 +1465,7 @@ namespace PicrossSolver
 
                 int filledEndIndex = i - 1;
 
-                if (filledIndex - 1 >= 0 && cells[filledIndex - 1] == Form1.EMPTY && filledEndIndex + 1 < cells.Length && cells[filledEndIndex + 1] == Form1.EMPTY)
+                if (cells.SafeCheck(filledIndex - 1, x => x == Form1.EMPTY) && cells.SafeCheck(filledEndIndex + 1, x => x == Form1.EMPTY))
                     enclosedFilleds.Add(new Range(filledIndex, filledEndIndex, true));
             }
 
@@ -1514,12 +1491,12 @@ namespace PicrossSolver
         private static void debug() { }
 
         #region Extensions
-        public static int rowCount(this int[,] picture)
+        public static int rowCount(this byte[,] picture)
         {
             return picture.GetLength(0);
         }
 
-        public static int colCount(this int[,] picture)
+        public static int colCount(this byte[,] picture)
         {
             return picture.GetLength(1);
         }
