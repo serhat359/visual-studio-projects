@@ -1334,15 +1334,30 @@ namespace PicrossSolver
                 Range thisRange = filledRanges[i - 1];
                 Range nextRange = filledRanges[i];
 
+                int mergedSize = nextRange.end - thisRange.start + 1;
+
+                // Trying to put empty between the ranges
                 if (nextRange.start - thisRange.end == 2)
                 {
-                    int mergedSize = nextRange.end - thisRange.start + 1;
-
                     if (!values.Any(x => x >= mergedSize))
                         cells[nextRange.start - 1] = Form1.EMPTY;
                 }
+
+                if (values.Length == 2 && values.Any(x => x == mergedSize) && values.Any(x => x == 1))
+                {
+                    if (values[0] == 1)
+                    {
+                        if (thisRange.start - 1 >= 0)
+                            cells[thisRange.start - 1] = Form1.EMPTY;
                     }
+                    else if (values[1] == 1)
+                    {
+                        if (nextRange.end + 1 < cells.Length)
+                            cells[nextRange.end + 1] = Form1.EMPTY;
                     }
+                }
+            }
+        }
 
         #region Private Methods
         private static List<Range> FindFilledGroups(Form1.CellSeries cells, int start, int end)
