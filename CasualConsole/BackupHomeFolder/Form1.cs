@@ -55,7 +55,7 @@ namespace BackupHomeFolder
                         DialogResult dialogResult = MessageBox.Show(dialogtext, "Copy Files", MessageBoxButtons.YesNo);
                         if (dialogResult == DialogResult.Yes)
                         {
-                            thread = new FileCopyingThread(checkResult.FilesToCopy, windowHandle, checkResult.BytesToCopy, fileCopyLabel, checkResult.FilesToDelete);
+                            thread = new FileCopyingThread(checkResult.FilesToCopy, windowHandle, checkResult.BytesToCopy, fileCopyLabel, checkResult.FilesToDelete, destinationFolder);
                         }
 
                         return 0;

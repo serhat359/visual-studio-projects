@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Windows.Forms;
+using System.Linq;
 
 namespace BackupHomeFolder
 {
@@ -12,18 +13,18 @@ namespace BackupHomeFolder
 
         ThreadStart threadAction;
 
-        public FileCopyingThread(List<FileCopyInfo> filesToCopy, IntPtr windowHandle, long bytesToCopy, Label fileCopyLabel, List<string> filesToDelete)
+        public FileCopyingThread(List<FileCopyInfo> filesToCopy, IntPtr windowHandle, long bytesToCopy, Label fileCopyLabel, List<string> filesToDelete, string destinationFolder)
         {
             threadAction = () =>
             {
-                DoWork(filesToCopy, windowHandle, bytesToCopy, fileCopyLabel, filesToDelete);
+                DoWork(filesToCopy, windowHandle, bytesToCopy, fileCopyLabel, filesToDelete, destinationFolder);
             };
 
             Thread thread = new Thread(threadAction);
             thread.Start();
         }
 
-        private void DoWork(List<FileCopyInfo> filesToCopy, IntPtr handle, long bytesToCopy, Label fileCopyLabel, List<string> filesToDelete)
+        private void DoWork(List<FileCopyInfo> filesToCopy, IntPtr handle, long bytesToCopy, Label fileCopyLabel, List<string> filesToDelete, string destinationFolder)
         {
             continueCopy = true;
             long bytesCopied = 0;
@@ -56,6 +57,8 @@ namespace BackupHomeFolder
                 return continueCopy;
             });
 
+            DeleteEmptyFolders(destinationFolder);
+
             TaskbarProgress.SetState(handle, TaskbarProgress.TaskbarStates.Normal);
             TaskbarProgress.SetValue(handle, 1, 1);
 
@@ -64,6 +67,22 @@ namespace BackupHomeFolder
             UpdateLabel(fileCopyLabel, labelText);
             MessageBox.Show(labelText);
             TaskbarProgress.SetState(handle, TaskbarProgress.TaskbarStates.NoProgress);
+        }
+
+        private bool DeleteEmptyFolders(string folder)
+        {
+            bool containsFolder = Directory.EnumerateDirectories(folder).Select(subFolder => DeleteEmptyFolders(subFolder)).Any(x => x == true);
+            bool containsFile = Directory.EnumerateFiles(folder).Any();
+
+            if (!containsFolder && !containsFile)
+            {
+                Directory.Delete(folder);
+                return false;
+            }
+            else
+            {
+                return true;
+            }
         }
 
         private void UpdateLabel(Label fileCopyLabel, string text)
