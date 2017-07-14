@@ -829,7 +829,13 @@ namespace PicrossSolver
                             {
                                 cells[unknownIndex + startIndex] = Form1.EMPTY;
                             }
+
+                            if (reachRange > 0)
+                            {
+                                if (startIndex + filledFoundIndex - 1 >= 0)
+                                    cells[startIndex + filledFoundIndex - 1] = Form1.FILLED;
                             }
+                        }
                         else if (valueIndex + 1 < cells.cellColumnValues.Length) // sıradaki value da bulunursa
                         {
                             int nextVal = cells.cellColumnValues[valueIndex + 1];
