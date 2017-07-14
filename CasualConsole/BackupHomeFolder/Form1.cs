@@ -44,7 +44,7 @@ namespace BackupHomeFolder
 
                     IntPtr windowHandle = this.Handle;
 
-                    MyThread<int> actionthread = MyThread.DoInThread(() =>
+                    MyThread<int> actionthread = MyThread.DoInThread(true, () =>
                     {
                         CheckResult checkResult = CheckDifferences(sourceFolder, destinationFolder);
                         
@@ -76,6 +76,66 @@ namespace BackupHomeFolder
             int fileCountToCopy = 0;
             long bytesToCopy = 0;
 
+            var threadToCopy = MyThread.DoInThread(true, () =>
+            {
+                List<FileCopyInfo> result = GetFilesToCopy(sourceFolder, destinationFolder, subfolders, ref fileCountToCopy, ref bytesToCopy);
+
+                return result;
+            });
+
+            // Deleting files from hard drive
+            int fileCountToDelete = 0;
+            long bytesToDelete = 0;
+
+            var threadToDelete = MyThread.DoInThread(true, () =>
+            {
+                List<string> result = GetFilesToDelete(sourceFolder, destinationFolder, subfolders, ref fileCountToDelete, ref bytesToDelete);
+
+                return result;
+            });
+
+            List<FileCopyInfo> filesToCopy = threadToCopy.Await();
+            List<string> filesToDelete = threadToDelete.Await();
+
+            return new CheckResult
+            {
+                FilesToCopy = filesToCopy,
+                FileCountToCopy = fileCountToCopy,
+                BytesToCopy = bytesToCopy,
+                FilesToDelete = filesToDelete,
+                FileCountToDelete = fileCountToDelete,
+                BytesToDelete = bytesToDelete
+            };
+        }
+
+        private List<string> GetFilesToDelete(string sourceFolder, string destinationFolder, string[] subfolders, ref int fileCountToDelete, ref long bytesToDelete)
+        {
+            List<string> filesToDelete = new List<string>();
+
+            foreach (var subfolderName in subfolders)
+            {
+                List<string> allFiles = DirSearch(Path.Combine(destinationFolder, subfolderName), true);
+
+                foreach (string destFilePath in allFiles)
+                {
+                    string srcFilePath = destFilePath.Replace(destinationFolder, sourceFolder);
+
+                    FileInfo destFileInfo = new FileInfo(destFilePath);
+
+                    if (!File.Exists(srcFilePath))
+                    {
+                        fileCountToDelete++;
+                        bytesToDelete += destFileInfo.Length;
+                        filesToDelete.Add(destFilePath);
+                    }
+                }
+            }
+
+            return filesToDelete;
+        }
+
+        private List<FileCopyInfo> GetFilesToCopy(string sourceFolder, string destinationFolder, string[] subfolders, ref int fileCountToCopy, ref long bytesToCopy)
+        {
             List<FileCopyInfo> filesToCopy = new List<FileCopyInfo>();
 
             foreach (var subfolderName in subfolders)
@@ -98,40 +158,7 @@ namespace BackupHomeFolder
                 }
             }
 
-            // Deleting files from hard drive
-            int fileCountToDelete = 0;
-            long bytesToDelete = 0;
-
-            List<string> filesToDelete = new List<string>();
-
-            foreach (var subfolderName in subfolders)
-            {
-                List<string> allFiles = DirSearch(Path.Combine(destinationFolder, subfolderName), true);
-
-                foreach (string destFilePath in allFiles)
-                {
-                    string srcFilePath = destFilePath.Replace(destinationFolder, sourceFolder);
-
-                    FileInfo destFileInfo = new FileInfo(destFilePath);
-
-                    if (!File.Exists(srcFilePath))
-                    {
-                        fileCountToDelete++;
-                        bytesToDelete += destFileInfo.Length;
-                        filesToDelete.Add(destFilePath);
-                    }
-                }
-            }
-
-            return new CheckResult
-            {
-                FilesToCopy = filesToCopy,
-                FileCountToCopy = fileCountToCopy,
-                BytesToCopy = bytesToCopy,
-                FilesToDelete = filesToDelete,
-                FileCountToDelete = fileCountToDelete,
-                BytesToDelete = bytesToDelete
-            };
+            return filesToCopy;
         }
 
         private static bool IsNotEmpty(string str)
@@ -139,7 +166,7 @@ namespace BackupHomeFolder
             return !string.IsNullOrEmpty(str);
         }
 
-        private List<string> DirSearch(string sDir, bool suppressEx)
+        private List<string> DirSearch(string sDir, bool suppressExceptions)
         {
             List<string> files = new List<string>();
 
@@ -151,13 +178,13 @@ namespace BackupHomeFolder
                 }
                 foreach (string d in Directory.GetDirectories(sDir))
                 {
-                    files.AddRange(DirSearch(d, suppressEx));
+                    files.AddRange(DirSearch(d, suppressExceptions));
                 }
             }
             catch (UnauthorizedAccessException) { }
             catch (Exception excpt)
             {
-                if (!suppressEx)
+                if (!suppressExceptions)
                     MessageBox.Show(excpt.Message);
             }
 
