@@ -33,6 +33,7 @@ namespace BackupHomeFolder
             {
                 try
                 {
+                    File.SetAttributes(filePathToDelete, FileAttributes.Normal);
                     File.Delete(filePathToDelete);
                 }
                 catch (UnauthorizedAccessException) { }
@@ -47,6 +48,7 @@ namespace BackupHomeFolder
 
                 try
                 {
+                    File.SetAttributes(copyInfo.DestinationPath, FileAttributes.Normal);
                     File.Copy(copyInfo.SourcePath, copyInfo.DestinationPath, true);
                 }
                 catch (UnauthorizedAccessException) { }
