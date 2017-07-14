@@ -226,7 +226,7 @@ namespace PicrossSolver
                         cells[k] = Form1.EMPTY;
                 }
             }
-            
+
             if (i > 0)
             {
                 int startIndex = i;
@@ -829,7 +829,7 @@ namespace PicrossSolver
                             {
                                 cells[unknownIndex + startIndex] = Form1.EMPTY;
                             }
-                        }
+                            }
                         else if (valueIndex + 1 < cells.cellColumnValues.Length) // sıradaki value da bulunursa
                         {
                             int nextVal = cells.cellColumnValues[valueIndex + 1];
@@ -1034,7 +1034,12 @@ namespace PicrossSolver
 
             List<Range> filledRanges = FindFilledGroups(cells, 0, cells.Length - 1);
 
-            if (filledRanges.Count > 1 && filledRanges.All(x => x.size == 1) && values.asIterable.First() != 1 && values.asIterable.Skip(1).All(x => x == 1))
+            if (filledRanges.Count > 1
+                && filledRanges.All(x => x.size == 1)
+                && values.asIterable.First() != 1
+                && values.asIterable.Skip(1).All(x => x == 1)
+                && filledRanges[1].end - filledRanges[0].start + 1 > values.asIterable.First()
+                )
             {
                 for (int i = 1; i < filledRanges.Count; i++)
                 {
@@ -1330,8 +1335,8 @@ namespace PicrossSolver
                     if (!values.Any(x => x >= mergedSize))
                         cells[nextRange.start - 1] = Form1.EMPTY;
                 }
-            }
-        }
+                    }
+                    }
 
         #region Private Methods
         private static List<Range> FindFilledGroups(Form1.CellSeries cells, int start, int end)
