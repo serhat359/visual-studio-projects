@@ -48,7 +48,7 @@ namespace BackupHomeFolder
 
                 try
                 {
-                    File.SetAttributes(copyInfo.DestinationPath, FileAttributes.Normal);
+                    try { File.SetAttributes(copyInfo.DestinationPath, FileAttributes.Normal); } catch (FileNotFoundException) { }
                     File.Copy(copyInfo.SourcePath, copyInfo.DestinationPath, true);
                 }
                 catch (UnauthorizedAccessException) { }
