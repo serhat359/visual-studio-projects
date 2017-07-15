@@ -36,7 +36,7 @@ namespace TorrentSeedLeechCounter
 
             this.consoleOutput.Text = "Checking database availability..." + "\n";
 
-            CasualConsole.MyThread.DoInThread(threadAction, true);
+            CasualConsole.MyThread.DoInThread(true, threadAction);
         }
 
         public void MainProgram()
