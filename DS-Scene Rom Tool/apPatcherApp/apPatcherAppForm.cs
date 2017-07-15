@@ -1395,13 +1395,22 @@ namespace apPatcherApp
                     status.Text = "CRC32 Check " + this.origFileLocToNewFileName(file, false, false, "");
                     Application.DoEvents();
                     progress.Value = 0;
-                    foreach (byte num in this.crc32.ComputeHash(stream))
+
+                    Action<long, long> action = (block, blockCount) =>
+                    {
+                        double percentage = block * 100.0 / blockCount;
+                        status.Text = string.Format("Calculating CRC32 {0}%", (int)percentage);
+                        Application.DoEvents();
+                    };
+
+                    foreach (byte num in this.crc32.ComputeHash(stream, action))
                     {
                         this.crchash = this.crchash + num.ToString("x2").ToUpper();
                         progress.Value++;
                         status.Text = string.Concat(new object[] { "CRC32 Check ", this.origFileLocToNewFileName(file, false, false, ""), " ", this.run.hexAndMathFunction.getPercentage(progress.Value, progress.Maximum), "%" });
                         Application.DoEvents();
                     }
+
                     stream.Close();
                 }
             }
