@@ -1396,10 +1396,13 @@ namespace apPatcherApp
                     Application.DoEvents();
                     progress.Value = 0;
 
+                    string fileName = this.origFileLocToNewFileName(file, false, false, "");
+
                     Action<long, long> action = (block, blockCount) =>
                     {
                         double percentage = block * 100.0 / blockCount;
-                        status.Text = string.Format("Calculating CRC32 {0}%", (int)percentage);
+                        //status.Text = string.Format("Calculating CRC32 {0}%", (int)percentage);
+                        status.Text = string.Concat(new object[] { "CRC32 Check ", (int)percentage, "%", " - ", fileName });
                         Application.DoEvents();
                     };
 
@@ -1407,7 +1410,7 @@ namespace apPatcherApp
                     {
                         this.crchash = this.crchash + num.ToString("x2").ToUpper();
                         progress.Value++;
-                        status.Text = string.Concat(new object[] { "CRC32 Check ", this.origFileLocToNewFileName(file, false, false, ""), " ", this.run.hexAndMathFunction.getPercentage(progress.Value, progress.Maximum), "%" });
+                        status.Text = string.Concat(new object[] { "CRC32 Check ", fileName, " ", this.run.hexAndMathFunction.getPercentage(progress.Value, progress.Maximum), "%" });
                         Application.DoEvents();
                     }
 
