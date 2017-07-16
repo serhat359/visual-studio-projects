@@ -111,5 +111,44 @@ namespace CasualConsole
             }
         }
 
+        public static CachedFunc<T> CacheFunction<T>(Func<T> func)
+        {
+            return new CachedFunc<T>(func);
+        }
+
+        public class CachedFunc<T>
+        {
+            bool isValueSet = false;
+            T value;
+            Func<T> func;
+
+            public CachedFunc(Func<T> func)
+            {
+                this.func = func;
+            }
+
+            public T Call()
+            {
+                if (!isValueSet)
+                {
+                    value = func();
+                    isValueSet = true;
+                }
+
+                return value;
+            }
+        }
+
+        public static partial class Enumerable
+        {
+            public static IEnumerable<int> RangeByEnd(int start, int end)
+            {
+                while (start < end)
+                {
+                    yield return start++;
+                }
+            }
+        }
     }
 }
+

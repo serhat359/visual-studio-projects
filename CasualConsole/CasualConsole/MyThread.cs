@@ -1,13 +1,40 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 
 namespace CasualConsole
 {
     public static class MyThread
     {
-        public static MyThread<T> DoInThread<T>(Func<T> action, bool isBackground)
+        public static MyThread<T> DoInThread<T>(bool isBackground, Func<T> action)
         {
-            return new MyThread<T>(action, isBackground);
+            return new MyThread<T>(isBackground, action);
+        }
+
+        private static void ParallelForeach<T>(IEnumerable<T> elems, Action<T> action)
+        {
+            List<MyThread<int>> threadList = new List<MyThread<int>>();
+
+            foreach (T elem in elems)
+            {
+                Func<int> actionToFunc = () =>
+                {
+                    action(elem);
+
+                    return 0;
+                };
+
+                var thread = MyThread.DoInThread(true, actionToFunc);
+
+                threadList.Add(thread);
+            }
+
+            foreach (var thread in threadList)
+            {
+                thread.Await();
+            }
+
+            return;
         }
     }
 
@@ -18,7 +45,7 @@ namespace CasualConsole
 
         public bool IsRunning { get { return isRunning; } }
 
-        public MyThread(Func<T> action, bool isBackground)
+        public MyThread(bool isBackground, Func<T> action)
         {
             ThreadStart threadAction = () =>
             {

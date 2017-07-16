@@ -3,12 +3,16 @@ using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace CasualConsole
 {
     public class Program
     {
+        public static readonly char[] hexValues = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
+
         public static void Main(string[] args)
         {
             //TestPivot();
@@ -25,10 +29,56 @@ namespace CasualConsole
 
             //TestRegexReplaceAllFiles();
 
+
+            MyThread<double> thread = new MyThread<double>(true, () =>
+            {
+                Console.WriteLine("Thread started");
+
+                Thread.Sleep(1000);
+
+                Console.WriteLine("Thread still running");
+
+                Thread.Sleep(1000);
+
+                Console.WriteLine("Thread is returning the value...");
+
+                return Math.Abs(-2.356);
+            });
+
+
+            Thread.Sleep(500);
+
+            Console.WriteLine("The main thread is running");
+
+            Thread.Sleep(1000);
+
+            Console.WriteLine("Waiting for the other thread...");
+
+            double calculatedValue = thread.Await();
+
+            Console.WriteLine("The result is: {0}", calculatedValue);
+
+
             // Closing, Do Not Delete!
             Console.WriteLine();
             Console.WriteLine("Program has terminated, press a key to exit");
             Console.ReadKey();
+        }
+
+        private static string ConvertByteHashToString(byte[] torrentHash)
+        {
+            StringBuilder builder = new StringBuilder();
+
+            foreach (byte @byte in torrentHash)
+            {
+                var upper = @byte >> 4;
+                var lower = @byte % 16;
+                builder.Append(hexValues[upper]);
+                builder.Append(hexValues[lower]);
+            }
+
+            string byteHash = builder.ToString();
+            return byteHash;
         }
 
         private static void TestRegexReplaceAllFiles()
@@ -153,15 +203,6 @@ namespace CasualConsole
             }
 
             string allResults = string.Join("\n", results);
-        }
-
-        public static readonly char[] hexValues = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
-        private static char[] ByteToHex(byte value)
-        {
-            int upper = value / 16;
-            int lower = value % 16;
-
-            return new char[] { hexValues[upper], hexValues[lower] };
         }
 
         private static int Fib(int x)
