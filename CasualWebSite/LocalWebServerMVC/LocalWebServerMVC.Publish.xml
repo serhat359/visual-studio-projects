@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<publishData>
+  <publishProfile publishUrl="http://localhost:2121" deleteExistingFiles="True" ftpAnonymousLogin="False" ftpPassiveMode="True" msdeploySite="" msdeploySiteID="" msdeployRemoteSitePhysicalPath="" msdeployAllowUntrustedCertificate="False" msdeploySkipExtraFilesOnServer="True" msdeployMarkAsApp="False" profileName="Profile1" publishMethod="FileSystem" replaceMatchingFiles="False" userName="" savePWD="False" userPWD="" SelectedForPublish="True">
+    <file relUrl="bin/Newtonsoft.Json.dll" publishTime="06/13/2016 23:05:44" />
+    <file relUrl="Views/Web.config" publishTime="08/01/2017 14:09:33" />
+    <file relUrl="bin/Newtonsoft.Json.xml" publishTime="06/13/2016 23:05:44" />
+    <file relUrl="Web.config" publishTime="08/01/2017 14:27:38" />
+    <file relUrl="bin/LocalWebServerMVC.pdb" publishTime="08/01/2017 19:44:04" />
+    <file relUrl="bin/LocalWebServerMVC.dll" publishTime="08/01/2017 19:44:04" />
+    <file relUrl="Global.asax" publishTime="08/01/2017 14:09:33" />
+    <file relUrl="bin/Newtonsoft.Json.pdb" publishTime="06/13/2016 23:05:44" />
+  </publishProfile>
+</publishData>
