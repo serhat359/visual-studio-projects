@@ -16,9 +16,29 @@ namespace LocalWebServerMVC.Controllers
             return Json(new { message = "this page is empty" }, JsonRequestBehavior.AllowGet);
         }
 
+        public ActionResult YoutubeBeyblade()
+        {
+            string q = "Season One";
+
+            string channelId = "UCUTPOb8or0K-VC1Xp3FcDWg";
+
+            return FilterRssResult(q, channelId);
+        }
+
         public ActionResult YoutubeMerryChristmas()
         {
-            string jsonResult = GetJsonSearchResult();
+            string q = "オーディオドラマ";
+
+            string channelId = "UCpRh2xmGtaVhFVuyCB271pw";
+
+            return FilterRssResult(q, channelId);
+        }
+
+        #region Private Methods
+
+        private ActionResult FilterRssResult(string q, string channelId)
+        {
+            string jsonResult = GetJsonSearchResult(q, channelId);
 
             string youtubeWatchBaseUrl = "https://www.youtube.com/watch?v={0}";
 
@@ -35,16 +55,14 @@ namespace LocalWebServerMVC.Controllers
             return this.Xml(rssObject);
         }
 
-        private static string GetJsonSearchResult()
+        private static string GetJsonSearchResult(string q, string channelId)
         {
-            string q = "オーディオドラマ";
-
             Dictionary<string, string> parameters = new Dictionary<string, string>();
             parameters.Add("order", "date");
             parameters.Add("part", "snippet");
-            parameters.Add("channelId", "UCpRh2xmGtaVhFVuyCB271pw");
+            parameters.Add("channelId", channelId);
             parameters.Add("key", "AIzaSyBrbMk0ZR5638IrTlVBTra7NLYdoBjUt2o");
-            parameters.Add("maxResults", "50");
+            parameters.Add("maxResults", "10");
             parameters.Add("q", Uri.EscapeUriString(q));
 
             string baseurl = "https://www.googleapis.com/youtube/v3/search";
@@ -67,6 +85,8 @@ namespace LocalWebServerMVC.Controllers
 
             return s;
         }
+
+        #endregion
 
     }
 }
