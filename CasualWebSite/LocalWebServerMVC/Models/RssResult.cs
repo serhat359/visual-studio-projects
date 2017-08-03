@@ -25,12 +25,12 @@ namespace LocalWebServerMVC.Models
     }
 
     [XmlRoot("channel")]
-    public class Channel {
+    public class Channel
+    {
         [XmlElement("item")]
         public List<RssResultItem> items;
     }
 
-    [XmlRoot("item")]
     public class RssResultItem
     {
         public string title { get; set; }
@@ -39,8 +39,10 @@ namespace LocalWebServerMVC.Models
 
         public string description { get; set; }
 
+        [XmlIgnore]
         public string guid { get; set; }
 
+        [XmlFormat("R")]
         public DateTime pubDate { get; set; }
     }
 }
