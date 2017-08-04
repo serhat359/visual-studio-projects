@@ -29,6 +29,19 @@ namespace LocalWebServerMVC
             return stringBuilder.ToString();
         }
 
+        private static string EscapeXMLValue(string xmlString)
+        {
+            if (xmlString == null)
+                throw new ArgumentNullException("xmlString");
+
+            return xmlString
+                .Replace("&", "&amp;")
+                .Replace("'", "&apos;")
+                .Replace("\"", "&quot;")
+                .Replace(">", "&gt;")
+                .Replace("<", "&lt;");
+        }
+
         private void Append(string text)
         {
             for (int i = 0; i < nestCount; i++)
@@ -63,7 +76,9 @@ namespace LocalWebServerMVC
 
                 xmlNodeName = elementName ?? xmlNodeName;
 
-                string formattedNode = xmlNodeName != null ? string.Format("<{0}>{1}</{0}>\n", xmlNodeName, objToString) : objToString;
+                string formattedNode = xmlNodeName != null
+                    ? string.Format("<{0}>{1}</{0}>\n", xmlNodeName, EscapeXMLValue(objToString))
+                    : EscapeXMLValue(objToString);
 
                 Append(formattedNode);
             }
