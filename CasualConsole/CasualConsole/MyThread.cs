@@ -11,6 +11,11 @@ namespace CasualConsole
             return new MyThread<T>(isBackground, action);
         }
 
+        public static MyThread<T> DoInThread<T>(Func<T> action)
+        {
+            return DoInThread(true, action);
+        }
+
         private static void ParallelForeach<T>(IEnumerable<T> elems, Action<T> action)
         {
             List<MyThread<int>> threadList = new List<MyThread<int>>();

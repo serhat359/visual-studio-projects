@@ -55,11 +55,11 @@ namespace CasualConsole
                 return default(V);
         }
 
-        public static IEnumerable<object> AsEnumerable(IEnumerable collection)
+        public static IEnumerable<T> AsEnumerable<T>(this IEnumerable collection)
         {
             foreach (var item in collection)
             {
-                yield return item;
+                yield return (T)item;
             }
         }
 
@@ -148,6 +148,26 @@ namespace CasualConsole
                     yield return start++;
                 }
             }
+        }
+
+        public static bool SafeQueueDoJob<T>(this Queue<T> queue, Action<T> action)
+        {
+            T queueItem = default(T);
+            bool hasJob = false;
+
+            lock (queue)
+            {
+                if (queue.Count > 0)
+                {
+                    queueItem = queue.Dequeue();
+                    hasJob = true;
+                }
+            }
+
+            if (hasJob)
+                action(queueItem);
+
+            return hasJob;
         }
     }
 }

@@ -61,7 +61,7 @@ namespace CasualConsole
             public V MatchedValue { get; set; }
         }
 
-        private static void TestIntersect()
+        public static void TestIntersect()
         {
             int[] firstList = { 2, 5, 3, 7, 4, 8 };
 

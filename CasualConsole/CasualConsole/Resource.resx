@@ -117,6 +117,73 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="ErrorContainingXml" xml:space="preserve">
+    <value>&lt;?xml version="1.0" encoding="utf-8"?&gt;
+&lt;rss version="2.0"&gt;
+	&lt;channel&gt;
+		&lt;item&gt;
+			&lt;title&gt;YGOTAS Episode 75 - Valley of the Duels&lt;/title&gt;
+			&lt;link&gt;https://www.youtube.com/watch?v=YSAiv93D7jg&lt;/link&gt;
+			&lt;description&gt;It's a good thing I played all that YouTubers Life. Special thanks to Krosecz for editing this episode! Check out Krosecz's channel at ...&lt;/description&gt;
+			&lt;pubDate&gt;Tue, 20 Jun 2017 15:55:19 GMT&lt;/pubDate&gt;
+		&lt;/item&gt;
+		&lt;item&gt;
+			&lt;title&gt;Episode 74 - Right In The Feels&lt;/title&gt;
+			&lt;link&gt;https://www.youtube.com/watch?v=YvHVGoElDRI&lt;/link&gt;
+			&lt;description&gt;Could it be my destiny to be King of Games? Special thanks to Krosecz for editing this episode! Check out Krosecz's channel at ...&lt;/description&gt;
+			&lt;pubDate&gt;Mon, 17 Apr 2017 18:57:06 GMT&lt;/pubDate&gt;
+		&lt;/item&gt;
+		&lt;item&gt;
+			&lt;title&gt;YGOTAS Episode 73 - Throw Haga From The Train&lt;/title&gt;
+			&lt;link&gt;https://www.youtube.com/watch?v=BCftH2rDVzo&lt;/link&gt;
+			&lt;description&gt;All aboard the Berserker Soul train. Special thanks to MasakoX for editing this episode! Check out his channel right here ...&lt;/description&gt;
+			&lt;pubDate&gt;Wed, 15 Feb 2017 20:15:06 GMT&lt;/pubDate&gt;
+		&lt;/item&gt;
+		&lt;item&gt;
+			&lt;title&gt;YGOTAS Episode 72 - Rex &amp; Weevil Do Atlantica&lt;/title&gt;
+			&lt;link&gt;https://www.youtube.com/watch?v=2j7Xu_yf5VY&lt;/link&gt;
+			&lt;description&gt;This episode is high in orichalcium. Special thanks to OneKids, Nowacking, and xJerry64x of Elite3 for editing this episode! Check out Pokemon 'Bridged by ...&lt;/description&gt;
+			&lt;pubDate&gt;Wed, 21 Dec 2016 21:58:26 GMT&lt;/pubDate&gt;
+		&lt;/item&gt;
+		&lt;item&gt;
+			&lt;title&gt;Episode 71 - The Break-Up&lt;/title&gt;
+			&lt;link&gt;https://www.youtube.com/watch?v=ZVcy0V34DVY&lt;/link&gt;
+			&lt;description&gt;Try out Crunchyroll for 30 Days (1 Month) FREE with http://www.crunchyroll.com/ygotas Get your anime here! Special thanks to Krosecz of ...&lt;/description&gt;
+			&lt;pubDate&gt;Mon, 24 Oct 2016 21:36:01 GMT&lt;/pubDate&gt;
+		&lt;/item&gt;
+		&lt;item&gt;
+			&lt;title&gt;YGOTAS Episode 70 - A Convenient Truth&lt;/title&gt;
+			&lt;link&gt;https://www.youtube.com/watch?v=9q0-v3ouvaw&lt;/link&gt;
+			&lt;description&gt;Suggest better names for Rebecca's horse in the comments. Special thanks to MasakoX for editing this baby! ALSO STARRING: Erika Harlacher as Rebecca ...&lt;/description&gt;
+			&lt;pubDate&gt;Fri, 19 Aug 2016 19:07:14 GMT&lt;/pubDate&gt;
+		&lt;/item&gt;
+		&lt;item&gt;
+			&lt;title&gt;YGOTAS Episode 69 - Age/Sex/Life Points&lt;/title&gt;
+			&lt;link&gt;https://www.youtube.com/watch?v=IoTPbIZr7ck&lt;/link&gt;
+			&lt;description&gt;star chips or gtfo Come see us at Anime Expo! We'll be set up next to TeamFourStar at one of the Shark Robot booth! ALSO STARRING: BoobsMcBalrog as Mai ...&lt;/description&gt;
+			&lt;pubDate&gt;Tue, 28 Jun 2016 22:33:49 GMT&lt;/pubDate&gt;
+		&lt;/item&gt;
+		&lt;item&gt;
+			&lt;title&gt;YGOTAS Episode 68 - Mad Mai&lt;/title&gt;
+			&lt;link&gt;https://www.youtube.com/watch?v=_GSMMt-MXqc&lt;/link&gt;
+			&lt;description&gt;Do not, my friends, become addicted to the new episode. It will take hold of you, and you will resent its absence! ALSO STARRING: BoobsMcBalrog as Mai ...&lt;/description&gt;
+			&lt;pubDate&gt;Sat, 23 Apr 2016 18:41:59 GMT&lt;/pubDate&gt;
+		&lt;/item&gt;
+		&lt;item&gt;
+			&lt;title&gt;YGOTAS Episode 67 - Toon Pangs&lt;/title&gt;
+			&lt;link&gt;https://www.youtube.com/watch?v=Wr13DYngSqE&lt;/link&gt;
+			&lt;description&gt;Don't give no matches to Mikey. ALSO STARRING: blackrose1m as Mikey Nowacking as Dark Magician Girl Special thanks to Ezekieru and 1KidsEntertainment ...&lt;/description&gt;
+			&lt;pubDate&gt;Tue, 23 Feb 2016 19:30:00 GMT&lt;/pubDate&gt;
+		&lt;/item&gt;
+		&lt;item&gt;
+			&lt;title&gt;YGOTAS Episode 66 - United Sucks&lt;/title&gt;
+			&lt;link&gt;https://www.youtube.com/watch?v=q1dtzDUgYtg&lt;/link&gt;
+			&lt;description&gt;Smells like good ideas. Edited by 1KidsEntertainment ALSO STARRING- Takahata101 as Dartz BoobsMcBalrog as ??????? Don't forget we got a patreon: ...&lt;/description&gt;
+			&lt;pubDate&gt;Wed, 16 Dec 2015 20:00:01 GMT&lt;/pubDate&gt;
+		&lt;/item&gt;
+	&lt;/channel&gt;
+&lt;/rss&gt;</value>
+  </data>
   <data name="NewPattern" xml:space="preserve">
     <value>return ExecuteToList&lt;{1}&gt;("{0}", container.ToList());</value>
   </data>

@@ -1,11 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Windows.Forms;
+using System.Xml;
+using Newtonsoft.Json;
+using System.Xml.Serialization;
 
 namespace CasualConsole
 {
@@ -21,7 +26,7 @@ namespace CasualConsole
 
             //TestSplitWithCondition();
 
-            //TestIntersect();
+            //Intersection.TestIntersect();
 
             //GetPokemonWeaknesses();
 
@@ -29,35 +34,9 @@ namespace CasualConsole
 
             //TestRegexReplaceAllFiles();
 
+            //TestAddingBlur();
 
-            MyThread<double> thread = new MyThread<double>(true, () =>
-            {
-                Console.WriteLine("Thread started");
-
-                Thread.Sleep(1000);
-
-                Console.WriteLine("Thread still running");
-
-                Thread.Sleep(1000);
-
-                Console.WriteLine("Thread is returning the value...");
-
-                return Math.Abs(-2.356);
-            });
-
-
-            Thread.Sleep(500);
-
-            Console.WriteLine("The main thread is running");
-
-            Thread.Sleep(1000);
-
-            Console.WriteLine("Waiting for the other thread...");
-
-            double calculatedValue = thread.Await();
-
-            Console.WriteLine("The result is: {0}", calculatedValue);
-
+            //MultiThreadJobQueueTest();
 
             // Closing, Do Not Delete!
             Console.WriteLine();
@@ -65,6 +44,171 @@ namespace CasualConsole
             Console.ReadKey();
         }
 
+        private static Action FuncToAction(Func<string> func)
+        {
+            Action action = () => { func(); };
+
+            return action;
+        }
+
+        private static void Benchmark(string operationName, Action action, int executionCount)
+        {
+            long startTicks = DateTime.Now.Ticks;
+
+            for (int i = 0; i < executionCount; i++)
+                action();
+
+            long endTicks = DateTime.Now.Ticks;
+
+            Console.WriteLine("The operation {1} took {0:n} ticks", (endTicks - startTicks), operationName);
+        }
+
+        private static void MultiThreadJobQueueTest()
+        {
+            bool willEnqueueJob = true;
+
+            Queue<ConvertJob> convertQueue = new Queue<ConvertJob>();
+
+            convertQueue.Enqueue(new ConvertJob { FileName = "some name" });
+            convertQueue.Enqueue(new ConvertJob { FileName = "some other name" });
+            convertQueue.Enqueue(new ConvertJob { FileName = "another name" });
+            convertQueue.Enqueue(new ConvertJob { FileName = "yet another name" });
+
+            Action<int, ConsoleColor> convertThreadAction = (threadIndex, color) =>
+            {
+                while (true)
+                {
+                    bool hadJob = convertQueue.SafeQueueDoJob(job =>
+                    {
+                        Console.ForegroundColor = color;
+                        Console.WriteLine("I'm thread {0} and I'm starting converting \"{1}\"...", threadIndex, job.FileName);
+
+                        int randomMillis = DateTime.Now.Millisecond % 1000;
+
+                        int jobDuration = randomMillis * 9 + 2000;
+
+                        Thread.Sleep(jobDuration);
+
+                        Console.ForegroundColor = color;
+                        Console.WriteLine("I'm thread {0} and I just finished converting \"{1}\" and it took {2} milliseconds", threadIndex, job.FileName, jobDuration);
+                    });
+
+                    if (!hadJob)
+                    {
+                        //Console.WriteLine("Thread {0} reporting: Had no job available, so I'm waiting...", threadIndex);
+
+                        if (willEnqueueJob)
+                            Thread.Sleep(500);
+                        else
+                            break;
+                    }
+                }
+            };
+
+            ConsoleColor[] colors = new ConsoleColor[] { ConsoleColor.Yellow, ConsoleColor.Red, ConsoleColor.Green, ConsoleColor.Blue };
+
+            List<MyThread<int>> converterThreadList = Enumerable.Range(0, 4).Select(threadIndex => MyThread.DoInThread(false, () =>
+            {
+                convertThreadAction(threadIndex, colors[threadIndex]);
+                return 0;
+            })).ToList();
+
+            for (int i = 0; i < 20; i++)
+            {
+                Thread.Sleep(1500);
+                lock (convertQueue)
+                {
+                    convertQueue.Enqueue(new ConvertJob { FileName = "new file " + i });
+                }
+                Console.ForegroundColor = ConsoleColor.Gray;
+                Console.WriteLine("Just enqueued job {0}", i);
+            }
+
+            willEnqueueJob = false;
+            Console.ForegroundColor = ConsoleColor.Gray;
+            Console.WriteLine("No more jobs to enqueue, waiting for the thread to finish");
+
+            foreach (var thread in converterThreadList)
+            {
+                thread.Await();
+            }
+
+            Console.ForegroundColor = ConsoleColor.Gray;
+            Console.WriteLine("All threads have finished working");
+        }
+
+        private static void TestAddingBlur()
+        {
+            Bitmap picture = new Bitmap(@"C:\Users\Xhertas\Pictures\harfler.png");
+
+            Bitmap newBitmap = new Bitmap(picture);
+
+            for (int x = 1; x < picture.Width - 1; x++)
+            {
+                for (int y = 1; y < picture.Height - 1; y++)
+                {
+                    var pixel = picture.GetPixel(x, y);
+
+                    Color[] aroundPixels = {
+                        picture.GetPixel(x - 1, y),
+                        picture.GetPixel(x + 1, y),
+                        picture.GetPixel(x, y - 1),
+                        picture.GetPixel(x, y + 1)
+                    };
+
+                    int red = aroundPixels.Select(c => (int)c.R).Sum() / aroundPixels.Length;
+                    int green = aroundPixels.Select(c => (int)c.G).Sum() / aroundPixels.Length;
+                    int blue = aroundPixels.Select(c => (int)c.B).Sum() / aroundPixels.Length;
+
+                    Color mixedPixel = Color.FromArgb(red, green, blue);
+
+                    //newBitmap.SetPixel(x, y, MixPixels(pixel, mixedPixel, 0.5));
+
+                    newBitmap.SetPixel(x, y, mixedPixel);
+                }
+            }
+
+            var newwindow = new MyWindow(newBitmap, "Image");
+            newwindow.Show();
+            newwindow.Invalidate();
+
+            Application.Run(newwindow);
+        }
+
+        private static Color MixPixels(Color first, Color second, double firstPercentage)
+        {
+            double secondPercentage = 1 - firstPercentage;
+            return Color.FromArgb(
+                (int)(first.R * firstPercentage + second.R * secondPercentage),
+                (int)(first.G * firstPercentage + second.G * secondPercentage),
+                (int)(first.B * firstPercentage + second.B * secondPercentage)
+            );
+        }
+
+        private static IEnumerable<List<int>> GetBatchValues(IEnumerable<int> source)
+        {
+            var enumerator = source.GetEnumerator();
+
+            bool hasNext = enumerator.MoveNext();
+
+            do
+            {
+                List<int> list = new List<int>();
+
+                for (int i = 0; i < 5; i++)
+                {
+                    if (hasNext)
+                        list.Add(enumerator.Current);
+                    else
+                        break;
+
+                    hasNext = enumerator.MoveNext();
+                }
+
+                yield return list;
+            } while (hasNext);
+        }
+        
         private static string ConvertByteHashToString(byte[] torrentHash)
         {
             StringBuilder builder = new StringBuilder();
@@ -487,6 +631,11 @@ namespace CasualConsole
             this.value1 = value1;
             this.value2 = value2;
         }
+
+        public string ToolString()
+        {
+            return "{" + value1 + "," + value2 + "}";
+        }
     }
 
     public class Debt
@@ -505,13 +654,19 @@ namespace CasualConsole
         }
     }
 
+    [XmlRoot("foobar")]
     public class FooBar
     {
+        [XmlAttribute("text")]
         public string Text { get; set; }
 
         public DateTime Date { get; set; }
 
+        [XmlElement("amount")]
         public int Amount { get; set; }
+
+        [XmlElement("value")]
+        public int[] MultiValue { get; set; }
     }
 
     public class Dummy : IEquatable<Dummy>
@@ -540,5 +695,30 @@ namespace CasualConsole
             return dummyObj.text == this.text && dummyObj.index == this.index;
         }
     }
+
+    public class MyWindow : Form
+    {
+        Bitmap picture;
+
+        public MyWindow(Bitmap picture, string title)
+        {
+            this.picture = picture;
+            this.Name = title;
+            this.Text = title;
+
+            this.Size = new Size(16 + picture.Width, 38 + picture.Height);
+            this.SetDesktopLocation(500, 300);
+
+            this.Paint += new PaintEventHandler(this.GameFrame_Paint);
+        }
+
+        private void GameFrame_Paint(object sender, PaintEventArgs e)
+        {
+            Graphics g2d = e.Graphics;
+
+            g2d.DrawImage(picture, new Point());
+        }
+    }
+
 
 }
