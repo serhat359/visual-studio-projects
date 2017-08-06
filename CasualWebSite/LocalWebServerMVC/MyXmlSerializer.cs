@@ -15,18 +15,16 @@ namespace LocalWebServerMVC
         readonly Type[] validTypes = new Type[] { typeof(string), typeof(int), typeof(long), typeof(float),
                 typeof(double), typeof(bool), typeof(byte), typeof(char), typeof(DateTime) };
 
-        private StringBuilder stringBuilder = null;
+        private List<string> stringList = new List<string>();
         private int nestCount = 0;
 
         public string Serialize<T>(T obj)
         {
-            stringBuilder = new StringBuilder();
-
-            stringBuilder.Append("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
+            Append("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
 
             SerializeElement(obj, new List<Attribute>(), null);
 
-            return stringBuilder.ToString();
+            return string.Join("", stringList);
         }
 
         private static string EscapeXMLValue(string xmlString)
@@ -42,12 +40,14 @@ namespace LocalWebServerMVC
                 .Replace("<", "&lt;");
         }
 
-        private void Append(string text)
+        private int Append(string text)
         {
             for (int i = 0; i < nestCount; i++)
-                stringBuilder.Append("\t");
+                stringList.Add("\t");
 
-            stringBuilder.Append(text);
+            stringList.Add(text);
+
+            return stringList.Count - 1;
         }
 
         private T GetAttribute<T>(List<Attribute> customAttributes) where T : Attribute
@@ -76,9 +76,11 @@ namespace LocalWebServerMVC
 
                 xmlNodeName = elementName ?? xmlNodeName;
 
+                objToString = EscapeXMLValue(objToString);
+
                 string formattedNode = xmlNodeName != null
-                    ? string.Format("<{0}>{1}</{0}>\n", xmlNodeName, EscapeXMLValue(objToString))
-                    : EscapeXMLValue(objToString);
+                    ? string.Format("<{0}>{1}</{0}>\n", xmlNodeName, objToString)
+                    : objToString;
 
                 Append(formattedNode);
             }
@@ -132,9 +134,7 @@ namespace LocalWebServerMVC
             }
             else // If the type is object
             {
-                List<Attribute> classAttributes = GetXmlAttributes(objType);
-
-                customAttributes.AddRange(classAttributes);
+                customAttributes.AddRange(GetXmlAttributes(objType));
 
                 xmlNodeName = xmlNodeName ?? objType.Name;
 
@@ -147,12 +147,11 @@ namespace LocalWebServerMVC
 
                 var fields = objType.GetFields();
 
+                int xmlRootIndex = Append("");
+                nestCount++;
+
                 Dictionary<string, string> xmlAttributes = new Dictionary<string, string>();
 
-                List<Pair<PropertyInfo, List<Attribute>>> nonAttributeProperties = new List<Pair<PropertyInfo, List<Attribute>>>();
-                List<Pair<FieldInfo, List<Attribute>>> nonAttributeFields = new List<Pair<FieldInfo, List<Attribute>>>();
-
-                /////
                 foreach (var property in properties)
                 {
                     List<Attribute> propertyAttributes = GetXmlAttributes(property);
@@ -166,7 +165,7 @@ namespace LocalWebServerMVC
                     }
                     else
                     {
-                        nonAttributeProperties.Add(new Pair<PropertyInfo, List<Attribute>>(property, propertyAttributes));
+                        SerializeElement(property.GetValue(obj, null), propertyAttributes, property.Name);
                     }
                 }
 
@@ -183,28 +182,18 @@ namespace LocalWebServerMVC
                     }
                     else
                     {
-                        nonAttributeFields.Add(new Pair<FieldInfo, List<Attribute>>(field, fieldAttributes));
+                        SerializeElement(field.GetValue(obj), fieldAttributes, field.Name);
                     }
-                }
-                /////
-
-                IEnumerable<string> wholeAttributes = xmlAttributes.Select(x => x.Key + "=\"" + x.Value + "\"");
-
-                Append(string.Format("<{0}{1}{2}>\n", xmlNodeName, wholeAttributes.Any() ? " " : "", string.Join(" ", wholeAttributes)));
-                nestCount++;
-
-                foreach (var propertyPair in nonAttributeProperties)
-                {
-                    SerializeElement(propertyPair.value1.GetValue(obj, null), propertyPair.value2, propertyPair.value1.Name);
-                }
-
-                foreach (var fieldPair in nonAttributeFields)
-                {
-                    SerializeElement(fieldPair.value1.GetValue(obj), fieldPair.value2, fieldPair.value1.Name);
                 }
 
                 nestCount--;
                 Append(string.Format("</{0}>\n", xmlNodeName));
+
+                IEnumerable<string> wholeAttributes = xmlAttributes.Select(x => x.Key + "=\"" + x.Value + "\"");
+
+                string xmlRoot = string.Format("<{0}{1}{2}>\n", xmlNodeName, wholeAttributes.Any() ? " " : "", string.Join(" ", wholeAttributes));
+
+                stringList[xmlRootIndex] = xmlRoot;
             }
         }
 
@@ -224,15 +213,4 @@ namespace LocalWebServerMVC
         }
     }
 
-    public class Pair<T, E>
-    {
-        public T value1 { get; set; }
-        public E value2 { get; set; }
-
-        public Pair(T value1, E value2)
-        {
-            this.value1 = value1;
-            this.value2 = value2;
-        }
-    }
 }
