@@ -17,16 +17,16 @@ namespace ConsoleProgram
     {
         public static void Main(string[] args)
         {
-            TestDifferentMappers();
+            //TestDifferentMappers();
 
             /*new DBConnection(DBConnection.Mode.Write)
                 .RunUpsertQueryOneRow("INSERT INTO casual (name, phone) VALUES ('ahmet', '5358724473')");*/
 
             //new DBConnection(DBConnection.Mode.Read).RunUpsertQueryOneRow("UPDATE casual SET name='murat' WHERE name='serhat'");
 
-            //IMapper<Radical> mapper = new ExpressionTreeMapperAs<Radical>();
-            //var result = RunQuery(mapper, 10000);
-
+            IMapper<FaaliyetMSSQL> mapper = new ExpressionTreeMapperAs<FaaliyetMSSQL>();
+            var result = RunQuery(mapper, 10000);
+            
             // Closing, Do Not Delete!
             Console.WriteLine();
             Console.WriteLine("Press a key to exit");
@@ -45,17 +45,17 @@ namespace ConsoleProgram
 				new ExpressionTreeMapperNullCheck<FaaliyetMSSQL>(),
                 new ExpressionMapperWithActivator<FaaliyetMSSQL>(),
                 new ExpressionMapperWithInnerActivator<FaaliyetMSSQL>(),
-				//new MyMapper<FaaliyetMSSQL>(),
-				//new ActivatorNewMapper<FaaliyetMSSQL>(),
-                //new ActivatorNewMapperTemp<FaaliyetMSSQL>(),
-				//new ExpressionNewMapper<FaaliyetMSSQL>(),
-				//new ConstructorNewMapper<FaaliyetMSSQL>(),
+				new MyMapper<FaaliyetMSSQL>(),
+				new ActivatorNewMapper<FaaliyetMSSQL>(),
+                new ActivatorNewMapperTemp<FaaliyetMSSQL>(),
+				new ExpressionNewMapper<FaaliyetMSSQL>(),
+				new ConstructorNewMapper<FaaliyetMSSQL>(),
 				new FaaliyetMapper(),
 				new FaaliyetMapperByIndex(),
 			};
 
             bool report = true;
-            int[] numberList = { 10000, 10000, 10000, 10000 };
+            int[] numberList = { 10000, 10000, 10000 };
             foreach (int number in numberList)
             {
                 Console.WriteLine("Running for {0} elements", number);

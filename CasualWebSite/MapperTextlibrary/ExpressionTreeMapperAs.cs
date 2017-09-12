@@ -1,17 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Linq.Expressions;
 using System.Data;
 
 namespace MapperTextlibrary
 {
-	public class ExpressionTreeMapperAs<T> : IMapper<T> where T : new()
-	{
-		public LinkedList<T> MapAll(IDataReader dataReader)
-		{
-			LinkedList<T> list = new LinkedList<T>();
+    public class ExpressionTreeMapperAs<T> : IMapper<T> where T : new()
+    {
+        public LinkedList<T> MapAll(IDataReader dataReader)
+        {
+            LinkedList<T> list = new LinkedList<T>();
 
             BlockExpression blockEx;
             Func<IDataRecord, T> converter = GetMapFunc(dataReader, out blockEx);
@@ -26,59 +25,65 @@ namespace MapperTextlibrary
             }
             catch
             {
-                string expectedTypes = string.Join(" , ", Enumerable.Range(0, dataReader.FieldCount).Select(x => dataReader.GetDataTypeName(x)));
+                Type t = (new T()).GetType();
 
-                string receivedTypes = string.Join(" , ", Enumerable.Range(0, dataReader.FieldCount).Select(x => dataReader[x]).Select(x => x.GetType().ToString().Replace("System.","")));
+                string expectedTypes = string.Join("\t", t.GetProperties().Select(x => x.PropertyType.ToString().Replace("System.", "")));
 
-                string receivedValues = string.Join(" , ", Enumerable.Range(0, dataReader.FieldCount).Select(x => dataReader[x]));
+                string receivedTypes = string.Join("\t", Enumerable.Range(0, dataReader.FieldCount).Select(x => dataReader[x]).Select(x => x.GetType().ToString().Replace("System.", "")));
+
+                string receivedValues = string.Join("\t", Enumerable.Range(0, dataReader.FieldCount).Select(x => dataReader[x]));
+
+                string excelDebug = "Expected Type" + "\t" + expectedTypes + "\n" +
+                    "Received Type " + "\t" + receivedTypes + "\n" +
+                    "Received Value " + "\t" + receivedValues + "\n";
 
                 throw;
             }
 
-			return list;
-		}
+            return list;
+        }
 
-		private Func<IDataRecord, T> GetMapFunc(IDataReader dataReader, out BlockExpression blockEx)
-		{
-			var exps = new List<Expression>();
+        private Func<IDataRecord, T> GetMapFunc(IDataReader dataReader, out BlockExpression blockEx)
+        {
+            var exps = new List<Expression>();
 
             var paramExp = Expression.Parameter(typeof(IDataRecord), "record");
 
-			var targetExp = Expression.Variable(typeof(T));
-			exps.Add(Expression.Assign(targetExp, Expression.New(targetExp.Type)));
+            var targetExp = Expression.Variable(typeof(T));
+            exps.Add(Expression.Assign(targetExp, Expression.New(targetExp.Type)));
 
-			//does int based lookup
-			var indexerInfo = typeof(IDataRecord).GetProperty("Item", new[] { typeof(int) });
+            //does int based lookup
+            var indexerInfo = typeof(IDataRecord).GetProperty("Item", new[] { typeof(int) });
 
-			var columnNames = Enumerable.Range(0, dataReader.FieldCount).Select(i => new { i, name = dataReader.GetName(i) });
+            var columnNames = Enumerable.Range(0, dataReader.FieldCount).Select(i => new { i, name = dataReader.GetName(i) });
 
-			foreach (var column in columnNames)
-			{
-				var property = targetExp.Type.GetProperty(column.name);
-				if (property == null)
-					continue;
+            foreach (var column in columnNames)
+            {
+                var property = targetExp.Type.GetProperty(column.name);
+                if (property == null)
+                    continue;
 
-				var columnIndexExp = Expression.Constant(column.i);
-				var propertyExp = Expression.MakeIndex(paramExp, indexerInfo, new[] { columnIndexExp });
+                var columnIndexExp = Expression.Constant(column.i);
+                var propertyExp = Expression.MakeIndex(paramExp, indexerInfo, new[] { columnIndexExp });
 
-				UnaryExpression convertExp;
-				if (property.PropertyType == typeof(string) || Nullable.GetUnderlyingType(property.PropertyType) != null)
-					convertExp = Expression.TypeAs(propertyExp, property.PropertyType);
-				else
-					convertExp = Expression.Convert(propertyExp, property.PropertyType);
+                UnaryExpression convertExp;
+                if (property.PropertyType == typeof(string) || Nullable.GetUnderlyingType(property.PropertyType) != null)
+                    convertExp = Expression.TypeAs(propertyExp, property.PropertyType);
+                else
+                    convertExp = Expression.Convert(propertyExp, property.PropertyType);
 
-				var bindExp = Expression.Assign(Expression.Property(targetExp, property), convertExp);
+                var bindExp = Expression.Assign(Expression.Property(targetExp, property), convertExp);
 
-				exps.Add(bindExp);
-			}
+                exps.Add(bindExp);
+            }
 
-			exps.Add(targetExp);
+            exps.Add(targetExp);
 
-			var block = Expression.Block(new[] { targetExp }, exps);
+            var block = Expression.Block(new[] { targetExp }, exps);
 
             blockEx = block;
 
-			return Expression.Lambda<Func<IDataRecord, T>>(block, paramExp).Compile();
-		}
-	}
+            return Expression.Lambda<Func<IDataRecord, T>>(block, paramExp).Compile();
+        }
+    }
 }
