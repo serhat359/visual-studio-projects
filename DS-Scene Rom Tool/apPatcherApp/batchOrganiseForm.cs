@@ -1831,7 +1831,7 @@ namespace apPatcherApp
                         {
                             destFileName = destFileName.Substring(0, destFileName.LastIndexOf('.') + 1) + str3;
                         }
-                        System.IO.File.Copy(str2, destFileName);
+                        System.IO.File.Copy(str2, destFileName, true);
                         if (System.IO.File.Exists(destFileName))
                         {
                             err = 1L;

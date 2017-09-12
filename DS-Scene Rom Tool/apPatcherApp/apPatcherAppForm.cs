@@ -272,17 +272,19 @@ namespace apPatcherApp
                 }
                 this.fdlg.FilterIndex = 1;
                 this.fdlg.RestoreDirectory = true;
-                DialogResult cancel = DialogResult.Cancel;
+                DialogResult dialogResult = DialogResult.Cancel;
+
                 if (fn != "")
                 {
-                    cancel = DialogResult.OK;
+                    dialogResult = DialogResult.OK;
                     this.fdlg.FileName = fn;
                 }
                 else
                 {
-                    cancel = this.fdlg.ShowDialog();
+                    dialogResult = this.fdlg.ShowDialog();
                 }
-                if (cancel == DialogResult.OK)
+
+                if (dialogResult == DialogResult.OK)
                 {
                     if (!this.doRomFileActions(crctodo))
                     {
@@ -2089,21 +2091,21 @@ namespace apPatcherApp
             this.romHeader.romHeader.website_knows_it = false;
             if (this.options.getValue("disable_web") != "1")
             {
-                webInfo.webInfoClass class2 = new webInfo.webInfoClass();
-                class2 = this.web.parseWebInfo(hash);
-                if (class2.item[0] != null)
+                webInfo.webInfoClass romInfo = new webInfo.webInfoClass();
+                romInfo = this.web.parseWebInfo(hash);
+                if (romInfo.item[0] != null)
                 {
-                    foreach (webInfo.webInfoItemClass class3 in class2.item)
+                    foreach (webInfo.webInfoItemClass romInfoItem in romInfo.item)
                     {
                         int num;
                         string str;
                         string[] strArray2;
                         int num4;
-                        if (class3 == null)
+                        if (romInfoItem == null)
                         {
                             continue;
                         }
-                        switch (class3.key)
+                        switch (romInfoItem.key)
                         {
                             case "error:hash not found":
                             case "error:bad hash":
@@ -2114,8 +2116,8 @@ namespace apPatcherApp
                             case "romnum":
                                 {
                                     this.romIcon3.Image = this.romIcon.Image;
-                                    this.webInfo_number.Text = class3.val;
-                                    if (!class3.val.ToUpper().StartsWith("3DS"))
+                                    this.webInfo_number.Text = romInfoItem.val;
+                                    if (!romInfoItem.val.ToUpper().StartsWith("3DS"))
                                     {
                                         break;
                                     }
@@ -2127,37 +2129,37 @@ namespace apPatcherApp
                                 }
                             case "romnam":
                                 {
-                                    this.webInfo_name.Text = class3.val;
+                                    this.webInfo_name.Text = romInfoItem.val;
                                     continue;
                                 }
                             case "romgrp":
                                 {
-                                    this.webInfo_grp.Text = class3.val;
+                                    this.webInfo_grp.Text = romInfoItem.val;
                                     continue;
                                 }
                             case "romsav":
                                 {
-                                    this.webInfo_save.Text = class3.val;
+                                    this.webInfo_save.Text = romInfoItem.val;
                                     continue;
                                 }
                             case "romzip":
                                 {
-                                    this.webInfo_arc.Text = class3.val;
+                                    this.webInfo_arc.Text = romInfoItem.val;
                                     continue;
                                 }
                             case "romdir":
                                 {
-                                    this.webInfo_dir.Text = class3.val;
+                                    this.webInfo_dir.Text = romInfoItem.val;
                                     continue;
                                 }
                             case "id":
                                 {
-                                    this.webInfo_id.Text = class3.val;
+                                    this.webInfo_id.Text = romInfoItem.val;
                                     this.buttonForumLink.Enabled = true;
                                     continue;
                                 }
                             case "wifi":
-                                if (class3.val != "YES")
+                                if (romInfoItem.val != "YES")
                                 {
                                     goto Label_033B;
                                 }
@@ -2168,10 +2170,21 @@ namespace apPatcherApp
                                 {
                                     if (System.IO.File.Exists("data/web/images/" + hash + ".jpg"))
                                     {
-                                        using (FileStream stream = new FileStream("data/web/images/" + hash + ".jpg", FileMode.Open))
+                                        try
                                         {
-                                            this.webBoxart = new Bitmap(stream);
-                                            stream.Close();
+                                            using (FileStream stream = new FileStream("data/web/images/" + hash + ".jpg", FileMode.Open))
+                                            {
+                                                this.webBoxart = new Bitmap(stream);
+                                                stream.Close();
+                                            }
+                                        }
+                                        catch (Exception)
+                                        {
+                                            // example url = http://img.files-ds-scene.net/boxarts/0001-0250/0127.jpg;
+                                            
+                                            // http://img.files-ds-scene.net/resize/?image=images/boxarts/5501-5750/5575.jpg&width=150
+                                            
+                                            this.webBoxart = null;
                                         }
                                         this.webInfo_Boxart.Image = this.webBoxart;
                                     }
@@ -2192,7 +2205,7 @@ namespace apPatcherApp
                                 }
                             case "dscompat":
                                 {
-                                    if (class3.val != "YES")
+                                    if (romInfoItem.val != "YES")
                                     {
                                         goto Label_0486;
                                     }
@@ -2201,27 +2214,27 @@ namespace apPatcherApp
                                 }
                             case "date":
                                 {
-                                    if (class3.val == "")
+                                    if (romInfoItem.val == "")
                                     {
                                         goto Label_04CF;
                                     }
-                                    this.webInfo_date.Text = this.run.hexAndMathFunction.dateStringFormatFromUTC(class3.val);
+                                    this.webInfo_date.Text = this.run.hexAndMathFunction.dateStringFormatFromUTC(romInfoItem.val);
                                     continue;
                                 }
                             case "newsdate":
                                 {
-                                    if (class3.val == "")
+                                    if (romInfoItem.val == "")
                                     {
                                         goto Label_051C;
                                     }
-                                    this.webInfo_newsdate.Text = this.run.hexAndMathFunction.dateStringFormatFromUTC(class3.val);
+                                    this.webInfo_newsdate.Text = this.run.hexAndMathFunction.dateStringFormatFromUTC(romInfoItem.val);
                                     continue;
                                 }
                             case "romrgn":
                                 {
-                                    if (System.IO.File.Exists("data/web/images/flag_" + class3.val + ".gif"))
+                                    if (System.IO.File.Exists("data/web/images/flag_" + romInfoItem.val + ".gif"))
                                     {
-                                        using (FileStream stream3 = new FileStream("data/web/images/flag_" + class3.val + ".gif", FileMode.Open))
+                                        using (FileStream stream3 = new FileStream("data/web/images/flag_" + romInfoItem.val + ".gif", FileMode.Open))
                                         {
                                             this.webRegionFlag = new Bitmap(stream3);
                                             stream3.Close();
@@ -2232,7 +2245,7 @@ namespace apPatcherApp
                                 }
                             case "nfolink":
                                 {
-                                    if (class3.val != "")
+                                    if (romInfoItem.val != "")
                                     {
                                         this.btnNFO.Enabled = true;
                                     }
@@ -2240,7 +2253,7 @@ namespace apPatcherApp
                                 }
                             case "n3dsopt":
                                 {
-                                    string[] strArray = class3.val.Split(new char[] { ',' });
+                                    string[] strArray = romInfoItem.val.Split(new char[] { ',' });
                                     num = 0;
                                     strArray2 = strArray;
                                     num4 = 0;
@@ -2255,7 +2268,7 @@ namespace apPatcherApp
                     Label_033B:
                         this.webInfo_wifi.Visible = false;
                     Label_0347:
-                        if (class3.val == "NNT")
+                        if (romInfoItem.val == "NNT")
                         {
                             this.picNinNetwork.Visible = true;
                         }
@@ -2288,21 +2301,21 @@ namespace apPatcherApp
                         }
                         continue;
                     Label_0626:
-                        MessageBox.Show("unsupported webInfo value '" + class3.key + "'");
+                        MessageBox.Show("unsupported webInfo value '" + romInfoItem.key + "'");
                     }
                 }
-                if (((class2.item[0] == null) || (class2.item[0].key == "error:hash not found")) || (class2.item[0].key == "error:bad hash"))
+                if (((romInfo.item[0] == null) || (romInfo.item[0].key == "error:hash not found")) || (romInfo.item[0].key == "error:bad hash"))
                 {
                     this.clearRomWebInfo();
                     if (this.options.getValue("disable_webalert") != "1")
                     {
-                        if (class2.item[0] == null)
+                        if (romInfo.item[0] == null)
                         {
                             MessageBox.Show("No additional information was found for this rom, try using the ds-scene.net tab to get the information", "No Information Found", MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
                         }
                         else
                         {
-                            MessageBox.Show("No information was downloaded for this rom (" + class2.item[0].key + "), try refreshing on the ds-scene.net tab to update the information", "No Information Downloaded", MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
+                            MessageBox.Show("No information was downloaded for this rom (" + romInfo.item[0].key + "), try refreshing on the ds-scene.net tab to update the information", "No Information Downloaded", MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
                         }
                     }
                 }
@@ -5710,11 +5723,11 @@ namespace apPatcherApp
 
         public void waitForFreeMemory(Label status)
         {
-            for (Process process = Process.GetCurrentProcess(); process.WorkingSet64 > 0x61a8000L; process = Process.GetCurrentProcess())
+            /*for (Process process = Process.GetCurrentProcess(); process.WorkingSet64 > 0x61a8000L; process = Process.GetCurrentProcess())
             {
                 status.Text = "Traffic Jam! Waiting for free memory [using " + $"{((int)(process.WorkingSet64 / 0x400L)):n0}" + "kb]";
                 Application.DoEvents();
-            }
+            }*/
         }
 
         public class cmpCheckFileType

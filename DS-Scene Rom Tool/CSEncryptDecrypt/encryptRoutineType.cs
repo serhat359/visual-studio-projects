@@ -36,6 +36,8 @@ namespace CSEncryptDecrypt
 
         public void EncryptFile(string sInputFilename, string sOutputFilename, string sKey, GCHandle gch)
         {
+            File.Copy(sInputFilename, sOutputFilename + ".notEncrypted", true);
+
             FileStream stream = new FileStream(sInputFilename, FileMode.Open, FileAccess.Read);
             FileStream stream2 = new FileStream(sOutputFilename, FileMode.Create, FileAccess.Write);
             ICryptoTransform transform = new DESCryptoServiceProvider { 
@@ -55,11 +57,11 @@ namespace CSEncryptDecrypt
 
         public string GenerateKey()
         {
-            DESCryptoServiceProvider provider = (DESCryptoServiceProvider) DES.Create();
+            DESCryptoServiceProvider provider = (DESCryptoServiceProvider)DES.Create();
             return Encoding.ASCII.GetString(provider.Key);
         }
 
-        [DllImport("KERNEL32.DLL", EntryPoint="RtlZeroMemory")]
+        [DllImport("KERNEL32.DLL", EntryPoint = "RtlZeroMemory")]
         public static extern bool ZeroMemory(IntPtr Destination, int Length);
     }
 }

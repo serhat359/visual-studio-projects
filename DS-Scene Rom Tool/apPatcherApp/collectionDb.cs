@@ -146,12 +146,36 @@ namespace apPatcherApp
             {
                 this.activeDb = i;
                 this.db[this.activeDb].filled = 0;
-                string path = "data/collections/" + this.db[i].fn + ".dsrcdb";
-                if (System.IO.File.Exists(path))
+                string encryptedpath = "data/collections/" + this.db[i].fn + ".dsrcdb";
+
+                string notEncryptedpath = "data/collections/" + this.db[i].fn + ".dsrcdb.notEncrypted";
+
+                bool encryptedExists = System.IO.File.Exists(encryptedpath);
+                bool notEncryptedExists = System.IO.File.Exists(notEncryptedpath);
+
+                if (encryptedExists || notEncryptedExists)
                 {
-                    string sKey = Program.form.run.hexAndMathFunction.convertHexToEncryptionKey("790077003F0028003F0050003F003F00");
-                    FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read);
-                    using (StreamReader reader = new StreamReader(Program.form.encryptor.createDecryptionReadStream(sKey, fs)))
+                    StreamReader fileStream;
+                    FileStream fs = null;
+
+                    if (notEncryptedExists)
+                    {
+                        fileStream = new StreamReader(notEncryptedpath);
+                    }
+                    else if (encryptedExists)
+                    {
+                        string sKey = Program.form.run.hexAndMathFunction.convertHexToEncryptionKey("790077003F0028003F0050003F003F00");
+                        fs = new FileStream(encryptedpath, FileMode.Open, FileAccess.Read);
+
+                        fileStream = new StreamReader(Program.form.encryptor.createDecryptionReadStream(sKey, fs));
+                    }
+                    else
+                    {
+                        throw new Exception("Impossible happened");
+                    }
+
+                    //using (StreamReader reader = new StreamReader(Program.form.encryptor.createDecryptionReadStream(sKey, fs)))
+                    using (StreamReader reader = fileStream)
                     {
                         string str3;
                         while ((str3 = reader.ReadLine()) != null)
@@ -194,7 +218,9 @@ namespace apPatcherApp
                         }
                         reader.Close();
                     }
-                    fs.Close();
+
+                    if (fs != null)
+                        fs.Close();
                 }
                 else
                 {
@@ -298,7 +324,7 @@ namespace apPatcherApp
                 string str = Program.form.run.hexAndMathFunction.convertHexToEncryptionKey("790077003F0028003F0050003F003F00");
                 GCHandle gch = GCHandle.Alloc(str, GCHandleType.Pinned);
                 Program.form.encryptor.EncryptFile("data/temp/" + this.db[i].fn + ".txt", "data/collections/" + this.db[i].fn + ".dsrcdb", str, gch);
-                System.IO.File.Delete("data/temp/" + this.db[i].fn + ".txt");
+                //System.IO.File.Delete("data/temp/" + this.db[i].fn + ".txt");
             }
         }
 

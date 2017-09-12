@@ -279,7 +279,7 @@ namespace apPatcherApp
             base.ClientSize = new Size(0x28b, 0x1b4);
             base.Controls.Add(this.panel1);
             base.Controls.Add(this.menuStrip1);
-            base.Icon = (Icon) manager.GetObject("$this.Icon");
+            base.Icon = (Icon)manager.GetObject("$this.Icon");
             base.Name = "apPatcherNfoViewer";
             this.Text = "DS-Scene Rom Tool: NFO Viewer";
             base.Shown += new EventHandler(this.apPatcherNfoViewer_Shown);
@@ -322,7 +322,7 @@ namespace apPatcherApp
 
         private void pxToolStripMenuItem_CheckedChanged(object sender, EventArgs e)
         {
-            ToolStripMenuItem item = (ToolStripMenuItem) sender;
+            ToolStripMenuItem item = (ToolStripMenuItem)sender;
             if (item.Checked)
             {
                 if (this.pxToolStripMenuItem7 != item)
@@ -368,7 +368,7 @@ namespace apPatcherApp
 
         private void themeToolStripMenuItem_CheckedChanged(object sender, EventArgs e)
         {
-            ToolStripMenuItem item = (ToolStripMenuItem) sender;
+            ToolStripMenuItem item = (ToolStripMenuItem)sender;
             if (item.Checked)
             {
                 if (this.themeToolStripMenuItem1 != item)
@@ -420,100 +420,108 @@ namespace apPatcherApp
                 bool flag = false;
                 this._size = 0;
                 this._lines.Clear();
-                StringBuilder builder = new StringBuilder();
-                using (FileStream stream = new FileStream(this.FullPath, FileMode.Open, FileAccess.Read))
+                try
                 {
-                    this._size = (int) stream.Length;
-                    using (BinaryReader reader = new BinaryReader(stream))
+                    StringBuilder builder = new StringBuilder();
+                    using (FileStream stream = new FileStream(this.FullPath, FileMode.Open, FileAccess.Read))
                     {
-                        bool flag2 = false;
-                        bool flag3 = false;
-                        bool flag4 = false;
-                        foreach (byte num2 in reader.ReadBytes(this.Size))
+                        this._size = (int)stream.Length;
+                        using (BinaryReader reader = new BinaryReader(stream))
                         {
-                            switch (num2)
+                            bool flag2 = false;
+                            bool flag3 = false;
+                            bool flag4 = false;
+                            foreach (byte num2 in reader.ReadBytes(this.Size))
                             {
-                                case 13:
-                                    if (flag4)
-                                    {
-                                        flag4 = false;
-                                    }
-                                    else if (flag3)
-                                    {
-                                        this._lines.Add(Environment.NewLine);
-                                        this._lines.Add(Environment.NewLine);
-                                        flag2 = true;
-                                        flag3 = false;
-                                    }
-                                    else if (flag2)
-                                    {
-                                        flag3 = true;
-                                    }
-                                    else
-                                    {
-                                        flag2 = true;
-                                        this._lines.Add(builder.ToString());
-                                        builder.Length = 0;
-                                    }
-                                    break;
-
-                                case 10:
-                                    if (flag3)
-                                    {
-                                        flag3 = false;
-                                    }
-                                    else if (!flag2)
-                                    {
-                                        this._lines.Add(builder.ToString());
-                                        builder.Length = 0;
-                                    }
-                                    flag2 = false;
-                                    flag4 = true;
-                                    break;
-
-                                case 9:
-                                    builder.Append("    ");
-                                    flag2 = false;
-                                    flag3 = false;
-                                    flag4 = false;
-                                    break;
-
-                                case 0xff:
-                                    builder.Append(" ");
-                                    flag2 = false;
-                                    flag3 = false;
-                                    flag4 = false;
-                                    break;
-
-                                default:
-                                    if (num2 >= 0x20)
-                                    {
-                                        if ((num2 - 0x21) < 0)
+                                switch (num2)
+                                {
+                                    case 13:
+                                        if (flag4)
                                         {
-                                            builder.Append(" ");
+                                            flag4 = false;
+                                        }
+                                        else if (flag3)
+                                        {
+                                            this._lines.Add(Environment.NewLine);
+                                            this._lines.Add(Environment.NewLine);
+                                            flag2 = true;
+                                            flag3 = false;
+                                        }
+                                        else if (flag2)
+                                        {
+                                            flag3 = true;
                                         }
                                         else
                                         {
-                                            builder.Append(this._conversion[num2 - 0x21]);
+                                            flag2 = true;
+                                            this._lines.Add(builder.ToString());
+                                            builder.Length = 0;
+                                        }
+                                        break;
+
+                                    case 10:
+                                        if (flag3)
+                                        {
+                                            flag3 = false;
+                                        }
+                                        else if (!flag2)
+                                        {
+                                            this._lines.Add(builder.ToString());
+                                            builder.Length = 0;
+                                        }
+                                        flag2 = false;
+                                        flag4 = true;
+                                        break;
+
+                                    case 9:
+                                        builder.Append("    ");
+                                        flag2 = false;
+                                        flag3 = false;
+                                        flag4 = false;
+                                        break;
+
+                                    case 0xff:
+                                        builder.Append(" ");
+                                        flag2 = false;
+                                        flag3 = false;
+                                        flag4 = false;
+                                        break;
+
+                                    default:
+                                        if (num2 >= 0x20)
+                                        {
+                                            if ((num2 - 0x21) < 0)
+                                            {
+                                                builder.Append(" ");
+                                            }
+                                            else
+                                            {
+                                                builder.Append(this._conversion[num2 - 0x21]);
+                                                flag2 = false;
+                                                flag3 = false;
+                                                flag4 = false;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            builder.Append(Resources.NonPrintingChar);
                                             flag2 = false;
                                             flag3 = false;
                                             flag4 = false;
                                         }
-                                    }
-                                    else
-                                    {
-                                        builder.Append(Resources.NonPrintingChar);
-                                        flag2 = false;
-                                        flag3 = false;
-                                        flag4 = false;
-                                    }
-                                    break;
+                                        break;
+                                }
                             }
+                            this._lines.Add(builder.ToString());
+                            flag = true;
                         }
-                        this._lines.Add(builder.ToString());
-                        flag = true;
                     }
                 }
+                catch (Exception)
+                {
+                    MessageBox.Show("NFO file not found");
+                }
+
                 return flag;
             }
 
