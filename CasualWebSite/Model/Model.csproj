@@ -57,6 +57,9 @@
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Web\PokemonModel.cs" />
+    <Compile Include="Web\RssResult.cs" />
+    <Compile Include="Web\YoutubeSearchResult.cs" />
+    <Compile Include="XmlFormatAttribute.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
