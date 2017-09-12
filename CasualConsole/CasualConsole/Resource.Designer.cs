@@ -61,6 +61,15 @@ namespace CasualConsole {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to asd,24,&quot;hel,lo&quot;,bla bla bla,&quot;yet another example where he said &quot;&quot;hi!&quot;&quot;, can you believe it?&quot;,24.5.
+        /// </summary>
+        public static string CsvText {
+            get {
+                return ResourceManager.GetString("CsvText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to &lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;
         ///&lt;rss version=&quot;2.0&quot;&gt;
         ///	&lt;channel&gt;

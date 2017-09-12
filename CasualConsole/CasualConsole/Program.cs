@@ -9,7 +9,6 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
 using System.Xml;
-using Newtonsoft.Json;
 using System.Xml.Serialization;
 
 namespace CasualConsole
@@ -38,10 +37,163 @@ namespace CasualConsole
 
             //MultiThreadJobQueueTest();
 
+            //TestColorBlending();
+
+            //TestCsvParser();
+            
             // Closing, Do Not Delete!
             Console.WriteLine();
             Console.WriteLine("Program has terminated, press a key to exit");
             Console.ReadKey();
+        }
+
+        private static void TestCsvParser()
+        {
+            string csvText = Resource.CsvText;
+
+            string[] csvSplittedValues = CsvSplit(csvText);
+
+            csvSplittedValues = CsvSplit("");
+
+            csvSplittedValues = CsvSplit(",");
+
+            csvSplittedValues = CsvSplit(",,");
+
+            csvSplittedValues = CsvSplit("ad,");
+
+            csvSplittedValues = CsvSplit(",adasd");
+
+            csvSplittedValues = CsvSplit(",\"ad,asd\"");
+        }
+
+        private static string[] CsvSplit(string csvText)
+        {
+            int valueStartIndex = 0;
+
+            List<string> splittedValues = new List<string>();
+
+            while (valueStartIndex <= csvText.Length)
+            {
+                if (GetChar(csvText, valueStartIndex) == '"')
+                {
+                    valueStartIndex++;
+                    int valueEndIndex = valueStartIndex;
+
+                    while (true)
+                    {
+                        char? c = GetChar(csvText, valueEndIndex);
+
+                        if (c == null)
+                            throw new Exception("Incorrect csv format");
+                        else if (c == '"')
+                        {
+                            char? followingChar = GetChar(csvText, valueEndIndex + 1);
+
+                            if (followingChar == '"')
+                            {
+                                valueEndIndex += 2;
+                                continue;
+                            }
+                            else
+                                break;
+                        }
+                        else
+                            valueEndIndex++;
+                    }
+
+                    // valueEndIndex points to the second quote character
+                    string substr = csvText.Substring(valueStartIndex, valueEndIndex - valueStartIndex).Replace("\"\"", "\"");
+
+                    splittedValues.Add(substr);
+
+                    valueStartIndex = valueEndIndex + 2;
+                }
+                else
+                {
+                    int valueEndIndex = valueStartIndex;
+
+                    while (true)
+                    {
+                        char? c = GetChar(csvText, valueEndIndex);
+
+                        if (c == null)
+                        {
+                            break;
+                        }
+
+                        if (c == ',')
+                        {
+                            break;
+                        }
+
+                        valueEndIndex++;
+                    }
+
+                    string substr = csvText.Substring(valueStartIndex, valueEndIndex - valueStartIndex);
+
+                    splittedValues.Add(substr);
+
+                    valueStartIndex = valueEndIndex + 1;
+                }
+            }
+
+            return splittedValues.ToArray();
+        }
+
+        private static char? GetChar(string text, int index)
+        {
+            if (index < text.Length)
+                return text[index];
+            else
+                return null;
+        }
+
+        private static void TestColorBlending()
+        {
+            Bitmap otherPicture = new Bitmap(400, 200);
+
+            for (int x = 0; x < otherPicture.Width; x++)
+            {
+                int blue = 255 * x / otherPicture.Width;
+                int red = blue;
+                int green = 255 - blue;
+
+                Color newColor = Color.FromArgb(red, green, blue);
+
+                for (int y = 0; y < otherPicture.Height; y++)
+                {
+                    otherPicture.SetPixel(x, y, newColor);
+                }
+            }
+
+            var otherwindow = new MyWindow(otherPicture, "Lazy Method");
+            otherwindow.Show();
+            otherwindow.Invalidate();
+
+            //Application.Run(otherwindow);
+
+            /////////////////////////////////////
+            Bitmap picture = new Bitmap(400, 200);
+
+            for (int x = 0; x < picture.Width; x++)
+            {
+                int red = 255 * 255 * (x * 100 / picture.Width) / 100;
+                int blue = red;
+                int green = 255 * 255 * (100 - (x * 100 / picture.Width)) / 100;
+
+                Color newColor = Color.FromArgb((int)Math.Sqrt(red), (int)Math.Sqrt(green), (int)Math.Sqrt(blue));
+
+                for (int y = 0; y < picture.Height; y++)
+                {
+                    picture.SetPixel(x, y, newColor);
+                }
+            }
+
+            var newwindow = new MyWindow(picture, "Sqrt Method");
+            newwindow.Show();
+            newwindow.Invalidate();
+
+            Application.Run(newwindow);
         }
 
         private static Action FuncToAction(Func<string> func)
@@ -208,7 +360,7 @@ namespace CasualConsole
                 yield return list;
             } while (hasNext);
         }
-        
+
         private static string ConvertByteHashToString(byte[] torrentHash)
         {
             StringBuilder builder = new StringBuilder();
