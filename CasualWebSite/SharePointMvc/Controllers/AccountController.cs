@@ -9,7 +9,7 @@ using System.Web.Routing;
 using System.Web.Security;
 using CasualWebSite.Models;
 
-namespace CasualWebSite.Controllers
+namespace SharePointMvc.Controllers
 {
 
     [HandleError]

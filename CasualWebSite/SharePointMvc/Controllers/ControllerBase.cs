@@ -2,7 +2,7 @@
 using System.Web.Mvc;
 using WebModelFactory;
 
-namespace CasualWebSite.Controllers
+namespace SharePointMvc.Controllers
 {
     public class ControllerBase<T> : Controller where T : ModelFactoryBase, new()
     {

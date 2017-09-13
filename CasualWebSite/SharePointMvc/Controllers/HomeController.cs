@@ -11,7 +11,7 @@ using System.Text;
 using System.Linq;
 using Newtonsoft.Json;
 
-namespace CasualWebSite.Controllers
+namespace SharePointMvc.Controllers
 {
     [HandleError]
     public class HomeController : ControllerBase<HomeModelFactory>

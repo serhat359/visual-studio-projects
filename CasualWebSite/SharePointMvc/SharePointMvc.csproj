@@ -100,13 +100,6 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Global.asax" />
-    <Content Include="Scripts\bootstrap.js" />
-    <Content Include="Scripts\bootstrap.min.js" />
-    <None Include="Scripts\jquery-1.10.2.intellisense.js" />
-    <Content Include="Views\Account\ChangePassword.aspx" />
-    <Content Include="Views\Account\ChangePasswordSuccess.aspx" />
-    <Content Include="Views\Account\LogOn.aspx" />
-    <Content Include="Views\Account\Register.aspx" />
     <Content Include="Web.config" />
     <Content Include="Views\Default\Discussion.cshtml" />
   </ItemGroup>
@@ -133,6 +126,7 @@
     <Content Include="Views\Shared\_Layout.cshtml" />
     <Content Include="Views\Default\Index.cshtml" />
     <Content Include="Views\Home\Pokemon.cshtml" />
+    <None Include="Properties\PublishProfiles\website.pubxml" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
     </None>
@@ -143,6 +137,8 @@
   <ItemGroup>
     <Folder Include="App_Data\" />
     <Folder Include="Content\" />
+    <Folder Include="Scripts\" />
+    <Folder Include="Views\Account\" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Model\Model.csproj">
