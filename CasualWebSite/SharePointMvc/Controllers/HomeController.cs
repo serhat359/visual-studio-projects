@@ -60,6 +60,8 @@ namespace SharePointMvc.Controllers
         {
             PokemonModel model = base.ModelFactory.LoadCasual();
 
+            model.Query = "order by greatest(attack,spattack)*speed desc";
+
             return View(model);
         }
 
