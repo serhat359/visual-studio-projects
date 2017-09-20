@@ -70,7 +70,7 @@ namespace BackupHomeFolder
 
         private CheckResult CheckDifferences(string sourceFolder, string destinationFolder)
         {
-            string[] subfolders = new string[] { "Pictures", "Videos", "Desktop", "Documents", "git", "Downloads", "Music", "workspace" };
+            string[] subfolders = new string[] { "Pictures", "Videos", "Desktop", "Documents", "Downloads", "Music", "workspace" };
 
             // Copying files to hard drive
             int fileCountToCopy = 0;
