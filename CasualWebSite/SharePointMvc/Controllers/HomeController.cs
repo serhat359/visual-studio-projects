@@ -37,7 +37,7 @@ namespace SharePointMvc.Controllers
         [HttpGet]
         public ActionResult YoutubeBeyblade()
         {
-            string q = "Season One";
+            string q = "Season 1";
 
             string channelId = "UCUTPOb8or0K-VC1Xp3FcDWg";
 
