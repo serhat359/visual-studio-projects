@@ -1,9 +1,11 @@
-﻿using System;
+﻿using Bencode;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -40,11 +42,48 @@ namespace CasualConsole
             //TestColorBlending();
 
             //TestCsvParser();
-            
+
+            //TestTorrentDuplicateFinder();
+
             // Closing, Do Not Delete!
             Console.WriteLine();
             Console.WriteLine("Program has terminated, press a key to exit");
             Console.ReadKey();
+        }
+
+        private static void TestTorrentDuplicateFinder()
+        {
+            string path = Directory.GetCurrentDirectory() + "\\";
+
+            string[] filePaths = Directory.GetFiles(path, "*.torrent", SearchOption.AllDirectories);
+
+            Dictionary<string, string> hashes = new Dictionary<string, string>();
+
+            foreach (var torrentfilePath in filePaths)
+            {
+                string hash = GetHashStringFromTorrent(torrentfilePath);
+
+                if (hashes.ContainsKey(hash))
+                {
+                    Console.WriteLine("Hash: {0}, filename: {1}", hash, hashes[hash]);
+                    Console.WriteLine("Hash: {0}, filename: {1}", hash, Path.GetFileName(torrentfilePath));
+                }
+                else
+                {
+                    hashes.Add(hash, Path.GetFileName(torrentfilePath));
+                }
+            }
+        }
+
+        private static string GetHashStringFromTorrent(string torrentfile)
+        {
+            var bencode = BencodeUtility.DecodeDictionary(File.ReadAllBytes(torrentfile));
+
+            SHA1Managed sha1 = new SHA1Managed();
+
+            byte[] hash = sha1.ComputeHash(BencodeUtility.Encode(bencode["info"]).ToArray());
+
+            return ConvertByteHashToString(hash);
         }
 
         private static void TestCsvParser()
