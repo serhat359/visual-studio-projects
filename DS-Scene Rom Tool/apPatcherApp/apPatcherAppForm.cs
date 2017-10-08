@@ -8,6 +8,7 @@ namespace apPatcherApp
     using System.ComponentModel;
     using System.Diagnostics;
     using System.Drawing;
+    using System.Drawing.Drawing2D;
     using System.Drawing.Imaging;
     using System.Globalization;
     using System.IO;
@@ -1080,7 +1081,6 @@ namespace apPatcherApp
                                     MessageBox.Show("could not start updater" + exception5.Message);
                                     return;
                                 }
-                                break;
                             }
                         case DialogResult.No:
                             break;
@@ -2181,9 +2181,9 @@ namespace apPatcherApp
                                         catch (Exception)
                                         {
                                             // example url = http://img.files-ds-scene.net/boxarts/0001-0250/0127.jpg;
-                                            
+
                                             // http://img.files-ds-scene.net/resize/?image=images/boxarts/5501-5750/5575.jpg&width=150
-                                            
+
                                             this.webBoxart = null;
                                         }
                                         this.webInfo_Boxart.Image = this.webBoxart;
@@ -2585,6 +2585,47 @@ namespace apPatcherApp
             return this.downloadFile(url, "data/databases/", "CMP Game List", "", null, null);
         }
 
+        public void resizeBoxart(string directory, string filename)
+        {
+            string oldFileName = directory + filename;
+
+            Image image = Image.FromFile(oldFileName);
+
+            Bitmap resized = ResizeImage(image, 150, 137);
+
+            image.Dispose();
+
+            if (File.Exists(oldFileName))
+                File.Delete(oldFileName);
+
+            resized.Save(oldFileName, ImageFormat.Jpeg);
+        }
+
+        private static Bitmap ResizeImage(Image image, int width, int height)
+        {
+            var destRect = new Rectangle(0, 0, width, height);
+            var destImage = new Bitmap(width, height);
+
+            destImage.SetResolution(image.HorizontalResolution, image.VerticalResolution);
+
+            using (var graphics = Graphics.FromImage(destImage))
+            {
+                graphics.CompositingMode = CompositingMode.SourceCopy;
+                graphics.CompositingQuality = CompositingQuality.HighQuality;
+                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                graphics.SmoothingMode = SmoothingMode.HighQuality;
+                graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+                using (var wrapMode = new ImageAttributes())
+                {
+                    wrapMode.SetWrapMode(WrapMode.TileFlipXY);
+                    graphics.DrawImage(image, destRect, 0, 0, image.Width, image.Height, GraphicsUnit.Pixel, wrapMode);
+                }
+            }
+
+            return destImage;
+        }
+
         public bool downloadFile(string url, string dirdest, string progressTxt, string saveas = "", ProgressBar progress = null, Label status = null)
         {
             if (progress == null)
@@ -2670,6 +2711,7 @@ namespace apPatcherApp
             FileStream stream3 = new FileStream(dirdest + this.downloadedDataName, FileMode.Create);
             stream3.Write(this.downloadedData, 0, this.downloadedData.Length);
             stream3.Close();
+            stream3.Dispose();
             this.allowDownload = true;
             return true;
         }
@@ -3166,7 +3208,6 @@ namespace apPatcherApp
                 MessageBox.Show(exception.Message);
                 return -1L;
             }
-            return length;
         }
 
         public bool hasCheats(string code)

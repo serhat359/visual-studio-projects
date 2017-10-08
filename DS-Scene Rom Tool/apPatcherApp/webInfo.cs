@@ -50,7 +50,10 @@ namespace apPatcherApp
                                     {
                                         System.IO.File.Delete("data/web/images/" + hash + ".jpg");
                                     }
+                                    class3.val = class3.val.Replace("/resize/?image=images","");
+                                    class3.val = class3.val.Replace("&width=150", "");
                                     Program.form.downloadFile(class3.val, "data/web/images/", "Downloading Boxart", hash + ".jpg", progress, status);
+                                    Program.form.resizeBoxart("data/web/images/", hash + ".jpg");
                                 }
                                 if ((class3.key == "icon") && (class3.val != ""))
                                 {
