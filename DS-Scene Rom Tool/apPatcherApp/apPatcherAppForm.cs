@@ -16,6 +16,7 @@ namespace apPatcherApp
     using System.Runtime.InteropServices;
     using System.Security.Cryptography;
     using System.Windows.Forms;
+    using System.Linq;
 
     public class apPatcherAppForm : Form
     {
@@ -2188,6 +2189,24 @@ namespace apPatcherApp
                                         }
                                         this.webInfo_Boxart.Image = this.webBoxart;
                                     }
+                                    else
+                                    {
+                                        this.webInfo_Boxart.Image = null;
+                                    }
+
+                                    if (this.webInfo_Boxart.Image == null)
+                                    {
+                                        var boxartUrl = romInfo.item.Where(x => x.key == "boxart").First().val;
+                                        boxartUrl = boxartUrl.Replace("/resize/?image=images", "");
+                                        boxartUrl = boxartUrl.Replace("&width=150", "");
+
+                                        if (File.Exists("data/web/images/" + hash + ".jpg"))
+                                            File.Delete("data/web/images/" + hash + ".jpg");
+
+                                        Program.form.downloadFile(boxartUrl, "data/web/images/", "Downloading Boxart", hash + ".jpg", null, null);
+                                        Program.form.resizeBoxart("data/web/images/", hash + ".jpg");
+                                    }
+
                                     continue;
                                 }
                             case "icon":
