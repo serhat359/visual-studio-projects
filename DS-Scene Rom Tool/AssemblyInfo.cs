@@ -14,5 +14,4 @@
 [assembly: System.Reflection.AssemblyProduct("")]
 [assembly: System.Reflection.AssemblyCopyright("Copyright \x00a9 DS-Scene.net 2011")]
 [assembly: System.Reflection.AssemblyTrademark("")]
-[assembly: System.Security.Permissions.SecurityPermission(System.Security.Permissions.SecurityAction.RequestMinimum, SkipVerification=true)]
 
