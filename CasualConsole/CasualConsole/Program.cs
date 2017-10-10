@@ -17,8 +17,6 @@ namespace CasualConsole
 {
     public class Program
     {
-        public static readonly char[] hexValues = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
-
         public static void Main(string[] args)
         {
             //TestPivot();
@@ -402,18 +400,9 @@ namespace CasualConsole
 
         private static string ConvertByteHashToString(byte[] torrentHash)
         {
-            StringBuilder builder = new StringBuilder();
-
-            foreach (byte @byte in torrentHash)
-            {
-                var upper = @byte >> 4;
-                var lower = @byte % 16;
-                builder.Append(hexValues[upper]);
-                builder.Append(hexValues[lower]);
-            }
-
-            string byteHash = builder.ToString();
-            return byteHash;
+            string otherHash = string.Concat(torrentHash.Select(x => x.ToString("X2")));
+            
+            return otherHash;
         }
 
         private static void TestRegexReplaceAllFiles()
