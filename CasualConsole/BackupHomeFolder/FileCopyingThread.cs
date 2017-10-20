@@ -73,7 +73,10 @@ namespace BackupHomeFolder
 
         private bool DeleteEmptyFolders(string folder)
         {
-            bool containsFolder = Directory.EnumerateDirectories(folder).Select(subFolder => DeleteEmptyFolders(subFolder)).Any(x => x == true);
+            bool containsFolder = Directory.EnumerateDirectories(folder)
+                .Select(subFolder => DeleteEmptyFolders(subFolder))
+                .ToList()
+                .Any(x => x == true);
             bool containsFile = Directory.EnumerateFiles(folder).Any();
 
             if (!containsFolder && !containsFile)
