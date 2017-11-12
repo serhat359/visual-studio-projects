@@ -2,11 +2,11 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
@@ -43,10 +43,73 @@ namespace CasualConsole
 
             //TestTorrentDuplicateFinder();
 
+            //UnityIncreaseMapHeightAll();
+
+            //TestExecuteCommand("ls");
+            
             // Closing, Do Not Delete!
             Console.WriteLine();
             Console.WriteLine("Program has terminated, press a key to exit");
             Console.ReadKey();
+        }
+
+        static void TestExecuteCommand(string command)
+        {
+            Console.WriteLine("Executing command: {0}", command);
+
+            int exitCode;
+            ProcessStartInfo processInfo;
+            Process process;
+
+            processInfo = new ProcessStartInfo("cmd.exe", "/c " + command);
+            processInfo.CreateNoWindow = true;
+            processInfo.UseShellExecute = false;
+            // *** Redirect the output ***
+            processInfo.RedirectStandardError = true;
+            processInfo.RedirectStandardOutput = true;
+
+            process = Process.Start(processInfo);
+            process.WaitForExit();
+
+            // *** Read the streams ***
+            // Warning: This approach can lead to deadlocks, see Edit #2
+            string output = process.StandardOutput.ReadToEnd();
+            string error = process.StandardError.ReadToEnd();
+
+            exitCode = process.ExitCode;
+
+            Console.WriteLine(output);
+            Console.WriteLine("ExitCode: " + exitCode.ToString(), "ExecuteCommand");
+            process.Close();
+        }
+
+        public static void ThreadAction()
+        {
+            Thread.Sleep(500);
+
+            for (int i = 0; i < 5; i++)
+            {
+                Console.WriteLine("Second thread {0}", i);
+                Thread.Sleep(1000);
+            }
+        }
+
+        private static void UnityIncreaseMapHeightAll()
+        {
+            var originalFile = File.Open(@"C:\Users\Xhertas\Documents\Unity\Ders 1\terrain.raw", FileMode.Open);
+            var modifiedFile = File.Open(@"C:\Users\Xhertas\Documents\Unity\Ders 1\terrain_edited.raw", FileMode.Create);
+
+            int addAmount = 20;
+
+            int b;
+
+            for (b = originalFile.ReadByte(); b >= 0; b = originalFile.ReadByte())
+            {
+                modifiedFile.WriteByte((byte)(Math.Min(255, b + addAmount)));
+            }
+
+            originalFile.Close();
+            modifiedFile.Close();
         }
 
         private static void TestTorrentDuplicateFinder()
@@ -233,13 +296,6 @@ namespace CasualConsole
             Application.Run(newwindow);
         }
 
-        private static Action FuncToAction(Func<string> func)
-        {
-            Action action = () => { func(); };
-
-            return action;
-        }
-
         private static void Benchmark(string operationName, Action action, int executionCount)
         {
             long startTicks = DateTime.Now.Ticks;
@@ -401,7 +457,7 @@ namespace CasualConsole
         private static string ConvertByteHashToString(byte[] torrentHash)
         {
             string otherHash = string.Concat(torrentHash.Select(x => x.ToString("X2")));
-            
+
             return otherHash;
         }
 
@@ -743,20 +799,20 @@ namespace CasualConsole
 
             List<FooBar> foobars = new List<FooBar>()
             {
+                new FooBar{ Text = "a", Date = new DateTime(2015,12,10), Amount = 3},
+                new FooBar{ Text = "b", Date = new DateTime(2015,12,10), Amount = 1},
+                new FooBar{ Text = "a", Date = new DateTime(2015,12,10), Amount = 3},
+                new FooBar{ Text = "b", Date = new DateTime(2015,12,10), Amount = 4},
+                new FooBar{ Text = "b", Date = new DateTime(2015,12,12), Amount = 5},
                 new FooBar{ Text = "a", Date = new DateTime(2015,12,12), Amount = 4},
                 new FooBar{ Text = "b", Date = new DateTime(2015,12,12), Amount = 2},
-                new FooBar{ Text = "a", Date = new DateTime(2015,12,10), Amount = 3},
-                new FooBar{ Text = "a", Date = new DateTime(2015,12,10), Amount = 3},
-                new FooBar{ Text = "b", Date = new DateTime(2015,12,12), Amount = 5},
-                new FooBar{ Text = "b", Date = new DateTime(2015,12,10), Amount = 1},
-                new FooBar{ Text = "b", Date = new DateTime(2015,12,10), Amount = 4},
             };
 
             table = DataUtil.PivotAll(foobars, x => x.Date, x => x.Amount, x => x.Average().ToString(), "0", x => x.Month + "-" + x.Day);
 
             //PrintDataTable(table);
 
-            table = DataUtil.Pivot(foobars, x => x.Text, x => x.Date, x => x.Amount, x => x.Average(), 0, x => x.ToString("MM-dd"));
+            table = DataUtil.Pivot(foobars, x => x.Text, x => x.Date, x => x.Amount, x => x.Sum(), 0, x => x.ToString("MM-dd"));
 
             PrintDataTable(table);
         }
@@ -899,6 +955,4 @@ namespace CasualConsole
             g2d.DrawImage(picture, new Point());
         }
     }
-
-
 }
