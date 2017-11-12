@@ -102,43 +102,35 @@ namespace SharePointMvc.Controllers
         [HttpGet]
         public ActionResult Download(string path)
         {
-            var rangeResult = Request.Params["HTTP_RANGE"];
-
             string root = @"C:\Users\Xhertas\";
-
             string fullPath = root + path;
-
             string extension = Path.GetExtension(fullPath);
+            long fileSize = (new System.IO.FileInfo(fullPath)).Length;
+            FileStream fileStream = new FileStream(fullPath, FileMode.Open);
 
+            long contentLength;
+            string rangeResult = Request.Params["HTTP_RANGE"];
             if (rangeResult == null)
             {
-                string requestStr = ModelFactoryBase.Stringify(Request);
-
-                var fileStream = new FileStream(fullPath, FileMode.Open);
-
-                return File(fileStream, "application/unknown", "new file" + extension);
+                contentLength = fileSize;
             }
             else
             {
                 long bytesToSkip = long.Parse(Regex.Match(rangeResult, @"\d+").Value, NumberFormatInfo.InvariantInfo);
-                
-                long fSize = (new System.IO.FileInfo(fullPath)).Length;
-                
-                var fileStream = new FileStream(fullPath, FileMode.Open);
+
                 fileStream.Position = bytesToSkip;
 
-                var result = File(fileStream, "application/unknown", "new file" + extension);
-
-                long startbyte = 0;
-                long endbyte = fSize - 1;
-                long desSize = endbyte - startbyte + 1;
+                long startbyte = bytesToSkip;
+                long endbyte = fileSize - 1;
+                contentLength = endbyte - startbyte + 1;
                 Response.StatusCode = 206;
-                Response.AddHeader("Content-Length", desSize.ToString());
-                Response.AddHeader("Content-Range", string.Format("bytes {0}-{1}/{2}", startbyte, endbyte, fSize));
-                //Data
-
-                return result;
+                Response.AddHeader("Content-Range", string.Format("bytes {0}-{1}/{2}", startbyte, endbyte, fileSize));
             }
+
+            Response.BufferOutput = false;
+            Response.AddHeader("Content-Length", contentLength.ToString());
+
+            return File(fileStream, "application/unknown", "new file" + extension);
         }
 
         [HttpGet]
