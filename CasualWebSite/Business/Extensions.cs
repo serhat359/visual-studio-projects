@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 namespace Extensions
 {
@@ -18,6 +15,11 @@ namespace Extensions
                 return selector(obj);
             else
                 return defaultValue;
+        }
+
+        public static bool IsNullOrEmpty(this string str)
+        {
+            return str == null || str.Equals("");
         }
     }
 }

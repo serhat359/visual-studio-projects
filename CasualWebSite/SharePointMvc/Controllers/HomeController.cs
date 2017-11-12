@@ -1,15 +1,17 @@
-﻿using System.Web.Mvc;
-using WebModelFactory;
+﻿using Extensions;
 using Model.Web;
-using System.IO;
-using System.Globalization;
-using System.Text.RegularExpressions;
-using System.Collections.Generic;
+using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
 using System.Net;
 using System.Text;
-using System.Linq;
-using Newtonsoft.Json;
+using System.Text.RegularExpressions;
+using System.Web.Mvc;
+using ThePirateBay;
+using WebModelFactory;
 
 namespace SharePointMvc.Controllers
 {
@@ -54,6 +56,38 @@ namespace SharePointMvc.Controllers
             return FilterRssResult(q, channelId);
         }
 
+        [HttpGet]
+        public ActionResult PirateBayRSS(string query, string containing)
+        {
+            if (query.IsNullOrEmpty())
+            {
+                return Json(new { errorMessage = "please specify query and containing parameters" }, JsonRequestBehavior.AllowGet);
+            }
+
+            IEnumerable<Torrent> torrents = Tpb.Search(new Query(query, 0, QueryOrder.BySeeds));
+
+            if (containing.IsNullOrEmpty())
+                containing = query;
+
+            containing = containing.ToLower();
+
+            string[] containingParts = containing.Split(' ');
+
+            foreach (string part in containingParts)
+            {
+                torrents = torrents.Where(x => x.Name.ToLower().Contains(part));
+            }
+
+            RssResult rssObject = new RssResult(torrents.Select(x => new RssResultItem
+            {
+                description = string.Format("Seed: {0}, Leech: {1}", x.Seeds, x.Leechers),
+                link = x.Magnet,
+                pubDate = x.UploadDate,
+                title = x.Name,
+            }));
+
+            return this.Xml(rssObject);
+        }
 
         [HttpGet]
         public ActionResult Pokemon()
@@ -106,6 +140,18 @@ namespace SharePointMvc.Controllers
                 return result;
             }
         }
+
+        [HttpGet]
+        public ActionResult FixAnimeNews()
+        {
+            string url = "http://www.animenewsnetwork.com/news/rss.xml";
+
+            string contents = GetUrlTextData(url)
+                .Replace("animenewsnetwork.cc", "animenewsnetwork.com");
+
+            return Content(contents, "application/rss+xml; charset=UTF-8", Encoding.UTF8);
+        }
+
         #endregion
 
         #region Post Methods

@@ -1,5 +1,4 @@
-﻿using SharePointMvc;
-using System.Web.Mvc;
+﻿using System.Web.Mvc;
 using WebModelFactory;
 
 namespace SharePointMvc.Controllers
@@ -11,11 +10,6 @@ namespace SharePointMvc.Controllers
         protected ControllerBase()
         {
             this.ModelFactory = new T();
-        }
-
-        protected new ActionResult Content(string content, string contentType)
-        {
-            return base.Content(content, contentType);
         }
 
         protected ActionResult Xml<E>(E obj)

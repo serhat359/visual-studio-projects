@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapperTextlibrary", "Mapper
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharePointMvc", "SharePointMvc\SharePointMvc.csproj", "{990BCC0A-ED2B-4CD3-AC95-76EC33B2602E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThePirateBay", "ThePirateBay\ThePirateBay.csproj", "{A13F287E-3627-4E41-905C-637C08579AB7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -99,6 +101,18 @@ Global
 		{990BCC0A-ED2B-4CD3-AC95-76EC33B2602E}.Release|Mixed Platforms.Build.0 = Release|Any CPU
 		{990BCC0A-ED2B-4CD3-AC95-76EC33B2602E}.Release|x86.ActiveCfg = Release|Any CPU
 		{990BCC0A-ED2B-4CD3-AC95-76EC33B2602E}.Release|x86.Build.0 = Release|Any CPU
+		{A13F287E-3627-4E41-905C-637C08579AB7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A13F287E-3627-4E41-905C-637C08579AB7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A13F287E-3627-4E41-905C-637C08579AB7}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
+		{A13F287E-3627-4E41-905C-637C08579AB7}.Debug|Mixed Platforms.Build.0 = Debug|Any CPU
+		{A13F287E-3627-4E41-905C-637C08579AB7}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A13F287E-3627-4E41-905C-637C08579AB7}.Debug|x86.Build.0 = Debug|Any CPU
+		{A13F287E-3627-4E41-905C-637C08579AB7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A13F287E-3627-4E41-905C-637C08579AB7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A13F287E-3627-4E41-905C-637C08579AB7}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
+		{A13F287E-3627-4E41-905C-637C08579AB7}.Release|Mixed Platforms.Build.0 = Release|Any CPU
+		{A13F287E-3627-4E41-905C-637C08579AB7}.Release|x86.ActiveCfg = Release|Any CPU
+		{A13F287E-3627-4E41-905C-637C08579AB7}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
