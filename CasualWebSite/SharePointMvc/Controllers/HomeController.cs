@@ -80,7 +80,7 @@ namespace SharePointMvc.Controllers
 
             RssResult rssObject = new RssResult(torrents.Select(x => new RssResultItem
             {
-                description = string.Format("Seed: {0}, Leech: {1}", x.Seeds, x.Leechers),
+                description = string.Format("Seed: {0}, Leech: {1}, Size: {2}", x.Seeds, x.Leechers, x.Size),
                 link = x.Magnet,
                 pubDate = x.UploadDate,
                 title = x.Name,
