@@ -476,7 +476,7 @@ namespace PicrossSolver
             var values = cells.cellColumnValues;
 
             // TODO generate table for this
-            int minValue = getMinValue(values);
+            int minValue = GetMinValue(values);
 
             int lastEmptyIndex = -1;
 
@@ -886,8 +886,8 @@ namespace PicrossSolver
 
             if (areaList.Count > 0)
             {
-                ColumnValue[][] forwardMatching = new ColumnValue[areaList.Count][];
-                ColumnValue[][] backwardMatching = new ColumnValue[areaList.Count][];
+                List<ColumnValue>[] forwardMatching = new List<ColumnValue>[areaList.Count];
+                List<ColumnValue>[] backwardMatching = new List<ColumnValue>[areaList.Count];
 
                 int loopValueIndex = 0;
                 for (int area = 0; area < forwardMatching.Length; area++)
@@ -910,11 +910,11 @@ namespace PicrossSolver
 
                         forwardMatching[area] = MyRange(loopValueIndex, valueIndex)
                             .Select(i => new ColumnValue { Value = values[i], Index = i })
-                            .ToArray();
+                            .ToList();
                     }
                     else
                     {
-                        forwardMatching[area] = new ColumnValue[] { };
+                        forwardMatching[area] = new List<ColumnValue>();
                     }
 
                     loopValueIndex = valueIndex;
@@ -946,11 +946,11 @@ namespace PicrossSolver
                         backwardMatching[area] = MyRangeDesc(loopValueIndex, valueIndex)
                             .Select(i => new ColumnValue { Value = values[i], Index = i })
                             .Reverse()
-                            .ToArray();
+                            .ToList();
                     }
                     else
                     {
-                        backwardMatching[area] = new ColumnValue[] { };
+                        backwardMatching[area] = new List<ColumnValue>();
                     }
 
                     loopValueIndex = valueIndex;
@@ -962,16 +962,16 @@ namespace PicrossSolver
                     Range firstArea = areaList[0];
                     Range lastArea = areaList[areaList.Count - 1];
 
-                    if (firstArea.containsFilled && backwardMatching[0].Length == 0)
+                    if (firstArea.containsFilled && backwardMatching[0].Count == 0)
                     {
-                        backwardMatching[0] = new ColumnValue[] {
+                        backwardMatching[0] = new List<ColumnValue> {
                             new ColumnValue { Index = 0, Value = values[0] }
                         };
                     }
 
-                    if (lastArea.containsFilled && forwardMatching[forwardMatching.Length - 1].Length == 0)
+                    if (lastArea.containsFilled && forwardMatching[forwardMatching.Length - 1].Count == 0)
                     {
-                        forwardMatching[forwardMatching.Length - 1] = new ColumnValue[] {
+                        forwardMatching[forwardMatching.Length - 1] = new List<ColumnValue> {
                             new ColumnValue { Index = values.Length - 1, Value = values[values.Length - 1] }
                         };
                     }
@@ -1366,7 +1366,7 @@ namespace PicrossSolver
             return filledRanges;
         }
 
-        private static int getMinValue(Form1.CellColumnValues values)
+        private static int GetMinValue(Form1.CellColumnValues values)
         {
             if (values.Length > 0)
                 return values.asIterable.Min();
@@ -1384,6 +1384,11 @@ namespace PicrossSolver
         {
             for (int i = from; i > to; i--)
                 yield return i;
+        }
+
+        private static int GetFilledCount(Form1.CellSeries cells, Range range)
+        {
+            return MyRange(range.start, range.end + 1).Select(x => cells[x]).Where(x => x == Form1.FILLED).Count();
         }
 
         private static int Max(int a, int b)
@@ -1535,7 +1540,7 @@ namespace PicrossSolver
         public int Index { get; set; }
         public int Value { get; set; }
 
-        public static int[] GetCommon(ColumnValue[] forward, ColumnValue[] backward)
+        public static int[] GetCommon(List<ColumnValue> forward, List<ColumnValue> backward)
         {
             HashSet<int> commonIndices = new HashSet<int>();
 
