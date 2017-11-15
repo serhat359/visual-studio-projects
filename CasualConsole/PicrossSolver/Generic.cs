@@ -1598,7 +1598,7 @@ namespace PicrossSolver
         {
             var values = cells.cellColumnValues;
 
-            if (values.Length > 0 && values[0] == 1 && cells.Length >= 3 && cells[2] == Form1.FILLED)
+            if (values.Length > 0 && values[0] == 1 && cells.Length > 2 && cells[2] == Form1.FILLED)
             {
                 cells[1] = Form1.EMPTY;
             }
