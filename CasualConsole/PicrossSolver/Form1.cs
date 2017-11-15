@@ -32,11 +32,11 @@ namespace PicrossSolver
 
         public Form1()
         {
-            string puzzlesHavingSolution = @"C:\Users\Xhertas\Documents\Visual Studio 2010\Projects\CasualConsole\PicrossSolver\Puzzles\has_solution\";
+            string puzzlesHavingSolution = @"C:\Users\Xhertas\Documents\Visual Studio 2015\Projects\CasualConsole\PicrossSolver\Puzzles\has_solution\";
 
             SolveHavingSolution(puzzlesHavingSolution);
 
-            string puzzlesNotHavingSolution = @"C:\Users\Xhertas\Documents\Visual Studio 2010\Projects\CasualConsole\PicrossSolver\Puzzles\has_no_solution\";
+            string puzzlesNotHavingSolution = @"C:\Users\Xhertas\Documents\Visual Studio 2015\Projects\CasualConsole\PicrossSolver\Puzzles\has_no_solution\";
 
             SolveHavingSolution(puzzlesNotHavingSolution);
         }
@@ -158,6 +158,10 @@ namespace PicrossSolver
 
                 // seriyi önü arkası kapalı dolu gruplara göre ayırıp işliyor
                 ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.DivideByEnclosed);
+                isChangeDetected |= testPicture(picture);
+
+                // Özel ve çok nadir durumları işliyor
+                ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.ProcessSpecialCases);
                 isChangeDetected |= testPicture(picture);
 
                 if (!isChangeDetected)

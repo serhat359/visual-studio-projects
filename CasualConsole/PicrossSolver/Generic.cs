@@ -28,6 +28,7 @@ namespace PicrossSolver
                 ProcessMatching(cells);
                 ProcessInitialByMatching(cells);
                 DivideByEnclosed(cells);
+                ProcessSpecialCases(cells);
 
                 FillBetweenFilled(cells);
             }
@@ -911,9 +912,9 @@ namespace PicrossSolver
                         forwardMatching[area] = MyRange(loopValueIndex, valueIndex)
                             .Select(i => new ColumnValue { Value = values[i], Index = i })
                             .ToList();
-                    }
-                    else
-                    {
+                            }
+                            else
+                            {
                         forwardMatching[area] = new List<ColumnValue>();
                     }
 
@@ -947,9 +948,9 @@ namespace PicrossSolver
                             .Select(i => new ColumnValue { Value = values[i], Index = i })
                             .Reverse()
                             .ToList();
-                    }
-                    else
-                    {
+                            }
+                            else
+                            {
                         backwardMatching[area] = new List<ColumnValue>();
                     }
 
@@ -1490,6 +1491,16 @@ namespace PicrossSolver
                     ProcessAllAlgorithms(rightSlice);
                     ProcessAllAlgorithms(Form1.CellSeries.Reverse(rightSlice));
                 }
+            }
+        }
+
+        public static void ProcessSpecialCases(Form1.CellSeries cells)
+        {
+            var values = cells.cellColumnValues;
+
+            if (values.Length > 0 && values[0] == 1 && cells.Length >= 3 && cells[2] == Form1.FILLED)
+            {
+                cells[1] = Form1.EMPTY;
             }
         }
 
