@@ -901,11 +901,19 @@ namespace PicrossSolver
                     {
                         int currentSize = values[valueIndex];
 
+                        while (cells.SafeCheck(range.start + currentSize, x => x == Form1.FILLED))
+                            currentSize++;
+
                         while (currentSize <= range.size)
                         {
                             valueIndex++; // Increasing this means adding the value to assignment
                             if (valueIndex < values.Length)
+                            {
                                 currentSize += values[valueIndex] + 1;
+
+                                while (cells.SafeCheck(range.start + currentSize, x => x == Form1.FILLED))
+                                    currentSize++;
+                            }
                             else
                                 break;
                         }
@@ -986,11 +994,19 @@ namespace PicrossSolver
                     {
                         int currentSize = values[valueIndex];
 
+                        while (cells.SafeCheck(range.end - currentSize, x => x == Form1.FILLED))
+                            currentSize++;
+
                         while (currentSize <= range.size)
                         {
                             valueIndex--;
                             if (valueIndex >= 0)
+                            {
                                 currentSize += values[valueIndex] + 1;
+
+                                while (cells.SafeCheck(range.end - currentSize, x => x == Form1.FILLED))
+                                    currentSize++;
+                            }
                             else
                                 break;
                         }
@@ -1289,6 +1305,8 @@ namespace PicrossSolver
             }
             else if (filledRanges.Count == values.Length - 1)
             {
+                // TODO this has problems
+
                 for (int i = 0; i < filledRanges.Count - 1; i++)
                 {
                     Range thisRange = filledRanges[i];
