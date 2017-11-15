@@ -903,18 +903,68 @@ namespace PicrossSolver
 
                         while (currentSize <= range.size)
                         {
-                            if (++valueIndex < values.Length)
+                            valueIndex++; // Increasing this means adding the value to assignment
+                            if (valueIndex < values.Length)
                                 currentSize += values[valueIndex] + 1;
                             else
                                 break;
                         }
 
-                        forwardMatching[area] = MyRange(loopValueIndex, valueIndex)
+                        List<ColumnValue> assignedValues = MyRange(loopValueIndex, valueIndex)
                             .Select(i => new ColumnValue { Value = values[i], Index = i })
                             .ToList();
+
+                        forwardMatching[area] = assignedValues;
+
+                        //-------------------------------
+
+                        List<ColumnValue> valuesChecked = assignedValues;
+                        Range rangeChecked = range;
+                        int areaChecked = area;
+
+                        while (true)
+                        {
+                            bool checkNext;
+
+                            List<ColumnValue> formerAssignment = null;
+
+                            int areaForLoop = -1;
+
+                            if (valuesChecked.Sum(x => x.Value) < GetFilledCount(cells, rangeChecked))
+                            {
+                                areaForLoop = areaChecked;
+
+                                // Find the assignment with values
+                                do
+                                {
+                                    areaForLoop--;
+                                    formerAssignment = forwardMatching[areaForLoop];
+                                } while (formerAssignment.Count <= 0);
+
+                                valueIndex = formerAssignment[formerAssignment.Count - 1].Index;
+                                formerAssignment.RemoveAt(formerAssignment.Count - 1);
+
+                                int areaMoved = areaChecked - areaForLoop;
+                                area -= areaMoved;
+
+                                checkNext = true;
                             }
                             else
+                                checkNext = false;
+
+                            if (checkNext)
                             {
+                                valuesChecked = formerAssignment;
+                                areaChecked = areaForLoop;
+                                rangeChecked = areaList[areaChecked];
+                                continue;
+                            }
+                            else
+                                break;
+                        }
+                    }
+                    else
+                    {
                         forwardMatching[area] = new List<ColumnValue>();
                     }
 
@@ -938,19 +988,69 @@ namespace PicrossSolver
 
                         while (currentSize <= range.size)
                         {
-                            if (--valueIndex >= 0)
+                            valueIndex--;
+                            if (valueIndex >= 0)
                                 currentSize += values[valueIndex] + 1;
                             else
                                 break;
                         }
 
-                        backwardMatching[area] = MyRangeDesc(loopValueIndex, valueIndex)
+                        List<ColumnValue> assignedValues = MyRangeDesc(loopValueIndex, valueIndex)
                             .Select(i => new ColumnValue { Value = values[i], Index = i })
                             .Reverse()
                             .ToList();
+
+                        backwardMatching[area] = assignedValues;
+
+                        //-------------------------------
+
+                        List<ColumnValue> valuesChecked = assignedValues;
+                        Range rangeChecked = range;
+                        int areaChecked = area;
+
+                        while (true)
+                        {
+                            bool checkNext;
+
+                            List<ColumnValue> formerAssignment = null;
+
+                            int areaForLoop = -1;
+
+                            if (valuesChecked.Sum(x => x.Value) < GetFilledCount(cells, rangeChecked))
+                            {
+                                areaForLoop = areaChecked;
+
+                                // Find the assignment with values
+                                do
+                                {
+                                    areaForLoop++;
+                                    formerAssignment = backwardMatching[areaForLoop];
+                                } while (formerAssignment.Count <= 0);
+
+                                valueIndex = formerAssignment[0].Index;
+                                formerAssignment.RemoveAt(0);
+
+                                int areaMoved = areaForLoop - areaChecked;
+                                area += areaMoved;
+
+                                checkNext = true;
                             }
                             else
+                                checkNext = false;
+
+                            if (checkNext)
                             {
+                                valuesChecked = formerAssignment;
+                                areaChecked = areaForLoop;
+                                rangeChecked = areaList[areaChecked];
+                                continue;
+                            }
+                            else
+                                break;
+                        }
+                    }
+                    else
+                    {
                         backwardMatching[area] = new List<ColumnValue>();
                     }
 
