@@ -1307,7 +1307,9 @@ namespace PicrossSolver
             {
                 // TODO this has problems
 
-                for (int i = 0; i < filledRanges.Count - 1; i++)
+                bool enableThis = false;
+
+                for (int i = 0; i < filledRanges.Count - 1 && enableThis; i++)
                 {
                     Range thisRange = filledRanges[i];
                     int thisVal = values[i];

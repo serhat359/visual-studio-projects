@@ -70,6 +70,14 @@ namespace PicrossSolver
 
                 var solvedPicture = solveAndDisplay(upColumn, leftColumn);
 
+                if (puzzle.Correct.Length > 0)
+                {
+                    var asd = array2dAsEnumerable(puzzle.Correct).SelectMany(x => x);
+
+                    if (asd.Count(x => x == Form1.FILLED) != leftSum)
+                        throw new Exception("Solution are entered wrong!");
+                }
+
                 if (checkCorrect)
                     display(correct, "This is how it should be", true);
                 else
