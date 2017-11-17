@@ -1305,11 +1305,11 @@ namespace PicrossSolver
             }
             else if (filledRanges.Count == values.Length - 1)
             {
-                // TODO this has problems
+                // WARNING use this algorithm only if it is not possible to merge
 
-                bool enableThis = false;
+                bool canMerge = TryMerging(cells, values, filledRanges);
 
-                for (int i = 0; i < filledRanges.Count - 1 && enableThis; i++)
+                for (int i = 0; i < filledRanges.Count - 1 && !canMerge; i++)
                 {
                     Range thisRange = filledRanges[i];
                     int thisVal = values[i];
@@ -1447,8 +1447,10 @@ namespace PicrossSolver
             return forwardFilledCandidates;
         }
 
-        private static void TryMerging(Form1.CellSeries cells, int[] values, List<Range> filledRanges)
+        private static bool TryMerging(Form1.CellSeries cells, int[] values, List<Range> filledRanges)
         {
+            bool canMerge = false;
+
             for (int i = 1; i < filledRanges.Count; i++)
             {
                 Range thisRange = filledRanges[i - 1];
@@ -1456,10 +1458,12 @@ namespace PicrossSolver
 
                 int mergedSize = nextRange.end - thisRange.start + 1;
 
+                bool isPossibleToMerge = values.Any(x => x >= mergedSize);
+
                 // Trying to put empty between the ranges
                 if (nextRange.start - thisRange.end == 2)
                 {
-                    if (!values.Any(x => x >= mergedSize))
+                    if (!isPossibleToMerge)
                         cells[nextRange.start - 1] = Form1.EMPTY;
                 }
 
@@ -1474,7 +1478,12 @@ namespace PicrossSolver
                         cells.SafeSet(nextRange.end + 1, Form1.EMPTY);
                     }
                 }
+
+                if (isPossibleToMerge)
+                    canMerge = true;
             }
+
+            return canMerge;
         }
 
         #region Private Methods
