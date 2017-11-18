@@ -15,22 +15,20 @@ namespace PicrossSolver
                 ProcessSingles(cells);
 
                 {
-                    ProcessStartsAndEnds(cells);
-                    ProcessStartingAndEndingUnknowns(cells);
+                    ProcessStart(cells);
+                    ProcessStartingUnknowns(cells);
                 }
 
                 ProcessSetEmptiesByMax(cells);
-                RemoveSmallEmpties(cells);
                 ProcessFillBetweenEmpties(cells);
-                ProcessMaxValues(cells);
-                ProcessDividedParts(cells);
-                ProcessTryFindingMatchStartingAndEnding(cells);
+                ProcessByMaxValues(cells);
+                ProcessByDividedAreas(cells);
+                TryMatchingFirstValue(cells);
                 ProcessMatching(cells);
-                ProcessInitialByMatching(cells);
-                DivideByEnclosed(cells);
+                ProcessInitialByMatchingFilled(cells);
                 ProcessSpecialCases(cells);
 
-                FillBetweenFilled(cells);
+                ProcessByFilledRanges(cells);
             }
             else
             {
@@ -38,12 +36,18 @@ namespace PicrossSolver
             }
         }
 
+        /// <summary>
+        /// Fills all the cells with EMPTY
+        /// </summary>
         public static void EmptyAll(Form1.CellSeries cells)
         {
             for (int i = 0; i < cells.Length; i++)
                 cells[i] = Form1.EMPTY;
         }
 
+        /// <summary>
+        /// Does initial processing on the cells, fills the parts that are certain to be FILLED
+        /// </summary>
         public static void InitialProcessing(Form1.CellSeries cells)
         {
             var values = cells.cellColumnValues;
@@ -70,6 +74,13 @@ namespace PicrossSolver
             }
         }
 
+        /// <summary>
+        /// Does processing if there is only one value for the series. This includes:
+        /// <para />
+        /// Filling in between the first and the last filled bytes with FILLED
+        /// <para />
+        /// Filling unreachable bytes with EMPTY
+        /// </summary>
         public static void ProcessSingles(Form1.CellSeries cells)
         {
             var values = cells.cellColumnValues;
@@ -82,9 +93,10 @@ namespace PicrossSolver
 
                 int i;
 
+                // Find first filled
                 for (i = 0; i < cells.Length; i++)
                 {
-                    int cell = cells[i];
+                    byte cell = cells[i];
 
                     if (cell == Form1.FILLED)
                     {
@@ -93,9 +105,10 @@ namespace PicrossSolver
                     }
                 }
 
+                // Find last filled
                 for (int j = cells.Length - 1; j >= i; j--)
                 {
-                    int cell = cells[j];
+                    byte cell = cells[j];
 
                     if (cell == Form1.FILLED)
                     {
@@ -155,7 +168,16 @@ namespace PicrossSolver
             }
         }
 
-        public static void ProcessStartsAndEnds(Form1.CellSeries cells)
+        /// <summary>
+        /// Does processing beginning on the start of the series. This includes:
+        /// <para />
+        /// Skipping starting empties
+        /// <para />
+        /// Filling the rest of the first occurence of FILLED and marking the end with EMPTY
+        /// <para />
+        /// Creating a slice for the rest if necessary
+        /// </summary>
+        public static void ProcessStart(Form1.CellSeries cells)
         {
             var values = cells.cellColumnValues;
             int valuesIndex = 0;
@@ -163,7 +185,7 @@ namespace PicrossSolver
             int i;
             for (i = 0; i < cells.Length; i++)
             {
-                int cell = cells[i];
+                byte cell = cells[i];
 
                 if (cell == Form1.UNKNOWN)
                 {
@@ -187,46 +209,8 @@ namespace PicrossSolver
                 }
             }
 
-            // Below is for checking remaining unknown cells
-            bool isAllUnknown = true;
-            for (int j = i; j < cells.Length; j++)
-                if (cells[j] != Form1.UNKNOWN)
-                {
-                    isAllUnknown = false;
-                    break;
-                }
-
-            // isAllUnknown below
-            if (isAllUnknown)
-            {
-                int unknownSize = cells.Length - i;
-                int valuesNewIndex = valuesIndex;
-
-                int sum = values.Length - 1 - valuesIndex; // CHANGE! sum = Length - 1
-                for (int j = valuesIndex; j < values.Length; j++)
-                    sum += values[j];
-
-                // TODO this needs range process optimization
-                if (unknownSize > 0 && sum == unknownSize)
-                {
-                    for (int colIndex = i, j = valuesNewIndex; j < values.Length; j++, colIndex++)
-                    { // CHANGE colIndex++
-                        int val = values[j];
-
-                        if (colIndex - 1 >= 0)
-                            cells[colIndex - 1] = Form1.EMPTY;
-
-                        for (int k = 0; k < val; k++)
-                            cells[colIndex++] = Form1.FILLED;
-                    }
-                }
-                else if (unknownSize > 0 && valuesNewIndex == -1)
-                {
-                    for (int k = 0; k <= i; k++)
-                        cells[k] = Form1.EMPTY;
-                }
-            }
-
+            // i is pointing to an UNKNOWN at this point
+            // If i is greater than 0, then we can slice
             if (i > 0)
             {
                 int startIndex = i;
@@ -244,45 +228,21 @@ namespace PicrossSolver
             }
         }
 
-        public static void ProcessStartingAndEndingUnknowns(Form1.CellSeries cells)
+        /// <summary>
+        /// Checks the number of starting UNKNOWNs and if less than the first value, fills them with EMPTY
+        /// </summary>
+        public static void ProcessStartingUnknowns(Form1.CellSeries cells)
         {
             var values = cells.cellColumnValues;
 
-            int startIndex = 0;
-            int valueIndex = 0;
-
-            do
-            {
-                if (startIndex >= cells.Length)
-                    break;
-
-                int cell = cells[startIndex];
-
-                if (cell == Form1.EMPTY)
-                {
-                    do
-                    {
-                        startIndex++;
-                    } while (cells.SafeCheck(startIndex, x => x == Form1.EMPTY));
-                }
-                else if (cell == Form1.FILLED)
-                {
-                    int val = values[valueIndex];
-
-                    valueIndex++;
-
-                    startIndex += val;
-                }
-                else
-                    break;
-            } while (true);
+            if (values.Length == 0)
+                return;
 
             int unknownCount = 0;
 
-            int i;
-            for (i = startIndex; i < cells.Length; i++)
+            for (int i = 0; i < cells.Length; i++)
             {
-                int cell = cells[i];
+                byte cell = cells[i];
 
                 if (cell == Form1.UNKNOWN)
                     unknownCount++;
@@ -295,59 +255,26 @@ namespace PicrossSolver
                     break;
             }
 
-            if (unknownCount > 0 && valueIndex < values.Length && unknownCount < values[valueIndex])
+            if (unknownCount > 0 && unknownCount < values[0])
             {
                 for (int j = 0; j < unknownCount; j++)
-                    cells[j + startIndex] = Form1.EMPTY;
-            }
-
-            // Above is first check
-            // Below is second check
-            if (unknownCount > 0)
-            {
-                int secondUnknownCount = 0;
-
-                while (i < cells.Length && cells[i] == Form1.EMPTY)
-                    i++;
-
-                startIndex = i;
-                for (; i < cells.Length; i++)
-                {
-                    int cell = cells[i];
-
-                    if (cell == Form1.UNKNOWN)
-                        secondUnknownCount++;
-                    else if (cell == Form1.FILLED)
-                    {
-                        secondUnknownCount = 0;
-                        break;
-                    }
-                    else if (cell == Form1.EMPTY)
-                        break;
-                }
-
-                if (secondUnknownCount > 0 &&
-                    valueIndex + 1 < values.Length &&
-                    secondUnknownCount < values[valueIndex] &&
-                    secondUnknownCount < values[valueIndex + 1] &&
-                    unknownCount < values[valueIndex] + values[valueIndex + 1] + 1)
-                {
-                    for (int j = 0; j < secondUnknownCount; j++)
-                        cells[j + startIndex] = Form1.EMPTY;
-                }
+                    cells[j] = Form1.EMPTY;
             }
         }
 
+        /// <summary>
+        /// Marks the start and end of the greatest values, also creates slices based on the max values
+        /// </summary>
         public static void ProcessSetEmptiesByMax(Form1.CellSeries cells)
         {
             var values = cells.cellColumnValues;
 
             // TODO generate table for this
-            var maxValueResult = Form1.getMaxValue(values);
+            SearchResult maxValueResult = GetMaxValue(values);
 
             int first = -1;
 
-            List<FilledInfo> filledInfos = new List<FilledInfo>();
+            List<FilledInfo> maxValueLocations = new List<FilledInfo>();
 
             for (int i = 0; i < cells.Length; i++)
             {
@@ -376,23 +303,20 @@ namespace PicrossSolver
                         cells.SafeSet(leftEmptyCol, Form1.EMPTY);
                         cells.SafeSet(rightEmptyCol, Form1.EMPTY);
 
-                        filledInfos.Add(new FilledInfo { CellIndexStart = first, Size = size });
+                        maxValueLocations.Add(new FilledInfo { CellIndexStart = first, Size = size });
                     }
 
                     i--;
                 }
             }
 
-            if (maxValueResult.Count > 0 && filledInfos.Count == maxValueResult.Count)
+            if (maxValueResult.Count > 0 && maxValueLocations.Count == maxValueResult.Count)
             {
-                // TODO process
-
-                for (int area = 0; area <= maxValueResult.Count; area++)
+                int sliceCount = maxValueResult.Count + 1;
+                for (int area = 0; area < sliceCount; area++)
                 {
-                    var foundIndex = area;
-
-                    int cellStart = area == 0 ? 0 : filledInfos[area - 1].CellIndexEnd + 2;
-                    int cellEnd = area == maxValueResult.Count ? cells.Length - 1 : filledInfos[area].CellIndexStart - 1;
+                    int cellStart = area == 0 ? 0 : maxValueLocations[area - 1].CellIndexEnd + 2;
+                    int cellEnd = area == maxValueResult.Count ? cells.Length - 1 : maxValueLocations[area].CellIndexStart - 1;
 
                     IEnumerable<int> selectedValuesIndices;
 
@@ -405,8 +329,6 @@ namespace PicrossSolver
 
                     int[] newValues = selectedValuesIndices.Select(x => values[x]).ToArray();
 
-                    // below is ProcessInitial(cellStart, cellEnd, newValues);
-
                     Form1.CellSeries slice = Form1.CellSeries.Slice(cells, cellStart, cellEnd, newValues);
 
                     ProcessAllAlgorithms(slice);
@@ -415,63 +337,9 @@ namespace PicrossSolver
             }
         }
 
-        public static void RemoveSmallEmpties(Form1.CellSeries cells)
-        {
-            var values = cells.cellColumnValues;
-
-            int unknownCount = 0;
-
-            int startIndex = 0;
-            int valueIndex = 0;
-
-            do
-            {
-                if (startIndex >= cells.Length)
-                    break;
-
-                int cell = cells[startIndex];
-
-                if (cell == Form1.EMPTY)
-                {
-                    do
-                    {
-                        startIndex++;
-                    } while (startIndex < cells.Length && cells[startIndex] == Form1.EMPTY);
-                }
-                else if (cell == Form1.FILLED)
-                {
-                    int val = values[valueIndex];
-
-                    valueIndex++;
-
-                    startIndex += val;
-                }
-                else
-                    break;
-            } while (true);
-
-            for (int i = startIndex; i < cells.Length; i++)
-            {
-                int cell = cells[i];
-
-                if (cell == Form1.UNKNOWN)
-                    unknownCount++;
-                else if (cell == Form1.FILLED)
-                {
-                    unknownCount = 0;
-                    break;
-                }
-                else
-                    break;
-            }
-
-            if (unknownCount > 0 && valueIndex < values.Length && unknownCount < values[valueIndex])
-            {
-                for (int i = 0; i < unknownCount; i++)
-                    cells[i + startIndex] = Form1.EMPTY;
-            }
-        }
-
+        /// <summary>
+        /// Finds small UNKNOWNs and if they are smaller then the smallest value, sets them EMPTY
+        /// </summary>
         public static void ProcessFillBetweenEmpties(Form1.CellSeries cells)
         {
             var values = cells.cellColumnValues;
@@ -483,7 +351,7 @@ namespace PicrossSolver
 
             for (int i = 0; i < cells.Length; i++)
             {
-                int cell = cells[i];
+                byte cell = cells[i];
 
                 if (cell == Form1.FILLED)
                     lastEmptyIndex = -1;
@@ -500,45 +368,58 @@ namespace PicrossSolver
             }
         }
 
-        public static void ProcessMaxValues(Form1.CellSeries cells)
+        /// <summary>
+        /// Does process based on the greatest value. This includes:
+        /// <para />
+        /// Checking either side of the max value and if it is EMPTY and if so, filling the other way with FILLED and marking it
+        /// <para />
+        /// Checking for values on the left and right side of the maximum and if there is none, setting unreachable bytes EMPTY
+        /// <para />
+        /// Matching non-max filled parts with non-max values and setting unreachable bytes EMPTY accordingly
+        /// <para />
+        /// Merging the parts that are too big to belong to other parts
+        /// </summary>
+        public static void ProcessByMaxValues(Form1.CellSeries cells)
         {
             var values = cells.cellColumnValues;
 
-            if (values.Length > 1)
+            if (values.Length >= 2)
             {
-                int maxValue = values.asIterable.Max();
+                SearchResult maxValueResult = GetMaxValue(values);
+
+                int maxValue = maxValueResult.Value;
                 int secondMaxValue = values.asIterable.Where(x => x != maxValue).DefaultIfEmpty(0).Max();
 
-                int maxCount = values.asIterable.Count(x => x == maxValue);
+                int maxValueCountInValues = maxValueResult.Count;
 
-                int filledIndex = -1;
+                int filledStartIndex = -1;
 
-                List<Range> greaterThanSecondMaxList = new List<Range>();
+                List<Range> greaterThanSecondMaxAreaList = new List<Range>();
 
                 for (int i = 0; i < cells.Length; i++)
                 {
-                    int cell = cells[i];
+                    byte cell = cells[i];
 
-                    if (cell == Form1.FILLED && filledIndex < 0)
+                    if (cell == Form1.FILLED && filledStartIndex < 0)
                     {
-                        filledIndex = i;
+                        filledStartIndex = i;
                     }
-                    else if (cell != Form1.FILLED && filledIndex >= 0)
+                    else if (cell != Form1.FILLED && filledStartIndex >= 0)
                     {
-                        int filledSize = i - filledIndex;
+                        int filledSize = i - filledStartIndex;
                         if (filledSize > secondMaxValue)
                         {
                             int filledEndIndex = i - 1;
 
-                            greaterThanSecondMaxList.Add(new Range(filledIndex, filledEndIndex, true));
+                            greaterThanSecondMaxAreaList.Add(new Range(filledStartIndex, filledEndIndex, true));
 
-                            int leftOfFilled = filledIndex - 1;
+                            int leftOfFilled = filledStartIndex - 1;
                             int rightOfFilled = filledEndIndex + 1;
 
                             if (leftOfFilled < 0 || cells[leftOfFilled] == Form1.EMPTY)
                             {
                                 int k;
-                                for (k = rightOfFilled; k < filledIndex + maxValue; k++)
+                                for (k = rightOfFilled; k < filledStartIndex + maxValue; k++)
                                 {
                                     cells[k] = Form1.FILLED;
                                 }
@@ -555,16 +436,16 @@ namespace PicrossSolver
                                 if (k > 0)
                                     cells[k] = Form1.EMPTY;
                             }
-                            else if (maxCount == 1) // TODO it's possible to make this a loop
+                            else if (maxValueCountInValues == 1) // TODO it's possible to make this a loop
                             {
                                 var leftValues = values.asIterable.TakeWhile(x => x != maxValue).ToList();
                                 var rightValues = values.asIterable.SkipWhile(x => x < maxValue).Skip(1).ToList();
 
                                 int reachRange = maxValue - filledSize;
 
-                                if (!leftValues.Any())
+                                if (leftValues.Count == 0)
                                 {
-                                    for (int k = 0; k < filledIndex - reachRange; k++)
+                                    for (int k = 0; k < filledStartIndex - reachRange; k++)
                                         cells[k] = Form1.EMPTY;
                                 }
                                 else if (leftValues.Count == 1)
@@ -576,22 +457,23 @@ namespace PicrossSolver
                                         Range leftFilled = leftFilledList[0];
                                         int leftVal = leftValues[0];
 
-                                        if (leftFilled.start < filledIndex - reachRange)
+                                        // Checking for the possibility of merging
+                                        if (leftFilled.start < filledStartIndex - reachRange)
                                         {
                                             int leftReach = leftVal - leftFilled.size;
 
-                                            // setting the empties on the left of the filled one on the left
+                                            // Setting the empties on the left of the filled one on the left
                                             for (int k = 0; k < leftFilled.start - leftReach; k++)
                                                 cells[k] = Form1.EMPTY;
 
-                                            // setting the empties in between
-                                            for (int k = leftFilled.end + leftReach + 1; k < filledIndex - reachRange; k++)
+                                            // Setting the empties in between
+                                            for (int k = leftFilled.end + leftReach + 1; k < filledStartIndex - reachRange; k++)
                                                 cells[k] = Form1.EMPTY;
                                         }
                                     }
                                 }
 
-                                if (!rightValues.Any())
+                                if (rightValues.Count == 0)
                                 {
                                     for (int k = rightOfFilled + reachRange; k < cells.Length; k++)
                                         cells[k] = Form1.EMPTY;
@@ -605,6 +487,7 @@ namespace PicrossSolver
                                         Range rightFilled = rightFilledList[0];
                                         int rightVal = rightValues[0];
 
+                                        // Checking for the possibility of merging
                                         if (rightFilled.end > filledEndIndex + reachRange)
                                         {
                                             int rightReach = rightVal - rightFilled.size;
@@ -626,16 +509,17 @@ namespace PicrossSolver
                             }
                         }
 
-                        filledIndex = -1;
+                        filledStartIndex = -1;
                     }
                 }
 
-                if (greaterThanSecondMaxList.Count > 1 && maxCount == 1)
+                // Below is merging the found filled parts
+                if (greaterThanSecondMaxAreaList.Count > 1 && maxValueCountInValues == 1)
                 {
-                    for (int i = 0; i < greaterThanSecondMaxList.Count - 1; i++)
+                    for (int i = 0; i < greaterThanSecondMaxAreaList.Count - 1; i++)
                     {
-                        Range thisRange = greaterThanSecondMaxList[i];
-                        Range nextRange = greaterThanSecondMaxList[i + 1];
+                        Range thisRange = greaterThanSecondMaxAreaList[i];
+                        Range nextRange = greaterThanSecondMaxAreaList[i + 1];
 
                         for (int k = thisRange.end + 1; k < nextRange.start; k++)
                             cells[k] = Form1.FILLED;
@@ -644,7 +528,10 @@ namespace PicrossSolver
             }
         }
 
-        public static void ProcessTryFindingMatchStartingAndEnding(Form1.CellSeries cells)
+        /// <summary>
+        /// Checkes the first value range and if FILLED found fills the range by FILLED
+        /// </summary>
+        public static void TryMatchingFirstValue(Form1.CellSeries cells)
         {
             var values = cells.cellColumnValues;
 
@@ -652,63 +539,38 @@ namespace PicrossSolver
             {
                 int firstValue = values[0];
 
-                bool foundFilled = false;
-                bool foundEmpty = false;
-
-                int i;
-                for (i = 0; i < cells.Length; i++)
+                for (int k = 0; k < firstValue; k++)
                 {
-                    int cell = cells[i];
-
-                    if (cell == Form1.FILLED)
-                        foundFilled = true;
-                    else if (cell == Form1.EMPTY)
+                    if (cells[k] == Form1.FILLED)
                     {
-                        foundEmpty = true;
-                        break;
-                    }
-                }
-
-                if (foundEmpty && foundFilled)
-                {
-                    // TODO this requires range processing
-                    if (i == firstValue)
-                    {
-                        for (int k = 0; k < i; k++)
-                            cells[k] = Form1.FILLED;
-                    }
-                }
-
-                if (foundEmpty)
-                {
-                    for (int k = 0; k < firstValue; k++)
-                    {
-                        if (cells[k] == Form1.FILLED)
+                        for (k++; k < firstValue; k++)
                         {
-                            for (k++; k < firstValue; k++)
-                            {
-                                cells[k] = Form1.FILLED;
-                            }
-                            break;
+                            cells[k] = Form1.FILLED;
                         }
+                        break;
                     }
                 }
             }
         }
 
+        /// <summary>
+        /// Tries to find FILLED in the range of the first value and if found, does processing accordingly
+        /// </summary>
         public static void ProcessMatching(Form1.CellSeries cells)
         {
+            var values = cells.cellColumnValues;
+
             bool doContinue = false;
             int valueIndex = 0;
             int startIndex = 0;
 
-            if (cells.cellColumnValues.Length > 0)
+            if (values.Length > 0)
             {
                 do
                 {
                     doContinue = false;
 
-                    int val = cells.cellColumnValues[valueIndex];
+                    int val = values[valueIndex];
 
                     while (startIndex < cells.Length && cells[startIndex] == Form1.EMPTY)
                     {
@@ -803,7 +665,7 @@ namespace PicrossSolver
                             int checkStartIndex = filledLastIndex + 1;
                             for (int i = checkStartIndex; i < checkStartIndex + reachRange; i++)
                             {
-                                int cell = cells[i + startIndex];
+                                byte cell = cells[i + startIndex];
 
                                 if (cell == Form1.EMPTY)
                                 {
@@ -828,14 +690,14 @@ namespace PicrossSolver
                                     cells[startIndex + filledFoundIndex - 1] = Form1.FILLED;
                             }
                         }
-                        else if (valueIndex + 1 < cells.cellColumnValues.Length) // sıradaki value da bulunursa
+                        else if (valueIndex + 1 < values.Length) // Sıradaki value da bulunursa
                         {
-                            int nextVal = cells.cellColumnValues[valueIndex + 1];
+                            int nextVal = values[valueIndex + 1];
 
                             int lastCheckIndex = filledLastIndex + 1 + nextVal;
                             for (int i = filledLastIndex + reachRange + 1; i <= lastCheckIndex; i++)
                             {
-                                int cell = cells[i + startIndex];
+                                byte cell = cells[i + startIndex];
 
                                 if (cell == Form1.FILLED)
                                 {
@@ -845,47 +707,20 @@ namespace PicrossSolver
                             }
                         }
                     }
-                } while (doContinue && valueIndex < cells.cellColumnValues.Length);
+                } while (doContinue && valueIndex < values.Length);
             }
         }
 
-        public static void ProcessDividedParts(Form1.CellSeries cells)
+        /// <summary>
+        /// Does processing by EMPTY seperated areas, which includes matching values with divided areas and slicing them
+        /// </summary>
+        public static void ProcessByDividedAreas(Form1.CellSeries cells)
         {
             var values = cells.cellColumnValues;
 
-            List<Range> areaList = new List<Range>();
+            List<Range> areaList = FindDividedAreas(cells);
 
-            int nonEmpty = -1;
-            bool containsFilled = false;
-            for (int i = 0; i < cells.Length; i++)
-            {
-                int cell = cells[i];
-
-                if (cell == Form1.FILLED)
-                    containsFilled = true;
-
-                if (cell != Form1.EMPTY && nonEmpty < 0)
-                {
-                    nonEmpty = i;
-                }
-                else if (cell == Form1.EMPTY && cells.SafeCheck(i - 1, x => x != Form1.EMPTY) && nonEmpty >= 0)
-                {
-                    areaList.Add(new Range(nonEmpty, i - 1, containsFilled));
-                    nonEmpty = -1;
-                    containsFilled = false;
-                }
-            }
-
-            if (nonEmpty > 0)
-            {
-                areaList.Add(new Range(nonEmpty, cells.Length - 1, containsFilled));
-                nonEmpty = -1;
-            }
-
-            // Above is preparing ranges
-            // Below is range-values matching
-
-            if (areaList.Count > 0)
+            if (areaList.Count >= 2)
             {
                 List<ColumnValue>[] forwardMatching = new List<ColumnValue>[areaList.Count];
                 List<ColumnValue>[] backwardMatching = new List<ColumnValue>[areaList.Count];
@@ -979,8 +814,8 @@ namespace PicrossSolver
                     loopValueIndex = valueIndex;
                 }
 
-                // Above is regular iteration
-                // Below is reverse iteration
+                // Above is regular iteration for value-divided matching
+                // Below is reverse iteration for value-divided matching
 
                 loopValueIndex = values.Length - 1;
 
@@ -1073,27 +908,7 @@ namespace PicrossSolver
                     loopValueIndex = valueIndex;
                 }
 
-                // Assuring filled containing areas contain values on both forward and backward
-                if (areaList.Count > 1)
-                {
-                    Range firstArea = areaList[0];
-                    Range lastArea = areaList[areaList.Count - 1];
-
-                    if (firstArea.containsFilled && backwardMatching[0].Count == 0)
-                    {
-                        backwardMatching[0] = new List<ColumnValue> {
-                            new ColumnValue { Index = 0, Value = values[0] }
-                        };
-                    }
-
-                    if (lastArea.containsFilled && forwardMatching[forwardMatching.Length - 1].Count == 0)
-                    {
-                        forwardMatching[forwardMatching.Length - 1] = new List<ColumnValue> {
-                            new ColumnValue { Index = values.Length - 1, Value = values[values.Length - 1] }
-                        };
-                    }
-                }
-
+                // Debug Example
                 if (cells.cellColumnValues.asIterable.SequenceEqual(new int[] { 2, 1, 1, 1 }) && cells.asIterable.Where(x => x == Form1.EMPTY).Count() == 6)
                     debug();
 
@@ -1162,15 +977,23 @@ namespace PicrossSolver
             }
         }
 
-        public static void FillBetweenFilled(Form1.CellSeries cells)
+        /// <summary>
+        /// Finds filled ranges and does processing including:
+        /// <para />
+        /// If all the filled ranges are 1s and all the values except the first one are 1s, marks the 1s that are out of the range of the first value
+        /// <para />
+        /// If all the values are the same, marks the filled ranges that match the values
+        /// <para />
+        /// Tries merging and if cannot merge, sets definite EMPTY bytes
+        /// </summary>
+        public static void ProcessByFilledRanges(Form1.CellSeries cells)
         {
             var values = cells.cellColumnValues;
 
             List<Range> filledRanges = FindFilledGroups(cells, 0, cells.Length - 1);
 
-            if (filledRanges.Count > 1
+            if (filledRanges.Count >= 2
                 && filledRanges.All(x => x.size == 1)
-                && values.asIterable.First() != 1
                 && values.asIterable.Skip(1).All(x => x == 1)
                 && filledRanges[1].end - filledRanges[0].start + 1 > values.asIterable.First()
                 )
@@ -1183,37 +1006,189 @@ namespace PicrossSolver
                     cells.SafeSet(lastRange.end + 1, Form1.EMPTY);
                 }
             }
-            else FillBetweenFilled(cells, values.asIterable.ToArray(), filledRanges);
+
+            FillBetweenFilled(cells, values.asIterable.ToArray(), filledRanges);
 
             TryMerging(cells, values.asIterable.ToArray(), filledRanges);
 
-            MarkStartsAndEnds(cells, values.asIterable.ToArray(), filledRanges);
+            MarkIfValuesAreAllTheSame(cells, values.asIterable, filledRanges);
         }
 
-        private static void MarkStartsAndEnds(Form1.CellSeries cells, int[] values, List<Range> filledRanges)
+        /// <summary>
+        /// Does initial processing by looking for extra FILLED values and finding the real range
+        /// </summary>
+        public static void ProcessInitialByMatchingFilled(Form1.CellSeries cells)
         {
-            var distinctValues = values.Distinct().ToArray();
+            var values = cells.cellColumnValues;
 
-            if (distinctValues.Length == 1)
+            // i : size covered
+            int i = 0;
+
+            for (int valueIndex = 0; valueIndex < values.Length; valueIndex++)
             {
-                int val = distinctValues[0];
+                int val = values[valueIndex];
 
-                foreach (var range in filledRanges)
+                // This whole loop skips empties and really small empties
+                bool willContinue = true;
+                while (willContinue)
                 {
-                    if (range.size == val)
+                    willContinue = false;
+
+                    // Check for empties in this range
+                    for (int k = val - 1; k >= 0; k--)
                     {
-                        cells.SafeSet(range.start - 1, Form1.EMPTY);
-                        cells.SafeSet(range.end + 1, Form1.EMPTY);
+                        if (cells.SafeCheck(k + i, x => x == Form1.EMPTY))
+                        {
+                            i += k + 1;
+                            willContinue = true;
+                            break;
+                        }
                     }
                 }
+
+                //if (!emptyFound && valueIndex != 0)
+                //    i++;
+
+                if (cells.SafeCheck(i + val, x => x == Form1.FILLED))
+                {
+                    int k = i + val + 1;
+
+                    while (cells.SafeCheck(k, x => x == Form1.FILLED))
+                    {
+                        k++;
+                    }
+
+                    int lastFilled = k - 1;
+
+                    var slice = Form1.CellSeries.Slice(cells, lastFilled + 2, cells.Length - 1, values.asIterable.Skip(valueIndex + 1).ToArray());
+
+                    InitialProcessing(slice);
+                }
+
+                i += val + 1;
             }
         }
 
+        /// <summary>
+        /// Does processing for extremely rare cases, such as:
+        /// <para />
+        /// When the first value is a 1 and the third byte is FILLED, setting second byte as EMPTY
+        /// </summary>
+        public static void ProcessSpecialCases(Form1.CellSeries cells)
+        {
+            var values = cells.cellColumnValues;
+
+            if (values.Length > 0 && values[0] == 1 && cells.Length > 2 && cells[2] == Form1.FILLED)
+            {
+                cells[1] = Form1.EMPTY;
+            }
+        }
+
+        private static void debug() { }
+
+        #region Private Methods
+
+        private static List<Range> FindFilledGroups(Form1.CellSeries cells, int start, int end)
+        {
+            List<Range> filledRanges = new List<Range>();
+
+            int filledStartIndex = -1;
+            for (int i = start; i <= end; i++)
+            {
+                byte cell = cells[i];
+
+                if (cell == Form1.FILLED && filledStartIndex < 0)
+                {
+                    filledStartIndex = i;
+                }
+                else if (cell != Form1.FILLED && filledStartIndex >= 0)
+                {
+                    filledRanges.Add(new Range(filledStartIndex, i - 1, true));
+                    filledStartIndex = -1;
+                }
+            }
+
+            if (filledStartIndex > 0)
+            {
+                filledRanges.Add(new Range(filledStartIndex, end, true));
+                filledStartIndex = -1;
+            }
+
+            return filledRanges;
+        }
+
+        private static List<Range> FindDividedAreas(Form1.CellSeries cells)
+        {
+            List<Range> areaList = new List<Range>();
+
+            int nonEmpty = -1;
+            bool containsFilled = false;
+            for (int i = 0; i < cells.Length; i++)
+            {
+                byte cell = cells[i];
+
+                if (cell == Form1.FILLED)
+                    containsFilled = true;
+
+                if (cell != Form1.EMPTY && nonEmpty < 0)
+                {
+                    nonEmpty = i;
+                }
+                else if (cell == Form1.EMPTY && cells.SafeCheck(i - 1, x => x != Form1.EMPTY) && nonEmpty >= 0)
+                {
+                    areaList.Add(new Range(nonEmpty, i - 1, containsFilled));
+                    nonEmpty = -1;
+                    containsFilled = false;
+                }
+            }
+
+            if (nonEmpty > 0)
+            {
+                areaList.Add(new Range(nonEmpty, cells.Length - 1, containsFilled));
+                nonEmpty = -1;
+            }
+
+            return areaList;
+        }
+
+        private static int GetMinValue(Form1.CellColumnValues values)
+        {
+            if (values.Length > 0)
+                return values.asIterable.Min();
+            else
+                return 0;
+        }
+
+        private static IEnumerable<int> MyRange(int from, int to)
+        {
+            for (int i = from; i < to; i++)
+                yield return i;
+        }
+
+        private static IEnumerable<int> MyRangeDesc(int from, int to)
+        {
+            for (int i = from; i > to; i--)
+                yield return i;
+        }
+
+        private static int GetFilledCount(Form1.CellSeries cells, Range range)
+        {
+            return MyRange(range.start, range.end + 1).Select(x => cells[x]).Where(x => x == Form1.FILLED).Count();
+        }
+
+        private static int Max(int a, int b)
+        {
+            return a > b ? a : b;
+        }
+
+        /// <summary>
+        /// Does processing based on conditions
+        /// </summary>
         private static void FillBetweenFilled(Form1.CellSeries cells, int[] values, List<Range> filledRanges)
         {
             if (filledRanges.Count == values.Length + 1)
             {
-                List<int> candidates = new List<int>();
+                List<int> possibleMergedAreas = new List<int>();
 
                 for (int rangeIndex = 0; rangeIndex < filledRanges.Count - 1; rangeIndex++)
                 {
@@ -1225,17 +1200,17 @@ namespace PicrossSolver
                     int start = thisRange.start;
                     int end = nextRange.end;
 
-                    int rangeSize = end - start + 1;
+                    int mergedSize = end - start + 1;
 
-                    if (rangeSize <= val)
-                        candidates.Add(rangeIndex);
+                    if (mergedSize <= val)
+                        possibleMergedAreas.Add(rangeIndex);
                 }
 
-                if (candidates.Count == 0)
+                if (possibleMergedAreas.Count == 0)
                     throw new Exception("You messed up the candidates");
-                else if (candidates.Count == 1)
+                else if (possibleMergedAreas.Count == 1)
                 {
-                    int rangeIndex = candidates[0];
+                    int rangeIndex = possibleMergedAreas[0];
 
                     Range thisRange = filledRanges[rangeIndex];
                     Range nextRange = filledRanges[rangeIndex + 1];
@@ -1245,7 +1220,7 @@ namespace PicrossSolver
                 }
                 else
                 {
-                    // TODO process sometime
+                    // TODO write some more code if necessary
                 }
             }
             else if (filledRanges.Count == values.Length)
@@ -1269,21 +1244,7 @@ namespace PicrossSolver
                 }
                 else
                 {
-                    bool canMerge = false;
-
-                    for (int i = 0; i < filledRanges.Count - 1; i++)
-                    {
-                        Range thisRange = filledRanges[i];
-                        Range nextRange = filledRanges[i + 1];
-
-                        int mergedSize = nextRange.end - thisRange.start + 1;
-
-                        if (values.Any(x => x >= mergedSize))
-                        {
-                            canMerge = true;
-                            break;
-                        }
-                    }
+                    bool canMerge = TryMerging(cells, values, filledRanges);
 
                     if (!canMerge)
                     {
@@ -1305,36 +1266,34 @@ namespace PicrossSolver
             }
             else if (filledRanges.Count == values.Length - 1)
             {
-                // WARNING use this algorithm only if it is not possible to merge
-
                 bool canMerge = TryMerging(cells, values, filledRanges);
 
-                for (int i = 0; i < filledRanges.Count - 1 && !canMerge; i++)
+                if (!canMerge)
                 {
-                    Range thisRange = filledRanges[i];
-                    int thisVal = values[i];
-                    int nextVal = values[i + 1];
-
-                    if (thisVal == nextVal && nextVal == thisRange.size)
+                    for (int i = 0; i < filledRanges.Count - 1; i++)
                     {
-                        if (thisRange.start - 1 >= 0)
-                            cells[thisRange.start - 1] = Form1.EMPTY;
-                        if (thisRange.end + 1 < cells.Length)
-                            cells[thisRange.end + 1] = Form1.EMPTY;
+                        Range thisRange = filledRanges[i];
+                        int thisVal = values[i];
+                        int nextVal = values[i + 1];
+
+                        if (thisVal == nextVal && nextVal == thisRange.size)
+                        {
+                            if (thisRange.start - 1 >= 0)
+                                cells[thisRange.start - 1] = Form1.EMPTY;
+                            if (thisRange.end + 1 < cells.Length)
+                                cells[thisRange.end + 1] = Form1.EMPTY;
+                        }
                     }
                 }
             }
             else if (filledRanges.Count < values.Length && filledRanges.Count > 0)
             {
-                if (Form1.iteration == 1 && cells.rowOrCol == 6 && cells.direction == Form1.Direction.Horizontal)
-                    debug();
-
                 // Forward candidate matching
-                List<int>[] forwardFilledCandidates = GetCandidates(cells, values, filledRanges);
+                List<int>[] forwardFilledCandidates = GetFilledMatchingCandidates(cells, values, filledRanges);
 
                 int cellsLastIndex = cells.Length - 1;
                 // New Backward candidate matching
-                List<int>[] backwardFilledCandidates = GetCandidates(
+                List<int>[] backwardFilledCandidates = GetFilledMatchingCandidates(
                     Form1.CellSeries.Reverse(cells), values.Reverse().ToArray(),
                     filledRanges.Select(x => new Range(cellsLastIndex - x.end, cellsLastIndex - x.start, x.containsFilled)).OrderBy(x => x.start).ToList()
                 );
@@ -1366,7 +1325,7 @@ namespace PicrossSolver
 
                         var newValues = MyRange(minValueIndex, maxValueIndex + 1).Select(x => values[x]).ToList();
 
-                        // Buradan daha fazla devam etmek gerek
+                        // TODO write some more code if necessary
 
                         if (newValues.All(x => x == filledRange.size))
                         {
@@ -1378,7 +1337,72 @@ namespace PicrossSolver
             }
         }
 
-        private static List<int>[] GetCandidates(Form1.CellSeries cells, int[] values, List<Range> filledRanges)
+        /// <summary>
+        /// Does processing regargless of conditions
+        /// </summary>
+        private static bool TryMerging(Form1.CellSeries cells, int[] values, List<Range> filledRanges)
+        {
+            bool canMerge = false;
+
+            for (int i = 1; i < filledRanges.Count; i++)
+            {
+                Range thisRange = filledRanges[i - 1];
+                Range nextRange = filledRanges[i];
+
+                int mergedSize = nextRange.end - thisRange.start + 1;
+
+                bool isPossibleToMerge = values.Any(x => x >= mergedSize);
+
+                // If the ranges are one apart and cannot merge, set the between to EMPTY
+                if (nextRange.start - thisRange.end == 2)
+                {
+                    if (!isPossibleToMerge)
+                        cells[nextRange.start - 1] = Form1.EMPTY;
+                }
+
+                // This part sets the further side of the 1 with EMPTY
+                if (values.Length == 2 && values.Any(x => x == mergedSize) && values.Any(x => x == 1))
+                {
+                    if (values[0] == 1)
+                    {
+                        cells.SafeSet(thisRange.start - 1, Form1.EMPTY);
+                    }
+                    else if (values[1] == 1)
+                    {
+                        cells.SafeSet(nextRange.end + 1, Form1.EMPTY);
+                    }
+                }
+
+                if (isPossibleToMerge)
+                    canMerge = true;
+            }
+
+            return canMerge;
+        }
+
+        /// <summary>
+        /// Does processing if all the values are the same
+        /// </summary>
+        private static void MarkIfValuesAreAllTheSame(Form1.CellSeries cells, IEnumerable<int> values, List<Range> filledRanges)
+        {
+            int[] distinctValues = values.Distinct().ToArray();
+
+            if (distinctValues.Length == 1)
+            {
+                int val = distinctValues[0];
+
+                foreach (var range in filledRanges)
+                {
+                    if (range.size == val)
+                    {
+                        cells.SafeSet(range.start - 1, Form1.EMPTY);
+                        cells.SafeSet(range.end + 1, Form1.EMPTY);
+                    }
+                }
+            }
+        }
+
+        private static List<int>[] GetFilledMatchingCandidates(Form1.CellSeries cells, int[] values, List<Range> filledRanges)
         {
             List<int>[] forwardFilledCandidates = Enumerable.Range(0, filledRanges.Count).Select(x => new List<int>()).ToArray();
 
@@ -1447,213 +1471,45 @@ namespace PicrossSolver
             return forwardFilledCandidates;
         }
 
-        private static bool TryMerging(Form1.CellSeries cells, int[] values, List<Range> filledRanges)
-        {
-            bool canMerge = false;
-
-            for (int i = 1; i < filledRanges.Count; i++)
-            {
-                Range thisRange = filledRanges[i - 1];
-                Range nextRange = filledRanges[i];
-
-                int mergedSize = nextRange.end - thisRange.start + 1;
-
-                bool isPossibleToMerge = values.Any(x => x >= mergedSize);
-
-                // Trying to put empty between the ranges
-                if (nextRange.start - thisRange.end == 2)
-                {
-                    if (!isPossibleToMerge)
-                        cells[nextRange.start - 1] = Form1.EMPTY;
-                }
-
-                if (values.Length == 2 && values.Any(x => x == mergedSize) && values.Any(x => x == 1))
-                {
-                    if (values[0] == 1)
-                    {
-                        cells.SafeSet(thisRange.start - 1, Form1.EMPTY);
-                    }
-                    else if (values[1] == 1)
-                    {
-                        cells.SafeSet(nextRange.end + 1, Form1.EMPTY);
-                    }
-                }
-
-                if (isPossibleToMerge)
-                    canMerge = true;
-            }
-
-            return canMerge;
-        }
-
-        #region Private Methods
-        private static List<Range> FindFilledGroups(Form1.CellSeries cells, int start, int end)
-        {
-            List<Range> filledRanges = new List<Range>();
-
-            int filledStartIndex = -1;
-            for (int i = start; i <= end; i++)
-            {
-                int cell = cells[i];
-
-                if (cell == Form1.FILLED && filledStartIndex < 0)
-                {
-                    filledStartIndex = i;
-                }
-                else if (cell != Form1.FILLED && filledStartIndex >= 0)
-                {
-                    filledRanges.Add(new Range(filledStartIndex, i - 1, true));
-                    filledStartIndex = -1;
-                }
-            }
-
-            if (filledStartIndex > 0)
-            {
-                filledRanges.Add(new Range(filledStartIndex, end, true));
-                filledStartIndex = -1;
-            }
-
-            return filledRanges;
-        }
-
-        private static int GetMinValue(Form1.CellColumnValues values)
+        private static SearchResult GetMaxValue(Form1.CellColumnValues values)
         {
             if (values.Length > 0)
-                return values.asIterable.Min();
+            {
+                List<int> indices = new List<int>();
+                indices.Add(0);
+                int maxValue = values[0];
+
+                for (int i = 1; i < values.Length; i++)
+                {
+                    if (values[i] > maxValue)
+                    {
+                        indices = new List<int>();
+                        indices.Add(i);
+                        maxValue = values[i];
+                    }
+                    else if (values[i] == maxValue)
+                    {
+                        indices.Add(i);
+                    }
+                }
+
+                return new SearchResult
+                {
+                    LocationIndices = indices.ToArray(),
+                    Value = maxValue
+                };
+            }
             else
-                return 0;
+            {
+                return new SearchResult
+                {
+                    LocationIndices = new int[] { },
+                    Value = 0
+                };
+            }
         }
 
-        private static IEnumerable<int> MyRange(int from, int to)
-        {
-            for (int i = from; i < to; i++)
-                yield return i;
-        }
-
-        private static IEnumerable<int> MyRangeDesc(int from, int to)
-        {
-            for (int i = from; i > to; i--)
-                yield return i;
-        }
-
-        private static int GetFilledCount(Form1.CellSeries cells, Range range)
-        {
-            return MyRange(range.start, range.end + 1).Select(x => cells[x]).Where(x => x == Form1.FILLED).Count();
-        }
-
-        private static int Max(int a, int b)
-        {
-            return a > b ? a : b;
-        }
         #endregion
-
-        public static void ProcessInitialByMatching(Form1.CellSeries cells)
-        {
-            var values = cells.cellColumnValues;
-
-            // i : size covered
-            int i = 0;
-
-            for (int valueIndex = 0; valueIndex < values.Length; valueIndex++)
-            {
-                int val = values[valueIndex];
-
-                // This whole loop skips empties and really small empties
-                bool willContinue = true;
-                while (willContinue)
-                {
-                    willContinue = false;
-
-                    // Check for empties in this range
-                    for (int k = val - 1; k >= 0; k--)
-                    {
-                        if (cells.SafeCheck(k + i, x => x == Form1.EMPTY))
-                        {
-                            i += k + 1;
-                            willContinue = true;
-                            break;
-                        }
-                    }
-                }
-
-                //if (!emptyFound && valueIndex != 0)
-                //    i++;
-
-                if (cells.SafeCheck(i + val, x => x == Form1.FILLED))
-                {
-                    int k = i + val + 1;
-
-                    while (cells.SafeCheck(k, x => x == Form1.FILLED))
-                    {
-                        k++;
-                    }
-
-                    int lastFilled = k - 1;
-
-                    var slice = Form1.CellSeries.Slice(cells, lastFilled + 2, cells.Length - 1, values.asIterable.Skip(valueIndex + 1).ToArray());
-
-                    InitialProcessing(slice);
-                }
-
-                i += val + 1;
-            }
-        }
-
-        public static void DivideByEnclosed(Form1.CellSeries cells)
-        {
-            var values = cells.cellColumnValues;
-
-            if (Form1.iteration == 11 && values.asIterable.SequenceEqual(new int[] { 2, 1, 5 }))
-                debug();
-
-            List<Range> enclosedFilleds = new List<Range>();
-
-            for (int i = 0; i < cells.Length; i++)
-            {
-                while (i < cells.Length && cells[i] != Form1.FILLED)
-                    i++;
-
-                int filledIndex = i;
-
-                while (i < cells.Length && cells[i] == Form1.FILLED)
-                    i++;
-
-                int filledEndIndex = i - 1;
-
-                if (cells.SafeCheck(filledIndex - 1, x => x == Form1.EMPTY) && cells.SafeCheck(filledEndIndex + 1, x => x == Form1.EMPTY))
-                    enclosedFilleds.Add(new Range(filledIndex, filledEndIndex, true));
-            }
-
-            foreach (var filled in enclosedFilleds)
-            {
-                var valuesMatched = values.asIterable.Select((x, i) => new { Index = i, Value = x }).Where(x => x.Value == filled.size).ToList();
-
-                if (valuesMatched.Count == 1)
-                {
-                    var leftSlice = Form1.CellSeries.Slice(cells, 0, filled.start - 2, values.asIterable.Take(valuesMatched[0].Index).ToArray());
-
-                    var rightSlice = Form1.CellSeries.Slice(cells, filled.end + 2, cells.Length - 1, values.asIterable.Skip(valuesMatched[0].Index + 1).ToArray());
-
-                    ProcessAllAlgorithms(leftSlice);
-                    ProcessAllAlgorithms(Form1.CellSeries.Reverse(leftSlice));
-
-                    ProcessAllAlgorithms(rightSlice);
-                    ProcessAllAlgorithms(Form1.CellSeries.Reverse(rightSlice));
-                }
-            }
-        }
-
-        public static void ProcessSpecialCases(Form1.CellSeries cells)
-        {
-            var values = cells.cellColumnValues;
-
-            if (values.Length > 0 && values[0] == 1 && cells.Length > 2 && cells[2] == Form1.FILLED)
-            {
-                cells[1] = Form1.EMPTY;
-            }
-        }
-
-        private static void debug() { }
 
         #region Extensions
         public static int rowCount(this byte[,] picture)
@@ -1682,10 +1538,18 @@ namespace PicrossSolver
             this.containsFilled = containsFilled;
         }
 
-        public string toString()
+        public override string ToString()
         {
             return "{start: " + start + ", end: " + end + "}";
         }
+    }
+
+    public class SearchResult
+    {
+        public int Value { get; set; }
+        public int Count { get { return LocationIndices.Length; } }
+
+        public int[] LocationIndices { get; set; }
     }
 
     public class FilledInfo
