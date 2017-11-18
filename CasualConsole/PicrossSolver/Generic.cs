@@ -46,7 +46,7 @@ namespace PicrossSolver
         }
 
         /// <summary>
-        /// Does initial processing on the cells, fills the parts that are certain to be FILLED
+        /// Does initial processing on the cells, fills the parts that are certain to be FILLED, should NOT set anything as EMPTY
         /// </summary>
         public static void InitialProcessing(Form1.CellSeries cells)
         {
@@ -77,7 +77,7 @@ namespace PicrossSolver
         /// <summary>
         /// Does processing if there is only one value for the series. This includes:
         /// <para />
-        /// Filling in between the first and the last filled bytes with FILLED
+        /// Filling in between the first and the last filled bytes with FILLED, should NOT do filling other than this part
         /// <para />
         /// Filling unreachable bytes with EMPTY
         /// </summary>
@@ -127,37 +127,6 @@ namespace PicrossSolver
                 {
                     int filledSize = lastFilled - firstFilled + 1;
                     int reach = values[0] - filledSize;
-
-                    int marginStart = reach - firstFilled;
-                    if (marginStart > 0)
-                    {
-                        for (int k = 0; k < marginStart; k++)
-                        {
-                            cells[firstFilled + 1 + k] = Form1.FILLED;
-                        }
-                    }
-                    else
-                        marginStart = 0;
-
-                    int marginEnd = lastFilled + reach - (cells.Length - 1);
-                    if (marginEnd > 0)
-                    {
-                        for (int k = 0; k < marginEnd; k++)
-                        {
-                            cells[lastFilled - 1 - k] = Form1.FILLED;
-                        }
-                    }
-                    else
-                        marginEnd = 0;
-
-                    // Above is for filling reaching
-                    // Below is for setting empties
-
-                    // Update variables
-                    firstFilled -= marginEnd;
-                    lastFilled += marginStart;
-                    filledSize += marginEnd + marginStart;
-                    reach = values[0] - filledSize;
 
                     for (int k = 0; k < firstFilled - reach; k++)
                         cells[k] = Form1.EMPTY;
@@ -935,14 +904,31 @@ namespace PicrossSolver
                     var backwardValues = backwardMatching[area];
 
                     bool forwardBackwardMatchCase = range.containsFilled && forwardValues.Any() && Enumerable.SequenceEqual(forwardValues, backwardValues);
-                    bool forwardBackwardReallySimilarCase = range.containsFilled && forwardValues.Count == 1 && backwardValues.Count == 1 && forwardValues[0].Value == backwardValues[0].Value && forwardValues[0].Index - backwardValues[0].Index == 1 && range.size <= forwardValues[0].Value + 1;
 
-                    if (doMatchPerfectly || forwardBackwardMatchCase || forwardBackwardReallySimilarCase)
+                    bool indexOffByOneCase = range.containsFilled && forwardValues.Count == 1 && backwardValues.Count == 1 && forwardValues[0].Index - backwardValues[0].Index == 1
+                        //&& range.size <= forwardValues[0].Value + 1;
+                        ;
+
+                    if (doMatchPerfectly || forwardBackwardMatchCase)
                     {
                         Form1.CellSeries slice = Form1.CellSeries.Slice(cells, range.start, range.end, forwardValues.Select(x => x.Value).ToArray());
 
                         ProcessAllAlgorithms(slice);
                         ProcessAllAlgorithms(Form1.CellSeries.Reverse(slice));
+                    }
+                    else if (indexOffByOneCase)
+                    {
+                        int minValue = Min(forwardValues[0].Value, backwardValues[0].Value);
+                        int maxValue = Max(forwardValues[0].Value, backwardValues[0].Value);
+
+                        Form1.CellSeries initialProcessingSlice = Form1.CellSeries.Slice(cells, range.start, range.end, new int[] { minValue });
+                        InitialProcessing(initialProcessingSlice);
+
+                        if (range.size == maxValue + 1)
+                        {
+                            Form1.CellSeries singleProcessingSlice = Form1.CellSeries.Slice(cells, range.start, range.end, new int[] { maxValue });
+                            ProcessSingles(singleProcessingSlice);
+                        }
                     }
                     else
                     {
@@ -1180,6 +1166,11 @@ namespace PicrossSolver
         private static int Max(int a, int b)
         {
             return a > b ? a : b;
+        }
+
+        private static int Min(int a, int b)
+        {
+            return a < b ? a : b;
         }
 
         /// <summary>
