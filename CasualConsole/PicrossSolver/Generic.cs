@@ -934,9 +934,10 @@ namespace PicrossSolver
                     var forwardValues = forwardMatching[area];
                     var backwardValues = backwardMatching[area];
 
-                    if (doMatchPerfectly ||
-                        (range.containsFilled && forwardValues.Any() && Enumerable.SequenceEqual(forwardValues, backwardValues))
-                        )
+                    bool forwardBackwardMatchCase = range.containsFilled && forwardValues.Any() && Enumerable.SequenceEqual(forwardValues, backwardValues);
+                    bool forwardBackwardReallySimilarCase = range.containsFilled && forwardValues.Count == 1 && backwardValues.Count == 1 && forwardValues[0].Value == backwardValues[0].Value && forwardValues[0].Index - backwardValues[0].Index == 1 && range.size <= forwardValues[0].Value + 1;
+
+                    if (doMatchPerfectly || forwardBackwardMatchCase || forwardBackwardReallySimilarCase)
                     {
                         Form1.CellSeries slice = Form1.CellSeries.Slice(cells, range.start, range.end, forwardValues.Select(x => x.Value).ToArray());
 
