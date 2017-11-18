@@ -941,6 +941,20 @@ namespace PicrossSolver
 
                             InitialProcessing(slice);
                         }
+
+                        if ((cells[range.start] == Form1.FILLED || cells[range.end] == Form1.FILLED))
+                        {
+                            var uniqueValues = Enumerable.Concat(forwardValues.Select(x => x.Value), backwardValues.Select(x => x.Value)).Distinct().ToList();
+
+                            int minOfAll = uniqueValues.Min();
+
+                            if (uniqueValues.Count > 1 && minOfAll > 1)
+                            {
+                                Form1.CellSeries singleProcessingSlice = Form1.CellSeries.Slice(cells, range.start, range.end, new int[] { minOfAll });
+                                ProcessStartSetFilledOnly(singleProcessingSlice);
+                                ProcessStartSetFilledOnly(Form1.CellSeries.Reverse(singleProcessingSlice));
+                            }
+                        }
                     }
                 }
 
@@ -1390,6 +1404,42 @@ namespace PicrossSolver
                         cells.SafeSet(range.start - 1, Form1.EMPTY);
                         cells.SafeSet(range.end + 1, Form1.EMPTY);
                     }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Checks the starting range and sets FILLED values if it can, this is a trimmed-down version of the function "ProcessStart"
+        /// </summary>
+        private static void ProcessStartSetFilledOnly(Form1.CellSeries cells)
+        {
+            var values = cells.cellColumnValues;
+            int valuesIndex = 0;
+
+            int i;
+            for (i = 0; i < cells.Length; i++)
+            {
+                byte cell = cells[i];
+
+                if (cell == Form1.UNKNOWN)
+                {
+                    break;
+                }
+                else if (cell == Form1.FILLED)
+                {
+                    int val = values[valuesIndex++];
+                    int max = i + val;
+
+                    for (; i < max; i++)
+                    {
+                        cells[i] = Form1.FILLED;
+                    }
+
+                    break;
+                }
+                else if (cell == Form1.EMPTY)
+                {
+
                 }
             }
         }
