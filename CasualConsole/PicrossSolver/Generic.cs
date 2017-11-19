@@ -7,6 +7,73 @@ namespace PicrossSolver
 {
     public static class Generic
     {
+        public static void TestMatchingByDivided()
+        {
+            TestCase[] tests = new TestCase[] {
+                new TestCase { CellsString  = "■■.  ", Values = new int[]{ 2, 1 }, CorrectAssignment = new int[][] { new[]{ 2 }, new[] { 1 } }  },
+
+                new TestCase { CellsString  = "■■  .■.  ", Values = new int[]{ 2, 1, 2 }, CorrectAssignment = new int[][] { new[]{ 2 }, new[] { 1 }, new[] { 2 } }  },
+
+                new TestCase { CellsString  = "   ■■.  ", Values = new int[]{ 2, 1 }, CorrectAssignment = new int[][] { new[]{ 2 }, new[] { 1 } }  },
+
+                new TestCase { CellsString  = "   ■■.   ■     ", Values = new int[]{ 2, 1, 3, 2 }, CorrectAssignment = new int[][] { new[]{ 2 }, new[] { 1, 3, 2 } }  },
+
+                new TestCase { CellsString = "     ■   .■■   ",  Values = new int[]{ 2, 3, 1, 2 }, CorrectAssignment = new int[][] { new[]{ 2, 3, 1 }, new[] { 2 } } },
+
+                new TestCase { CellsString = " .■.      ", Values = new int[]{ 1,3,1 }, CorrectAssignment = new int[][] { new int [] { }, new[]{ 1 }, new[] { 3,1 } } },
+
+                new TestCase { CellsString = "    ■  ■.■     ", Values = new int[]{ 1,1,2,1,2 }, CorrectAssignment = new int[][] { new[]{ 1,1,2,1 }, new[] { 2 } }  },
+
+                new TestCase { CellsString = "     ■.■  ■    ", Values = new int[]{ 2,1,2,1,1 }, CorrectAssignment = new int[][] { new[]{ 2,1 }, new[] { 2,1,1 } } },
+
+                new TestCase { CellsString = "    ■■■ ■.  ■   ■.  ", Values = new int[]{ 1,5,2,2,1 }, CorrectAssignment = new int[][] { new[]{ 1,5 }, new[] { 2,2 }, new[] { 1 } } },
+
+                new TestCase { CellsString = "  .■   ■  .■ ■■■    ", Values = new int[]{ 1,2,2,5,1 }, CorrectAssignment = new int[][] { new[]{ 1 }, new[] { 2,2 }, new[] { 5,1 } } },
+            };
+
+            Func<string, byte[]> strToBytes = s =>
+            {
+                byte[] bytes = new byte[s.Length];
+
+                for (int i = 0; i < s.Length; i++)
+                {
+                    char c = s[i];
+                    bytes[i] = (byte)(Form1.chars.IndexOf(c));
+                }
+
+                return bytes;
+            };
+
+            int testNumber = 1;
+            foreach (var test in tests)
+            {
+                Form1.CellSeries cells = new Form1.CellSeries(strToBytes(test.CellsString), test.Values);
+
+                List<Range> areaList = FindDividedAreas(cells);
+
+                var forwardMatching = AssignMatchingForward(cells, areaList);
+
+                if (forwardMatching.Length != test.CorrectAssignment.Length)
+                    throw new Exception("Numbers don't match");
+
+                for (int i = 0; i < forwardMatching.Length; i++)
+                {
+                    List<ColumnValue> assigned = forwardMatching[i];
+
+                    int[] assignedValues = assigned.Select(x => x.Value).ToArray();
+                    int[] correct = test.CorrectAssignment[i];
+
+                    if (!Enumerable.SequenceEqual(assignedValues, correct))
+                        throw new Exception("Assignment is wrong");
+                }
+
+                testNumber++;
+            }
+
+            Console.WriteLine("All test are OK!!!");
+            Console.WriteLine();
+        }
+
         public static void ProcessAllAlgorithms(Form1.CellSeries cells)
         {
             if (cells.cellColumnValues.asIterable.Any())
@@ -691,194 +758,32 @@ namespace PicrossSolver
 
             if (areaList.Count >= 2)
             {
-                List<ColumnValue>[] forwardMatching = new List<ColumnValue>[areaList.Count];
-                List<ColumnValue>[] backwardMatching = new List<ColumnValue>[areaList.Count];
+                int cellsLastIndex = cells.Length - 1;
 
-                int loopValueIndex = 0;
-                for (int area = 0; area < forwardMatching.Length; area++)
-                {
-                    Range range = areaList[area];
+                List<ColumnValue>[] forwardMatching = AssignMatchingForward(cells, areaList);
+                List<ColumnValue>[] backwardMatching = AssignMatchingForward(Form1.CellSeries.Reverse(cells),
+                    areaList
+                    .Select(x => new Range(cellsLastIndex - x.end, cellsLastIndex - x.start, x.containsFilled))
+                    .Reverse()
+                    .ToList()
+                    );
 
-                    int valueIndex = loopValueIndex;
-
-                    if (valueIndex < values.Length)
+                int lastValueIndex = values.Length - 1;
+                backwardMatching = backwardMatching
+                    .Select(columnValueList =>
                     {
-                        int currentSize = values[valueIndex];
-
-                        while (cells.SafeCheck(range.start + currentSize, x => x == Form1.FILLED))
-                            currentSize++;
-
-                        while (currentSize <= range.size)
+                        foreach (var item in columnValueList)
                         {
-                            valueIndex++; // Increasing this means adding the value to assignment
-                            if (valueIndex < values.Length)
-                            {
-                                currentSize += values[valueIndex] + 1;
-
-                                while (cells.SafeCheck(range.start + currentSize, x => x == Form1.FILLED))
-                                    currentSize++;
-                            }
-                            else
-                                break;
+                            item.Index = lastValueIndex - item.Index;
                         }
-
-                        List<ColumnValue> assignedValues = MyRange(loopValueIndex, valueIndex)
-                            .Select(i => new ColumnValue { Value = values[i], Index = i })
-                            .ToList();
-
-                        forwardMatching[area] = assignedValues;
-                    }
-                    else
-                    {
-                        forwardMatching[area] = new List<ColumnValue>();
-                    }
-
-                    //-------------------------------
-
-                    List<ColumnValue> valuesChecked = forwardMatching[area];
-                    Range rangeChecked = range;
-                    int areaChecked = area;
-
-                    while (true)
-                    {
-                        bool checkNext;
-
-                        List<ColumnValue> formerAssignment = null;
-
-                        int areaForLoop = -1;
-
-                        if (valuesChecked.Sum(x => x.Value) < GetFilledCount(cells, rangeChecked))
-                        {
-                            areaForLoop = areaChecked;
-
-                            // Find the assignment with values
-                            do
-                            {
-                                areaForLoop--;
-                                formerAssignment = forwardMatching[areaForLoop];
-                            } while (formerAssignment.Count <= 0);
-
-                            valueIndex = formerAssignment[formerAssignment.Count - 1].Index;
-                            formerAssignment.RemoveAt(formerAssignment.Count - 1);
-
-                            int areaMoved = areaChecked - areaForLoop;
-                            area -= areaMoved;
-
-                            checkNext = true;
-                        }
-                        else
-                            checkNext = false;
-
-                        if (checkNext)
-                        {
-                            valuesChecked = formerAssignment;
-                            areaChecked = areaForLoop;
-                            rangeChecked = areaList[areaChecked];
-                            continue;
-                        }
-                        else
-                            break;
-                    }
-
-                    loopValueIndex = valueIndex;
-                }
-
-                // Above is regular iteration for value-divided matching
-                // Below is reverse iteration for value-divided matching
-
-                loopValueIndex = values.Length - 1;
-
-                for (int area = forwardMatching.Length - 1; area >= 0; area--)
-                {
-                    Range range = areaList[area];
-
-                    int valueIndex = loopValueIndex;
-
-                    if (valueIndex >= 0)
-                    {
-                        int currentSize = values[valueIndex];
-
-                        while (cells.SafeCheck(range.end - currentSize, x => x == Form1.FILLED))
-                            currentSize++;
-
-                        while (currentSize <= range.size)
-                        {
-                            valueIndex--;
-                            if (valueIndex >= 0)
-                            {
-                                currentSize += values[valueIndex] + 1;
-
-                                while (cells.SafeCheck(range.end - currentSize, x => x == Form1.FILLED))
-                                    currentSize++;
-                            }
-                            else
-                                break;
-                        }
-
-                        List<ColumnValue> assignedValues = MyRangeDesc(loopValueIndex, valueIndex)
-                            .Select(i => new ColumnValue { Value = values[i], Index = i })
-                            .Reverse()
-                            .ToList();
-
-                        backwardMatching[area] = assignedValues;
-                    }
-                    else
-                    {
-                        backwardMatching[area] = new List<ColumnValue>();
-                    }
-
-                    //-------------------------------
-
-                    List<ColumnValue> valuesChecked = backwardMatching[area];
-                    Range rangeChecked = range;
-                    int areaChecked = area;
-
-                    while (true)
-                    {
-                        bool checkNext;
-
-                        List<ColumnValue> formerAssignment = null;
-
-                        int areaForLoop = -1;
-
-                        if (valuesChecked.Sum(x => x.Value) < GetFilledCount(cells, rangeChecked))
-                        {
-                            areaForLoop = areaChecked;
-
-                            // Find the assignment with values
-                            do
-                            {
-                                areaForLoop++;
-                                formerAssignment = backwardMatching[areaForLoop];
-                            } while (formerAssignment.Count <= 0);
-
-                            valueIndex = formerAssignment[0].Index;
-                            formerAssignment.RemoveAt(0);
-
-                            int areaMoved = areaForLoop - areaChecked;
-                            area += areaMoved;
-
-                            checkNext = true;
-                        }
-                        else
-                            checkNext = false;
-
-                        if (checkNext)
-                        {
-                            valuesChecked = formerAssignment;
-                            areaChecked = areaForLoop;
-                            rangeChecked = areaList[areaChecked];
-                            continue;
-                        }
-                        else
-                            break;
-                    }
-
-                    loopValueIndex = valueIndex;
-                }
+                        columnValueList.Reverse();
+                        return columnValueList;
+                    })
+                    .Reverse()
+                    .ToArray();
 
                 // Debug Example
-                if (cells.cellColumnValues.asIterable.SequenceEqual(new int[] { 2, 1, 1, 1 }) && cells.asIterable.Where(x => x == Form1.EMPTY).Count() == 6)
+                if (cells.cellColumnValues.asIterable.SequenceEqual(new int[] { 2, 1, 1, 1 }) && cells.asIterable.Where(x => x == Form1.FILLED).Count() == 6)
                     debug();
 
                 bool doMatchPerfectly = true;
@@ -976,6 +881,131 @@ namespace PicrossSolver
                     }
                 }
             }
+        }
+
+        private static List<ColumnValue>[] AssignMatchingForward(Form1.CellSeries cells, List<Range> areaList)
+        {
+            var values = cells.cellColumnValues;
+
+            List<ColumnValue>[] forwardMatching = Enumerable.Repeat(new List<ColumnValue>(), areaList.Count).ToArray();
+
+            int loopValueIndex = 0;
+            for (int area = 0; area < forwardMatching.Length; area++)
+            {
+                Range range = areaList[area];
+
+                int valueIndex = loopValueIndex;
+
+                if (valueIndex < values.Length)
+                {
+                    int currentSize = values[valueIndex];
+
+                    while (cells.SafeCheck(range.start + currentSize, x => x == Form1.FILLED))
+                        currentSize++;
+
+                    if (currentSize <= range.size)
+                        valueIndex++; // Increasing this means adding the value to assignment
+
+                    while (valueIndex < values.Length)
+                    {
+                        int value = values[valueIndex];
+                        currentSize += value + 1;
+
+                        while (cells.SafeCheck(range.start + currentSize, x => x == Form1.FILLED))
+                            currentSize++;
+
+                        if (currentSize > range.size)
+                            break;
+
+                        int filledCount = MyRange(currentSize - value, currentSize).Select(x => cells.SafeCheck(range.start + x, a => a == Form1.FILLED)).Count(x => x == true);
+
+                        if (filledCount == value)
+                        {
+                            int i = currentSize - value - 1;
+
+                            while (cells.SafeCheck(range.start + i, x => x == Form1.FILLED))
+                            {
+                                i--;
+                                filledCount++;
+                            }
+                        }
+
+                        if (filledCount > value)
+                        {
+                            //break;
+                            //valueIndex--;
+                            //shouldAdd = false;
+                            // DO NOT ADD IN THIS CASE
+                            continue;
+                        }
+                        else if (currentSize <= range.size)
+                        {
+                            valueIndex++; // Increasing this means adding the value to assignment
+                        }
+                    }
+
+                    List<ColumnValue> assignedValues = MyRange(loopValueIndex, valueIndex)
+                        .Select(i => new ColumnValue { Value = values[i], Index = i })
+                        .ToList();
+
+                    forwardMatching[area] = assignedValues;
+                }
+                else
+                {
+                    forwardMatching[area] = new List<ColumnValue>();
+                }
+
+                //-------------------------------
+
+                List<ColumnValue> valuesChecked = forwardMatching[area];
+                Range rangeChecked = range;
+                int areaChecked = area;
+
+                while (true)
+                {
+                    bool checkNext;
+
+                    List<ColumnValue> formerAssignment = null;
+
+                    int areaForLoop = -1;
+
+                    if (valuesChecked.Sum(x => x.Value) < GetFilledCount(cells, rangeChecked))
+                    {
+                        areaForLoop = areaChecked;
+
+                        // Find the assignment with values
+                        do
+                        {
+                            areaForLoop--;
+                            formerAssignment = forwardMatching[areaForLoop];
+                        } while (formerAssignment.Count <= 0);
+
+                        valueIndex = formerAssignment[formerAssignment.Count - 1].Index;
+                        formerAssignment.RemoveAt(formerAssignment.Count - 1);
+
+                        int areaMoved = areaChecked - areaForLoop;
+                        area -= areaMoved;
+
+                        checkNext = true;
+                    }
+                    else
+                        checkNext = false;
+
+                    if (checkNext)
+                    {
+                        valuesChecked = formerAssignment;
+                        areaChecked = areaForLoop;
+                        rangeChecked = areaList[areaChecked];
+                        continue;
+                    }
+                    else
+                        break;
+                }
+
+                loopValueIndex = valueIndex;
+            }
+
+            return forwardMatching;
         }
 
         /// <summary>
@@ -1630,5 +1660,14 @@ namespace PicrossSolver
             return this.Index == ex.Index
                 && this.Value == ex.Value;
         }
+    }
+
+    public class TestCase
+    {
+        public string CellsString { get; set; }
+
+        public int[] Values { get; set; }
+
+        public int[][] CorrectAssignment { get; set; }
     }
 }

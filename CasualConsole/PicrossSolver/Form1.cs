@@ -34,6 +34,8 @@ namespace PicrossSolver
 
         public Form1()
         {
+            Generic.TestMatchingByDivided();
+
             programStartTime = DateTime.Now;
 
             string puzzlesHavingSolution = @"C:\Users\Xhertas\Documents\Visual Studio 2015\Projects\CasualConsole\PicrossSolver\Puzzles\has_solution\";
@@ -132,7 +134,7 @@ namespace PicrossSolver
 
             ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.InitialProcessing);
 
-            for (iteration = 0; ; iteration++)
+            for (iteration = 1; ; iteration++)
             {
                 Console.WriteLine("Running iteration: " + iteration);
 
@@ -164,10 +166,6 @@ namespace PicrossSolver
                 ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessByMaxValues);
                 isChangeDetected |= testPicture(picture);
 
-                // serideki çarpılarla ayrılmış kısımları bulup işliyor
-                ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessByDividedAreas);
-                isChangeDetected |= testPicture(picture);
-
                 // seri başlarında ve sonlarında kendini bulmaya çalışıyor
                 ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.TryMatchingFirstValue);
                 isChangeDetected |= testPicture(picture);
@@ -184,12 +182,16 @@ namespace PicrossSolver
                 ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.ProcessSpecialCases);
                 isChangeDetected |= testPicture(picture);
 
+                // serideki çarpılarla ayrılmış kısımları bulup işliyor
+                ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessByDividedAreas);
+                isChangeDetected |= testPicture(picture);
+
+                // serilerdeki dolu grup sayısı değer sayısını geçtiğinde bakıyor
+                ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessByFilledRanges);
+                isChangeDetected |= testPicture(picture);
+
                 if (!isChangeDetected)
                 {
-                    // serilerdeki dolu grup sayısı değer sayısını geçtiğinde bakıyor
-                    ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessByFilledRanges);
-                    isChangeDetected |= testPicture(picture);
-
                     if (!isChangeDetected)
                     {
                         break;
@@ -624,6 +626,14 @@ namespace PicrossSolver
                     throw new Exception("Error at reversing");
 
                 return cells;
+            }
+
+            public CellSeries(byte[] bytes, int[] values)
+            {
+                _length = bytes.Length;
+                valueGetter = x => bytes[x];
+                valueSetter = (x, b) => bytes[x] = b;
+                _cellColumnValues = new CellColumnValues(values, Direction.Horizontal);
             }
 
             public IEnumerable<int> iterable()
