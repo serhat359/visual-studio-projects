@@ -810,9 +810,7 @@ namespace PicrossSolver
 
                     bool forwardBackwardMatchCase = range.containsFilled && forwardValues.Any() && Enumerable.SequenceEqual(forwardValues, backwardValues);
 
-                    bool indexOffByOneCase = range.containsFilled && forwardValues.Count == 1 && backwardValues.Count == 1 && forwardValues[0].Index - backwardValues[0].Index == 1
-                        //&& range.size <= forwardValues[0].Value + 1;
-                        ;
+                    bool indexOffByOneCase = range.containsFilled && forwardValues.Count == 1 && backwardValues.Count == 1 && forwardValues[0].Index - backwardValues[0].Index == 1;
 
                     if (doMatchPerfectly || forwardBackwardMatchCase)
                     {
@@ -858,6 +856,43 @@ namespace PicrossSolver
                                 Form1.CellSeries singleProcessingSlice = Form1.CellSeries.Slice(cells, range.start, range.end, new int[] { minOfAll });
                                 ProcessStartSetFilledOnly(singleProcessingSlice);
                                 ProcessStartSetFilledOnly(Form1.CellSeries.Reverse(singleProcessingSlice));
+                            }
+                        }
+
+                        // Below is setting common values on the forward side
+                        {
+                            List<int> backwardCommonValues = new List<int>();
+                            for (int i = 0; i < Min(forwardValues.Count, backwardValues.Count); i++)
+                            {
+                                if (forwardValues[forwardValues.Count - 1 - i].Index == backwardValues[backwardValues.Count - 1 - i].Index)
+                                    backwardCommonValues.Insert(0, forwardValues[forwardValues.Count - 1 - i].Value);
+                                else
+                                    break;
+                            }
+                            if (backwardCommonValues.Count >= 2)
+                            {
+                                Form1.CellSeries slice = Form1.CellSeries.Slice(cells, range.start, range.end, backwardCommonValues.ToArray());
+
+                                slice = Form1.CellSeries.Reverse(slice);
+
+                                ProcessSpecialCases(slice);
+                            }
+                        }
+
+                        // Below is setting common values on the backward side
+                        {
+                            List<int> forwardCommonValues = new List<int>();
+                            for (int i = 0; i < Min(forwardValues.Count, backwardValues.Count); i++)
+                            {
+                                if (forwardValues[i].Index == backwardValues[i].Index)
+                                    forwardCommonValues.Add(forwardValues[i].Value);
+                                else
+                                    break;
+                            }
+                            if (forwardCommonValues.Count >= 2)
+                            {
+                                Form1.CellSeries slice = Form1.CellSeries.Slice(cells, range.start, range.end, forwardCommonValues.ToArray());
+                                ProcessSpecialCases(slice);
                             }
                         }
                     }
