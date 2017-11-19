@@ -29,6 +29,8 @@ namespace PicrossSolver
                 new TestCase { CellsString = "    ■■■ ■.  ■   ■.  ", Values = new int[]{ 1,5,2,2,1 }, CorrectAssignment = new int[][] { new[]{ 1,5 }, new[] { 2,2 }, new[] { 1 } } },
 
                 new TestCase { CellsString = "  .■   ■  .■ ■■■    ", Values = new int[]{ 1,2,2,5,1 }, CorrectAssignment = new int[][] { new[]{ 1 }, new[] { 2,2 }, new[] { 5,1 } } },
+
+                new TestCase { CellsString = " .■  ■ ", Values = new int[]{ 1,3 }, CorrectAssignment = new int[][] { new int[]{  }, new[] { 1,3 } } },
             };
 
             Func<string, byte[]> strToBytes = s =>
@@ -927,6 +929,8 @@ namespace PicrossSolver
             int loopValueIndex = 0;
             for (int area = 0; area < forwardMatching.Length; area++)
             {
+                bool willCheckThis = false;
+
                 Range range = areaList[area];
 
                 int valueIndex = loopValueIndex;
@@ -938,8 +942,17 @@ namespace PicrossSolver
                     while (cells.SafeCheck(range.start + currentSize, x => x == Form1.FILLED))
                         currentSize++;
 
+                    bool added = false;
                     if (currentSize <= range.size)
+                    {
                         valueIndex++; // Increasing this means adding the value to assignment
+                        added = true;
+                    }
+
+                    if (added && cells.SafeCheck(range.start + currentSize - values[valueIndex - 1] - 1, x => x == Form1.FILLED))
+                    {
+                        willCheckThis = true;
+                    }
 
                     while (valueIndex < values.Length)
                     {
@@ -1004,7 +1017,7 @@ namespace PicrossSolver
 
                     int areaForLoop = -1;
 
-                    if (valuesChecked.Sum(x => x.Value) < GetFilledCount(cells, rangeChecked))
+                    if (willCheckThis || valuesChecked.Sum(x => x.Value) < GetFilledCount(cells, rangeChecked))
                     {
                         areaForLoop = areaChecked;
 
@@ -1022,6 +1035,9 @@ namespace PicrossSolver
                         area -= areaMoved;
 
                         checkNext = true;
+
+                        if (willCheckThis)
+                            willCheckThis = false;
                     }
                     else
                         checkNext = false;
@@ -1425,7 +1441,7 @@ namespace PicrossSolver
 
                                 int thisValue = values[thisIndex];
                                 int nextValue = values[nextIndex];
-                                
+
                                 filledRange = filledRanges[i];
                                 Range nextFilledRange = filledRanges[i + 1];
 
