@@ -1259,7 +1259,8 @@ namespace PicrossSolver
                     // TODO write some more code if necessary
                 }
             }
-            else if (filledRanges.Count == values.Length)
+
+            if (filledRanges.Count == values.Length)
             {
                 int violatingValueIndex = -1;
 
@@ -1300,7 +1301,8 @@ namespace PicrossSolver
                     }
                 }
             }
-            else if (filledRanges.Count == values.Length - 1)
+
+            if (filledRanges.Count == values.Length - 1)
             {
                 bool canMerge = TryMerging(cells, values, filledRanges);
 
@@ -1322,7 +1324,8 @@ namespace PicrossSolver
                     }
                 }
             }
-            else if (filledRanges.Count < values.Length && filledRanges.Count > 0)
+
+            if (filledRanges.Count < values.Length && filledRanges.Count > 0)
             {
                 // Forward candidate matching
                 List<int>[] forwardFilledCandidates = GetFilledMatchingCandidates(cells, values, filledRanges);
@@ -1367,6 +1370,38 @@ namespace PicrossSolver
                         {
                             cells.SafeSet(filledRange.start - 1, Form1.EMPTY);
                             cells.SafeSet(filledRange.end + 1, Form1.EMPTY);
+                        }
+
+                        if (i + 1 < filledRanges.Count)
+                        {
+                            List<int> nextForwardCandidates = forwardFilledCandidates[i + 1];
+                            List<int> nextBackwardCandidates = backwardFilledCandidates[i + 1];
+
+                            if (forwardCandidates.Count == 1 &&
+                                backwardCandidates.Count == 1 &&
+                                forwardCandidates[0] == backwardCandidates[0] &&
+                                nextForwardCandidates.Count == 1 &&
+                                nextBackwardCandidates.Count == 1 &&
+                                nextForwardCandidates[0] == nextBackwardCandidates[0]
+                            )
+                            {
+                                int thisIndex = forwardCandidates[0];
+                                int nextIndex = nextForwardCandidates[0];
+
+                                int thisValue = values[thisIndex];
+                                int nextValue = values[nextIndex];
+                                
+                                filledRange = filledRanges[i];
+                                Range nextFilledRange = filledRanges[i + 1];
+
+                                int cellSize = nextFilledRange.end - filledRange.start + 1;
+
+                                if (cellSize > thisValue + nextValue && nextIndex - thisIndex == 1)
+                                {
+                                    Form1.CellSeries slice = Form1.CellSeries.Slice(cells, filledRange.start, nextFilledRange.end, new int[] { thisValue, nextValue });
+                                    SetMiddleUnreachables(slice);
+                                }
+                            }
                         }
                     }
                 }
@@ -1470,6 +1505,22 @@ namespace PicrossSolver
                 else if (cell == Form1.EMPTY)
                 {
 
+                }
+            }
+        }
+
+        private static void SetMiddleUnreachables(Form1.CellSeries cells)
+        {
+            var values = cells.cellColumnValues;
+
+            if (values.Length == 2 && cells[0] == Form1.FILLED && cells[cells.Length - 1] == Form1.FILLED)
+            {
+                int startValue = values[0];
+                int endValue = values[1];
+
+                for (int i = startValue; i < cells.Length - endValue; i++)
+                {
+                    cells[i] = Form1.EMPTY;
                 }
             }
         }
