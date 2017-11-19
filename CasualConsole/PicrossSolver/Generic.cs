@@ -588,7 +588,7 @@ namespace PicrossSolver
                             valueIndex++;
                             startIndex += val + 1;
                         }
-                        else if (cells[val + startIndex] == Form1.EMPTY) // Doluların arkasının boş olma ihtimali
+                        else if (cells.SafeCheck(val + startIndex, x => x == Form1.EMPTY))  /// cells[val + startIndex] == Form1.EMPTY) // Doluların arkasının boş olma ihtimali
                         {
                             for (int i = 0; i < filledFoundIndex; i++)
                             {
