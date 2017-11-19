@@ -821,7 +821,8 @@ namespace PicrossSolver
                         ProcessAllAlgorithms(slice);
                         ProcessAllAlgorithms(Form1.CellSeries.Reverse(slice));
                     }
-                    else if (indexOffByOneCase)
+
+                    if (indexOffByOneCase)
                     {
                         int minValue = Min(forwardValues[0].Value, backwardValues[0].Value);
                         int maxValue = Max(forwardValues[0].Value, backwardValues[0].Value);
@@ -835,7 +836,7 @@ namespace PicrossSolver
                             ProcessSingles(singleProcessingSlice);
                         }
                     }
-                    else
+
                     {
                         // Below is for minimum matching
                         int[] newValues = ColumnValue.GetCommon(forwardValues, backwardValues);
@@ -858,6 +859,44 @@ namespace PicrossSolver
                                 Form1.CellSeries singleProcessingSlice = Form1.CellSeries.Slice(cells, range.start, range.end, new int[] { minOfAll });
                                 ProcessStartSetFilledOnly(singleProcessingSlice);
                                 ProcessStartSetFilledOnly(Form1.CellSeries.Reverse(singleProcessingSlice));
+                            }
+
+                            if (minOfAll == 1 && uniqueValues.Count == 1)
+                            {
+                                int maxIndex = forwardValues.Max(x => x.Index);
+                                int minIndex = backwardValues.Min(x => x.Index);
+
+                                if (maxIndex - minIndex <= 1)
+                                {
+                                    if (cells[range.start] == Form1.FILLED)
+                                        cells.SafeSet(range.start + 1, Form1.EMPTY);
+                                    else if (cells[range.end] == Form1.FILLED)
+                                        cells.SafeSet(range.end - 1, Form1.EMPTY);
+                                }
+                            }
+
+                            if (cells[range.start] == Form1.FILLED)
+                            {
+                                ColumnValue forwardFirst = forwardValues[0];
+                                ColumnValue backwardFirst = backwardValues[0];
+
+                                if (forwardFirst == backwardFirst && forwardFirst.Index - backwardFirst.Index <= 1)
+                                {
+                                    Form1.CellSeries slice = Form1.CellSeries.Slice(cells, range.start, range.end, new int[] { forwardFirst.Value });
+                                    ProcessStartSetFilledOnly(slice);
+                                }
+                            }
+
+                            if (cells[range.end] == Form1.FILLED)
+                            {
+                                ColumnValue forwardLast = forwardValues[forwardValues.Count - 1];
+                                ColumnValue backwardLast = backwardValues[backwardValues.Count - 1];
+
+                                if (forwardLast.Value == backwardLast.Value && forwardLast.Index - backwardLast.Index <= 1)
+                                {
+                                    Form1.CellSeries slice = Form1.CellSeries.Slice(cells, range.start, range.end, new int[] { forwardLast.Value });
+                                    ProcessStartSetFilledOnly(Form1.CellSeries.Reverse(slice));
+                                }
                             }
                         }
 
