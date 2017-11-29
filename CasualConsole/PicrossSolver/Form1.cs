@@ -112,7 +112,7 @@ namespace PicrossSolver
 
                 Console.WriteLine("Time it took: {0}", timeDiff);
 
-                display(picture, "This is the solved one", true);
+                display(picture, "I could only solve this much", true);
             }
 
             return picture;
@@ -722,10 +722,22 @@ namespace PicrossSolver
             {
                 for (int col = 0; col < colCount; col++)
                 {
+                    // Drawing vertical line
                     g2d.DrawLine(new Pen(Brushes.Orange), (col + 1) * Form1.displaySize, 0, (col + 1) * Form1.displaySize, rowCount * Form1.displaySize);
+
+                    if (col % 5 == 4)
+                    {
+                        g2d.DrawLine(new Pen(Brushes.Orange), (col + 1) * Form1.displaySize + 1, 0, (col + 1) * Form1.displaySize + 1, rowCount * Form1.displaySize);
+                    }
                 }
 
+                // Drawing horizontal line
                 g2d.DrawLine(new Pen(Brushes.Orange), 0, (row + 1) * Form1.displaySize, colCount * Form1.displaySize, (row + 1) * Form1.displaySize);
+
+                if (row % 5 == 4)
+                {
+                    g2d.DrawLine(new Pen(Brushes.Orange), 0, (row + 1) * Form1.displaySize + 1, colCount * Form1.displaySize, (row + 1) * Form1.displaySize + 1);
+                }
             }
         }
     }
