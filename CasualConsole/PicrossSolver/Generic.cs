@@ -74,6 +74,29 @@ namespace PicrossSolver
 
             Console.WriteLine("All test are OK!!!");
             Console.WriteLine();
+
+            {
+                string asd = "       ■    ■  ";
+                int[] vals = { 2, 1, 1, 2, 3 };
+
+                var cellsExternal = new Form1.CellSeries(strToBytes(asd), vals);
+
+                List<Range> filledRanges = FindFilledGroups(cellsExternal, 0, cellsExternal.Length - 1);
+
+                var res = GetFilledMatchingCandidates(cellsExternal, vals, filledRanges);
+            }
+
+            {
+                string asd = "  ■    ■       ";
+                int[] vals = { 3, 2, 1, 1, 2 };
+
+                var cellsExternal = new Form1.CellSeries(strToBytes(asd), vals);
+
+                List<Range> filledRanges = FindFilledGroups(cellsExternal, 0, cellsExternal.Length - 1);
+
+                var res = GetFilledMatchingCandidates(cellsExternal, vals, filledRanges);
+            }
+
         }
 
         public static void ProcessAllAlgorithms(Form1.CellSeries cells)
@@ -839,7 +862,7 @@ namespace PicrossSolver
 
                     {
                         // Below is for minimum matching
-                        int[] newValues = ColumnValue.GetCommon(forwardValues, backwardValues);
+                        int[] newValues = GetCommonValues(forwardValues, backwardValues);
 
                         if (newValues.Any())
                         {
@@ -1199,7 +1222,7 @@ namespace PicrossSolver
         {
             var values = cells.cellColumnValues;
 
-            if (values.Length > 0 && values[0] == 1 && cells.Length > 2 && cells[2] == Form1.FILLED)
+            if (values.Length > 0 && values[0] == 1 && cells.SafeCheck(2, x => x == Form1.FILLED))
             {
                 cells[1] = Form1.EMPTY;
             }
@@ -1418,18 +1441,18 @@ namespace PicrossSolver
             if (filledRanges.Count < values.Length && filledRanges.Count > 0)
             {
                 // Forward candidate matching
-                List<ColumnValue>[] forwardFilledCandidates = GetFilledMatchingCandidates(cells, values, filledRanges);
+                List<ColumnValueExtended>[] forwardFilledCandidates = GetFilledMatchingCandidates(cells, values, filledRanges);
 
                 int cellsLastIndex = cells.Length - 1;
                 // New Backward candidate matching
-                List<ColumnValue>[] backwardFilledCandidates = GetFilledMatchingCandidates(
+                List<ColumnValueExtended>[] backwardFilledCandidates = GetFilledMatchingCandidates(
                     Form1.CellSeries.Reverse(cells), values.Reverse().ToArray(),
                     filledRanges.Select(x => new Range(cellsLastIndex - x.end, cellsLastIndex - x.start, x.containsFilled)).OrderBy(x => x.start).ToList()
                 );
 
                 backwardFilledCandidates = backwardFilledCandidates
                     .Select(candList => candList
-                        .Select(x => new ColumnValue { Index = values.Length - 1 - x.Index, Value = x.Value })
+                        .Select(x => new ColumnValueExtended { Index = values.Length - 1 - x.Index, Value = x.Value, CanMarkAfter = x.CanMarkAfter, CanMarkBefore = x.CanMarkBefore })
                         .ToList()
                     )
                     .Reverse()
@@ -1438,8 +1461,8 @@ namespace PicrossSolver
                 for (int i = 0; i < filledRanges.Count; i++)
                 {
                     Range filledRange = filledRanges[i];
-                    List<ColumnValue> forwardCandidates = forwardFilledCandidates[i];
-                    List<ColumnValue> backwardCandidates = backwardFilledCandidates[i];
+                    List<ColumnValueExtended> forwardCandidates = forwardFilledCandidates[i];
+                    List<ColumnValueExtended> backwardCandidates = backwardFilledCandidates[i];
 
                     if (forwardCandidates.Count > 0 && backwardCandidates.Count > 0)
                     {
@@ -1464,8 +1487,8 @@ namespace PicrossSolver
 
                         if (i + 1 < filledRanges.Count)
                         {
-                            List<ColumnValue> nextForwardCandidates = forwardFilledCandidates[i + 1];
-                            List<ColumnValue> nextBackwardCandidates = backwardFilledCandidates[i + 1];
+                            List<ColumnValueExtended> nextForwardCandidates = forwardFilledCandidates[i + 1];
+                            List<ColumnValueExtended> nextBackwardCandidates = backwardFilledCandidates[i + 1];
 
                             if (forwardCandidates.Count == 1 &&
                                 backwardCandidates.Count == 1 &&
@@ -1491,6 +1514,27 @@ namespace PicrossSolver
                                     Form1.CellSeries slice = Form1.CellSeries.Slice(cells, filledRange.start, nextFilledRange.end, new int[] { thisValue, nextValue });
                                     SetMiddleUnreachables(slice);
                                 }
+                            }
+                        }
+                    }
+
+                    if (forwardCandidates.Count == 1 && backwardCandidates.Count == 1)
+                    {
+                        var forward = forwardCandidates[0];
+                        var backward = backwardCandidates[0];
+
+                        int indexOff = forward.Index - backward.Index;
+
+                        if (indexOff == 1 || indexOff == 0)
+                        {
+                            if (forward.CanMarkBefore && backward.CanMarkAfter)
+                            {
+                                cells.SafeSet(filledRange.start - 1, Form1.EMPTY);
+                            }
+
+                            if (forward.CanMarkAfter && backward.CanMarkBefore)
+                            {
+                                cells.SafeSet(filledRange.end + 1, Form1.EMPTY);
                             }
                         }
                     }
@@ -1615,9 +1659,9 @@ namespace PicrossSolver
             }
         }
 
-        private static List<ColumnValue>[] GetFilledMatchingCandidates(Form1.CellSeries cells, int[] values, List<Range> filledRanges)
+        private static List<ColumnValueExtended>[] GetFilledMatchingCandidates(Form1.CellSeries cells, int[] values, List<Range> filledRanges)
         {
-            List<ColumnValue>[] forwardFilledCandidates = Enumerable.Range(0, filledRanges.Count).Select(x => new List<ColumnValue>()).ToArray();
+            List<ColumnValueExtended>[] forwardFilledCandidates = Enumerable.Range(0, filledRanges.Count).Select(x => new List<ColumnValueExtended>()).ToArray();
 
             int i = 0;
 
@@ -1671,7 +1715,7 @@ namespace PicrossSolver
                             }
                         }
 
-                        forwardFilledCandidates[filledRangeIndex].Add(new ColumnValue { Index = valueIndex, Value = values[valueIndex] });
+                        forwardFilledCandidates[filledRangeIndex].Add(new ColumnValueExtended { Index = valueIndex, Value = val, CanMarkBefore = range.start == i, CanMarkAfter = val == 1 });
                         filledRangeIndex++;
                     }
                     else
@@ -1720,6 +1764,25 @@ namespace PicrossSolver
                     Value = 0
                 };
             }
+        }
+
+        private static int[] GetCommonValues(List<ColumnValue> forward, List<ColumnValue> backward)
+        {
+            HashSet<int> commonIndices = new HashSet<int>();
+
+            foreach (var item in forward)
+            {
+                if (backward.Any(x => x.Index == item.Index))
+                    commonIndices.Add(item.Index);
+            }
+
+            foreach (var item in backward)
+            {
+                if (forward.Any(x => x.Index == item.Index))
+                    commonIndices.Add(item.Index);
+            }
+
+            return commonIndices.Select(i => forward.First(e => e.Index == i).Value).ToArray();
         }
 
         #endregion
@@ -1777,30 +1840,22 @@ namespace PicrossSolver
         public int Index { get; set; }
         public int Value { get; set; }
 
-        public static int[] GetCommon(List<ColumnValue> forward, List<ColumnValue> backward)
-        {
-            HashSet<int> commonIndices = new HashSet<int>();
-
-            foreach (var item in forward)
-            {
-                if (backward.Any(x => x.Index == item.Index))
-                    commonIndices.Add(item.Index);
-            }
-
-            foreach (var item in backward)
-            {
-                if (forward.Any(x => x.Index == item.Index))
-                    commonIndices.Add(item.Index);
-            }
-
-            return commonIndices.Select(i => forward.First(e => e.Index == i).Value).ToArray();
-        }
-
         public bool Equals(ColumnValue ex)
         {
             return this.Index == ex.Index
                 && this.Value == ex.Value;
         }
+
+        public override string ToString()
+        {
+            return "{Index: " + Index + ", Value: " + Value + "}";
+        }
+    }
+
+    public class ColumnValueExtended : ColumnValue
+    {
+        public bool CanMarkBefore { get; set; }
+        public bool CanMarkAfter { get; set; }
     }
 
     public class TestCase
