@@ -1418,18 +1418,18 @@ namespace PicrossSolver
             if (filledRanges.Count < values.Length && filledRanges.Count > 0)
             {
                 // Forward candidate matching
-                List<int>[] forwardFilledCandidates = GetFilledMatchingCandidates(cells, values, filledRanges);
+                List<ColumnValue>[] forwardFilledCandidates = GetFilledMatchingCandidates(cells, values, filledRanges);
 
                 int cellsLastIndex = cells.Length - 1;
                 // New Backward candidate matching
-                List<int>[] backwardFilledCandidates = GetFilledMatchingCandidates(
+                List<ColumnValue>[] backwardFilledCandidates = GetFilledMatchingCandidates(
                     Form1.CellSeries.Reverse(cells), values.Reverse().ToArray(),
                     filledRanges.Select(x => new Range(cellsLastIndex - x.end, cellsLastIndex - x.start, x.containsFilled)).OrderBy(x => x.start).ToList()
                 );
 
                 backwardFilledCandidates = backwardFilledCandidates
                     .Select(candList => candList
-                        .Select(x => values.Length - 1 - x)
+                        .Select(x => new ColumnValue { Index = values.Length - 1 - x.Index, Value = x.Value })
                         .ToList()
                     )
                     .Reverse()
@@ -1438,19 +1438,19 @@ namespace PicrossSolver
                 for (int i = 0; i < filledRanges.Count; i++)
                 {
                     Range filledRange = filledRanges[i];
-                    List<int> forwardCandidates = forwardFilledCandidates[i];
-                    List<int> backwardCandidates = backwardFilledCandidates[i];
+                    List<ColumnValue> forwardCandidates = forwardFilledCandidates[i];
+                    List<ColumnValue> backwardCandidates = backwardFilledCandidates[i];
 
                     if (forwardCandidates.Count > 0 && backwardCandidates.Count > 0)
                     {
-                        int forwardMin = forwardCandidates.Min();
-                        int backwardMin = backwardCandidates.Min();
+                        int forwardMinIndex = forwardCandidates.Min(x => x.Index);
+                        int backwardMinIndex = backwardCandidates.Min(x => x.Index);
 
-                        int forwardMax = forwardCandidates.Max();
-                        int backwardMax = backwardCandidates.Max();
+                        int forwardMaxIndex = forwardCandidates.Max(x => x.Index);
+                        int backwardMaxIndex = backwardCandidates.Max(x => x.Index);
 
-                        int minValueIndex = forwardMin < backwardMin ? forwardMin : backwardMin;
-                        int maxValueIndex = forwardMax >= backwardMax ? forwardMax : backwardMax;
+                        int minValueIndex = forwardMinIndex < backwardMinIndex ? forwardMinIndex : backwardMinIndex;
+                        int maxValueIndex = forwardMaxIndex >= backwardMaxIndex ? forwardMaxIndex : backwardMaxIndex;
 
                         var newValues = MyRange(minValueIndex, maxValueIndex + 1).Select(x => values[x]).ToList();
 
@@ -1464,8 +1464,8 @@ namespace PicrossSolver
 
                         if (i + 1 < filledRanges.Count)
                         {
-                            List<int> nextForwardCandidates = forwardFilledCandidates[i + 1];
-                            List<int> nextBackwardCandidates = backwardFilledCandidates[i + 1];
+                            List<ColumnValue> nextForwardCandidates = forwardFilledCandidates[i + 1];
+                            List<ColumnValue> nextBackwardCandidates = backwardFilledCandidates[i + 1];
 
                             if (forwardCandidates.Count == 1 &&
                                 backwardCandidates.Count == 1 &&
@@ -1475,8 +1475,8 @@ namespace PicrossSolver
                                 nextForwardCandidates[0] == nextBackwardCandidates[0]
                             )
                             {
-                                int thisIndex = forwardCandidates[0];
-                                int nextIndex = nextForwardCandidates[0];
+                                int thisIndex = forwardCandidates[0].Index;
+                                int nextIndex = nextForwardCandidates[0].Index;
 
                                 int thisValue = values[thisIndex];
                                 int nextValue = values[nextIndex];
@@ -1615,9 +1615,9 @@ namespace PicrossSolver
             }
         }
 
-        private static List<int>[] GetFilledMatchingCandidates(Form1.CellSeries cells, int[] values, List<Range> filledRanges)
+        private static List<ColumnValue>[] GetFilledMatchingCandidates(Form1.CellSeries cells, int[] values, List<Range> filledRanges)
         {
-            List<int>[] forwardFilledCandidates = Enumerable.Range(0, filledRanges.Count).Select(x => new List<int>()).ToArray();
+            List<ColumnValue>[] forwardFilledCandidates = Enumerable.Range(0, filledRanges.Count).Select(x => new List<ColumnValue>()).ToArray();
 
             int i = 0;
 
@@ -1671,7 +1671,7 @@ namespace PicrossSolver
                             }
                         }
 
-                        forwardFilledCandidates[filledRangeIndex].Add(valueIndex);
+                        forwardFilledCandidates[filledRangeIndex].Add(new ColumnValue { Index = valueIndex, Value = values[valueIndex] });
                         filledRangeIndex++;
                     }
                     else
