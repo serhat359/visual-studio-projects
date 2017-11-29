@@ -1226,6 +1226,11 @@ namespace PicrossSolver
             {
                 cells[1] = Form1.EMPTY;
             }
+
+            if (values.Length > 1 && values[0] == 1 && values[1] == 1 && cells.SafeCheck(4, x => x == Form1.FILLED))
+            {
+                cells[3] = Form1.EMPTY;
+            }
         }
 
         private static void debug() { }
