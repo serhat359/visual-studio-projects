@@ -516,7 +516,7 @@ namespace PicrossSolver
                     valueSetter(i, value);
                 }
             }
-            public IEnumerable<int> asIterable { get { return iterable(); } }
+            public IEnumerable<byte> asIterable { get { return iterable(); } }
             public Direction direction = Direction.NotSet;
             public int? rowOrCol = null;
             public string asString { get { return new string(asIterable.Select(x => Form1.chars[x]).ToArray()); } }
@@ -634,9 +634,11 @@ namespace PicrossSolver
                 valueGetter = x => bytes[x];
                 valueSetter = (x, b) => bytes[x] = b;
                 _cellColumnValues = new CellColumnValues(values, Direction.Horizontal);
+
+                this.firstTimeString = this.asString;
             }
 
-            public IEnumerable<int> iterable()
+            public IEnumerable<byte> iterable()
             {
                 for (int i = 0; i < _length; i++)
                     yield return valueGetter(i);

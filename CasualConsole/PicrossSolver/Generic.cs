@@ -31,6 +31,10 @@ namespace PicrossSolver
                 new TestCase { CellsString = "  .■   ■  .■ ■■■    ", Values = new int[]{ 1,2,2,5,1 }, CorrectAssignment = new int[][] { new[]{ 1 }, new[] { 2,2 }, new[] { 5,1 } } },
 
                 new TestCase { CellsString = " .■  ■ ", Values = new int[]{ 1,3 }, CorrectAssignment = new int[][] { new int[]{  }, new[] { 1,3 } } },
+
+                new TestCase { CellsString = "    .■  ■ ", Values = new int[] { 1,1 }, CorrectAssignment = new int[][] { new int[]{ }, new[] { 1,1 } } },
+
+                new TestCase { CellsString = "    .■  ■ ", Values = new int[] { 2,2 }, CorrectAssignment = new int[][] { new int[]{ }, new[] { 2,2 } } },
             };
 
             Func<string, byte[]> strToBytes = s =>
@@ -837,6 +841,13 @@ namespace PicrossSolver
 
                     bool indexOffByOneCase = range.containsFilled && forwardValues.Count == 1 && backwardValues.Count == 1 && forwardValues[0].Index - backwardValues[0].Index == 1;
 
+                    if (forwardValues.Count == 0 && backwardValues.Count == 0 && (area == 0 || area == areaList.Count - 1))
+                    {
+                        Form1.CellSeries slice = Form1.CellSeries.Slice(cells, range.start, range.end, new int[] { });
+
+                        ProcessAllAlgorithms(slice);
+                    }
+
                     if (doMatchPerfectly || forwardBackwardMatchCase)
                     {
                         Form1.CellSeries slice = Form1.CellSeries.Slice(cells, range.start, range.end, forwardValues.Select(x => x.Value).ToArray());
@@ -857,6 +868,26 @@ namespace PicrossSolver
                         {
                             Form1.CellSeries singleProcessingSlice = Form1.CellSeries.Slice(cells, range.start, range.end, new int[] { maxValue });
                             ProcessSingles(singleProcessingSlice);
+                        }
+                    }
+                    
+                    int forwardMinRange = forwardValues.Sum(x => x.Value) + forwardValues.Count - 1;
+                    int backwardMinRange = backwardValues.Sum(x => x.Value) + backwardValues.Count - 1;
+                    if ((range.size == forwardMinRange || range.size == backwardMinRange) && range.containsFilled && backwardValues.Count - forwardValues.Count == 1 && forwardValues.Max(x => x.Index) - backwardValues.Min(x => x.Index) <= 1)
+                    {
+                        byte[] cellsCopy1 = Form1.CellSeries.Slice(cells, range.start, range.end, new int[] { }).asIterable.ToArray();
+                        byte[] cellsCopy2 = cellsCopy1.ToArray();
+
+                        var forwardCells = new Form1.CellSeries(cellsCopy1, forwardValues.Select(x => x.Value).ToArray());
+                        var backwardCells = new Form1.CellSeries(cellsCopy2, backwardValues.Select(x => x.Value).ToArray());
+
+                        ProcessAllAlgorithms(forwardCells);
+                        ProcessAllAlgorithms(backwardCells);
+
+                        for (int i = 0; i < cellsCopy1.Length; i++)
+                        {
+                            if (cellsCopy1[i] == cellsCopy2[i] && cellsCopy1[i] != Form1.UNKNOWN)
+                                cells[range.start + i] = cellsCopy1[i];
                         }
                     }
 
@@ -1051,6 +1082,49 @@ namespace PicrossSolver
                         else if (currentSize <= range.size)
                         {
                             valueIndex++; // Increasing this means adding the value to assignment
+                        }
+                    }
+
+                    int assignedValueCount = valueIndex - loopValueIndex;
+
+                    // Below is for error checking
+                    if (valueIndex == values.Length && assignedValueCount == 1)
+                    {
+                        for (int i = range.start + currentSize; i < range.end; i++)
+                        {
+                            if (cells[i] == Form1.FILLED)
+                            {
+                                int firstFilledIndex = -1;
+                                int lastFilledIndex = -1;
+
+                                for (i = range.start; i <= range.end; i++)
+                                {
+                                    if (cells[i] == Form1.FILLED)
+                                    {
+                                        firstFilledIndex = i;
+                                        break;
+                                    }
+                                }
+
+                                for (i = range.end; i >= range.start; i--)
+                                {
+                                    if (cells[i] == Form1.FILLED)
+                                    {
+                                        lastFilledIndex = i;
+                                        break;
+                                    }
+                                }
+
+                                int filledrange = lastFilledIndex - firstFilledIndex + 1;
+
+                                int assigedValue = values[loopValueIndex];
+
+                                if (filledrange > assigedValue)
+                                {
+                                    willCheckThis = true;
+                                    break;
+                                }
+                            }
                         }
                     }
 
