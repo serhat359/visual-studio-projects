@@ -13,7 +13,7 @@ namespace PicrossSolver
     {
         public delegate void Algorithm(CellSeries s);
 
-        public const string chars = " ■.";
+        public const string chars = " ■x";
         public const byte UNKNOWN = 0;
         public const byte FILLED = 1;
         public const byte EMPTY = 2;
@@ -182,16 +182,16 @@ namespace PicrossSolver
                 ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.ProcessSpecialCases);
                 isChangeDetected |= testPicture(picture);
 
-                // serideki çarpılarla ayrılmış kısımları bulup işliyor
-                ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessByDividedAreas);
-                isChangeDetected |= testPicture(picture);
-
                 // serilerdeki dolu grup sayısı değer sayısını geçtiğinde bakıyor
                 ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessByFilledRanges);
                 isChangeDetected |= testPicture(picture);
 
                 if (!isChangeDetected)
                 {
+                    // serideki çarpılarla ayrılmış kısımları bulup işliyor
+                    ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessByDividedAreas);
+                    isChangeDetected |= testPicture(picture);
+
                     if (!isChangeDetected)
                     {
                         break;

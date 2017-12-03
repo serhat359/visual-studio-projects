@@ -10,31 +10,36 @@ namespace PicrossSolver
         public static void TestMatchingByDivided()
         {
             TestCase[] tests = new TestCase[] {
-                new TestCase { CellsString  = "■■.  ", Values = new int[]{ 2, 1 }, CorrectAssignment = new int[][] { new[]{ 2 }, new[] { 1 } }  },
 
-                new TestCase { CellsString  = "■■  .■.  ", Values = new int[]{ 2, 1, 2 }, CorrectAssignment = new int[][] { new[]{ 2 }, new[] { 1 }, new[] { 2 } }  },
+                new TestCase { CellsString = " x■  ■xxxxx■   ", Values = new int[] { 1,2,1 }, CorrectAssignment = new int[][] { new int[]{ }, new[] { 1,2 }, new[] { 1 } } },
 
-                new TestCase { CellsString  = "   ■■.  ", Values = new int[]{ 2, 1 }, CorrectAssignment = new int[][] { new[]{ 2 }, new[] { 1 } }  },
+                new TestCase { CellsString  = "■■x  ", Values = new int[]{ 2, 1 }, CorrectAssignment = new int[][] { new[]{ 2 }, new[] { 1 } }  },
 
-                new TestCase { CellsString  = "   ■■.   ■     ", Values = new int[]{ 2, 1, 3, 2 }, CorrectAssignment = new int[][] { new[]{ 2 }, new[] { 1, 3, 2 } }  },
+                new TestCase { CellsString  = "■■  x■x  ", Values = new int[]{ 2, 1, 2 }, CorrectAssignment = new int[][] { new[]{ 2 }, new[] { 1 }, new[] { 2 } }  },
 
-                new TestCase { CellsString = "     ■   .■■   ",  Values = new int[]{ 2, 3, 1, 2 }, CorrectAssignment = new int[][] { new[]{ 2, 3, 1 }, new[] { 2 } } },
+                new TestCase { CellsString  = "   ■■x  ", Values = new int[]{ 2, 1 }, CorrectAssignment = new int[][] { new[]{ 2 }, new[] { 1 } }  },
 
-                new TestCase { CellsString = " .■.      ", Values = new int[]{ 1,3,1 }, CorrectAssignment = new int[][] { new int [] { }, new[]{ 1 }, new[] { 3,1 } } },
+                new TestCase { CellsString  = "   ■■x   ■     ", Values = new int[]{ 2, 1, 3, 2 }, CorrectAssignment = new int[][] { new[]{ 2 }, new[] { 1, 3, 2 } }  },
 
-                new TestCase { CellsString = "    ■  ■.■     ", Values = new int[]{ 1,1,2,1,2 }, CorrectAssignment = new int[][] { new[]{ 1,1,2,1 }, new[] { 2 } }  },
+                new TestCase { CellsString = "     ■   x■■   ",  Values = new int[]{ 2, 3, 1, 2 }, CorrectAssignment = new int[][] { new[]{ 2, 3, 1 }, new[] { 2 } } },
 
-                new TestCase { CellsString = "     ■.■  ■    ", Values = new int[]{ 2,1,2,1,1 }, CorrectAssignment = new int[][] { new[]{ 2,1 }, new[] { 2,1,1 } } },
+                new TestCase { CellsString = " x■x      ", Values = new int[]{ 1,3,1 }, CorrectAssignment = new int[][] { new int [] { }, new[]{ 1 }, new[] { 3,1 } } },
 
-                new TestCase { CellsString = "    ■■■ ■.  ■   ■.  ", Values = new int[]{ 1,5,2,2,1 }, CorrectAssignment = new int[][] { new[]{ 1,5 }, new[] { 2,2 }, new[] { 1 } } },
+                new TestCase { CellsString = "    ■  ■x■     ", Values = new int[]{ 1,1,2,1,2 }, CorrectAssignment = new int[][] { new[]{ 1,1,2,1 }, new[] { 2 } }  },
 
-                new TestCase { CellsString = "  .■   ■  .■ ■■■    ", Values = new int[]{ 1,2,2,5,1 }, CorrectAssignment = new int[][] { new[]{ 1 }, new[] { 2,2 }, new[] { 5,1 } } },
+                new TestCase { CellsString = "     ■x■  ■    ", Values = new int[]{ 2,1,2,1,1 }, CorrectAssignment = new int[][] { new[]{ 2,1 }, new[] { 2,1,1 } } },
 
-                new TestCase { CellsString = " .■  ■ ", Values = new int[]{ 1,3 }, CorrectAssignment = new int[][] { new int[]{  }, new[] { 1,3 } } },
+                new TestCase { CellsString = "    ■■■ ■x  ■   ■x  ", Values = new int[]{ 1,5,2,2,1 }, CorrectAssignment = new int[][] { new[]{ 1,5 }, new[] { 2,2 }, new[] { 1 } } },
 
-                new TestCase { CellsString = "    .■  ■ ", Values = new int[] { 1,1 }, CorrectAssignment = new int[][] { new int[]{ }, new[] { 1,1 } } },
+                new TestCase { CellsString = "  x■   ■  x■ ■■■    ", Values = new int[]{ 1,2,2,5,1 }, CorrectAssignment = new int[][] { new[]{ 1 }, new[] { 2,2 }, new[] { 5,1 } } },
 
-                new TestCase { CellsString = "    .■  ■ ", Values = new int[] { 2,2 }, CorrectAssignment = new int[][] { new int[]{ }, new[] { 2,2 } } },
+                new TestCase { CellsString = " x■  ■ ", Values = new int[]{ 1,3 }, CorrectAssignment = new int[][] { new int[]{  }, new[] { 1,3 } } },
+
+                new TestCase { CellsString = "    x■  ■ ", Values = new int[] { 1,1 }, CorrectAssignment = new int[][] { new int[]{ }, new[] { 1,1 } } },
+
+                new TestCase { CellsString = "    x■  ■ ", Values = new int[] { 2,2 }, CorrectAssignment = new int[][] { new int[]{ }, new[] { 2,2 } } },
+
+                //new TestCase { CellsString="      ■■x    x ", Values = new int[] { 2,1 }, CorrectAssignment =new int[][] { new int[]{ 2 }, new[] { 1 }, new int[] {  } }  },
             };
 
             Func<string, byte[]> strToBytes = s =>
@@ -118,13 +123,13 @@ namespace PicrossSolver
                 ProcessSetEmptiesByMax(cells);
                 ProcessFillBetweenEmpties(cells);
                 ProcessByMaxValues(cells);
-                ProcessByDividedAreas(cells);
                 TryMatchingFirstValue(cells);
                 ProcessMatching(cells);
                 ProcessInitialByMatchingFilled(cells);
                 ProcessSpecialCases(cells);
 
                 ProcessByFilledRanges(cells);
+                ProcessByDividedAreas(cells);
             }
             else
             {
@@ -870,10 +875,10 @@ namespace PicrossSolver
                             ProcessSingles(singleProcessingSlice);
                         }
                     }
-                    
+
                     int forwardMinRange = forwardValues.Sum(x => x.Value) + forwardValues.Count - 1;
                     int backwardMinRange = backwardValues.Sum(x => x.Value) + backwardValues.Count - 1;
-                    if ((range.size == forwardMinRange || range.size == backwardMinRange) && range.containsFilled && backwardValues.Count - forwardValues.Count == 1 && forwardValues.Max(x => x.Index) - backwardValues.Min(x => x.Index) <= 1)
+                    if (range.containsFilled && backwardValues.Count - forwardValues.Count == -1 && forwardValues.Max(x => x.Index) - backwardValues.Min(x => x.Index) <= 1)
                     {
                         byte[] cellsCopy1 = Form1.CellSeries.Slice(cells, range.start, range.end, new int[] { }).asIterable.ToArray();
                         byte[] cellsCopy2 = cellsCopy1.ToArray();
@@ -882,7 +887,10 @@ namespace PicrossSolver
                         var backwardCells = new Form1.CellSeries(cellsCopy2, backwardValues.Select(x => x.Value).ToArray());
 
                         ProcessAllAlgorithms(forwardCells);
+                        ProcessAllAlgorithms(Form1.CellSeries.Reverse(forwardCells));
+
                         ProcessAllAlgorithms(backwardCells);
+                        ProcessAllAlgorithms(Form1.CellSeries.Reverse(backwardCells));
 
                         for (int i = 0; i < cellsCopy1.Length; i++)
                         {
@@ -1019,14 +1027,14 @@ namespace PicrossSolver
 
             List<ColumnValue>[] forwardMatching = Enumerable.Repeat(new List<ColumnValue>(), areaList.Count).ToArray();
 
-            int loopValueIndex = 0;
+            int loopStartValueIndex = 0;
             for (int area = 0; area < forwardMatching.Length; area++)
             {
-                bool willCheckThis = false;
+                bool hasError = false;
 
                 Range range = areaList[area];
 
-                int valueIndex = loopValueIndex;
+                int valueIndex = loopStartValueIndex;
 
                 if (valueIndex < values.Length)
                 {
@@ -1044,7 +1052,7 @@ namespace PicrossSolver
 
                     if (added && cells.SafeCheck(range.start + currentSize - values[valueIndex - 1] - 1, x => x == Form1.FILLED))
                     {
-                        willCheckThis = true;
+                        hasError = true;
                     }
 
                     while (valueIndex < values.Length)
@@ -1085,50 +1093,9 @@ namespace PicrossSolver
                         }
                     }
 
-                    int assignedValueCount = valueIndex - loopValueIndex;
-
-                    // Below is for error checking
-                    if (valueIndex == values.Length && assignedValueCount == 1)
-                    {
-                        for (int i = range.start + currentSize; i < range.end; i++)
-                        {
-                            if (cells[i] == Form1.FILLED)
-                            {
-                                int firstFilledIndex = -1;
-                                int lastFilledIndex = -1;
-
-                                for (i = range.start; i <= range.end; i++)
-                                {
-                                    if (cells[i] == Form1.FILLED)
-                                    {
-                                        firstFilledIndex = i;
-                                        break;
-                                    }
-                                }
-
-                                for (i = range.end; i >= range.start; i--)
-                                {
-                                    if (cells[i] == Form1.FILLED)
-                                    {
-                                        lastFilledIndex = i;
-                                        break;
-                                    }
-                                }
-
-                                int filledrange = lastFilledIndex - firstFilledIndex + 1;
-
-                                int assigedValue = values[loopValueIndex];
-
-                                if (filledrange > assigedValue)
-                                {
-                                    willCheckThis = true;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                    List<ColumnValue> assignedValues = MyRange(loopValueIndex, valueIndex)
+                    int assignedValueCount = valueIndex - loopStartValueIndex;
+                    
+                    List<ColumnValue> assignedValues = MyRange(loopStartValueIndex, valueIndex)
                         .Select(i => new ColumnValue { Value = values[i], Index = i })
                         .ToList();
 
@@ -1153,7 +1120,45 @@ namespace PicrossSolver
 
                     int areaForLoop = -1;
 
-                    if (willCheckThis || valuesChecked.Sum(x => x.Value) < GetFilledCount(cells, rangeChecked))
+                    Func<bool> errorCheck1 = () => valuesChecked.Sum(x => x.Value) < GetFilledCount(cells, rangeChecked);
+
+                    Func<bool> errorCheck2 = () =>
+                    {
+                        if (valuesChecked.Count != 1)
+                            return false;
+
+                        if (!rangeChecked.containsFilled)
+                            return false;
+
+                        int firstFilledIndex = -1;
+                        for (int i = rangeChecked.start; i <= rangeChecked.end; i++)
+                        {
+                            if (cells.SafeCheck(i, x => x == Form1.FILLED))
+                            {
+                                firstFilledIndex = i;
+                                break;
+                            }
+                        }
+
+                        int lastFilledIndex = -1;
+                        for (int i = rangeChecked.end; i >= rangeChecked.start; i--)
+                        {
+                            if (cells.SafeCheck(i, x => x == Form1.FILLED))
+                            {
+                                lastFilledIndex = i;
+                                break;
+                            }
+                        }
+
+                        int size = lastFilledIndex - firstFilledIndex + 1;
+
+                        if (size > valuesChecked[0].Value)
+                            return true;
+                        else
+                            return false;
+                    };
+
+                    if (hasError || errorCheck1() || errorCheck2())
                     {
                         areaForLoop = areaChecked;
 
@@ -1172,8 +1177,8 @@ namespace PicrossSolver
 
                         checkNext = true;
 
-                        if (willCheckThis)
-                            willCheckThis = false;
+                        if (hasError)
+                            hasError = false;
                     }
                     else
                         checkNext = false;
@@ -1189,7 +1194,7 @@ namespace PicrossSolver
                         break;
                 }
 
-                loopValueIndex = valueIndex;
+                loopStartValueIndex = valueIndex;
             }
 
             return forwardMatching;
