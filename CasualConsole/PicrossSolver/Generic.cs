@@ -1094,7 +1094,7 @@ namespace PicrossSolver
                     }
 
                     int assignedValueCount = valueIndex - loopStartValueIndex;
-                    
+
                     List<ColumnValue> assignedValues = MyRange(loopStartValueIndex, valueIndex)
                         .Select(i => new ColumnValue { Value = values[i], Index = i })
                         .ToList();
@@ -1104,6 +1104,51 @@ namespace PicrossSolver
                 else
                 {
                     forwardMatching[area] = new List<ColumnValue>();
+                }
+
+                //-------------------------------
+
+                if (range.containsFilled && (cells[range.end] == Form1.FILLED || cells[range.end - 1] == Form1.FILLED))
+                {
+                    int lastFilledEnding = -1;
+                    int lastFilledBeginning = -1;
+
+                    int i = range.end;
+
+                    while (cells[i] != Form1.FILLED)
+                        i--;
+
+                    lastFilledEnding = i;
+
+                    for (; i >= range.start; i--)
+                    {
+                        if (cells[i] == Form1.FILLED)
+                            lastFilledBeginning = i;
+                        else
+                            break;
+                    }
+
+                    int lastFilledSize = lastFilledEnding - lastFilledBeginning + 1;
+
+                    List<ColumnValue> vals = forwardMatching[area];
+
+                    while (true)
+                    {
+                        if (vals.Count > 0)
+                        {
+                            ColumnValue lastAssignedValue = vals[vals.Count - 1];
+
+                            if (lastFilledSize > lastAssignedValue.Value)
+                            {
+                                vals.RemoveAt(vals.Count - 1);
+                                valueIndex--;
+                            }
+                            else
+                                break;
+                        }
+                        else
+                            break;
+                    }
                 }
 
                 //-------------------------------

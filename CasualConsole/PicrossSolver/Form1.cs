@@ -186,12 +186,12 @@ namespace PicrossSolver
                 ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessByFilledRanges);
                 isChangeDetected |= testPicture(picture);
 
+                // serideki çarpılarla ayrılmış kısımları bulup işliyor
+                ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessByDividedAreas);
+                isChangeDetected |= testPicture(picture);
+
                 if (!isChangeDetected)
                 {
-                    // serideki çarpılarla ayrılmış kısımları bulup işliyor
-                    ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessByDividedAreas);
-                    isChangeDetected |= testPicture(picture);
-
                     if (!isChangeDetected)
                     {
                         break;
