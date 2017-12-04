@@ -106,7 +106,7 @@ namespace PicrossSolver
                 var res = GetFilledMatchingCandidates(cellsExternal, vals, filledRanges);
             }
 
-        }
+            }
 
         public static void ProcessAllAlgorithms(Form1.CellSeries cells)
         {
@@ -765,14 +765,18 @@ namespace PicrossSolver
                             int nextVal = values[valueIndex + 1];
 
                             int lastCheckIndex = filledLastIndex + 1 + nextVal;
-                            for (int i = filledLastIndex + reachRange + 1; i <= lastCheckIndex; i++)
+                            for (int i = filledLastIndex + reachRange + 1; i <= lastCheckIndex + 1; i++)
                             {
-                                byte cell = cells[i + startIndex];
-
-                                if (cell == Form1.FILLED)
+                                if (cells.SafeCheck(i + startIndex, x => x == Form1.FILLED))
                                 {
                                     for (int k = i + 1; k <= lastCheckIndex; k++)
                                         cells[k + startIndex] = Form1.FILLED;
+
+                                    if (nextVal == 1)
+                                    {
+                                        cells.SafeSet(i + startIndex + 1, Form1.EMPTY);
+                                        cells.SafeSet(i + startIndex - 1, Form1.EMPTY);
+                                    }
                                 }
                             }
                         }
