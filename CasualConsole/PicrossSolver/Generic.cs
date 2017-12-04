@@ -106,7 +106,7 @@ namespace PicrossSolver
                 var res = GetFilledMatchingCandidates(cellsExternal, vals, filledRanges);
             }
 
-            }
+        }
 
         public static void ProcessAllAlgorithms(Form1.CellSeries cells)
         {
@@ -1825,6 +1825,13 @@ namespace PicrossSolver
                 // Check one over for filled
                 while (cells.SafeCheck(i + val, x => x == Form1.FILLED))
                 {
+                    if (cells[i] == Form1.FILLED)
+                    {
+                        // Add the value before this
+                        int newVal = values[valueIndex - 1];
+                        forwardFilledCandidates[filledRangeIndex].Add(new ColumnValueExtended { Index = valueIndex - 1, Value = newVal, CanMarkBefore = range.size == newVal, CanMarkAfter = range.size == newVal });
+                    }
+
                     i++;
                 }
 
