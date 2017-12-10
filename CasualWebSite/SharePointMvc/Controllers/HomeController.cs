@@ -199,7 +199,7 @@ namespace SharePointMvc.Controllers
         {
             string s;
 
-            using (WebClient client = new WebClient())
+            using (MyWebClient client = new MyWebClient())
             {
                 client.Encoding = Encoding.UTF8;
                 s = client.DownloadString(url);
@@ -209,5 +209,15 @@ namespace SharePointMvc.Controllers
         }
 
         #endregion
+    }
+
+    class MyWebClient : WebClient
+    {
+        protected override WebRequest GetWebRequest(Uri address)
+        {
+            HttpWebRequest request = base.GetWebRequest(address) as HttpWebRequest;
+            request.AutomaticDecompression = DecompressionMethods.Deflate | DecompressionMethods.GZip;
+            return request;
+        }
     }
 }
