@@ -850,6 +850,9 @@ namespace PicrossSolver
 
                     bool indexOffByOneCase = range.containsFilled && forwardValues.Count == 1 && backwardValues.Count == 1 && forwardValues[0].Index - backwardValues[0].Index == 1;
 
+                    bool commonRangeForwardCase = range.containsFilled && forwardValues.Any() && backwardValues.Any() && forwardValues[0].Value > 2 && backwardValues[0].Value > 2 && forwardValues[0].Index != backwardValues[0].Index;
+                    bool commonRangeBackwardCase = range.containsFilled && forwardValues.Any() && backwardValues.Any() && forwardValues.LastItem().Value > 2 && backwardValues.LastItem().Value > 2 && forwardValues.LastItem().Index != backwardValues.LastItem().Index;
+
                     if (forwardValues.Count == 0 && backwardValues.Count == 0 && (area == 0 || area == areaList.Count - 1))
                     {
                         Form1.CellSeries slice = Form1.CellSeries.Slice(cells, range.start, range.end, new int[] { });
@@ -878,6 +881,23 @@ namespace PicrossSolver
                             Form1.CellSeries singleProcessingSlice = Form1.CellSeries.Slice(cells, range.start, range.end, new int[] { maxValue });
                             ProcessSingles(singleProcessingSlice);
                         }
+                    }
+
+                    if (commonRangeForwardCase)
+                    {
+                        int minValue = Min(forwardValues[0].Value, backwardValues[0].Value);
+
+                        Form1.CellSeries slice = Form1.CellSeries.Slice(cells, range.start, range.end, new int[] { minValue });
+                        ProcessStartSetFilledOnly(slice);
+                    }
+
+                    if (commonRangeBackwardCase)
+                    {
+                        int minValue = Min(forwardValues.LastItem().Value, backwardValues.LastItem().Value);
+
+                        Form1.CellSeries slice = Form1.CellSeries.Slice(cells, range.start, range.end, new int[] { minValue });
+                        slice = Form1.CellSeries.Reverse(slice);
+                        ProcessStartSetFilledOnly(slice);
                     }
 
                     int forwardMinRange = forwardValues.Sum(x => x.Value) + forwardValues.Count - 1;
@@ -1751,32 +1771,22 @@ namespace PicrossSolver
         private static void ProcessStartSetFilledOnly(Form1.CellSeries cells)
         {
             var values = cells.cellColumnValues;
-            int valuesIndex = 0;
 
-            int i;
-            for (i = 0; i < cells.Length; i++)
+            int filledIndex = -1;
+            for (int i = 0; i < cells.Length; i++)
             {
-                byte cell = cells[i];
-
-                if (cell == Form1.UNKNOWN)
+                if (cells[i] == Form1.FILLED)
                 {
+                    filledIndex = i;
                     break;
                 }
-                else if (cell == Form1.FILLED)
+            }
+
+            if (filledIndex >= 0)
+            {
+                for (int i = filledIndex; i < values[0]; i++)
                 {
-                    int val = values[valuesIndex++];
-                    int max = i + val;
-
-                    for (; i < max; i++)
-                    {
-                        cells[i] = Form1.FILLED;
-                    }
-
-                    break;
-                }
-                else if (cell == Form1.EMPTY)
-                {
-
+                    cells[i] = Form1.FILLED;
                 }
             }
         }
