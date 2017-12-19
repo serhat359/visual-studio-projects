@@ -1350,14 +1350,19 @@ namespace PicrossSolver
         {
             var values = cells.cellColumnValues;
 
-            if (values.Length > 0 && values[0] == 1 && cells.SafeCheck(2, x => x == Form1.FILLED))
+            for (int i = 0; i < values.Length; i++)
             {
-                cells[1] = Form1.EMPTY;
-            }
+                int value = values[i];
 
-            if (values.Length > 1 && values[0] == 1 && values[1] == 1 && cells.SafeCheck(4, x => x == Form1.FILLED))
-            {
-                cells[3] = Form1.EMPTY;
+                if (value != 1)
+                    break;
+
+                int cellCheckIndex = i * 2 + 2;
+
+                if (cells.SafeCheck(cellCheckIndex, x => x == Form1.FILLED))
+                {
+                    cells[cellCheckIndex - 1] = Form1.EMPTY;
+                }
             }
         }
 
