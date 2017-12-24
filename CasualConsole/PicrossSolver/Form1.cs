@@ -201,6 +201,8 @@ namespace PicrossSolver
                 // serideki dolu ve boş sayılarını kontrol ediyor
                 processCheckAllCounts(picture, upColumn, leftColumn);
                 isChangeDetected |= testPicture(picture);
+
+                //display(picture, "test", true);
             }
 
             Console.WriteLine("There was no change in the iteration: " + iteration);
@@ -434,11 +436,6 @@ namespace PicrossSolver
             programStartTime = DateTime.Now;
         }
 
-        private static int[] arr(params int[] values)
-        {
-            return values;
-        }
-
         public enum Direction
         {
             Horizontal,
@@ -519,7 +516,7 @@ namespace PicrossSolver
             public IEnumerable<byte> asIterable { get { return iterable(); } }
             public Direction direction = Direction.NotSet;
             public int? rowOrCol = null;
-            public string asString { get { return new string(asIterable.Select(x => Form1.chars[x]).ToArray()); } }
+            public string asString { get { return new string(asIterable.Select(x => chars[x]).ToArray()); } }
             public string firstTimeString { get; set; }
 
             private CellColumnValues _cellColumnValues;
