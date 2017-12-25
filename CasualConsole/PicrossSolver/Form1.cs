@@ -53,10 +53,12 @@ namespace PicrossSolver
 
             for (int i = 0; i < allpuzzles.Length; i++)
             {
-                string puzzleName = allpuzzles[i];
-                string fileName = new FileInfo(puzzleName).Name;
-                PuzzleJson puzzle = JsonConvert.DeserializeObject<PuzzleJson>(File.ReadAllText(puzzleName));
+                string puzzlePath = allpuzzles[i];
+                string fileName = new FileInfo(puzzlePath).Name;
+                PuzzleJson puzzle = JsonConvert.DeserializeObject<PuzzleJson>(File.ReadAllText(puzzlePath));
                 Console.WriteLine("solving: " + fileName);
+
+                //FixJsonFormat(puzzlePath, puzzle);
 
                 var leftColumn = puzzle.LeftColumn;
                 var upColumn = puzzle.UpColumn;
@@ -93,9 +95,35 @@ namespace PicrossSolver
                 if (isSolved && !correctExists)
                 {
                     display(solvedPicture, "I solved it!", true);
-                    string solvedCase = JsonConvert.SerializeObject(solvedPicture);
+                    string solvedCase = ToJson2D(solvedPicture);
                 }
             }
+        }
+
+        private static void FixJsonFormat(string puzzlePath, PuzzleJson puzzle)
+        {
+            string correctToJson = ToJson2D(puzzle.Correct);
+            string upToJson = ToJson2D(puzzle.UpColumn);
+            string leftToJson = ToJson2D(puzzle.LeftColumn);
+
+            string newLine = "\n";
+
+            string wholeJson = "{" + newLine + "\"Correct\"" + ":" + correctToJson + "," + newLine + "\"LeftColumn\"" + ":" + leftToJson + "," + newLine + "\"UpColumn\"" + ":" + upToJson + newLine + "}";
+
+            File.WriteAllText(puzzlePath, wholeJson);
+        }
+
+        private static string ToJson2D(byte[,] arr)
+        {
+            return ToJson2D(array2dAsEnumerable(arr));
+        }
+
+        private static string ToJson2D<T>(IEnumerable<IEnumerable<T>> arr) where T : struct
+        {
+            if (!arr.Any())
+                return "[]";
+
+            return "[\n" + string.Join(",\n", arr.Select(x => "[" + string.Join(",", x) + "]")) + "\n]";
         }
 
         private static byte[,] solveAndDisplay(int[][] upColumn, int[][] leftColumn, out bool isSolved)
@@ -517,7 +545,10 @@ namespace PicrossSolver
             public Direction direction = Direction.NotSet;
             public int? rowOrCol = null;
             public string asString { get { return new string(asIterable.Select(x => chars[x]).ToArray()); } }
+
+#if DEBUG
             public string firstTimeString { get; set; }
+#endif
 
             private CellColumnValues _cellColumnValues;
             private int _length;
@@ -575,7 +606,9 @@ namespace PicrossSolver
                         break;
                 }
 
+#if DEBUG
                 this.firstTimeString = this.asString;
+#endif
             }
 
             private CellSeries(CellColumnValues _cellColumnValues, int _length, Func<int, byte> valueGetter, Action<int, byte> valueSetter)
@@ -585,7 +618,9 @@ namespace PicrossSolver
                 this.valueGetter = valueGetter;
                 this.valueSetter = valueSetter;
 
+#if DEBUG
                 this.firstTimeString = this.asString;
+#endif
             }
 
             public static CellSeries Slice(CellSeries old, int startIndex, int endIndex, int[] newValues)
@@ -632,7 +667,9 @@ namespace PicrossSolver
                 valueSetter = (x, b) => bytes[x] = b;
                 _cellColumnValues = new CellColumnValues(values, Direction.Horizontal);
 
+#if DEBUG
                 this.firstTimeString = this.asString;
+#endif
             }
 
             public IEnumerable<byte> iterable()
