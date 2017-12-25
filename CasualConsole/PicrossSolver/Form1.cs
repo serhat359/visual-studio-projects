@@ -13,6 +13,9 @@ namespace PicrossSolver
     {
         public delegate void Algorithm(CellSeries s);
 
+        public const int windowLeft = 16;
+        public const int windowUp = 38;
+
         public const string chars = " ■x";
         public const byte UNKNOWN = 0;
         public const byte FILLED = 1;
@@ -32,19 +35,51 @@ namespace PicrossSolver
 
         private static DateTime programStartTime;
 
+        enum Mode
+        {
+            Development,
+            GUI
+        }
+
+        Mode mode = Mode.Development;
+
         public Form1()
         {
-            Generic.TestMatchingByDivided();
-
-            programStartTime = DateTime.Now;
-
             string puzzlesHavingSolution = @"C:\Users\Xhertas\Documents\Visual Studio 2015\Projects\CasualConsole\PicrossSolver\Puzzles\has_solution\";
-
-            SolveHavingSolution(puzzlesHavingSolution);
-
             string puzzlesNotHavingSolution = @"C:\Users\Xhertas\Documents\Visual Studio 2015\Projects\CasualConsole\PicrossSolver\Puzzles\has_no_solution\";
 
-            SolveHavingSolution(puzzlesNotHavingSolution);
+            if (mode == Mode.Development)
+            {
+                Generic.TestMatchingByDivided();
+
+                programStartTime = DateTime.Now;
+
+                SolveHavingSolution(puzzlesHavingSolution);
+                SolveHavingSolution(puzzlesNotHavingSolution);
+            }
+            else if (mode == Mode.GUI)
+            {
+                string puzzleLocation = puzzlesNotHavingSolution;
+
+                string[] allpuzzles = Directory.GetFiles(puzzleLocation);
+
+                string puzzlePath = allpuzzles.First();
+                string fileName = new FileInfo(puzzlePath).Name;
+
+                PuzzleJson puzzle = JsonConvert.DeserializeObject<PuzzleJson>(File.ReadAllText(puzzlePath));
+
+                var leftColumn = puzzle.LeftColumn;
+                var upColumn = puzzle.UpColumn;
+
+                byte[,] picture = new byte[leftColumn.Length, upColumn.Length];
+
+                MyWindow solverWindow = new MyWindow(picture, fileName, leftColumn, upColumn);
+
+                solverWindow.Show();
+                solverWindow.Invalidate();
+
+                Application.Run(solverWindow);
+            }
         }
 
         private static void SolveHavingSolution(string puzzleLocation)
@@ -701,17 +736,274 @@ namespace PicrossSolver
     public class MyWindow : Form
     {
         byte[,] picture;
+        int[][] leftColumn;
+        int[][] upColumn;
+        private int leftMarginCount;
+        private int upMarginCount;
+        private int leftMarginSize;
+        private int upMarginSize;
+
+        private bool isCheckEnabled = false;
+        private bool isKeyDown = false;
+
+        private Color[] leftColumnColors;
+        private Color[] upColumnColors;
+        private List<RadioButton> radioButtons = new List<RadioButton>();
+
+        private const string FILLED = "FILLED";
+        private const string EMPTY = "EMPTY";
 
         public MyWindow(byte[,] picture, string title)
         {
+            ConstructorCall(picture, title, null, null);
+        }
+
+        public MyWindow(byte[,] picture, string title, int[][] leftColumn, int[][] upColumn)
+        {
+            ConstructorCall(picture, title, leftColumn, upColumn);
+        }
+
+        private void ConstructorCall(byte[,] picture, string title, int[][] leftColumn, int[][] upColumn)
+        {
             this.picture = picture;
+            this.leftColumn = leftColumn;
+            this.upColumn = upColumn;
             this.Name = title;
             this.Text = title;
 
-            this.Size = new Size(16 + Form1.displaySize * picture.colCount(), 38 + Form1.displaySize * picture.rowCount());
+            this.leftMarginCount = GetMarginCount(leftColumn);
+            this.upMarginCount = GetMarginCount(upColumn);
+
+            this.leftMarginSize = leftMarginCount * Form1.displaySize;
+            this.upMarginSize = upMarginCount * Form1.displaySize;
+
+            this.Size = new Size(Form1.windowLeft + Form1.displaySize * picture.colCount() + leftMarginSize, Form1.windowUp + Form1.displaySize * picture.rowCount() + upMarginSize);
             this.SetDesktopLocation(500, 300);
 
             this.Paint += new PaintEventHandler(this.GameFrame_Paint);
+            this.KeyPreview = true;
+
+            if (leftColumn != null || upColumn != null)
+                isCheckEnabled = true;
+
+            if (isCheckEnabled)
+            {
+                this.Click += new EventHandler(this.MyWindow_Click);
+                this.KeyDown += new KeyEventHandler(this.MyWindow_KeyDown);
+                this.KeyUp += new KeyEventHandler(this.MyWindow_KeyUp);
+
+                this.Controls.Add(AddRadioButton(FILLED, 0));
+                this.Controls.Add(AddRadioButton(EMPTY, 20));
+            }
+
+            this.FormBorderStyle = FormBorderStyle.FixedSingle;
+            this.MaximizeBox = false;
+
+            FixFlicker();
+
+            if (isCheckEnabled)
+            {
+                leftColumnColors = GetBlackColors(leftColumn.Length);
+                upColumnColors = GetBlackColors(upColumn.Length);
+            }
+
+            CheckAllRowsAndColumns();
+        }
+
+        private void FixFlicker()
+        {
+            this.SetStyle(ControlStyles.UserPaint |
+                ControlStyles.OptimizedDoubleBuffer |
+                ControlStyles.AllPaintingInWmPaint |
+                ControlStyles.SupportsTransparentBackColor,
+                true);
+        }
+
+        private void MyWindow_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Escape && !isKeyDown)
+            {
+                radioButtons.First(x => x.Name == EMPTY).Checked = true;
+
+                isKeyDown = true;
+
+                this.Refresh();
+            }
+        }
+
+        private void MyWindow_KeyUp(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Escape)
+            {
+                radioButtons.First(x => x.Name == FILLED).Checked = true;
+
+                isKeyDown = false;
+
+                this.Refresh();
+            }
+        }
+
+        private void MyWindow_Click(object sender, EventArgs e)
+        {
+            MouseEventArgs args = (MouseEventArgs)e;
+
+            int xPixel = args.X;
+            int yPixel = args.Y;
+
+            int col = xPixel / Form1.displaySize - leftMarginCount;
+            int row = yPixel / Form1.displaySize - upMarginCount;
+
+            if (col >= 0 && row >= 0)
+            {
+                string checkedButton = radioButtons.Where(x => x.Checked).First().Name;
+
+                if (checkedButton == FILLED)
+                {
+                    if (picture[row, col] == Form1.FILLED)
+                        picture[row, col] = Form1.UNKNOWN;
+                    else
+                        picture[row, col] = Form1.FILLED;
+                }
+                else if (checkedButton == EMPTY)
+                {
+                    if (picture[row, col] == Form1.EMPTY)
+                        picture[row, col] = Form1.UNKNOWN;
+                    else
+                        picture[row, col] = Form1.EMPTY;
+                }
+                else
+                    throw new Exception();
+
+                CheckRow(row);
+                CheckCol(col);
+
+                // trigger re-paint
+                this.Refresh();
+            }
+        }
+
+        private Color[] GetBlackColors(int size)
+        {
+            Color[] colors = new Color[size];
+
+            for (int i = 0; i < colors.Length; i++)
+            {
+                colors[i] = Color.Black;
+            }
+
+            return colors;
+        }
+
+        private void CheckRow(int row)
+        {
+            if (isCheckEnabled)
+            {
+                byte[] originalValues = new Form1.CellSeries(row, picture, Form1.Direction.Horizontal, leftColumn[row]).asIterable.ToArray();
+
+                byte[] copyValues = originalValues.ToArray();
+
+                var cells = new Form1.CellSeries(copyValues, leftColumn[row]);
+
+                bool hasError = false;
+
+                try
+                {
+                    Generic.ProcessAllAlgorithms(cells);
+                }
+                catch (Exception)
+                {
+                    hasError = true;
+                }
+
+                if (hasError)
+                {
+                    leftColumnColors[row] = Color.Red;
+                }
+                else if (Enumerable.SequenceEqual(originalValues, copyValues))
+                {
+                    leftColumnColors[row] = Color.Black;
+                }
+                else
+                {
+                    leftColumnColors[row] = Color.Blue;
+                }
+            }
+        }
+
+        private void CheckCol(int col)
+        {
+            if (isCheckEnabled)
+            {
+                byte[] originalValues = new Form1.CellSeries(col, picture, Form1.Direction.Vertical, upColumn[col]).asIterable.ToArray();
+
+                byte[] copyValues = originalValues.ToArray();
+
+                var cells = new Form1.CellSeries(copyValues, upColumn[col]);
+
+                bool hasError = false;
+
+                try
+                {
+                    Generic.ProcessAllAlgorithms(cells);
+                }
+                catch (Exception)
+                {
+                    hasError = true;
+                }
+
+                if (hasError)
+                {
+                    upColumnColors[col] = Color.Red;
+                }
+                else if (Enumerable.SequenceEqual(originalValues, copyValues))
+                {
+                    upColumnColors[col] = Color.Black;
+                }
+                else
+                {
+                    upColumnColors[col] = Color.Blue;
+                }
+            }
+        }
+
+        private void CheckAllRowsAndColumns()
+        {
+            if (isCheckEnabled)
+            {
+                for (int i = 0; i < leftColumn.Length; i++)
+                {
+                    CheckRow(i);
+                }
+
+                for (int i = 0; i < upColumn.Length; i++)
+                {
+                    CheckCol(i);
+                }
+            }
+        }
+
+        private RadioButton AddRadioButton(string text, int y)
+        {
+            RadioButton radioButton1 = new RadioButton();
+            radioButton1.Location = new Point(10, y + 5);
+            radioButton1.Name = text;
+            radioButton1.Size = new Size(85, 17);
+            radioButton1.TabIndex = 0;
+            radioButton1.TabStop = true;
+            radioButton1.Text = text;
+            radioButton1.UseVisualStyleBackColor = true;
+
+            radioButtons.Add(radioButton1);
+
+            return radioButton1;
+        }
+
+        private static int GetMarginCount(int[][] columns)
+        {
+            if (columns != null)
+                return columns.Select(x => x.Length).Max();
+            else
+                return 0;
         }
 
         private void GameFrame_Paint(object sender, PaintEventArgs e)
@@ -732,18 +1024,18 @@ namespace PicrossSolver
 
                     if (value == Form1.UNKNOWN)
                     {
-                        g2d.FillRectangle(Brushes.White, col * Form1.displaySize, row * Form1.displaySize, Form1.displaySize, Form1.displaySize);
+                        g2d.FillRectangle(Brushes.White, col * Form1.displaySize + leftMarginSize, row * Form1.displaySize + upMarginSize, Form1.displaySize, Form1.displaySize);
                     }
                     else if (value == Form1.FILLED)
                     {
-                        g2d.FillRectangle(Brushes.Black, col * Form1.displaySize, row * Form1.displaySize, Form1.displaySize, Form1.displaySize);
+                        g2d.FillRectangle(Brushes.Black, col * Form1.displaySize + leftMarginSize, row * Form1.displaySize + upMarginSize, Form1.displaySize, Form1.displaySize);
                     }
                     else if (value == Form1.EMPTY)
                     {
                         Pen pen = new Pen(Color.DarkGray);
 
-                        int xOffset = col * Form1.displaySize;
-                        int yOffset = row * Form1.displaySize;
+                        int xOffset = col * Form1.displaySize + leftMarginSize;
+                        int yOffset = row * Form1.displaySize + upMarginSize;
                         g2d.DrawLine(pen, xOffset + quarter, yOffset + quarter, xOffset + threeQuarter,
                                 yOffset + threeQuarter);
                         g2d.DrawLine(pen, xOffset + quarter, yOffset + threeQuarter, xOffset + threeQuarter,
@@ -759,22 +1051,77 @@ namespace PicrossSolver
                 for (int col = 0; col < colCount; col++)
                 {
                     // Drawing vertical line
-                    g2d.DrawLine(new Pen(Brushes.Orange), (col + 1) * Form1.displaySize, 0, (col + 1) * Form1.displaySize, rowCount * Form1.displaySize);
+                    g2d.DrawLine(new Pen(Brushes.Orange), (col + 1) * Form1.displaySize + leftMarginSize, 0 + upMarginSize, (col + 1) * Form1.displaySize + leftMarginSize, rowCount * Form1.displaySize + upMarginSize);
 
                     if (col % 5 == 4)
                     {
-                        g2d.DrawLine(new Pen(Brushes.Orange), (col + 1) * Form1.displaySize + 1, 0, (col + 1) * Form1.displaySize + 1, rowCount * Form1.displaySize);
+                        g2d.DrawLine(new Pen(Brushes.Orange), (col + 1) * Form1.displaySize + leftMarginSize + 1, 0 + upMarginSize, (col + 1) * Form1.displaySize + leftMarginSize + 1, rowCount * Form1.displaySize + upMarginSize);
                     }
                 }
 
                 // Drawing horizontal line
-                g2d.DrawLine(new Pen(Brushes.Orange), 0, (row + 1) * Form1.displaySize, colCount * Form1.displaySize, (row + 1) * Form1.displaySize);
+                g2d.DrawLine(new Pen(Brushes.Orange), 0 + leftMarginSize, (row + 1) * Form1.displaySize + upMarginSize, colCount * Form1.displaySize + leftMarginSize, (row + 1) * Form1.displaySize + upMarginSize);
 
                 if (row % 5 == 4)
                 {
-                    g2d.DrawLine(new Pen(Brushes.Orange), 0, (row + 1) * Form1.displaySize + 1, colCount * Form1.displaySize, (row + 1) * Form1.displaySize + 1);
+                    g2d.DrawLine(new Pen(Brushes.Orange), 0 + leftMarginSize, (row + 1) * Form1.displaySize + upMarginSize + 1, colCount * Form1.displaySize + leftMarginSize, (row + 1) * Form1.displaySize + upMarginSize + 1);
                 }
             }
+
+            if (isCheckEnabled)
+            {
+                // Drawing vertical line
+                g2d.DrawLine(new Pen(Brushes.Orange), (0) * Form1.displaySize + leftMarginSize, 0 + upMarginSize, (0) * Form1.displaySize + leftMarginSize, rowCount * Form1.displaySize + upMarginSize);
+                g2d.DrawLine(new Pen(Brushes.Orange), (0) * Form1.displaySize + leftMarginSize + 1, 0 + upMarginSize, (0) * Form1.displaySize + leftMarginSize + 1, rowCount * Form1.displaySize + upMarginSize);
+
+                // Drawing horizontal line
+                g2d.DrawLine(new Pen(Brushes.Orange), 0 + leftMarginSize, (0) * Form1.displaySize + upMarginSize, colCount * Form1.displaySize + leftMarginSize, (0) * Form1.displaySize + upMarginSize);
+                g2d.DrawLine(new Pen(Brushes.Orange), 0 + leftMarginSize, (0) * Form1.displaySize + upMarginSize + 1, colCount * Form1.displaySize + leftMarginSize, (0) * Form1.displaySize + upMarginSize + 1);
+            }
+
+            if (leftColumn != null)
+            {
+                for (int i = 0; i < leftColumn.Length; i++)
+                {
+                    var leftColumnRow = leftColumn[i];
+
+                    int marginCount = leftMarginCount - leftColumnRow.Length;
+
+                    for (int y = 0; y < leftColumnRow.Length; y++)
+                    {
+                        Rectangle location = new Rectangle((y + marginCount) * Form1.displaySize, (upMarginCount + i) * Form1.displaySize, Form1.displaySize, Form1.displaySize);
+                        int val = leftColumnRow[y];
+                        DrawString(g2d, val.ToString(), location, leftColumnColors[i]);
+                    }
+                }
+            }
+
+            if (upColumn != null)
+            {
+                for (int i = 0; i < upColumn.Length; i++)
+                {
+                    var upColumnRow = upColumn[i];
+
+                    int marginCount = upMarginCount - upColumnRow.Length;
+
+                    for (int y = 0; y < upColumnRow.Length; y++)
+                    {
+                        Rectangle location = new Rectangle((leftMarginCount + i) * Form1.displaySize, (y + marginCount) * Form1.displaySize, Form1.displaySize, Form1.displaySize);
+                        int val = upColumnRow[y];
+                        DrawString(g2d, val.ToString(), location, upColumnColors[i]);
+                    }
+                }
+            }
+        }
+
+        private static void DrawString(Graphics g2d, string text, Rectangle location, Color color)
+        {
+            Brush brush = new SolidBrush(color);
+            Font font = new Font("Consolas", 10, FontStyle.Bold);
+            StringFormat sf = new StringFormat();
+            sf.LineAlignment = StringAlignment.Center;
+            sf.Alignment = StringAlignment.Center;
+            g2d.DrawString(text, font, brush, location, sf);
         }
     }
 }
