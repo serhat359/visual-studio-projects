@@ -4,9 +4,12 @@ using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.ServiceProcess;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
@@ -46,11 +49,59 @@ namespace CasualConsole
             //UnityIncreaseMapHeightAll();
 
             //TestExecuteCommand("ls");
-            
+
+            //DumpActiveProcessAndServiceList();
+
+            //UseAllCPUResources();
+
             // Closing, Do Not Delete!
             Console.WriteLine();
             Console.WriteLine("Program has terminated, press a key to exit");
             Console.ReadKey();
+        }
+
+        private static void UseAllCPUResources()
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                MyThread<int> x = new MyThread<int>(true, () =>
+                {
+                    while (true)
+                    {
+
+                    }
+                    return 0;
+                });
+            }
+        }
+
+        private static void DumpActiveProcessAndServiceList()
+        {
+            var services = ServiceController.GetServices();
+            var processes = Process.GetProcesses();
+
+            var allServices = services.Select(service => string.Format("{0} : {1}",
+                    service.DisplayName,
+                    service.Status));
+
+            var allProcesses = processes.Select(x => new { ProcessName = x.ProcessName, Id = x.Id }).OrderBy(x => x.ProcessName).Select(process => string.Format("{0}",
+                 process.ProcessName,
+                 process.Id));
+
+            var allLines = ConcatAll(Enumerable.Repeat("Processes:", 1), allProcesses, Enumerable.Repeat("\nServices:", 1), allServices);
+
+            File.WriteAllLines(@"C:\Users\Xhertas\Desktop\serviceStates.txt", allLines);
+        }
+
+        public static IEnumerable<T> ConcatAll<T>(params IEnumerable<T>[] elemsArray)
+        {
+            foreach (var elems in elemsArray)
+            {
+                foreach (var item in elems)
+                {
+                    yield return item;
+                }
+            }
         }
 
         static void TestExecuteCommand(string command)
@@ -81,17 +132,6 @@ namespace CasualConsole
             Console.WriteLine(output);
             Console.WriteLine("ExitCode: " + exitCode.ToString(), "ExecuteCommand");
             process.Close();
-        }
-
-        public static void ThreadAction()
-        {
-            Thread.Sleep(500);
-
-            for (int i = 0; i < 5; i++)
-            {
-                Console.WriteLine("Second thread {0}", i);
-                Thread.Sleep(1000);
-            }
         }
 
         private static void UnityIncreaseMapHeightAll()

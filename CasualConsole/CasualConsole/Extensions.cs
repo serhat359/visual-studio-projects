@@ -169,6 +169,11 @@ namespace CasualConsole
 
             return hasJob;
         }
+
+        public static T LastItem<T>(this List<T> list)
+        {
+            return list[list.Count - 1];
+        }
     }
 }
 
