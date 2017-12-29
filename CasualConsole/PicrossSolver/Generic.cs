@@ -7,6 +7,8 @@ namespace PicrossSolver
 {
     public static class Generic
     {
+        private static int testNumber = -1;
+
         public static void TestMatchingByDivided()
         {
             TestCase[] dividedTests = new TestCase[] {
@@ -42,7 +44,7 @@ namespace PicrossSolver
                 new TestCase { CellsString="      ■■x    x ", Values = new int[] { 2,1 }, CorrectAssignment =new int[][] { new int[]{ 2 }, new[] { 1 }, new int[] {  } }  },
             };
 
-            int testNumber = 1;
+            testNumber = 1;
             foreach (var test in dividedTests)
             {
                 Form1.CellSeries cells = new Form1.CellSeries(StrToBytes(test.CellsString), test.Values);
@@ -98,26 +100,28 @@ namespace PicrossSolver
 
                 new TestCase { CellsString = "           ■■ ■■■ ■ ", Values = new int[] { 2, 2, 1, 2, 3, 2 }, CorrectAssignment = new int[][] { new int[] { 2 }, new int[] { 3 }, new int[] { 2 } } },
 
-                //new TestCase { CellsString = "         ■    ■x■   ", Values = new int[] { 3, 6, 3 }, CorrectAssignment = new int[][] { new int[] { 6 }, new int[] { 6 }, new int[] { 3 } } },
+                new TestCase { CellsString = "         ■    ■x■   ", Values = new int[] { 3, 6, 3 }, CorrectAssignment = new int[][] { new int[] { 6 }, new int[] { 6 }, new int[] { 3 } } },
+
+                new TestCase { CellsString="    ■■ ■x      ", Values = new int[] { 1,4,2,2 }, CorrectAssignment =new int[][] { new int[]{ 4 }, new[] { 4 } }  },
             };
 
-            int testNumber = 1;
+            testNumber = 1;
             foreach (var test in filledTests)
             {
                 var cellsExternal = new Form1.CellSeries(StrToBytes(test.CellsString), test.Values);
 
                 List<Range> filledRanges = FindFilledGroups(cellsExternal, 0, cellsExternal.Length - 1);
 
-                var res = GetFilledMatchingCandidates(cellsExternal, test.Values, filledRanges);
+                var matchingResult = GetFilledMatchingCandidates(cellsExternal, test.Values, filledRanges);
 
                 var correct = test.CorrectAssignment;
 
-                if (res.Length != correct.Length)
+                if (matchingResult.Length != correct.Length)
                     throw new Exception("Filled assignment is wrong");
 
-                int[][] resConverted = res.Select(x => x.Select(y => y.Value).ToArray()).ToArray();
+                int[][] resConverted = matchingResult.Select(x => x.Select(y => y.Value).ToArray()).ToArray();
 
-                for (int i = 0; i < res.Length; i++)
+                for (int i = 0; i < matchingResult.Length; i++)
                 {
                     int[] resSub = resConverted[i];
                     int[] correctSub = correct[i];
@@ -1962,6 +1966,9 @@ namespace PicrossSolver
         {
             List<ColumnValueExtended>[] forwardFilledCandidates = Enumerable.Range(0, filledRanges.Count).Select(x => new List<ColumnValueExtended>()).ToArray();
 
+            if (filledRanges.Count == 0)
+                return forwardFilledCandidates;
+
             int i = 0;
 
             int valueIndex = 0;
@@ -1973,6 +1980,7 @@ namespace PicrossSolver
                 Range range = filledRanges[filledRangeIndex];
 
                 // Skip the all and possible empties
+                bool encounteredEmpty = false;
                 bool doContinue = true;
                 while (doContinue)
                 {
@@ -1981,6 +1989,7 @@ namespace PicrossSolver
                     {
                         if (cells[i + k] == Form1.EMPTY)
                         {
+                            encounteredEmpty = true;
                             i += k + 1;
                             doContinue = true;
                             break;
@@ -2013,7 +2022,7 @@ namespace PicrossSolver
                         break;
                 }
 
-                if (didMoveOnFront)
+                if (didMoveOnFront || encounteredEmpty)
                 {
                     int[] newValues = values.Take(valueIndex).ToArray();
 
@@ -2072,12 +2081,21 @@ namespace PicrossSolver
             }
 
             // Check for errors
-            if (forwardFilledCandidates.LastItem().Count == 0 && lastEmptyIndex < 0)
+            if (forwardFilledCandidates.LastItem().Count == 0)
             {
                 Range lastRange = filledRanges.LastItem();
                 int lastValue = values.LastItem();
 
                 int lastValueFilledRange = lastRange.end - lastValue + 1;
+
+                for (int k = lastRange.end; k >= lastValueFilledRange; k--)
+                {
+                    if (cells[k] == Form1.EMPTY)
+                    {
+                        lastValueFilledRange = k;
+                        break;
+                    }
+                }
 
                 int[] newValues = values.Take(values.Length - 1).ToArray();
 
