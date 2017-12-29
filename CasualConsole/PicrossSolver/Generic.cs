@@ -77,32 +77,32 @@ namespace PicrossSolver
 
         public static void TestMatchingByFilled()
         {
-            TestCase[] filledTests = new TestCase[] {
-                new TestCase { CellsString = "         ■    ■ ■   ", Values = new int[] { 3, 6, 1 }, CorrectAssignment = new int[][] { new int[] { 6 }, new int[] { 6 }, new int[] { 1 } } },
+            FilledTestCase[] filledTests = new FilledTestCase[] {
+                new FilledTestCase { CellsString = "         ■    ■ ■   ", Values = new int[] { 3, 6, 1 }, CorrectAssignment = new int[] { 6, 6, 1 } },
 
-                new TestCase { CellsString = "         ■    ■ ■   ", Values = new int[] { 3, 6, 2 }, CorrectAssignment = new int[][] { new int[] { 6 }, new int[] { 6 }, new int[] { 2 } } },
+                new FilledTestCase { CellsString = "         ■    ■ ■   ", Values = new int[] { 3, 6, 2 }, CorrectAssignment = new int[] { 6, 6, 2 } },
 
-                new TestCase { CellsString = "         ■    ■ ■   ", Values = new int[] { 3, 6, 3 }, CorrectAssignment = new int[][] { new int[] { 6 }, new int[] { 3 }, new int[] { 3 } } },
+                new FilledTestCase { CellsString = "         ■    ■ ■   ", Values = new int[] { 3, 6, 3 }, CorrectAssignment = new int[] { 6, 3, 3 } },
 
-                new TestCase { CellsString = "  ■ ■  ■            ", Values = new int[] { 1, 2, 3, 2, 1 }, CorrectAssignment = new int[][] { new int[] { 1 }, new int[] { 2 }, new int[] { 3 } } },
+                new FilledTestCase { CellsString = "  ■ ■  ■            ", Values = new int[] { 1, 2, 3, 2, 1 }, CorrectAssignment = new int[] { 1, 2, 3 } },
 
-                new TestCase { CellsString = "           ■■■    ", Values = new int[] { 5, 1 }, CorrectAssignment = new int[][] { new int[] { 5 } } },
+                new FilledTestCase { CellsString = "           ■■■    ", Values = new int[] { 5, 1 }, CorrectAssignment = new int[] { 5 } },
 
-                new TestCase { CellsString = "           ■■■    ", Values = new int[] { 1, 5, 1 }, CorrectAssignment = new int[][] { new int[] { 5 } } },
+                new FilledTestCase { CellsString = "           ■■■    ", Values = new int[] { 1, 5, 1 }, CorrectAssignment = new int[] { 5 } },
 
-                new TestCase { CellsString = "           ■■■    ", Values = new int[] { 1, 1, 5, 1 }, CorrectAssignment = new int[][] { new int[] { 5 } } },
+                new FilledTestCase { CellsString = "           ■■■    ", Values = new int[] { 1, 1, 5, 1 }, CorrectAssignment = new int[] { 5 } },
 
-                new TestCase { CellsString = "   ■ ■    ■         ", Values = new int[] { 1, 6, 3 }, CorrectAssignment = new int[][] { new int[] { 6 }, new int[] { 6 }, new int[] { 3 } } },
+                new FilledTestCase { CellsString = "   ■ ■    ■         ", Values = new int[] { 1, 6, 3 }, CorrectAssignment = new int[] { 6, 6, 3 } },
 
-                new TestCase { CellsString = "       ■    ■  ", Values = new int[] { 2, 1, 1, 2, 3 }, CorrectAssignment = new int[][] { new int[] { 2 }, new int[] { 3 } } },
+                new FilledTestCase { CellsString = "       ■    ■  ", Values = new int[] { 2, 1, 1, 2, 3 }, CorrectAssignment = new int[] { 2, 3 } },
 
-                new TestCase { CellsString = "  ■    ■       ", Values = new int[] { 3, 2, 1, 1, 2 }, CorrectAssignment = new int[][] { new int[] { 3 }, new int[] { 1 } } },
+                new FilledTestCase { CellsString = "  ■    ■       ", Values = new int[] { 3, 2, 1, 1, 2 }, CorrectAssignment = new int[] { 3, 1 } },
 
-                new TestCase { CellsString = "           ■■ ■■■ ■ ", Values = new int[] { 2, 2, 1, 2, 3, 2 }, CorrectAssignment = new int[][] { new int[] { 2 }, new int[] { 3 }, new int[] { 2 } } },
+                new FilledTestCase { CellsString = "           ■■ ■■■ ■ ", Values = new int[] { 2, 2, 1, 2, 3, 2 }, CorrectAssignment = new int[] { 2, 3, 2 } },
 
-                new TestCase { CellsString = "         ■    ■x■   ", Values = new int[] { 3, 6, 3 }, CorrectAssignment = new int[][] { new int[] { 6 }, new int[] { 6 }, new int[] { 3 } } },
+                new FilledTestCase { CellsString = "         ■    ■x■   ", Values = new int[] { 3, 6, 3 }, CorrectAssignment = new int[] { 6, 6, 3 } },
 
-                new TestCase { CellsString="    ■■ ■x      ", Values = new int[] { 1,4,2,2 }, CorrectAssignment =new int[][] { new int[]{ 4 }, new[] { 4 } }  },
+                new FilledTestCase { CellsString="    ■■ ■x      ", Values = new int[] { 1,4,2,2 }, CorrectAssignment = new int[] { 4, 4 }  },
             };
 
             testNumber = 1;
@@ -119,14 +119,14 @@ namespace PicrossSolver
                 if (matchingResult.Length != correct.Length)
                     throw new Exception("Filled assignment is wrong");
 
-                int[][] resConverted = matchingResult.Select(x => x.Select(y => y.Value).ToArray()).ToArray();
+                int[] resConverted = matchingResult.Select(x => x.Value).ToArray();
 
                 for (int i = 0; i < matchingResult.Length; i++)
                 {
-                    int[] resSub = resConverted[i];
-                    int[] correctSub = correct[i];
+                    int resSub = resConverted[i];
+                    int correctSub = correct[i];
 
-                    if (!Enumerable.SequenceEqual(resSub, correctSub))
+                    if (resSub != correctSub)
                         throw new Exception("Filled assignment is wrong");
                 }
 
@@ -1708,39 +1708,33 @@ namespace PicrossSolver
             if (filledRanges.Count <= values.Length && filledRanges.Count > 0)
             {
                 // Forward candidate matching
-                List<ColumnValueExtended>[] forwardFilledCandidates = GetFilledMatchingCandidates(cells, values, filledRanges);
+                ColumnValueExtended[] forwardFilledCandidates = GetFilledMatchingCandidates(cells, values, filledRanges);
 
                 int cellsLastIndex = cells.Length - 1;
                 // New Backward candidate matching
-                List<ColumnValueExtended>[] backwardFilledCandidates = GetFilledMatchingCandidates(
+                ColumnValueExtended[] backwardFilledCandidates = GetFilledMatchingCandidates(
                     Form1.CellSeries.Reverse(cells), values.Reverse().ToArray(),
                     filledRanges.Select(x => new Range(cellsLastIndex - x.end, cellsLastIndex - x.start, x.containsFilled)).OrderBy(x => x.start).ToList()
                 );
 
                 backwardFilledCandidates = backwardFilledCandidates
-                    .Select(candList => candList
-                        .Select(x => new ColumnValueExtended { Index = values.Length - 1 - x.Index, Value = x.Value, CanMarkAfter = x.CanMarkAfter, CanMarkBefore = x.CanMarkBefore })
-                        .ToList()
-                    )
+                    .Select(x => new ColumnValueExtended { Index = values.Length - 1 - x.Index, Value = x.Value, CanMarkAfter = x.CanMarkAfter, CanMarkBefore = x.CanMarkBefore })
                     .Reverse()
                     .ToArray();
 
                 for (int i = 0; i < filledRanges.Count; i++)
                 {
                     Range filledRange = filledRanges[i];
-                    List<ColumnValueExtended> forwardCandidates = forwardFilledCandidates[i];
-                    List<ColumnValueExtended> backwardCandidates = backwardFilledCandidates[i];
+                    ColumnValueExtended forwardCandidates = forwardFilledCandidates[i];
+                    ColumnValueExtended backwardCandidates = backwardFilledCandidates[i];
 
-                    if (forwardCandidates.Count > 0 && backwardCandidates.Count > 0)
+                    //if (forwardCandidates.Count > 0 && backwardCandidates.Count > 0)
                     {
-                        int forwardMinIndex = forwardCandidates.Min(x => x.Index);
-                        int backwardMinIndex = backwardCandidates.Min(x => x.Index);
-
-                        int forwardMaxIndex = forwardCandidates.Max(x => x.Index);
-                        int backwardMaxIndex = backwardCandidates.Max(x => x.Index);
+                        int forwardMinIndex = forwardCandidates.Index;
+                        int backwardMinIndex = backwardCandidates.Index;
 
                         int minValueIndex = forwardMinIndex < backwardMinIndex ? forwardMinIndex : backwardMinIndex;
-                        int maxValueIndex = forwardMaxIndex >= backwardMaxIndex ? forwardMaxIndex : backwardMaxIndex;
+                        int maxValueIndex = forwardMinIndex >= backwardMinIndex ? forwardMinIndex : backwardMinIndex;
 
                         var newValues = MyRange(minValueIndex, maxValueIndex + 1).Select(x => values[x]).ToList();
 
@@ -1754,19 +1748,15 @@ namespace PicrossSolver
 
                         if (i + 1 < filledRanges.Count)
                         {
-                            List<ColumnValueExtended> nextForwardCandidates = forwardFilledCandidates[i + 1];
-                            List<ColumnValueExtended> nextBackwardCandidates = backwardFilledCandidates[i + 1];
+                            ColumnValueExtended nextForwardCandidates = forwardFilledCandidates[i + 1];
+                            ColumnValueExtended nextBackwardCandidates = backwardFilledCandidates[i + 1];
 
-                            if (forwardCandidates.Count == 1 &&
-                                backwardCandidates.Count == 1 &&
-                                forwardCandidates[0] == backwardCandidates[0] &&
-                                nextForwardCandidates.Count == 1 &&
-                                nextBackwardCandidates.Count == 1 &&
-                                nextForwardCandidates[0] == nextBackwardCandidates[0]
+                            if (forwardCandidates == backwardCandidates &&
+                                nextForwardCandidates == nextBackwardCandidates
                             )
                             {
-                                int thisIndex = forwardCandidates[0].Index;
-                                int nextIndex = nextForwardCandidates[0].Index;
+                                int thisIndex = forwardCandidates.Index;
+                                int nextIndex = nextForwardCandidates.Index;
 
                                 int thisValue = values[thisIndex];
                                 int nextValue = values[nextIndex];
@@ -1785,10 +1775,10 @@ namespace PicrossSolver
                         }
                     }
 
-                    if (forwardCandidates.Count == 1 && backwardCandidates.Count == 1)
+                    //if (forwardCandidates.Count == 1 && backwardCandidates.Count == 1)
                     {
-                        var forward = forwardCandidates[0];
-                        var backward = backwardCandidates[0];
+                        var forward = forwardCandidates;
+                        var backward = backwardCandidates;
 
                         int indexOff = forward.Index - backward.Index;
 
@@ -1821,12 +1811,12 @@ namespace PicrossSolver
             }
         }
 
-        private static int GetMinOfBackward(Form1.CellSeries cells, int[] values, List<Range> filledRanges, List<ColumnValueExtended>[] backwardFilledCandidates, ColumnValueExtended backward)
+        private static int GetMinOfBackward(Form1.CellSeries cells, int[] values, List<Range> filledRanges, ColumnValueExtended[] backwardFilledCandidates, ColumnValueExtended backward)
         {
             var rightValues = values.Where((x, index) => index >= backward.Index);
             int rightMaxRangeByCount = cells.Length - 1 - (rightValues.Sum() + rightValues.Count() - 2);
 
-            var asd = backwardFilledCandidates.Select((x, index) => new { index = index, value = x }).Where(x => x.value.Any(y => y.Index == backward.Index));
+            var asd = backwardFilledCandidates.Select((x, index) => new { index = index, value = x }).Where(x => x.value.Index == backward.Index);
 
             var minIndexedRange = asd.Single(x => x.index == asd.Min(y => y.index));
 
@@ -1838,12 +1828,12 @@ namespace PicrossSolver
             return minOfBoth;
         }
 
-        private static int GetMaxOfForward(int[] values, List<Range> filledRanges, List<ColumnValueExtended>[] forwardFilledCandidates, ColumnValueExtended forward)
+        private static int GetMaxOfForward(int[] values, List<Range> filledRanges, ColumnValueExtended[] forwardFilledCandidates, ColumnValueExtended forward)
         {
             var leftValues = values.Where((x, index) => index <= forward.Index);
             int leftMaxRangeByCount = leftValues.Sum() + leftValues.Count() - 2;
 
-            var asd = forwardFilledCandidates.Select((x, index) => new { index = index, value = x }).Where(x => x.value.Any(y => y.Index == forward.Index));
+            var asd = forwardFilledCandidates.Select((x, index) => new { index = index, value = x }).Where(x => x.value.Index == forward.Index);
 
             var maxIndexedRange = asd.Single(x => x.index == asd.Max(y => y.index));
 
@@ -1962,9 +1952,9 @@ namespace PicrossSolver
             }
         }
 
-        private static List<ColumnValueExtended>[] GetFilledMatchingCandidates(Form1.CellSeries cells, int[] values, List<Range> filledRanges)
+        private static ColumnValueExtended[] GetFilledMatchingCandidates(Form1.CellSeries cells, int[] values, List<Range> filledRanges)
         {
-            List<ColumnValueExtended>[] forwardFilledCandidates = Enumerable.Range(0, filledRanges.Count).Select(x => new List<ColumnValueExtended>()).ToArray();
+            ColumnValueExtended[] forwardFilledCandidates = new ColumnValueExtended[filledRanges.Count];
 
             if (filledRanges.Count == 0)
                 return forwardFilledCandidates;
@@ -2032,7 +2022,7 @@ namespace PicrossSolver
 
                     var newRes = GetFilledMatchingCandidates(Form1.CellSeries.Slice(cells, 0, i - 2, newValues), newValues, nonCoveredRanges);
 
-                    newRes = newRes.AddSizeWithNew(coveredCount);
+                    newRes = newRes.AddSize(coveredCount);
 
                     forwardFilledCandidates = newRes;
 
@@ -2059,7 +2049,7 @@ namespace PicrossSolver
                             }
                         }
 
-                        forwardFilledCandidates[filledRangeIndex].Add(new ColumnValueExtended { Index = valueIndex, Value = val, CanMarkBefore = range.start == i, CanMarkAfter = val == 1 });
+                        forwardFilledCandidates[filledRangeIndex] = new ColumnValueExtended { Index = valueIndex, Value = val, CanMarkBefore = range.start == i, CanMarkAfter = val == 1 };
                         filledRangeIndex++;
                     }
                     else
@@ -2081,7 +2071,7 @@ namespace PicrossSolver
             }
 
             // Check for errors
-            if (forwardFilledCandidates.LastItem().Count == 0)
+            if (forwardFilledCandidates.LastItem() == null)
             {
                 Range lastRange = filledRanges.LastItem();
                 int lastValue = values.LastItem();
@@ -2105,12 +2095,11 @@ namespace PicrossSolver
 
                 if (nonCoveredRanges.Count == 0)
                 {
-                    forwardFilledCandidates = Enumerable.Range(0, filledRanges.Count).Select(x => new List<ColumnValueExtended>()).ToArray();
+                    forwardFilledCandidates = new ColumnValueExtended[filledRanges.Count];
 
                     for (int y = 0; y < forwardFilledCandidates.Length; y++)
                     {
-                        var candidate = forwardFilledCandidates[y];
-                        candidate.Add(new ColumnValueExtended { Index = values.Length - 1, Value = lastValue });
+                        forwardFilledCandidates[y] = new ColumnValueExtended { Index = values.Length - 1, Value = lastValue };
                     }
 
                     return forwardFilledCandidates;
@@ -2122,10 +2111,7 @@ namespace PicrossSolver
 
                 for (int index = 0; index < coveredCount; index++)
                 {
-                    List<ColumnValueExtended> a = new List<ColumnValueExtended>();
-                    a.Add(new ColumnValueExtended { Index = values.Length - 1, Value = lastValue });
-
-                    newRes[nonCoveredRanges.Count + index] = a;
+                    newRes[nonCoveredRanges.Count + index] = new ColumnValueExtended { Index = values.Length - 1, Value = lastValue };
                 }
 
                 return newRes;
@@ -2271,5 +2257,14 @@ namespace PicrossSolver
         public int[] Values { get; set; }
 
         public int[][] CorrectAssignment { get; set; }
+    }
+
+    public class FilledTestCase
+    {
+        public string CellsString { get; set; }
+
+        public int[] Values { get; set; }
+
+        public int[] CorrectAssignment { get; set; }
     }
 }
