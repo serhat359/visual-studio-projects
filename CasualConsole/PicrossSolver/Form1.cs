@@ -50,12 +50,22 @@ namespace PicrossSolver
 
             if (mode == Mode.Development)
             {
+#if DEBUG
                 Generic.TestMatchingByDivided();
+                Generic.TestMatchingByFilled();
 
+                Console.WriteLine("All test are OK!!!");
+                Console.WriteLine();
+#endif
                 programStartTime = DateTime.Now;
 
                 SolveHavingSolution(puzzlesHavingSolution);
                 SolveHavingSolution(puzzlesNotHavingSolution);
+
+                TimeSpan timeDiff = DateTime.Now - programStartTime;
+
+                Console.WriteLine("Time it took: {0}", timeDiff);
+                Console.ReadKey();
             }
             else if (mode == Mode.GUI)
             {
@@ -124,12 +134,12 @@ namespace PicrossSolver
 
                 if (!isSolved && correctExists)
                 {
-                    display(correct, "This is how it should be", true);
+                    display(correct, "This is how it should be", leftColumn, upColumn, true);
                 }
 
                 if (isSolved && !correctExists)
                 {
-                    display(solvedPicture, "I solved it!", true);
+                    display(solvedPicture, "I solved it!", leftColumn, upColumn, true);
                     string solvedCase = ToJson2D(solvedPicture);
                 }
             }
@@ -175,7 +185,7 @@ namespace PicrossSolver
 
                 Console.WriteLine("Time it took: {0}", timeDiff);
 
-                display(picture, "I could only solve this much", true);
+                display(picture, "I could only solve this much", leftColumn, upColumn, true);
             }
 
             return picture;
@@ -205,53 +215,53 @@ namespace PicrossSolver
 
                 // tek sayı olanların ara boşluğunu doldurup, ulaşamayacağı yerlere çarpı atıyor
                 ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessSingles);
-                isChangeDetected |= testPicture(picture);
+                isChangeDetected |= testPicture(picture, leftColumn, upColumn);
 
                 {
                     // seri başından ve sonundan itibaren bir tarafı kapalı sayıların kalanını ayarlayıp çarpı atıyor
                     ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.ProcessStart);
-                    isChangeDetected |= testPicture(picture);
+                    isChangeDetected |= testPicture(picture, leftColumn, upColumn);
 
                     // seri başlarındaki ve sonlarındaki küçük boşluklara çarpı atıyor, BU METOD processStartsAndEnds METODUNDAN HEMEN SONRA ÇALIŞMALI!!!
                     ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.ProcessStartingUnknowns);
-                    isChangeDetected |= testPicture(picture);
+                    isChangeDetected |= testPicture(picture, leftColumn, upColumn);
                 }
 
                 // serilerdeki en büyük değerler dolduysa başına ve sonuna çarpı atıyor
                 ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessSetEmptiesByMax);
-                isChangeDetected |= testPicture(picture);
+                isChangeDetected |= testPicture(picture, leftColumn, upColumn);
 
                 // serilerdeki çarpı arası boşluklara çarpı atıyor
                 ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessFillBetweenEmpties);
-                isChangeDetected |= testPicture(picture);
+                isChangeDetected |= testPicture(picture, leftColumn, upColumn);
 
                 // serideki outlier olan değere karşılık gelen dolmuşları işliyor
                 ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessByMaxValues);
-                isChangeDetected |= testPicture(picture);
+                isChangeDetected |= testPicture(picture, leftColumn, upColumn);
 
                 // seri başlarında ve sonlarında kendini bulmaya çalışıyor
                 ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.TryMatchingFirstValue);
-                isChangeDetected |= testPicture(picture);
+                isChangeDetected |= testPicture(picture, leftColumn, upColumn);
 
                 // serileri genel olarak analiz ediyor
                 ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.ProcessMatching);
-                isChangeDetected |= testPicture(picture);
+                isChangeDetected |= testPicture(picture, leftColumn, upColumn);
 
                 // serideki dolulara bakarak eşleştirip initial processing yaptırıyor
                 ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.ProcessInitialByMatchingFilled);
-                isChangeDetected |= testPicture(picture);
+                isChangeDetected |= testPicture(picture, leftColumn, upColumn);
 
                 // Özel ve çok nadir durumları işliyor
                 ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.ProcessSpecialCases);
-                isChangeDetected |= testPicture(picture);
-
-                // serilerdeki dolu grup sayısı değer sayısını geçtiğinde bakıyor
-                ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessByFilledRanges);
-                isChangeDetected |= testPicture(picture);
+                isChangeDetected |= testPicture(picture, leftColumn, upColumn);
 
                 // serideki çarpılarla ayrılmış kısımları bulup işliyor
                 ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessByDividedAreas);
-                isChangeDetected |= testPicture(picture);
+                isChangeDetected |= testPicture(picture, leftColumn, upColumn);
+
+                // serilerdeki dolu grup sayısı değer sayısını geçtiğinde bakıyor
+                ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessByFilledRanges);
+                isChangeDetected |= testPicture(picture, leftColumn, upColumn);
 
                 if (!isChangeDetected)
                 {
@@ -263,7 +273,7 @@ namespace PicrossSolver
 
                 // serideki dolu ve boş sayılarını kontrol ediyor
                 processCheckAllCounts(picture, upColumn, leftColumn);
-                isChangeDetected |= testPicture(picture);
+                isChangeDetected |= testPicture(picture, leftColumn, upColumn);
 
                 //display(picture, "test", true);
             }
@@ -405,7 +415,7 @@ namespace PicrossSolver
             }
         }
 
-        private static bool testPicture(byte[,] picture)
+        private static bool testPicture(byte[,] picture, int[][] leftColumn, int[][] upColumn)
         {
             bool isChangeDetected = false;
 
@@ -432,9 +442,9 @@ namespace PicrossSolver
                             int asIs = picture[i, j];
                             int correctOne = correct[i, j];
                             Console.WriteLine("Hata tespit edildi, iteration: " + iteration);
-                            display(pictureRef, "Hatasız olan");
-                            display(picture, "Hatalı olan");
-                            display(correct, "Olması gereken", true);
+                            display(pictureRef, "Hatasız olan", leftColumn, upColumn);
+                            display(picture, "Hatalı olan", leftColumn, upColumn);
+                            display(correct, "Olması gereken", leftColumn, upColumn, true);
                             throw new Exception("Önceki metot yanlış, iteration: " + iteration + ", row: " + i + ", col: " + j);
                         }
 
@@ -464,9 +474,9 @@ namespace PicrossSolver
             return sum;
         }
 
-        private static void display(byte[,] picture)
+        private static void display(byte[,] picture, int[][] leftColumn, int[][] upColumn)
         {
-            display(picture, "Latest");
+            display(picture, "Latest", leftColumn, upColumn);
         }
 
         private static string pictureToString(byte[,] picture)
@@ -485,11 +495,11 @@ namespace PicrossSolver
             return ss.ToString();
         }
 
-        private static void display(byte[,] picture, string title, bool isApplication = false)
+        private static void display(byte[,] picture, string title, int[][] leftColumn, int[][] upColumn, bool isApplication = false)
         {
             dumpPicture(picture);
 
-            var w = new MyWindow(picture, title);
+            var w = new MyWindow(picture, title, leftColumn, upColumn);
             w.Show();
             w.Invalidate();
 
@@ -562,6 +572,7 @@ namespace PicrossSolver
                 get { return valueGetter(i); }
                 set
                 {
+#if DEBUG
                     byte oldCell = valueGetter(i);
                     if ((oldCell == EMPTY && value == FILLED) || (oldCell == FILLED && value == EMPTY))
                         throw new Exception("Error Detected");
@@ -572,7 +583,7 @@ namespace PicrossSolver
                         if (correctCell != value)
                             throw new Exception("Error Detected");
                     }
-
+#endif
                     valueSetter(i, value);
                 }
             }
@@ -667,10 +678,10 @@ namespace PicrossSolver
 
                 if (size < 0)
                     size = 0;
-
+#if DEBUG
                 if (size < newValues.Sum() + newValues.Length - 1)
                     throw new Exception("Bre insafsız!");
-
+#endif
                 return new CellSeries(cellColumnValues, size, getter, setter);
             }
 
@@ -688,10 +699,10 @@ namespace PicrossSolver
 
                 var oldvals = old.cellColumnValues.asIterable;
                 var newvals = cells.cellColumnValues.asIterable;
-
+#if DEBUG
                 if (!Enumerable.SequenceEqual(oldvals, newvals.Reverse()))
                     throw new Exception("Error at reversing");
-
+#endif
                 return cells;
             }
 
@@ -752,11 +763,6 @@ namespace PicrossSolver
 
         private const string FILLED = "FILLED";
         private const string EMPTY = "EMPTY";
-
-        public MyWindow(byte[,] picture, string title)
-        {
-            ConstructorCall(picture, title, null, null);
-        }
 
         public MyWindow(byte[,] picture, string title, int[][] leftColumn, int[][] upColumn)
         {
@@ -909,6 +915,7 @@ namespace PicrossSolver
                 try
                 {
                     Generic.ProcessAllAlgorithms(cells);
+                    Generic.ProcessAllAlgorithms(Form1.CellSeries.Reverse(cells));
                 }
                 catch (Exception)
                 {
@@ -945,6 +952,7 @@ namespace PicrossSolver
                 try
                 {
                     Generic.ProcessAllAlgorithms(cells);
+                    Generic.ProcessAllAlgorithms(Form1.CellSeries.Reverse(cells));
                 }
                 catch (Exception)
                 {

@@ -9,7 +9,7 @@ namespace PicrossSolver
     {
         public static void TestMatchingByDivided()
         {
-            TestCase[] tests = new TestCase[] {
+            TestCase[] dividedTests = new TestCase[] {
 
                 new TestCase { CellsString = " x■  ■xxxxx■   ", Values = new int[] { 1,2,1 }, CorrectAssignment = new int[][] { new int[]{ }, new[] { 1,2 }, new[] { 1 } } },
 
@@ -42,23 +42,10 @@ namespace PicrossSolver
                 //new TestCase { CellsString="      ■■x    x ", Values = new int[] { 2,1 }, CorrectAssignment =new int[][] { new int[]{ 2 }, new[] { 1 }, new int[] {  } }  },
             };
 
-            Func<string, byte[]> strToBytes = s =>
-            {
-                byte[] bytes = new byte[s.Length];
-
-                for (int i = 0; i < s.Length; i++)
-                {
-                    char c = s[i];
-                    bytes[i] = (byte)(Form1.chars.IndexOf(c));
-                }
-
-                return bytes;
-            };
-
             int testNumber = 1;
-            foreach (var test in tests)
+            foreach (var test in dividedTests)
             {
-                Form1.CellSeries cells = new Form1.CellSeries(strToBytes(test.CellsString), test.Values);
+                Form1.CellSeries cells = new Form1.CellSeries(StrToBytes(test.CellsString), test.Values);
 
                 List<Range> areaList = FindDividedAreas(cells);
 
@@ -75,37 +62,85 @@ namespace PicrossSolver
                     int[] correct = test.CorrectAssignment[i];
 
                     if (!Enumerable.SequenceEqual(assignedValues, correct))
-                        throw new Exception("Assignment is wrong");
+                        throw new Exception("Divided assignment is wrong");
+                }
+
+                // Debug Example
+                if (cells.asString == "  x■   ■  x■ ■■■    ")
+                    debug();
+
+                testNumber++;
+            }
+        }
+
+        public static void TestMatchingByFilled()
+        {
+            TestCase[] filledTests = new TestCase[] {
+                new TestCase { CellsString = "         ■    ■ ■   ", Values = new int[] { 3, 6, 1 }, CorrectAssignment = new int[][] { new int[] { 6 }, new int[] { 6 }, new int[] { 1 } } },
+
+                new TestCase { CellsString = "         ■    ■ ■   ", Values = new int[] { 3, 6, 2 }, CorrectAssignment = new int[][] { new int[] { 6 }, new int[] { 6 }, new int[] { 2 } } },
+
+                new TestCase { CellsString = "         ■    ■ ■   ", Values = new int[] { 3, 6, 3 }, CorrectAssignment = new int[][] { new int[] { 6 }, new int[] { 3 }, new int[] { 3 } } },
+
+                new TestCase { CellsString = "  ■ ■  ■            ", Values = new int[] { 1, 2, 3, 2, 1 }, CorrectAssignment = new int[][] { new int[] { 1 }, new int[] { 2 }, new int[] { 3 } } },
+
+                new TestCase { CellsString = "           ■■■    ", Values = new int[] { 5, 1 }, CorrectAssignment = new int[][] { new int[] { 5 } } },
+
+                new TestCase { CellsString = "           ■■■    ", Values = new int[] { 1, 5, 1 }, CorrectAssignment = new int[][] { new int[] { 5 } } },
+
+                new TestCase { CellsString = "           ■■■    ", Values = new int[] { 1, 1, 5, 1 }, CorrectAssignment = new int[][] { new int[] { 5 } } },
+
+                new TestCase { CellsString = "   ■ ■    ■         ", Values = new int[] { 1, 6, 3 }, CorrectAssignment = new int[][] { new int[] { 6 }, new int[] { 6 }, new int[] { 3 } } },
+
+                new TestCase { CellsString = "       ■    ■  ", Values = new int[] { 2, 1, 1, 2, 3 }, CorrectAssignment = new int[][] { new int[] { 2 }, new int[] { 3 } } },
+
+                new TestCase { CellsString = "  ■    ■       ", Values = new int[] { 3, 2, 1, 1, 2 }, CorrectAssignment = new int[][] { new int[] { 3 }, new int[] { 1 } } },
+
+                new TestCase { CellsString = "           ■■ ■■■ ■ ", Values = new int[] { 2, 2, 1, 2, 3, 2 }, CorrectAssignment = new int[][] { new int[] { 2 }, new int[] { 3 }, new int[] { 2 } } },
+
+                //new TestCase { CellsString = "         ■    ■x■   ", Values = new int[] { 3, 6, 3 }, CorrectAssignment = new int[][] { new int[] { 6 }, new int[] { 6 }, new int[] { 3 } } },
+            };
+
+            int testNumber = 1;
+            foreach (var test in filledTests)
+            {
+                var cellsExternal = new Form1.CellSeries(StrToBytes(test.CellsString), test.Values);
+
+                List<Range> filledRanges = FindFilledGroups(cellsExternal, 0, cellsExternal.Length - 1);
+
+                var res = GetFilledMatchingCandidates(cellsExternal, test.Values, filledRanges);
+
+                var correct = test.CorrectAssignment;
+
+                if (res.Length != correct.Length)
+                    throw new Exception("Filled assignment is wrong");
+
+                int[][] resConverted = res.Select(x => x.Select(y => y.Value).ToArray()).ToArray();
+
+                for (int i = 0; i < res.Length; i++)
+                {
+                    int[] resSub = resConverted[i];
+                    int[] correctSub = correct[i];
+
+                    if (!Enumerable.SequenceEqual(resSub, correctSub))
+                        throw new Exception("Filled assignment is wrong");
                 }
 
                 testNumber++;
             }
+        }
 
-            Console.WriteLine("All test are OK!!!");
-            Console.WriteLine();
+        private static byte[] StrToBytes(string s)
+        {
+            byte[] bytes = new byte[s.Length];
 
+            for (int i = 0; i < s.Length; i++)
             {
-                string asd = "       ■    ■  ";
-                int[] vals = { 2, 1, 1, 2, 3 };
-
-                var cellsExternal = new Form1.CellSeries(strToBytes(asd), vals);
-
-                List<Range> filledRanges = FindFilledGroups(cellsExternal, 0, cellsExternal.Length - 1);
-
-                var res = GetFilledMatchingCandidates(cellsExternal, vals, filledRanges);
+                char c = s[i];
+                bytes[i] = (byte)(Form1.chars.IndexOf(c));
             }
 
-            {
-                string asd = "  ■    ■       ";
-                int[] vals = { 3, 2, 1, 1, 2 };
-
-                var cellsExternal = new Form1.CellSeries(strToBytes(asd), vals);
-
-                List<Range> filledRanges = FindFilledGroups(cellsExternal, 0, cellsExternal.Length - 1);
-
-                var res = GetFilledMatchingCandidates(cellsExternal, vals, filledRanges);
-            }
-
+            return bytes;
         }
 
         public static void ProcessAllAlgorithms(Form1.CellSeries cells)
@@ -128,8 +163,8 @@ namespace PicrossSolver
                 ProcessInitialByMatchingFilled(cells);
                 ProcessSpecialCases(cells);
 
-                ProcessByFilledRanges(cells);
                 ProcessByDividedAreas(cells);
+                ProcessByFilledRanges(cells);
             }
             else
             {
@@ -147,7 +182,7 @@ namespace PicrossSolver
         }
 
         /// <summary>
-        /// Does initial processing on the cells, fills the parts that are certain to be FILLED, should NOT set anything as EMPTY
+        /// Does initial processing on the cells, fills the parts that are certain to be FILLED, should NOT set anything to EMPTY
         /// </summary>
         public static void InitialProcessing(Form1.CellSeries cells)
         {
@@ -820,10 +855,6 @@ namespace PicrossSolver
                     .Reverse()
                     .ToArray();
 
-                // Debug Example
-                if (cells.cellColumnValues.asIterable.SequenceEqual(new int[] { 2, 1, 1, 1 }) && cells.asIterable.Where(x => x == Form1.FILLED).Count() == 6)
-                    debug();
-
                 bool doMatchPerfectly = true;
 
                 // Check whether assignments match perfectly, if so we can process empty ones too
@@ -1282,14 +1313,18 @@ namespace PicrossSolver
         /// </summary>
         public static void ProcessByFilledRanges(Form1.CellSeries cells)
         {
-            var values = cells.cellColumnValues;
+            // This line is added for increased performance
+            if (cells[0] != Form1.UNKNOWN || cells[cells.Length - 1] != Form1.UNKNOWN)
+                return;
+
+            int[] values = cells.cellColumnValues.asIterable.ToArray();
 
             List<Range> filledRanges = FindFilledGroups(cells, 0, cells.Length - 1);
 
             if (filledRanges.Count >= 2
                 && filledRanges.All(x => x.size == 1)
-                && values.asIterable.Skip(1).All(x => x == 1)
-                && filledRanges[1].end - filledRanges[0].start + 1 > values.asIterable.First()
+                && values.Skip(1).All(x => x == 1)
+                && filledRanges[1].end - filledRanges[0].start + 1 > values.First()
                 )
             {
                 for (int i = 1; i < filledRanges.Count; i++)
@@ -1301,11 +1336,11 @@ namespace PicrossSolver
                 }
             }
 
-            FillBetweenFilled(cells, values.asIterable.ToArray(), filledRanges);
+            FillBetweenFilled(cells, values.ToArray(), filledRanges);
 
-            TryMerging(cells, values.asIterable.ToArray(), filledRanges);
+            TryMerging(cells, values.ToArray(), filledRanges);
 
-            MarkIfValuesAreAllTheSame(cells, values.asIterable, filledRanges);
+            MarkIfValuesAreAllTheSame(cells, values, filledRanges);
         }
 
         /// <summary>
@@ -1598,7 +1633,7 @@ namespace PicrossSolver
                 }
             }
 
-            if (filledRanges.Count < values.Length && filledRanges.Count > 0)
+            if (filledRanges.Count <= values.Length && filledRanges.Count > 0)
             {
                 // Forward candidate matching
                 List<ColumnValueExtended>[] forwardFilledCandidates = GetFilledMatchingCandidates(cells, values, filledRanges);
@@ -1697,9 +1732,55 @@ namespace PicrossSolver
                                 cells.SafeSet(filledRange.end + 1, Form1.EMPTY);
                             }
                         }
+
+                        if (forward.Index == backward.Index)
+                        {
+                            int maxOfForward = GetMaxOfForward(values, filledRanges, forwardFilledCandidates, forward);
+
+                            int minOfBoth = GetMinOfBackward(cells, values, filledRanges, backwardFilledCandidates, backward);
+
+                            for (int k = minOfBoth; k <= maxOfForward; k++)
+                            {
+                                cells[k] = Form1.FILLED;
+                            }
+                        }
                     }
                 }
             }
+        }
+
+        private static int GetMinOfBackward(Form1.CellSeries cells, int[] values, List<Range> filledRanges, List<ColumnValueExtended>[] backwardFilledCandidates, ColumnValueExtended backward)
+        {
+            var rightValues = values.Where((x, index) => index >= backward.Index);
+            int rightMaxRangeByCount = cells.Length - 1 - (rightValues.Sum() + rightValues.Count() - 2);
+
+            var asd = backwardFilledCandidates.Select((x, index) => new { index = index, value = x }).Where(x => x.value.Any(y => y.Index == backward.Index));
+
+            var minIndexedRange = asd.Single(x => x.index == asd.Min(y => y.index));
+
+            var minFilledIndex = minIndexedRange.index;
+
+            var filledEnd = filledRanges[minFilledIndex].end;
+
+            int minOfBoth = Min(filledEnd, rightMaxRangeByCount);
+            return minOfBoth;
+        }
+
+        private static int GetMaxOfForward(int[] values, List<Range> filledRanges, List<ColumnValueExtended>[] forwardFilledCandidates, ColumnValueExtended forward)
+        {
+            var leftValues = values.Where((x, index) => index <= forward.Index);
+            int leftMaxRangeByCount = leftValues.Sum() + leftValues.Count() - 2;
+
+            var asd = forwardFilledCandidates.Select((x, index) => new { index = index, value = x }).Where(x => x.value.Any(y => y.Index == forward.Index));
+
+            var maxIndexedRange = asd.Single(x => x.index == asd.Max(y => y.index));
+
+            var maxFilledIndex = maxIndexedRange.index;
+
+            var filledEnd = filledRanges[maxFilledIndex].end;
+
+            int maxOfBoth = Max(filledEnd, leftMaxRangeByCount);
+            return maxOfBoth;
         }
 
         /// <summary>
@@ -1748,7 +1829,7 @@ namespace PicrossSolver
         /// <summary>
         /// Does processing if all the values are the same
         /// </summary>
-        private static void MarkIfValuesAreAllTheSame(Form1.CellSeries cells, IEnumerable<int> values, List<Range> filledRanges)
+        private static void MarkIfValuesAreAllTheSame(Form1.CellSeries cells, int[] values, List<Range> filledRanges)
         {
             int[] distinctValues = values.Distinct().ToArray();
 
@@ -1839,17 +1920,46 @@ namespace PicrossSolver
                     }
                 }
 
+                bool didMoveOnFront = false;
+
                 // Check one over for filled
-                while (cells.SafeCheck(i + val, x => x == Form1.FILLED))
+                while (true)
                 {
-                    if (cells[i] == Form1.FILLED)
+                    bool didMoveInLoop = false;
+
+                    while (cells.SafeCheck(i + val, x => x == Form1.FILLED))
                     {
-                        // Add the value before this
-                        int newVal = values[valueIndex - 1];
-                        forwardFilledCandidates[filledRangeIndex].Add(new ColumnValueExtended { Index = valueIndex - 1, Value = newVal, CanMarkBefore = range.size == newVal, CanMarkAfter = range.size == newVal });
+                        i++;
+                        didMoveInLoop = true;
                     }
 
-                    i++;
+                    if (didMoveInLoop)
+                    {
+                        while (cells.SafeCheck(i - 1, x => x == Form1.FILLED))
+                        {
+                            i++;
+                            didMoveOnFront = true;
+                        }
+                    }
+                    else
+                        break;
+                }
+
+                if (didMoveOnFront)
+                {
+                    int[] newValues = values.Take(valueIndex).ToArray();
+
+                    List<Range> nonCoveredRanges = filledRanges.Where(x => x.start < i).ToList();
+
+                    int coveredCount = filledRanges.Count - nonCoveredRanges.Count;
+
+                    var newRes = GetFilledMatchingCandidates(Form1.CellSeries.Slice(cells, 0, i - 2, newValues), newValues, nonCoveredRanges);
+
+                    newRes = newRes.AddSizeWithNew(coveredCount);
+
+                    forwardFilledCandidates = newRes;
+
+                    filledRangeIndex = filledRanges.Select((x, index) => new { index = index, v = x }).Where(x => x.v.start >= i).Select(x => x.index).FirstOrCustom(filledRanges.Count);
                 }
 
                 while (true)
@@ -1880,6 +1990,60 @@ namespace PicrossSolver
                 }
 
                 i += 1 + val;
+            }
+
+            // Finding the last empty index
+            int lastEmptyIndex = -1;
+            for (int j = cells.Length - 1; j >= 0; j--)
+            {
+                if (cells[j] == Form1.EMPTY)
+                {
+                    lastEmptyIndex = j;
+                    break;
+                }
+            }
+
+            // Check for errors
+            if (forwardFilledCandidates.LastItem().Count == 0 && lastEmptyIndex < 0)
+            {
+                Range lastRange = filledRanges.LastItem();
+                int lastValue = values.LastItem();
+
+                int lastValueFilledRange = lastRange.end - lastValue + 1;
+
+                int[] newValues = values.Take(values.Length - 1).ToArray();
+
+                Func<Range, bool> rangeCoverCheck = x => x.start >= lastValueFilledRange;
+
+                List<Range> coveredRanges = filledRanges.Where(x => rangeCoverCheck(x)).ToList();
+                List<Range> nonCoveredRanges = filledRanges.Where(x => !rangeCoverCheck(x)).ToList();
+
+                if (nonCoveredRanges.Count == 0)
+                {
+                    forwardFilledCandidates = Enumerable.Range(0, filledRanges.Count).Select(x => new List<ColumnValueExtended>()).ToArray();
+
+                    for (int y = 0; y < forwardFilledCandidates.Length; y++)
+                    {
+                        var candidate = forwardFilledCandidates[y];
+                        candidate.Add(new ColumnValueExtended { Index = values.Length - 1, Value = lastValue });
+                    }
+
+                    return forwardFilledCandidates;
+                }
+
+                var newRes = GetFilledMatchingCandidates(Form1.CellSeries.Slice(cells, 0, lastValueFilledRange - 1, newValues), newValues, nonCoveredRanges);
+
+                newRes = newRes.AddSize(coveredRanges.Count);
+
+                coveredRanges.Each((item, index) =>
+                {
+                    List<ColumnValueExtended> a = new List<ColumnValueExtended>();
+                    a.Add(new ColumnValueExtended { Index = values.Length - 1, Value = lastValue });
+
+                    newRes[nonCoveredRanges.Count + index] = a;
+                });
+
+                return newRes;
             }
 
             return forwardFilledCandidates;
