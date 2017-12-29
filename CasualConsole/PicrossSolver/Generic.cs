@@ -966,10 +966,11 @@ namespace PicrossSolver
                                 ColumnValue forwardFirst = forwardValues[0];
                                 ColumnValue backwardFirst = backwardValues[0];
 
-                                if (forwardFirst == backwardFirst && forwardFirst.Index - backwardFirst.Index <= 1)
+                                if (forwardFirst.Value == backwardFirst.Value && forwardFirst.Index - backwardFirst.Index <= 1)
                                 {
                                     Form1.CellSeries slice = Form1.CellSeries.Slice(cells, range.start, range.end, new int[] { forwardFirst.Value });
                                     ProcessStartSetFilledOnly(slice);
+                                    cells.SafeSet(range.start + forwardFirst.Value, Form1.EMPTY);
                                 }
                             }
 
@@ -982,6 +983,7 @@ namespace PicrossSolver
                                 {
                                     Form1.CellSeries slice = Form1.CellSeries.Slice(cells, range.start, range.end, new int[] { forwardLast.Value });
                                     ProcessStartSetFilledOnly(Form1.CellSeries.Reverse(slice));
+                                    cells.SafeSet(range.end - forwardLast.Value, Form1.EMPTY);
                                 }
                             }
                         }
