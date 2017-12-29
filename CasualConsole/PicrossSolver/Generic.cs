@@ -39,7 +39,7 @@ namespace PicrossSolver
 
                 new TestCase { CellsString = "    x■  ■ ", Values = new int[] { 2,2 }, CorrectAssignment = new int[][] { new int[]{ }, new[] { 2,2 } } },
 
-                //new TestCase { CellsString="      ■■x    x ", Values = new int[] { 2,1 }, CorrectAssignment =new int[][] { new int[]{ 2 }, new[] { 1 }, new int[] {  } }  },
+                new TestCase { CellsString="      ■■x    x ", Values = new int[] { 2,1 }, CorrectAssignment =new int[][] { new int[]{ 2 }, new[] { 1 }, new int[] {  } }  },
             };
 
             int testNumber = 1;
@@ -186,6 +186,9 @@ namespace PicrossSolver
         /// </summary>
         public static void InitialProcessing(Form1.CellSeries cells)
         {
+            // This line is added for increased performance
+            if (cells.Length == 0 || cells[0] != Form1.UNKNOWN || cells[cells.Length - 1] != Form1.UNKNOWN) return;
+
             var values = cells.cellColumnValues;
 
             int sum = values.Length - 1;
@@ -219,6 +222,11 @@ namespace PicrossSolver
         /// </summary>
         public static void ProcessSingles(Form1.CellSeries cells)
         {
+            // This line was added for increased performance
+            // But was later commented out for causing the program to fail solving some puzzles
+            // This algorithm is not that slow anyway (it only works when the value count is 1)
+            //if (cells[0] != Form1.UNKNOWN || cells[cells.Length - 1] != Form1.UNKNOWN) return;
+
             var values = cells.cellColumnValues;
             int count = values.Length;
 
@@ -338,6 +346,9 @@ namespace PicrossSolver
         /// </summary>
         public static void ProcessStartingUnknowns(Form1.CellSeries cells)
         {
+            // This line is added for increased performance
+            if (cells[0] != Form1.UNKNOWN || cells[cells.Length - 1] != Form1.UNKNOWN) return;
+
             var values = cells.cellColumnValues;
 
             if (values.Length == 0)
@@ -372,6 +383,9 @@ namespace PicrossSolver
         /// </summary>
         public static void ProcessSetEmptiesByMax(Form1.CellSeries cells)
         {
+            // This line is added for increased performance
+            if (cells[0] != Form1.UNKNOWN || cells[cells.Length - 1] != Form1.UNKNOWN) return;
+
             var values = cells.cellColumnValues;
 
             // TODO generate table for this
@@ -447,6 +461,9 @@ namespace PicrossSolver
         /// </summary>
         public static void ProcessFillBetweenEmpties(Form1.CellSeries cells)
         {
+            // This line is added for increased performance
+            if (cells[0] != Form1.UNKNOWN || cells[cells.Length - 1] != Form1.UNKNOWN) return;
+
             var values = cells.cellColumnValues;
 
             // TODO generate table for this
@@ -486,6 +503,9 @@ namespace PicrossSolver
         /// </summary>
         public static void ProcessByMaxValues(Form1.CellSeries cells)
         {
+            // This line is added for increased performance
+            if (cells[0] != Form1.UNKNOWN || cells[cells.Length - 1] != Form1.UNKNOWN) return;
+
             var values = cells.cellColumnValues;
 
             if (values.Length >= 2)
@@ -638,6 +658,9 @@ namespace PicrossSolver
         /// </summary>
         public static void TryMatchingFirstValue(Form1.CellSeries cells)
         {
+            // This line is added for increased performance
+            if (cells[0] != Form1.UNKNOWN || cells[cells.Length - 1] != Form1.UNKNOWN) return;
+
             var values = cells.cellColumnValues;
 
             if (values.Length > 0)
@@ -663,6 +686,9 @@ namespace PicrossSolver
         /// </summary>
         public static void ProcessMatching(Form1.CellSeries cells)
         {
+            // This line is added for increased performance
+            if (cells[0] != Form1.UNKNOWN || cells[cells.Length - 1] != Form1.UNKNOWN) return;
+
             var values = cells.cellColumnValues;
 
             bool doContinue = false;
@@ -825,6 +851,9 @@ namespace PicrossSolver
         /// </summary>
         public static void ProcessByDividedAreas(Form1.CellSeries cells)
         {
+            // This line is added for increased performance
+            if (cells[0] != Form1.UNKNOWN || cells[cells.Length - 1] != Form1.UNKNOWN) return;
+
             var values = cells.cellColumnValues;
 
             List<Range> areaList = FindDividedAreas(cells);
@@ -935,22 +964,56 @@ namespace PicrossSolver
                     int backwardMinRange = backwardValues.Sum(x => x.Value) + backwardValues.Count - 1;
                     if (range.containsFilled && backwardValues.Count - forwardValues.Count == -1 && forwardValues.Max(x => x.Index) - backwardValues.Min(x => x.Index) <= 1)
                     {
-                        byte[] cellsCopy1 = Form1.CellSeries.Slice(cells, range.start, range.end, new int[] { }).asIterable.ToArray();
-                        byte[] cellsCopy2 = cellsCopy1.ToArray();
+                        byte[] cellsCopyForForward = Form1.CellSeries.Slice(cells, range.start, range.end, new int[] { }).asIterable.ToArray();
+                        byte[] cellsCopyForBackward = cellsCopyForForward.ToArray();
 
-                        var forwardCells = new Form1.CellSeries(cellsCopy1, forwardValues.Select(x => x.Value).ToArray());
-                        var backwardCells = new Form1.CellSeries(cellsCopy2, backwardValues.Select(x => x.Value).ToArray());
+                        var forwardCells = new Form1.CellSeries(cellsCopyForForward, forwardValues.Select(x => x.Value).ToArray());
+                        var backwardCells = new Form1.CellSeries(cellsCopyForBackward, backwardValues.Select(x => x.Value).ToArray());
 
-                        ProcessAllAlgorithms(forwardCells);
-                        ProcessAllAlgorithms(Form1.CellSeries.Reverse(forwardCells));
+                        bool forwardHasError = false;
+                        bool backwardHasError = false;
 
-                        ProcessAllAlgorithms(backwardCells);
-                        ProcessAllAlgorithms(Form1.CellSeries.Reverse(backwardCells));
-
-                        for (int i = 0; i < cellsCopy1.Length; i++)
+                        try
                         {
-                            if (cellsCopy1[i] == cellsCopy2[i] && cellsCopy1[i] != Form1.UNKNOWN)
-                                cells[range.start + i] = cellsCopy1[i];
+                            ProcessAllAlgorithms(forwardCells);
+                            ProcessAllAlgorithms(Form1.CellSeries.Reverse(forwardCells));
+                        }
+                        catch (Exception)
+                        {
+                            forwardHasError = true;
+                        }
+
+                        try
+                        {
+                            ProcessAllAlgorithms(backwardCells);
+                            ProcessAllAlgorithms(Form1.CellSeries.Reverse(backwardCells));
+                        }
+                        catch (Exception)
+                        {
+                            backwardHasError = true;
+                        }
+
+                        if (forwardHasError)
+                        {
+                            backwardCells.asIterable.Each((b, i) =>
+                            {
+                                cells[range.start + i] = b;
+                            });
+                        }
+                        else if (backwardHasError)
+                        {
+                            forwardCells.asIterable.Each((b, i) =>
+                            {
+                                cells[range.start + i] = b;
+                            });
+                        }
+                        else
+                        {
+                            for (int i = 0; i < cellsCopyForForward.Length; i++)
+                            {
+                                if (cellsCopyForForward[i] == cellsCopyForBackward[i] && cellsCopyForForward[i] != Form1.UNKNOWN)
+                                    cells[range.start + i] = cellsCopyForForward[i];
+                            }
                         }
                     }
 
@@ -1314,8 +1377,7 @@ namespace PicrossSolver
         public static void ProcessByFilledRanges(Form1.CellSeries cells)
         {
             // This line is added for increased performance
-            if (cells[0] != Form1.UNKNOWN || cells[cells.Length - 1] != Form1.UNKNOWN)
-                return;
+            if (cells[0] != Form1.UNKNOWN || cells[cells.Length - 1] != Form1.UNKNOWN) return;
 
             int[] values = cells.cellColumnValues.asIterable.ToArray();
 
@@ -1348,6 +1410,9 @@ namespace PicrossSolver
         /// </summary>
         public static void ProcessInitialByMatchingFilled(Form1.CellSeries cells)
         {
+            // This line is added for increased performance
+            if (cells[0] != Form1.UNKNOWN || cells[cells.Length - 1] != Form1.UNKNOWN) return;
+
             var values = cells.cellColumnValues;
 
             // i : size covered
@@ -1405,6 +1470,9 @@ namespace PicrossSolver
         /// </summary>
         public static void ProcessSpecialCases(Form1.CellSeries cells)
         {
+            // This line is added for increased performance
+            if (cells[0] != Form1.UNKNOWN || cells[cells.Length - 1] != Form1.UNKNOWN) return;
+
             var values = cells.cellColumnValues;
 
             for (int i = 0; i < values.Length; i++)
@@ -2012,7 +2080,7 @@ namespace PicrossSolver
                 int lastValueFilledRange = lastRange.end - lastValue + 1;
 
                 int[] newValues = values.Take(values.Length - 1).ToArray();
-                
+
                 List<Range> nonCoveredRanges = filledRanges.Where(x => x.start < lastValueFilledRange).ToList();
 
                 int coveredCount = filledRanges.Count - nonCoveredRanges.Count;
