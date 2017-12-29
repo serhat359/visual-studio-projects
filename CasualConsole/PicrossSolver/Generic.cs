@@ -2012,11 +2012,10 @@ namespace PicrossSolver
                 int lastValueFilledRange = lastRange.end - lastValue + 1;
 
                 int[] newValues = values.Take(values.Length - 1).ToArray();
+                
+                List<Range> nonCoveredRanges = filledRanges.Where(x => x.start < lastValueFilledRange).ToList();
 
-                Func<Range, bool> rangeCoverCheck = x => x.start >= lastValueFilledRange;
-
-                List<Range> coveredRanges = filledRanges.Where(x => rangeCoverCheck(x)).ToList();
-                List<Range> nonCoveredRanges = filledRanges.Where(x => !rangeCoverCheck(x)).ToList();
+                int coveredCount = filledRanges.Count - nonCoveredRanges.Count;
 
                 if (nonCoveredRanges.Count == 0)
                 {
@@ -2033,15 +2032,15 @@ namespace PicrossSolver
 
                 var newRes = GetFilledMatchingCandidates(Form1.CellSeries.Slice(cells, 0, lastValueFilledRange - 1, newValues), newValues, nonCoveredRanges);
 
-                newRes = newRes.AddSize(coveredRanges.Count);
+                newRes = newRes.AddSize(coveredCount);
 
-                coveredRanges.Each((item, index) =>
+                for (int index = 0; index < coveredCount; index++)
                 {
                     List<ColumnValueExtended> a = new List<ColumnValueExtended>();
                     a.Add(new ColumnValueExtended { Index = values.Length - 1, Value = lastValue });
 
                     newRes[nonCoveredRanges.Count + index] = a;
-                });
+                }
 
                 return newRes;
             }
