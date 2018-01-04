@@ -5,6 +5,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
+using System.Linq;
 
 namespace CasualConsole
 {
@@ -26,6 +27,14 @@ namespace CasualConsole
             {
                 action(t);
             }
+        }
+
+        public static T FirstOrCustom<T>(this IEnumerable<T> list, T customValue)
+        {
+            if (list.Any())
+                return list.First();
+            else
+                return customValue;
         }
 
         public static V GetValueOrNew<K, V>(this Dictionary<K, V> dic, K key) where V : new()
@@ -173,6 +182,35 @@ namespace CasualConsole
         public static T LastItem<T>(this List<T> list)
         {
             return list[list.Count - 1];
+        }
+
+        public static T LastItem<T>(this T[] array)
+        {
+            return array[array.Length - 1];
+        }
+
+        public static T[] AddSize<T>(this T[] array, int increment)
+        {
+            T[] newArray = new T[array.Length + increment];
+
+            for (int i = 0; i < array.Length; i++)
+            {
+                newArray[i] = array[i];
+            }
+
+            return newArray;
+        }
+
+        public static T[] AddSizeWithNew<T>(this T[] array, int increment) where T : new()
+        {
+            T[] newArray = AddSize(array, increment);
+
+            for (int i = array.Length; i < array.Length + increment; i++)
+            {
+                newArray[i] = new T();
+            }
+
+            return newArray;
         }
     }
 }

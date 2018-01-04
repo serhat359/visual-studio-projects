@@ -78,6 +78,7 @@
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
     </Compile>
+    <Compile Include="StackPool.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config">

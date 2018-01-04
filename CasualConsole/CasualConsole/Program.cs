@@ -7,6 +7,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Security.Cryptography;
 using System.ServiceProcess;
 using System.Text;
@@ -20,6 +21,38 @@ namespace CasualConsole
 {
     public class Program
     {
+        public class TestClass
+        {
+            public Prop<int> MyProperty { get; set; }
+            public Prop<string> MyOtherProperty { get; set; }
+        }
+
+        public struct Prop<T>
+        {
+            private T val;
+            private static List<Action<T>> actions = new List<Action<T>>();
+
+            private Prop(T val) { this.val = val; }
+
+            public void AddOnChanged(Action<T> action)
+            {
+                actions.Add(action);
+            }
+
+            // This is get property
+            public static implicit operator T(Prop<T> o) { return o.val; }
+
+            // This is set property
+            public static implicit operator Prop<T>(T val)
+            {
+                foreach (var action in actions)
+                {
+                    action(val);
+                }
+                return new Prop<T>(val);
+            }
+        }
+
         public static void Main(string[] args)
         {
             //TestPivot();
@@ -52,7 +85,21 @@ namespace CasualConsole
 
             //DumpActiveProcessAndServiceList();
 
-            //UseAllCPUResources();
+            var threads = UseAllCPUResources();
+
+            //TestStackPool();
+
+            TestClass t = new TestClass();
+
+            t.MyProperty.AddOnChanged(x => Console.WriteLine("Property has changed into: {0}", x));
+
+            t.MyProperty = 4;
+            t.MyProperty = 7;
+
+            int a = t.MyProperty;
+
+            t.MyOtherProperty.AddOnChanged(x => Console.WriteLine("Other also changed"));
+            t.MyOtherProperty = "5";
 
             // Closing, Do Not Delete!
             Console.WriteLine();
@@ -60,8 +107,100 @@ namespace CasualConsole
             Console.ReadKey();
         }
 
-        private static void UseAllCPUResources()
+        private static void TestStackPool()
         {
+            StackPool<int> y = new StackPool<int>(5);
+
+            y.Push(1);
+            y.Push(3);
+            y.Push(2);
+            y.Push(-10);
+            y.Push(9);
+            y.Push(0);
+            y.Push(58);
+            y.Push(1);
+            y.Push(3);
+            y.Push(2);
+            y.Push(-10);
+            y.Push(9);
+            y.Push(0);
+            y.Push(58);
+
+            if (!Enumerable.SequenceEqual(y.LastToFirst(), new int[] { 58, 0, 9, -10, 2 }))
+            {
+                throw new Exception();
+            }
+
+            if (y.Count != 5)
+            {
+                throw new Exception();
+            }
+
+            if (y.Peek() != 58)
+            {
+                throw new Exception();
+            }
+
+            if (y.Pop() != 58)
+            {
+                throw new Exception();
+            }
+
+            if (y.Peek() != 0)
+            {
+                throw new Exception();
+            }
+
+            if (y.Count != 4)
+            {
+                throw new Exception();
+            }
+
+            if (!Enumerable.SequenceEqual(y.FirstToLast(), new int[] { 2, -10, 9, 0 }))
+            {
+                throw new Exception();
+            }
+
+            if (!Enumerable.SequenceEqual(y.LastToFirst(), new int[] { 0, 9, -10, 2 }))
+            {
+                throw new Exception();
+            }
+
+            if (y.Pop() != 0)
+            {
+                throw new Exception();
+            }
+
+            if (y.Count != 3)
+            {
+                throw new Exception();
+            }
+
+            y.Push(3);
+
+            if (y.Count != 4)
+            {
+                throw new Exception();
+            }
+
+            if (!Enumerable.SequenceEqual(y.LastToFirst(), new int[] { 3, 9, -10, 2 }))
+            {
+                throw new Exception();
+            }
+
+            y.Pop();
+            y.Pop();
+
+            if (!Enumerable.SequenceEqual(y.FirstToLast(), new int[] { 2, -10 }))
+            {
+                throw new Exception();
+            }
+        }
+
+        private static List<MyThread<int>> UseAllCPUResources()
+        {
+            List<MyThread<int>> threadList = new List<MyThread<int>>();
+
             for (int i = 0; i < 4; i++)
             {
                 MyThread<int> x = new MyThread<int>(true, () =>
@@ -72,7 +211,11 @@ namespace CasualConsole
                     }
                     return 0;
                 });
+
+                threadList.Add(x);
             }
+
+            return threadList;
         }
 
         private static void DumpActiveProcessAndServiceList()
@@ -850,7 +993,7 @@ namespace CasualConsole
 
             table = DataUtil.PivotAll(foobars, x => x.Date, x => x.Amount, x => x.Average().ToString(), "0", x => x.Month + "-" + x.Day);
 
-            //PrintDataTable(table);
+            PrintDataTable(table);
 
             table = DataUtil.Pivot(foobars, x => x.Text, x => x.Date, x => x.Amount, x => x.Sum(), 0, x => x.ToString("MM-dd"));
 
