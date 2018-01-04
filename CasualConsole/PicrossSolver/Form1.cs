@@ -13,6 +13,14 @@ namespace PicrossSolver
     {
         public delegate void Algorithm(CellSeries s);
 
+#if DEBUG
+        public const bool isDebug = true; 
+#endif
+
+#if !DEBUG
+        public const bool isDebug = false;
+#endif
+
         public const int windowLeft = 16;
         public const int windowUp = 38;
 
