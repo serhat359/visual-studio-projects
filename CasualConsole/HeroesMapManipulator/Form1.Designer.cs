@@ -33,6 +33,8 @@
             this.randomizeChestCheckBox = new System.Windows.Forms.CheckBox();
             this.checkBoxPanel = new System.Windows.Forms.Panel();
             this.deleteAdditionalMonsterCheckBox = new System.Windows.Forms.CheckBox();
+            this.deleteMonolithCheckBox = new System.Windows.Forms.CheckBox();
+            this.weakenShipyardsCheckBox = new System.Windows.Forms.CheckBox();
             this.checkBoxPanel.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -69,11 +71,13 @@
             // 
             // checkBoxPanel
             // 
+            this.checkBoxPanel.Controls.Add(this.weakenShipyardsCheckBox);
+            this.checkBoxPanel.Controls.Add(this.deleteMonolithCheckBox);
             this.checkBoxPanel.Controls.Add(this.deleteAdditionalMonsterCheckBox);
             this.checkBoxPanel.Controls.Add(this.randomizeChestCheckBox);
             this.checkBoxPanel.Location = new System.Drawing.Point(36, 12);
             this.checkBoxPanel.Name = "checkBoxPanel";
-            this.checkBoxPanel.Size = new System.Drawing.Size(200, 93);
+            this.checkBoxPanel.Size = new System.Drawing.Size(200, 179);
             this.checkBoxPanel.TabIndex = 3;
             // 
             // deleteAdditionalMonsterCheckBox
@@ -86,14 +90,34 @@
             this.deleteAdditionalMonsterCheckBox.Text = "Delete Extra Monsters";
             this.deleteAdditionalMonsterCheckBox.UseVisualStyleBackColor = true;
             // 
+            // deleteMonolithCheckBox
+            // 
+            this.deleteMonolithCheckBox.AutoSize = true;
+            this.deleteMonolithCheckBox.Location = new System.Drawing.Point(4, 51);
+            this.deleteMonolithCheckBox.Name = "deleteMonolithCheckBox";
+            this.deleteMonolithCheckBox.Size = new System.Drawing.Size(105, 17);
+            this.deleteMonolithCheckBox.TabIndex = 4;
+            this.deleteMonolithCheckBox.Text = "Delete Monoliths";
+            this.deleteMonolithCheckBox.UseVisualStyleBackColor = true;
+            // 
+            // weakenShipyardsCheckBox
+            // 
+            this.weakenShipyardsCheckBox.AutoSize = true;
+            this.weakenShipyardsCheckBox.Location = new System.Drawing.Point(4, 73);
+            this.weakenShipyardsCheckBox.Name = "weakenShipyardsCheckBox";
+            this.weakenShipyardsCheckBox.Size = new System.Drawing.Size(116, 17);
+            this.weakenShipyardsCheckBox.TabIndex = 5;
+            this.weakenShipyardsCheckBox.Text = "Weaken Shipyards";
+            this.weakenShipyardsCheckBox.UseVisualStyleBackColor = true;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(284, 262);
+            this.Controls.Add(this.fileDragLabel);
             this.Controls.Add(this.checkBoxPanel);
             this.Controls.Add(this.beginButton);
-            this.Controls.Add(this.fileDragLabel);
             this.Name = "Form1";
             this.Text = "Form1";
             this.checkBoxPanel.ResumeLayout(false);
@@ -110,6 +134,8 @@
         private System.Windows.Forms.CheckBox randomizeChestCheckBox;
         private System.Windows.Forms.Panel checkBoxPanel;
         private System.Windows.Forms.CheckBox deleteAdditionalMonsterCheckBox;
+        private System.Windows.Forms.CheckBox deleteMonolithCheckBox;
+        private System.Windows.Forms.CheckBox weakenShipyardsCheckBox;
     }
 }
 

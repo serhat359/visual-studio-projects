@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using System.Linq;
+using System.Xml;
 
 namespace CasualConsole
 {
@@ -212,6 +213,12 @@ namespace CasualConsole
 
             return newArray;
         }
+
+        public static XmlNode GetChildNamed(this XmlNode node, string name)
+        {
+            return node.ChildNodes.AsEnumerable<XmlNode>().FirstOrDefault(x => x.Name == name);
+        }
+        
     }
 }
 

@@ -21,38 +21,6 @@ namespace CasualConsole
 {
     public class Program
     {
-        public class TestClass
-        {
-            public Prop<int> MyProperty { get; set; }
-            public Prop<string> MyOtherProperty { get; set; }
-        }
-
-        public struct Prop<T>
-        {
-            private T val;
-            private static List<Action<T>> actions = new List<Action<T>>();
-
-            private Prop(T val) { this.val = val; }
-
-            public void AddOnChanged(Action<T> action)
-            {
-                actions.Add(action);
-            }
-
-            // This is get property
-            public static implicit operator T(Prop<T> o) { return o.val; }
-
-            // This is set property
-            public static implicit operator Prop<T>(T val)
-            {
-                foreach (var action in actions)
-                {
-                    action(val);
-                }
-                return new Prop<T>(val);
-            }
-        }
-
         public static void Main(string[] args)
         {
             //TestPivot();
@@ -85,26 +53,138 @@ namespace CasualConsole
 
             //DumpActiveProcessAndServiceList();
 
-            var threads = UseAllCPUResources();
+            //var threads = UseAllCPUResources();
 
             //TestStackPool();
 
-            TestClass t = new TestClass();
-
-            t.MyProperty.AddOnChanged(x => Console.WriteLine("Property has changed into: {0}", x));
-
-            t.MyProperty = 4;
-            t.MyProperty = 7;
-
-            int a = t.MyProperty;
-
-            t.MyOtherProperty.AddOnChanged(x => Console.WriteLine("Other also changed"));
-            t.MyOtherProperty = "5";
-
+            //TestInputParser();
+            
             // Closing, Do Not Delete!
             Console.WriteLine();
             Console.WriteLine("Program has terminated, press a key to exit");
             Console.ReadKey();
+        }
+
+        public static IEnumerable<Point> GetSpiralPoints()
+        {
+            int level = 1;
+
+            while (true)
+            {
+                for (int x = -level, y = -level; x < level; x++)
+                    yield return new Point(x, y);
+                for (int x = level, y = -level; y < level; y++)
+                    yield return new Point(x, y);
+                for (int x = level, y = level; x > -level; x--)
+                    yield return new Point(x, y);
+                for (int x = -level, y = level; y > -level; y--)
+                    yield return new Point(x, y);
+
+                level++;
+            }
+        }
+
+        private static void TestInputParser()
+        {
+            FilterInputParsed result = ParseFilterInput("hello and me");
+
+            result = ParseFilterInput("hello and \"me\"");
+
+            result = ParseFilterInput("hello -and some");
+
+            result = ParseFilterInput("hello -\"and\" -some or this");
+
+            result = ParseFilterInput("hello -\"and\" -some or this \"-thisHasAMinusInItAndShouldBeIncluded\"");
+        }
+
+        private static FilterInputParsed ParseFilterInput(string filterInput)
+        {
+            int valueStartIndex = 0;
+
+            List<string> included = new List<string>();
+            List<string> excluded = new List<string>();
+
+            bool hasMinus = false;
+            while (valueStartIndex <= filterInput.Length)
+            {
+                if (GetChar(filterInput, valueStartIndex) == '-')
+                {
+                    hasMinus = true;
+                    valueStartIndex++;
+                    continue;
+                }
+                else if (GetChar(filterInput, valueStartIndex) == '"')
+                {
+                    valueStartIndex++;
+                    int valueEndIndex = valueStartIndex;
+
+                    while (true)
+                    {
+                        char? c = GetChar(filterInput, valueEndIndex);
+
+                        if (c == null)
+                            throw new Exception("Incorrect csv format");
+                        else if (c == '"')
+                        {
+                            char? followingChar = GetChar(filterInput, valueEndIndex + 1);
+
+                            if (followingChar == '"')
+                            {
+                                valueEndIndex += 2;
+                                continue;
+                            }
+                            else
+                                break;
+                        }
+                        else
+                            valueEndIndex++;
+                    }
+
+                    // valueEndIndex points to the second quote character
+                    string substr = filterInput.Substring(valueStartIndex, valueEndIndex - valueStartIndex).Replace("\"\"", "\"");
+
+                    if (hasMinus)
+                        excluded.Add(substr);
+                    else
+                        included.Add(substr);
+
+                    valueStartIndex = valueEndIndex + 2;
+                }
+                else
+                {
+                    int valueEndIndex = valueStartIndex;
+
+                    while (true)
+                    {
+                        char? c = GetChar(filterInput, valueEndIndex);
+
+                        if (c == null)
+                        {
+                            break;
+                        }
+
+                        if (c == ' ')
+                        {
+                            break;
+                        }
+
+                        valueEndIndex++;
+                    }
+
+                    string substr = filterInput.Substring(valueStartIndex, valueEndIndex - valueStartIndex);
+
+                    if (hasMinus)
+                        excluded.Add(substr);
+                    else
+                        included.Add(substr);
+
+                    valueStartIndex = valueEndIndex + 1;
+                }
+
+                hasMinus = false;
+            }
+
+            return new FilterInputParsed { Excluded = excluded.ToArray(), Included = included.ToArray() };
         }
 
         private static void TestStackPool()
@@ -347,6 +427,8 @@ namespace CasualConsole
             csvSplittedValues = CsvSplit(",adasd");
 
             csvSplittedValues = CsvSplit(",\"ad,asd\"");
+
+            csvSplittedValues = CsvSplit("\"hello,my name is \"\"serhat\"\"!\",2.4");
         }
 
         private static string[] CsvSplit(string csvText)
@@ -1137,5 +1219,11 @@ namespace CasualConsole
 
             g2d.DrawImage(picture, new Point());
         }
+    }
+
+    public class FilterInputParsed
+    {
+        public string[] Included { get; set; }
+        public string[] Excluded { get; set; }
     }
 }

@@ -86,6 +86,7 @@ namespace HeroesMapManipulator
                     fileDragLabel.Visible = false;
                     beginButton.Visible = true;
                     checkBoxPanel.Visible = true;
+                    HeroesMapAction.allMonstersWithPos = null;
                 }
             }
         }
@@ -103,6 +104,12 @@ namespace HeroesMapManipulator
 
             if (deleteAdditionalMonsterCheckBox.Checked)
                 HeroesMapAction.DeleteAdditionalStacks(document);
+
+            if (deleteMonolithCheckBox.Checked)
+                HeroesMapAction.DeleteTwoWayMonoliths(document);
+
+            if (weakenShipyardsCheckBox.Checked)
+                HeroesMapAction.WeakenShipyardMonsters(document);
 
             RepackFile(document);
 
@@ -141,9 +148,9 @@ namespace HeroesMapManipulator
             int lastDotIndex = mapFilePath.LastIndexOf(".");
             string newFilePath = mapFilePath.Substring(0, lastDotIndex) + "_edited" + mapFilePath.Substring(lastDotIndex);
 
+            File.Delete(newFilePath);
             ZipFile newZip = new ZipFile(newFilePath);
             newZip.AddDirectory(tempFolderName);
-            File.Delete(newFilePath);
             newZip.Save(newFilePath);
 
             EmptyTempFolder();

@@ -12,6 +12,8 @@ namespace HeroesMapManipulator
 {
     public static class HeroesMapAction
     {
+        public static List<XmlNodeWithPosition> allMonstersWithPos;
+
         private static void HeroesFixMap()
         {
             XmlDocument document = new XmlDocument();
@@ -59,6 +61,37 @@ namespace HeroesMapManipulator
             List<string[]> newList = mappings.Select(x => new string[] { x.value1, x.value2 }).ToList();
 
             File.WriteAllText(@"C:\Users\Xhertas\Desktop\artifect.json", JsonConvert.SerializeObject(newList));
+        }
+
+        public static void DeleteTwoWayMonoliths(XmlDocument document)
+        {
+            List<XmlNode> tags = GetItemsFiltered(document, "Monolith_Two_Way");
+
+            foreach (XmlNode tag in tags)
+            {
+                tag.ParentNode.RemoveChild(tag);
+            }
+        }
+
+        public static void WeakenShipyardMonsters(XmlDocument document)
+        {
+            List<XmlNode> tags = GetItemsFiltered(document, "MapObjects/Shipyard");
+
+            PrepareMonstersWithPosition(document);
+
+            foreach (var tag in tags)
+            {
+                var pos = tag.FirstChild.GetChildNamed("Pos");
+
+                int xCoorInt = int.Parse(pos.GetChildNamed("x").InnerText);
+                int yCorrInt = int.Parse(pos.GetChildNamed("y").InnerText);
+
+                XmlNode closestMonter = GetClosestMonster(document, xCoorInt, yCorrInt);
+
+                var amount = closestMonter.GetChildNamed("Amount");
+
+                amount.InnerText = (CustomIfZero(int.Parse(amount.InnerText), 1) / 2).ToString();
+            }
         }
 
         public static void DeleteAdditionalStacks(XmlDocument document)
@@ -205,5 +238,62 @@ namespace HeroesMapManipulator
                 }
             }
         }
+
+        #region Private Methods
+        private static List<XmlNode> GetItemsFiltered(XmlDocument document, string type)
+        {
+            return Extensions.AsEnumerable<XmlNode>(document.GetElementsByTagName("Item"))
+                            .Where(x => x.FirstChild != null && x.FirstChild.ChildNodes.AsEnumerable<XmlNode>()
+                                .Any(y => y.Name == "Shared" && y.Attributes["href"].Value.Contains(type))
+                            ).ToList();
+        }
+
+        private static void PrepareMonstersWithPosition(XmlDocument document)
+        {
+            if (allMonstersWithPos == null)
+            {
+                var allMonsters = document.GetElementsByTagName("AdvMapMonster").AsEnumerable<XmlNode>();
+
+                allMonstersWithPos = allMonsters.Select(monster =>
+                {
+                    var pos = monster.GetChildNamed("Pos");
+
+                    int x = int.Parse(pos.GetChildNamed("x").InnerText);
+                    int y = int.Parse(pos.GetChildNamed("y").InnerText);
+
+                    return new XmlNodeWithPosition { Node = monster, x = x, y = y };
+                }).ToList();
+            }
+        }
+
+        private static XmlNode GetClosestMonster(XmlDocument document, int xCoorInt, int yCorrInt)
+        {
+            foreach (var point in CasualConsole.Program.GetSpiralPoints())
+            {
+                var foundMonster = allMonstersWithPos.FirstOrDefault(mon => mon.x == xCoorInt - point.X && mon.y == yCorrInt - point.Y);
+
+                if (foundMonster != null)
+                    return foundMonster.Node;
+            }
+
+            throw new Exception("Monster not found");
+        }
+
+        private static int CustomIfZero(int number, int customValue)
+        {
+            if (number == 0)
+                return customValue;
+            else
+                return number;
+        }
+        #endregion
+    }
+
+    public class XmlNodeWithPosition
+    {
+        internal int x;
+        internal int y;
+
+        public XmlNode Node { get; internal set; }
     }
 }
