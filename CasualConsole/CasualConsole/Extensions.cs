@@ -218,7 +218,12 @@ namespace CasualConsole
         {
             return node.ChildNodes.AsEnumerable<XmlNode>().FirstOrDefault(x => x.Name == name);
         }
-        
+
+        public static bool ContainsCaseInsensitive(this string whole, string substring) {
+            bool contains = whole.IndexOf(substring, StringComparison.OrdinalIgnoreCase) >= 0;
+
+            return contains;
+        }
     }
 }
 

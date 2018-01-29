@@ -12,7 +12,8 @@ namespace HeroesMapManipulator
     {
         const string tempFolderName = "temp";
 
-        readonly string[] mapNameFiles = { "mapname-text-0.txt", "caption-text-0.txt", "caption-text-1.txt", "caption-text-2.txt", "caption-text-3.txt",
+        readonly string[] mapNameFiles = { "mapname-text-0.txt",
+            "caption-text-0.txt", "caption-text-1.txt", "caption-text-2.txt", "caption-text-3.txt",
             "caption-text-4.txt", "caption-text-5.txt", "caption-text-6.txt", "caption-text-7.txt" };
 
         string mapFilePath;
@@ -141,7 +142,7 @@ namespace HeroesMapManipulator
                 }
                 else
                 {
-                    throw new Exception("Wasn't expecting that");
+                    //throw new Exception("Wasn't expecting that");
                 }
             }
 

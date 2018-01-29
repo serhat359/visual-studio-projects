@@ -110,6 +110,33 @@ namespace CasualConsole {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to windows -&quot;windows 10&quot; -server -xp.
+        /// </summary>
+        public static string SearchText {
+            get {
+                return ResourceManager.GetString("SearchText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Windows 10 Pro v.1511 En-us x64 July2016 Pre-Activated-=TEAM OS=	2990	136
+        ///Windows 7 SP1 Ultimate (64 Bit)	1649	99
+        ///KMSpico 10.1.8 FINAL + Portable (Office and Windows 10 Activator	1275	36
+        ///Windows Loader v2 2 2 by Daz	1068	2
+        ///Microsoft Windows 10 Home and Pro x64 Clean ISO	991	60
+        ///WINDOWS 8.1 PRO x64-ACTIVATED(EXCELLENT)	831	61
+        ///World of Warcraft Client - Version 1.12.1 enUS - Windows	825	13
+        ///Windows 7 SP1 Ultimate (32 Bit)	824	37
+        ///Windows 7 Ultimate SP1 PT-BR x64 ISO	775	63
+        ///Microsoft Toolkit 2.6.2 Final (Windows  [rest of string was truncated]&quot;;.
+        /// </summary>
+        public static string SomeTabbedText {
+            get {
+                return ResourceManager.GetString("SomeTabbedText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to // comment
         ///
         ///DataTable table = ExecuteToTable(&quot;Brand_Select&quot;, container.ToList());

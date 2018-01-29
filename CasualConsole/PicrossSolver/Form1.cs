@@ -50,11 +50,11 @@ namespace PicrossSolver
         }
 
         Mode mode = Mode.Development;
-
+        
         public Form1()
         {
-            string puzzlesHavingSolution = @"C:\Users\Xhertas\Documents\Visual Studio 2015\Projects\CasualConsole\PicrossSolver\Puzzles\has_solution\";
-            string puzzlesNotHavingSolution = @"C:\Users\Xhertas\Documents\Visual Studio 2015\Projects\CasualConsole\PicrossSolver\Puzzles\has_no_solution\";
+            string puzzlesHavingSolution = @"C:\Users\Xhertas\Documents\Visual Studio 2017\Projects\CasualConsole\PicrossSolver\Puzzles\has_solution\";
+            string puzzlesNotHavingSolution = @"C:\Users\Xhertas\Documents\Visual Studio 2017\Projects\CasualConsole\PicrossSolver\Puzzles\has_no_solution\";
 
             if (mode == Mode.Development)
             {
@@ -144,7 +144,7 @@ namespace PicrossSolver
                 {
                     display(correct, "This is how it should be", leftColumn, upColumn, true);
                 }
-
+                
                 if (isSolved && !correctExists)
                 {
                     display(solvedPicture, "I solved it!", leftColumn, upColumn, true);

@@ -6,7 +6,7 @@ namespace BackupHomeFolder
     {
         private static readonly string[] SizeSuffixes = { "bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB" };
 
-        public static string SizeSuffix(Int64 value)
+        public static string SizeSuffix(long value)
         {
             if (value < 0) { return "-" + SizeSuffix(-value); }
             if (value == 0) { return "0.0 bytes"; }

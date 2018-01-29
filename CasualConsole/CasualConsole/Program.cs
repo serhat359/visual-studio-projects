@@ -49,20 +49,67 @@ namespace CasualConsole
 
             //UnityIncreaseMapHeightAll();
 
-            //TestExecuteCommand("ls");
-
             //DumpActiveProcessAndServiceList();
 
-            //var threads = UseAllCPUResources();
+            var threads = UseAllCPUResources();
 
             //TestStackPool();
 
             //TestInputParser();
             
+            //TestDNSPings();
+            
             // Closing, Do Not Delete!
             Console.WriteLine();
             Console.WriteLine("Program has terminated, press a key to exit");
             Console.ReadKey();
+        }
+        
+        private static void TestDNSPings()
+        {
+            string[] dnsAddresses = @"
+209.244.0.3
+64.6.64.6
+8.8.8.8
+9.9.9.9
+84.200.69.80
+8.26.56.26
+208.67.222.222
+199.85.126.10
+81.218.119.11
+195.46.39.39
+69.195.152.204
+208.76.50.50
+216.146.35.35
+37.235.1.174
+198.101.242.72
+77.88.8.8
+91.239.100.100
+74.82.42.42
+109.69.8.51
+".Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
+
+            Dictionary<string, int> results = dnsAddresses.ToDictionary(x => x, x => GetPingDNSResult(x));
+
+            string serialized = string.Join("\n", results.Select(x => x.Key + "\t" + x.Value));
+        }
+
+        public static int GetPingDNSResult(string dnsIP)
+        {
+            try
+            {
+                string output = TestExecuteCommand("ping " + dnsIP);
+
+                string averageString = output.Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries)[8].Split(',')[2].Split('=')[1];
+
+                int result = int.Parse(Regex.Replace(averageString, "[^0-9]", ""));
+
+                return result;
+            }
+            catch (Exception)
+            {
+                return int.MaxValue;
+            }
         }
 
         public static IEnumerable<Point> GetSpiralPoints()
@@ -327,7 +374,7 @@ namespace CasualConsole
             }
         }
 
-        static void TestExecuteCommand(string command)
+        static string TestExecuteCommand(string command)
         {
             Console.WriteLine("Executing command: {0}", command);
 
@@ -355,6 +402,8 @@ namespace CasualConsole
             Console.WriteLine(output);
             Console.WriteLine("ExitCode: " + exitCode.ToString(), "ExecuteCommand");
             process.Close();
+
+            return output;
         }
 
         private static void UnityIncreaseMapHeightAll()
