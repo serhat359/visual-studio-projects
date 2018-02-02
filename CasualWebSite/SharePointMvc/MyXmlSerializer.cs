@@ -1,11 +1,11 @@
-﻿using System;
+﻿using Model.Web;
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Xml;
 using System.Reflection;
+using System.Xml;
 using System.Xml.Serialization;
-using System.Collections;
-using Model.Web;
 
 namespace SharePointMvc
 {
@@ -67,14 +67,10 @@ namespace SharePointMvc
                 XmlFormatAttribute formatAttribute = GetAttribute<XmlFormatAttribute>(customAttributes);
 
                 string objToString = string.Format("{0" + (formatAttribute == null ? "" : ":" + formatAttribute.Format) + "}", obj);
+                objToString = EscapeXMLValue(objToString);
 
                 XmlElementAttribute elementAttribute = GetAttribute<XmlElementAttribute>(customAttributes);
-
-                string elementName = elementAttribute != null ? elementAttribute.ElementName : null;
-
-                xmlNodeName = elementName ?? xmlNodeName;
-
-                objToString = EscapeXMLValue(objToString);
+                xmlNodeName = elementAttribute?.ElementName ?? xmlNodeName;
 
                 string formattedNode = xmlNodeName != null
                     ? string.Format("<{0}>{1}</{0}>\n", xmlNodeName, objToString)
@@ -87,9 +83,7 @@ namespace SharePointMvc
                 Type underlyingType = objType.GetGenericArguments().FirstOrDefault() ?? objType.GetElementType();
 
                 XmlArrayAttribute arrayAttribute = GetAttribute<XmlArrayAttribute>(customAttributes);
-
                 XmlArrayItemAttribute arrayItemAttribute = GetAttribute<XmlArrayItemAttribute>(customAttributes);
-
                 XmlElementAttribute arrayElementAttribute = GetAttribute<XmlElementAttribute>(customAttributes);
 
                 string collectionNodeName;
@@ -108,8 +102,8 @@ namespace SharePointMvc
                 }
                 else
                 {
-                    collectionNodeName = arrayAttribute != null ? arrayAttribute.ElementName : xmlNodeName;
-                    itemNodeName = arrayItemAttribute != null ? arrayItemAttribute.ElementName : underlyingType.Name;
+                    collectionNodeName = arrayAttribute?.ElementName ?? xmlNodeName;
+                    itemNodeName = arrayItemAttribute?.ElementName ?? underlyingType.Name;
                     indent = true;
                 }
 
@@ -134,15 +128,12 @@ namespace SharePointMvc
             {
                 customAttributes.AddRange(GetXmlAttributes(objType));
 
-                xmlNodeName = xmlNodeName ?? objType.Name;
-
                 XmlRootAttribute rootAttribute = GetAttribute<XmlRootAttribute>(customAttributes);
+                XmlElementAttribute elementAttribute = GetAttribute<XmlElementAttribute>(customAttributes);
 
-                if (rootAttribute != null)
-                    xmlNodeName = rootAttribute.ElementName;
+                xmlNodeName = elementAttribute?.ElementName ?? rootAttribute?.ElementName ?? xmlNodeName ?? objType.Name;
 
                 var properties = objType.GetProperties();
-
                 var fields = objType.GetFields();
 
                 int xmlRootIndex = Append("");
@@ -189,7 +180,7 @@ namespace SharePointMvc
 
                 IEnumerable<string> wholeAttributes = xmlAttributes.Select(x => x.Key + "=\"" + x.Value + "\"");
 
-                string xmlRoot = string.Format("<{0}{1}{2}>\n", xmlNodeName, wholeAttributes.Any() ? " " : "", string.Join(" ", wholeAttributes));
+                string xmlRoot = string.Format("<{0}{1}{2}>\n", xmlNodeName, (wholeAttributes.Any() ? " " : ""), string.Join(" ", wholeAttributes));
 
                 stringList[xmlRootIndex] = xmlRoot;
             }

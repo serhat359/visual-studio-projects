@@ -10,6 +10,7 @@ using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Web.Mvc;
+using System.Xml;
 using ThePirateBay;
 using WebModelFactory;
 
@@ -144,6 +145,30 @@ namespace SharePointMvc.Controllers
             return Content(contents, "application/rss+xml; charset=UTF-8", Encoding.UTF8);
         }
 
+        public ActionResult FixNyaaFiltering()
+        {
+            string url = "https://nyaa.si/?page=rss&q=violet+evergarden+vivid+-superior&c=1_2&f=1";
+            
+            string contents = GetUrlTextData(url);
+
+            XmlDocument document = new XmlDocument();
+
+            document.LoadXml(contents);
+
+            var items = document.GetElementsByTagName("item");
+
+            List<XmlNode> invalidNodes = items.AsEnumerable<XmlNode>().Where(x => !x.GetChildNamed("title").InnerText.Contains("v2")).ToList();
+
+            foreach (var tag in invalidNodes)
+            {
+                tag.ParentNode.RemoveChild(tag);
+            }
+
+            contents = XmlToString(document);
+
+            return Content(contents, "application/rss+xml; charset=UTF-8", Encoding.UTF8);
+        }
+
         #endregion
 
         #region Post Methods
@@ -206,6 +231,44 @@ namespace SharePointMvc.Controllers
             }
 
             return s;
+        }
+
+        private static string XmlToString(XmlDocument document)
+        {
+            string result = "";
+
+            MemoryStream mStream = new MemoryStream();
+            XmlTextWriter writer = new XmlTextWriter(mStream, Encoding.Unicode);
+
+            try
+            {
+                writer.Formatting = System.Xml.Formatting.Indented;
+
+                // Write the XML into a formatting XmlTextWriter
+                document.WriteContentTo(writer);
+                writer.Flush();
+                mStream.Flush();
+
+                // Have to rewind the MemoryStream in order to read
+                // its contents.
+                mStream.Position = 0;
+
+                // Read MemoryStream contents into a StreamReader.
+                StreamReader sReader = new StreamReader(mStream);
+
+                // Extract the text from the StreamReader.
+                string formattedXML = sReader.ReadToEnd();
+
+                result = formattedXML.Replace("  ", "\t");
+
+                mStream.Close();
+                writer.Close();
+            }
+            catch (XmlException)
+            {
+            }
+
+            return result;
         }
 
         #endregion

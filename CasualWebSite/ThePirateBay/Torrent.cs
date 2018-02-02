@@ -68,7 +68,7 @@ namespace ThePirateBay
                         throw new FormatException();
                     }
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     throw;
                 }
