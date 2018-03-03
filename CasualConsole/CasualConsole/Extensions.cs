@@ -57,12 +57,19 @@ namespace CasualConsole
 
         public static V GetValueOrDefault<K, V>(this Dictionary<K, V> dic, K key)
         {
-            V value;
 
-            if (dic.TryGetValue(key, out value))
+            if (dic.TryGetValue(key, out V value))
                 return value;
             else
                 return default(V);
+        }
+
+        public static E? GetValueOrNull<T, E>(this Dictionary<T, E> dictionary, T key) where E : struct
+        {
+            if (dictionary.TryGetValue(key, out E value))
+                return value;
+            else
+                return null;
         }
 
         public static IEnumerable<T> AsEnumerable<T>(this IEnumerable collection)
@@ -219,7 +226,8 @@ namespace CasualConsole
             return node.ChildNodes.AsEnumerable<XmlNode>().FirstOrDefault(x => x.Name == name);
         }
 
-        public static bool ContainsCaseInsensitive(this string whole, string substring) {
+        public static bool ContainsCaseInsensitive(this string whole, string substring)
+        {
             bool contains = whole.IndexOf(substring, StringComparison.OrdinalIgnoreCase) >= 0;
 
             return contains;

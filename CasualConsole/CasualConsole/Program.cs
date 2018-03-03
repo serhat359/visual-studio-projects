@@ -51,20 +51,87 @@ namespace CasualConsole
 
             //DumpActiveProcessAndServiceList();
 
-            var threads = UseAllCPUResources();
+            //var threads = UseAllCPUResources();
 
             //TestStackPool();
 
             //TestInputParser();
-            
+
             //TestDNSPings();
+
+            bool[][] array = {
+                new bool[]{ true, false, false },
+                new bool[]{ false, false, false },
+                new bool[]{ false, false, false },
+                new bool[]{ true, false, false },
+                new bool[]{ false, false, true },
+            };
+
+            bool[][] expandedArray = {
+                new bool[]{ false, false, false },
+                new bool[]{ false, false, false },
+                new bool[]{ false, false, false },
+                new bool[]{ false, false, false },
+                new bool[]{ false, false, false },
+            };
+
+            int columnCount = array.Length;
+            int rowCount = array[0].Length;
+
+            for (int x = 0; x < columnCount; x++)
+            {
+                for (int y = 0; y < rowCount; y++)
+                {
+                    if (array[x][y])
+                    {
+                        SafeSetTrue(expandedArray, x - 1, y - 1);
+                        SafeSetTrue(expandedArray, x,     y - 1);
+                        SafeSetTrue(expandedArray, x + 1, y - 1);
+
+                        SafeSetTrue(expandedArray, x - 1, y);
+                        SafeSetTrue(expandedArray, x,     y);
+                        SafeSetTrue(expandedArray, x + 1, y);
+
+                        SafeSetTrue(expandedArray, x - 1, y + 1);
+                        SafeSetTrue(expandedArray, x,     y + 1);
+                        SafeSetTrue(expandedArray, x + 1, y + 1);
+                    }
+                }
+            }
+
+            foreach (var items in array)
+            {
+                foreach (var item in items)
+                {
+                    Console.Write(item + ",");
+                }
+                Console.WriteLine();
+            }
+            Console.WriteLine();
+            Console.WriteLine();
+
+            foreach (var items in expandedArray)
+            {
+                foreach (var item in items)
+                {
+                    Console.Write(item+",");
+                }
+                Console.WriteLine();
+            }
             
             // Closing, Do Not Delete!
             Console.WriteLine();
             Console.WriteLine("Program has terminated, press a key to exit");
             Console.ReadKey();
         }
-        
+
+        private static void SafeSetTrue(bool[][] expandedArray, int x, int y)
+        {
+            if (x >= 0 && x < expandedArray.Length)
+                if (y >= 0 && y < expandedArray[0].Length)
+                    expandedArray[x][y] = true;
+        }
+
         private static void TestDNSPings()
         {
             string[] dnsAddresses = @"
