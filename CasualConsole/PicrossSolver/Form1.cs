@@ -14,7 +14,7 @@ namespace PicrossSolver
         public delegate void Algorithm(CellSeries s);
 
 #if DEBUG
-        public const bool isDebug = true; 
+        public const bool isDebug = true;
 #endif
 
 #if !DEBUG
@@ -32,17 +32,9 @@ namespace PicrossSolver
         public const int displaySize = 20;
 
         public static int iteration = 0;
-        static byte[,] pictureRef = null;
-
-        public static bool[] isRowCompleted;
-        public static bool[] isColCompleted;
-
-        static byte[,] correct = null;
-
-        static bool correctExists;
 
         private static DateTime programStartTime;
-
+        
         enum Mode
         {
             Development,
@@ -50,7 +42,7 @@ namespace PicrossSolver
         }
 
         Mode mode = Mode.Development;
-        
+
         public Form1()
         {
             string puzzlesHavingSolution = @"C:\Users\Xhertas\Documents\Visual Studio 2017\Projects\CasualConsole\PicrossSolver\Puzzles\has_solution\";
@@ -69,9 +61,9 @@ namespace PicrossSolver
 
                 SolveHavingSolution(puzzlesHavingSolution);
                 SolveHavingSolution(puzzlesNotHavingSolution);
-
+                
                 TimeSpan timeDiff = DateTime.Now - programStartTime;
-
+                
                 Console.WriteLine("Time it took: {0}", timeDiff);
                 Console.ReadKey();
             }
@@ -108,33 +100,39 @@ namespace PicrossSolver
             {
                 string puzzlePath = allpuzzles[i];
                 string fileName = new FileInfo(puzzlePath).Name;
-                PuzzleJson puzzle = JsonConvert.DeserializeObject<PuzzleJson>(File.ReadAllText(puzzlePath));
+                PuzzleJson puzzleJson = JsonConvert.DeserializeObject<PuzzleJson>(File.ReadAllText(puzzlePath));
                 Console.WriteLine("solving: " + fileName);
 
                 //FixJsonFormat(puzzlePath, puzzle);
 
-                var leftColumn = puzzle.LeftColumn;
-                var upColumn = puzzle.UpColumn;
-                correct = puzzle.Correct;
+                var leftColumn = puzzleJson.LeftColumn;
+                var upColumn = puzzleJson.UpColumn;
+                var correct = puzzleJson.Correct;
                 int rowCount = leftColumn.Length;
                 int colCount = upColumn.Length;
-                correctExists = correct.Length > 0;
 
-                isRowCompleted = new bool[rowCount];
-                isColCompleted = new bool[colCount];
+                Puzzle puzzle = new Puzzle
+                {
+                    PuzzleJson = puzzleJson,
+                    IsRowCompleted = new bool[rowCount],
+                    IsColCompleted = new bool[colCount],
+                    Correct = correct,
+                    CorrectExists = correct.Length > 0,
+                };
 
                 int leftSum = leftColumn.Sum(x => x.Sum());
                 int upSum = upColumn.Sum(x => x.Sum());
 
                 if (leftSum != upSum)
                     throw new Exception("Numbers are entered wrong!");
-
-                bool isSolved;
-                var solvedPicture = solveAndDisplay(upColumn, leftColumn, out isSolved);
+                
+                var solvedPicture = SolveAndDisplay(puzzle, out bool isSolved);
+                
+                bool correctExists = puzzle.CorrectExists;
 
                 if (correctExists)
                 {
-                    var allPuzzleBytes = array2dAsEnumerable(puzzle.Correct).SelectMany(x => x);
+                    var allPuzzleBytes = Array2dAsEnumerable(puzzleJson.Correct).SelectMany(x => x);
 
                     if (allPuzzleBytes.Count(x => x == Form1.FILLED) != leftSum)
                         throw new Exception("Solution are entered wrong!");
@@ -142,12 +140,12 @@ namespace PicrossSolver
 
                 if (!isSolved && correctExists)
                 {
-                    display(correct, "This is how it should be", leftColumn, upColumn, true);
+                    Display(correct, "This is how it should be", puzzle, true);
                 }
-                
+
                 if (isSolved && !correctExists)
                 {
-                    display(solvedPicture, "I solved it!", leftColumn, upColumn, true);
+                    Display(solvedPicture, "I solved it!", puzzle, true);
                     string solvedCase = ToJson2D(solvedPicture);
                 }
             }
@@ -168,7 +166,7 @@ namespace PicrossSolver
 
         private static string ToJson2D(byte[,] arr)
         {
-            return ToJson2D(array2dAsEnumerable(arr));
+            return ToJson2D(Array2dAsEnumerable(arr));
         }
 
         private static string ToJson2D<T>(IEnumerable<IEnumerable<T>> arr) where T : struct
@@ -179,13 +177,17 @@ namespace PicrossSolver
             return "[\n" + string.Join(",\n", arr.Select(x => "[" + string.Join(",", x) + "]")) + "\n]";
         }
 
-        private static byte[,] solveAndDisplay(int[][] upColumn, int[][] leftColumn, out bool isSolved)
+        private static byte[,] SolveAndDisplay(Puzzle puzzle, out bool isSolved)
         {
+            var leftColumn = puzzle.PuzzleJson.LeftColumn;
+            var upColumn = puzzle.PuzzleJson.UpColumn;
+
             byte[,] picture = new byte[leftColumn.Length, upColumn.Length];
+            puzzle.PictureRef = new byte[leftColumn.Length, upColumn.Length];
 
-            isSolved = solve(picture, upColumn, leftColumn);
+            isSolved = Solve(picture, puzzle);
 
-            string joined = string.Join(",\n", array2dAsEnumerable(picture).Select(x => string.Join(",", x)));
+            string joined = string.Join(",\n", Array2dAsEnumerable(picture).Select(x => string.Join(",", x)));
 
             if (!isSolved)
             {
@@ -193,13 +195,13 @@ namespace PicrossSolver
 
                 Console.WriteLine("Time it took: {0}", timeDiff);
 
-                display(picture, "I could only solve this much", leftColumn, upColumn, true);
+                Display(picture, "I could only solve this much", puzzle, true);
             }
 
             return picture;
         }
 
-        private static IEnumerable<IEnumerable<byte>> array2dAsEnumerable(byte[,] picture)
+        private static IEnumerable<IEnumerable<byte>> Array2dAsEnumerable(byte[,] picture)
         {
             for (int row = 0; row < picture.rowCount(); row++)
             {
@@ -209,67 +211,70 @@ namespace PicrossSolver
             }
         }
 
-        private static bool solve(byte[,] picture, int[][] upColumn, int[][] leftColumn)
+        private static bool Solve(byte[,] picture, Puzzle puzzle)
         {
-            dumpPicture(picture);
+            var leftColumn = puzzle.PuzzleJson.LeftColumn;
+            var upColumn = puzzle.PuzzleJson.UpColumn;
 
-            ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.InitialProcessing);
+            DumpPicture(picture, puzzle.PictureRef);
+
+            ApplyAlgorithmOneWay(picture, puzzle, Generic.InitialProcessing);
 
             for (iteration = 1; ; iteration++)
             {
-                Console.WriteLine("Running iteration: " + iteration);
+                //Console.WriteLine("Running iteration: " + iteration);
 
                 bool isChangeDetected = false;
 
                 // tek sayı olanların ara boşluğunu doldurup, ulaşamayacağı yerlere çarpı atıyor
-                ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessSingles);
-                isChangeDetected |= testPicture(picture, leftColumn, upColumn);
+                ApplyAlgorithmOneWay(picture, puzzle, Generic.ProcessSingles);
+                isChangeDetected |= TestPicture(picture, puzzle);
 
                 {
                     // seri başından ve sonundan itibaren bir tarafı kapalı sayıların kalanını ayarlayıp çarpı atıyor
-                    ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.ProcessStart);
-                    isChangeDetected |= testPicture(picture, leftColumn, upColumn);
+                    ApplyAlgorithmBackAndForth(picture, puzzle, Generic.ProcessStart);
+                    isChangeDetected |= TestPicture(picture, puzzle);
 
                     // seri başlarındaki ve sonlarındaki küçük boşluklara çarpı atıyor, BU METOD processStartsAndEnds METODUNDAN HEMEN SONRA ÇALIŞMALI!!!
-                    ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.ProcessStartingUnknowns);
-                    isChangeDetected |= testPicture(picture, leftColumn, upColumn);
+                    ApplyAlgorithmBackAndForth(picture, puzzle, Generic.ProcessStartingUnknowns);
+                    isChangeDetected |= TestPicture(picture, puzzle);
                 }
 
                 // serilerdeki en büyük değerler dolduysa başına ve sonuna çarpı atıyor
-                ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessSetEmptiesByMax);
-                isChangeDetected |= testPicture(picture, leftColumn, upColumn);
+                ApplyAlgorithmOneWay(picture, puzzle, Generic.ProcessSetEmptiesByMax);
+                isChangeDetected |= TestPicture(picture, puzzle);
 
                 // serilerdeki çarpı arası boşluklara çarpı atıyor
-                ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessFillBetweenEmpties);
-                isChangeDetected |= testPicture(picture, leftColumn, upColumn);
+                ApplyAlgorithmOneWay(picture, puzzle, Generic.ProcessFillBetweenEmpties);
+                isChangeDetected |= TestPicture(picture, puzzle);
 
                 // serideki outlier olan değere karşılık gelen dolmuşları işliyor
-                ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessByMaxValues);
-                isChangeDetected |= testPicture(picture, leftColumn, upColumn);
+                ApplyAlgorithmOneWay(picture, puzzle, Generic.ProcessByMaxValues);
+                isChangeDetected |= TestPicture(picture, puzzle);
 
                 // seri başlarında ve sonlarında kendini bulmaya çalışıyor
-                ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.TryMatchingFirstValue);
-                isChangeDetected |= testPicture(picture, leftColumn, upColumn);
+                ApplyAlgorithmBackAndForth(picture, puzzle, Generic.TryMatchingFirstValue);
+                isChangeDetected |= TestPicture(picture, puzzle);
 
                 // serileri genel olarak analiz ediyor
-                ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.ProcessMatching);
-                isChangeDetected |= testPicture(picture, leftColumn, upColumn);
+                ApplyAlgorithmBackAndForth(picture, puzzle, Generic.ProcessMatching);
+                isChangeDetected |= TestPicture(picture, puzzle);
 
                 // serideki dolulara bakarak eşleştirip initial processing yaptırıyor
-                ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.ProcessInitialByMatchingFilled);
-                isChangeDetected |= testPicture(picture, leftColumn, upColumn);
+                ApplyAlgorithmBackAndForth(picture, puzzle, Generic.ProcessInitialByMatchingFilled);
+                isChangeDetected |= TestPicture(picture, puzzle);
 
                 // Özel ve çok nadir durumları işliyor
-                ApplyAlgorithmBackAndForth(picture, upColumn, leftColumn, Generic.ProcessSpecialCases);
-                isChangeDetected |= testPicture(picture, leftColumn, upColumn);
+                ApplyAlgorithmBackAndForth(picture, puzzle, Generic.ProcessSpecialCases);
+                isChangeDetected |= TestPicture(picture, puzzle);
 
                 // serideki çarpılarla ayrılmış kısımları bulup işliyor
-                ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessByDividedAreas);
-                isChangeDetected |= testPicture(picture, leftColumn, upColumn);
+                ApplyAlgorithmOneWay(picture, puzzle, Generic.ProcessByDividedAreas);
+                isChangeDetected |= TestPicture(picture, puzzle);
 
                 // serilerdeki dolu grup sayısı değer sayısını geçtiğinde bakıyor
-                ApplyAlgorithmOneWay(picture, upColumn, leftColumn, Generic.ProcessByFilledRanges);
-                isChangeDetected |= testPicture(picture, leftColumn, upColumn);
+                ApplyAlgorithmOneWay(picture, puzzle, Generic.ProcessByFilledRanges);
+                isChangeDetected |= TestPicture(picture, puzzle);
 
                 if (!isChangeDetected)
                 {
@@ -280,40 +285,45 @@ namespace PicrossSolver
                 }
 
                 // serideki dolu ve boş sayılarını kontrol ediyor
-                processCheckAllCounts(picture, upColumn, leftColumn);
-                isChangeDetected |= testPicture(picture, leftColumn, upColumn);
+                ProcessCheckAllCounts(picture, puzzle);
+                isChangeDetected |= TestPicture(picture, puzzle);
 
                 //display(picture, "test", true);
             }
 
-            Console.WriteLine("There was no change in the iteration: " + iteration);
+            //Console.WriteLine("There was no change in the iteration: " + iteration);
 
-            bool isSolvedCompletely = isRowCompleted.All(x => x == true) || isColCompleted.All(x => x == true);
+            bool isSolvedCompletely = puzzle.IsRowCompleted.All(x => x == true) || puzzle.IsColCompleted.All(x => x == true);
 
             return isSolvedCompletely;
         }
 
-        public static void ApplyAlgorithmBackAndForth(byte[,] picture, int[][] upColumn, int[][] leftColumn, Algorithm processing)
+        public static void ApplyAlgorithmBackAndForth(byte[,] picture, Puzzle puzzle, Algorithm processing)
         {
-            ApplyAlgorithm(picture, upColumn, leftColumn, processing, true);
+            ApplyAlgorithm(picture, puzzle, processing, true);
         }
 
-        public static void ApplyAlgorithmOneWay(byte[,] picture, int[][] upColumn, int[][] leftColumn, Algorithm processing)
+        public static void ApplyAlgorithmOneWay(byte[,] picture, Puzzle puzzle, Algorithm processing)
         {
-            ApplyAlgorithm(picture, upColumn, leftColumn, processing, false);
+            ApplyAlgorithm(picture, puzzle, processing, false);
         }
 
-        private static void ApplyAlgorithm(byte[,] picture, int[][] upColumn, int[][] leftColumn, Algorithm processing, bool isTwoWay)
+        private static void ApplyAlgorithm(byte[,] picture, Puzzle puzzle, Algorithm processing, bool isTwoWay)
         {
+            var leftColumn = puzzle.PuzzleJson.LeftColumn;
+            var upColumn = puzzle.PuzzleJson.UpColumn;
+            var isColCompleted = puzzle.IsColCompleted;
+            var isRowCompleted = puzzle.IsRowCompleted;
+
             for (int row = 0; row < picture.rowCount(); row++)
             {
                 if (!isRowCompleted[row])
                 {
-                    processing(new CellSeries(row, picture, Direction.Horizontal, leftColumn[row]));
+                    processing(new CellSeries(row, picture, Direction.Horizontal, leftColumn[row], puzzle.Correct));
 
                     if (isTwoWay)
                     {
-                        processing(new CellSeries(row, picture, Direction.HorizontalReverse, leftColumn[row]));
+                        processing(new CellSeries(row, picture, Direction.HorizontalReverse, leftColumn[row], puzzle.Correct));
                     }
                 }
             }
@@ -322,24 +332,29 @@ namespace PicrossSolver
             {
                 if (!isColCompleted[col])
                 {
-                    processing(new CellSeries(col, picture, Direction.Vertical, upColumn[col]));
+                    processing(new CellSeries(col, picture, Direction.Vertical, upColumn[col], puzzle.Correct));
 
                     if (isTwoWay)
                     {
-                        processing(new CellSeries(col, picture, Direction.VerticalReverse, upColumn[col]));
+                        processing(new CellSeries(col, picture, Direction.VerticalReverse, upColumn[col], puzzle.Correct));
                     }
                 }
             }
         }
 
-        private static void processCheckAllCounts(byte[,] picture, int[][] upColumn, int[][] leftColumn)
+        private static void ProcessCheckAllCounts(byte[,] picture, Puzzle puzzle)
         {
+            var leftColumn = puzzle.PuzzleJson.LeftColumn;
+            var upColumn = puzzle.PuzzleJson.UpColumn;
+            var isColCompleted = puzzle.IsColCompleted;
+            var isRowCompleted = puzzle.IsRowCompleted;
+
             for (int col = 0; col < picture.colCount(); col++)
             {
                 int[] values = upColumn[col];
 
                 // TODO bunun için tablo oluştur
-                int supposedFilledCount = getSum(values);
+                int supposedFilledCount = GetSum(values);
                 int supposedEmptyCount = picture.rowCount() - supposedFilledCount;
 
                 int actualFilledCount = 0;
@@ -383,7 +398,7 @@ namespace PicrossSolver
                 int[] values = leftColumn[row];
 
                 // TODO bunun için tablo oluştur
-                int supposedFilledCount = getSum(values);
+                int supposedFilledCount = GetSum(values);
                 int supposedEmptyCount = picture.colCount() - supposedFilledCount;
 
                 int actualFilledCount = 0;
@@ -423,8 +438,13 @@ namespace PicrossSolver
             }
         }
 
-        private static bool testPicture(byte[,] picture, int[][] leftColumn, int[][] upColumn)
+        private static bool TestPicture(byte[,] picture, Puzzle puzzle)
         {
+            var leftColumn = puzzle.PuzzleJson.LeftColumn;
+            var upColumn = puzzle.PuzzleJson.UpColumn;
+            var correct = puzzle.Correct;
+            var pictureRef = puzzle.PictureRef;
+
             bool isChangeDetected = false;
 
             for (int i = 0; i < picture.rowCount(); i++)
@@ -442,7 +462,7 @@ namespace PicrossSolver
                     break;
             }
 
-            if (correctExists)
+            if (puzzle.CorrectExists)
                 for (int i = 0; i < picture.rowCount(); i++)
                     for (int j = 0; j < picture.colCount(); j++)
                         if (picture[i, j] != UNKNOWN && picture[i, j] != correct[i, j])
@@ -450,20 +470,23 @@ namespace PicrossSolver
                             int asIs = picture[i, j];
                             int correctOne = correct[i, j];
                             Console.WriteLine("Hata tespit edildi, iteration: " + iteration);
-                            display(pictureRef, "Hatasız olan", leftColumn, upColumn);
-                            display(picture, "Hatalı olan", leftColumn, upColumn);
-                            display(correct, "Olması gereken", leftColumn, upColumn, true);
+                            Display(pictureRef, "Hatasız olan", puzzle);
+                            Display(picture, "Hatalı olan", puzzle);
+                            Display(correct, "Olması gereken", puzzle, true);
                             throw new Exception("Önceki metot yanlış, iteration: " + iteration + ", row: " + i + ", col: " + j);
                         }
 
-            dumpPicture(picture);
+            DumpPicture(picture, puzzle.PictureRef);
 
             return isChangeDetected;
         }
 
-        private static byte[,] dumpPicture(byte[,] picture)
+        private static byte[,] DumpPicture(byte[,] picture, byte[,] pictureRef)
         {
-            pictureRef = new byte[picture.rowCount(), picture.colCount()];
+#if DEBUG
+            if (pictureRef == null)
+                throw new Exception("this should not be null");
+#endif
 
             for (int i = 0; i < picture.rowCount(); i++)
                 for (int j = 0; j < picture.colCount(); j++)
@@ -472,7 +495,7 @@ namespace PicrossSolver
             return pictureRef;
         }
 
-        private static int getSum(int[] values)
+        private static int GetSum(int[] values)
         {
             int sum = 0;
 
@@ -482,12 +505,12 @@ namespace PicrossSolver
             return sum;
         }
 
-        private static void display(byte[,] picture, int[][] leftColumn, int[][] upColumn)
+        private static void Display(byte[,] picture, Puzzle puzzle)
         {
-            display(picture, "Latest", leftColumn, upColumn);
+            Display(picture, "Latest", puzzle);
         }
 
-        private static string pictureToString(byte[,] picture)
+        private static string PictureToString(byte[,] picture)
         {
             StringBuilder ss = new StringBuilder();
 
@@ -503,9 +526,12 @@ namespace PicrossSolver
             return ss.ToString();
         }
 
-        private static void display(byte[,] picture, string title, int[][] leftColumn, int[][] upColumn, bool isApplication = false)
+        private static void Display(byte[,] picture, string title, Puzzle puzzle, bool isApplication = false)
         {
-            dumpPicture(picture);
+            DumpPicture(picture, puzzle.PictureRef);
+
+            var leftColumn = puzzle.PuzzleJson.LeftColumn;
+            var upColumn = puzzle.PuzzleJson.UpColumn;
 
             var w = new MyWindow(picture, title, leftColumn, upColumn);
             w.Show();
@@ -533,7 +559,7 @@ namespace PicrossSolver
             {
                 get { return valueGetter(i); }
             }
-            public IEnumerable<int> asIterable { get { return iterable(); } }
+            public IEnumerable<int> AsIterable { get { return Iterable(); } }
 
             private int _length;
             private Func<int, int> valueGetter;
@@ -560,20 +586,20 @@ namespace PicrossSolver
                         break;
                 }
             }
-            public IEnumerable<int> iterable()
+            public IEnumerable<int> Iterable()
             {
                 for (int i = 0; i < _length; i++)
                     yield return valueGetter(i);
             }
             public int Sum()
             {
-                return iterable().Sum();
+                return Iterable().Sum();
             }
         }
 
         public class CellSeries
         {
-            public CellColumnValues cellColumnValues { get { return _cellColumnValues; } }
+            public CellColumnValues CellColumnValues { get { return _cellColumnValues; } }
             public int Length { get { return _length; } }
             public byte this[int i]
             {
@@ -595,13 +621,13 @@ namespace PicrossSolver
                     valueSetter(i, value);
                 }
             }
-            public IEnumerable<byte> asIterable { get { return iterable(); } }
+            public IEnumerable<byte> AsIterable { get { return Iterable(); } }
             public Direction direction = Direction.NotSet;
             public int? rowOrCol = null;
-            public string asString { get { return new string(asIterable.Select(x => chars[x]).ToArray()); } }
+            public string AsString { get { return new string(AsIterable.Select(x => chars[x]).ToArray()); } }
 
 #if DEBUG
-            public string firstTimeString { get; set; }
+            public string FirstTimeString { get; set; }
 #endif
 
             private CellColumnValues _cellColumnValues;
@@ -609,12 +635,15 @@ namespace PicrossSolver
             private Func<int, byte> valueGetter;
             private Func<int, byte> _correctValueGetter;
             private Action<int, byte> valueSetter;
+            private bool correctExists;
 
-            public CellSeries(int rowOrCol, byte[,] picture, Direction direction, int[] columnValues)
+            public CellSeries(int rowOrCol, byte[,] picture, Direction direction, int[] columnValues, byte[,] correct)
             {
                 _cellColumnValues = new CellColumnValues(columnValues, direction);
                 this.direction = direction;
                 this.rowOrCol = rowOrCol;
+
+                correctExists = correct != null;
 
                 switch (direction)
                 {
@@ -661,19 +690,19 @@ namespace PicrossSolver
                 }
 
 #if DEBUG
-                this.firstTimeString = this.asString;
+                this.FirstTimeString = this.AsString;
 #endif
             }
 
-            private CellSeries(CellColumnValues _cellColumnValues, int _length, Func<int, byte> valueGetter, Action<int, byte> valueSetter)
+            private CellSeries(CellColumnValues _cellColumnValues, int _length, Func<int, byte> valueGetter, Action<int, byte> valueSetter, Func<int, byte> correctValueGetter)
             {
                 this._cellColumnValues = _cellColumnValues;
                 this._length = _length;
                 this.valueGetter = valueGetter;
                 this.valueSetter = valueSetter;
-
+                this._correctValueGetter = correctValueGetter;
 #if DEBUG
-                this.firstTimeString = this.asString;
+                this.FirstTimeString = this.AsString;
 #endif
             }
 
@@ -690,12 +719,12 @@ namespace PicrossSolver
                 if (size < newValues.Sum() + newValues.Length - 1)
                     throw new Exception("Bre insafsız!");
 #endif
-                return new CellSeries(cellColumnValues, size, getter, setter);
+                return new CellSeries(cellColumnValues, size, getter, setter, old._correctValueGetter);
             }
 
             public static CellSeries Reverse(CellSeries old)
             {
-                int[] newValues = old.cellColumnValues.asIterable.Reverse().ToArray();
+                int[] newValues = old.CellColumnValues.AsIterable.Reverse().ToArray();
 
                 int cellLength = old.Length;
                 int lastCellIndex = old.Length - 1;
@@ -703,10 +732,10 @@ namespace PicrossSolver
                 Action<int, byte> setter = (x, cell) => old[lastCellIndex - x] = cell;
                 CellColumnValues cellColumnValues = new CellColumnValues(newValues, Direction.Horizontal);
 
-                CellSeries cells = new CellSeries(cellColumnValues, cellLength, getter, setter);
+                CellSeries cells = new CellSeries(cellColumnValues, cellLength, getter, setter, old._correctValueGetter);
 
-                var oldvals = old.cellColumnValues.asIterable;
-                var newvals = cells.cellColumnValues.asIterable;
+                var oldvals = old.CellColumnValues.AsIterable;
+                var newvals = cells.CellColumnValues.AsIterable;
 #if DEBUG
                 if (!Enumerable.SequenceEqual(oldvals, newvals.Reverse()))
                     throw new Exception("Error at reversing");
@@ -722,11 +751,11 @@ namespace PicrossSolver
                 _cellColumnValues = new CellColumnValues(values, Direction.Horizontal);
 
 #if DEBUG
-                this.firstTimeString = this.asString;
+                this.FirstTimeString = this.AsString;
 #endif
             }
 
-            public IEnumerable<byte> iterable()
+            public IEnumerable<byte> Iterable()
             {
                 for (int i = 0; i < _length; i++)
                     yield return valueGetter(i);
@@ -742,6 +771,16 @@ namespace PicrossSolver
                 if (index >= 0 && index < this.Length)
                     this[index] = value;
             }
+        }
+
+        public class Puzzle
+        {
+            public PuzzleJson PuzzleJson { get; set; }
+            public bool[] IsRowCompleted { get; set; }
+            public bool[] IsColCompleted { get; set; }
+            public byte[,] Correct { get; set; }
+            public byte[,] PictureRef { get; set; }
+            public bool CorrectExists { get; set; }
         }
 
         public class PuzzleJson
@@ -912,7 +951,7 @@ namespace PicrossSolver
         {
             if (isCheckEnabled)
             {
-                byte[] originalValues = new Form1.CellSeries(row, picture, Form1.Direction.Horizontal, leftColumn[row]).asIterable.ToArray();
+                byte[] originalValues = new Form1.CellSeries(row, picture, Form1.Direction.Horizontal, leftColumn[row], null).AsIterable.ToArray();
 
                 byte[] copyValues = originalValues.ToArray();
 
@@ -949,18 +988,19 @@ namespace PicrossSolver
         {
             if (isCheckEnabled)
             {
-                byte[] originalValues = new Form1.CellSeries(col, picture, Form1.Direction.Vertical, upColumn[col]).asIterable.ToArray();
+                byte[] originalValues = new Form1.CellSeries(col, picture, Form1.Direction.Vertical, upColumn[col], null).AsIterable.ToArray();
 
                 byte[] copyValues = originalValues.ToArray();
 
                 var cells = new Form1.CellSeries(copyValues, upColumn[col]);
 
-                bool hasError = false;
+                bool hasError;
 
                 try
                 {
                     Generic.ProcessAllAlgorithms(cells);
                     Generic.ProcessAllAlgorithms(Form1.CellSeries.Reverse(cells));
+                    hasError = false;
                 }
                 catch (Exception)
                 {
