@@ -31,6 +31,8 @@ namespace BackupHomeFolder
 
             filesToDelete.Each((filePathToDelete, i) =>
             {
+                UpdateLabel(fileCopyLabel, string.Format("Deleting {0} of {1} files", (i + 1), filesToDelete.Count));
+
                 try
                 {
                     File.SetAttributes(filePathToDelete, FileAttributes.Normal);
