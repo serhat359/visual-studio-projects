@@ -34,7 +34,7 @@ namespace PicrossSolver
         public static int iteration = 0;
 
         private static DateTime programStartTime;
-        
+
         enum Mode
         {
             Development,
@@ -61,9 +61,9 @@ namespace PicrossSolver
 
                 SolveHavingSolution(puzzlesHavingSolution);
                 SolveHavingSolution(puzzlesNotHavingSolution);
-                
+
                 TimeSpan timeDiff = DateTime.Now - programStartTime;
-                
+
                 Console.WriteLine("Time it took: {0}", timeDiff);
                 Console.ReadKey();
             }
@@ -116,7 +116,7 @@ namespace PicrossSolver
                     PuzzleJson = puzzleJson,
                     IsRowCompleted = new bool[rowCount],
                     IsColCompleted = new bool[colCount],
-                    Correct = correct,
+                    Correct = correct.Length > 0 ? correct : null,
                     CorrectExists = correct.Length > 0,
                 };
 
@@ -125,9 +125,9 @@ namespace PicrossSolver
 
                 if (leftSum != upSum)
                     throw new Exception("Numbers are entered wrong!");
-                
+
                 var solvedPicture = SolveAndDisplay(puzzle, out bool isSolved);
-                
+
                 bool correctExists = puzzle.CorrectExists;
 
                 if (correctExists)
