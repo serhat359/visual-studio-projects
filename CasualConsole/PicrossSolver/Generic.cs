@@ -13,7 +13,7 @@ namespace PicrossSolver
         {
             TestCase[] dividedTests = new TestCase[] {
 
-                new TestCase { CellsString = " x■  ■xxxxx■   ", Values = new int[] { 1,2,1 }, CorrectAssignment = new int[][] { new int[]{ }, new[] { 1,2 }, new[] { 1 } } },
+                new TestCase { CellsString = " x■  ■xxxxx■   ", Values = new int[] { 1, 2, 1 }, CorrectAssignment = new int[][] { new int[]{ }, new[] { 1, 2 }, new[] { 1 } } },
 
                 new TestCase { CellsString  = "■■x  ", Values = new int[]{ 2, 1 }, CorrectAssignment = new int[][] { new[]{ 2 }, new[] { 1 } }  },
 
@@ -23,25 +23,25 @@ namespace PicrossSolver
 
                 new TestCase { CellsString  = "   ■■x   ■     ", Values = new int[]{ 2, 1, 3, 2 }, CorrectAssignment = new int[][] { new[]{ 2 }, new[] { 1, 3, 2 } }  },
 
-                new TestCase { CellsString = "     ■   x■■   ",  Values = new int[]{ 2, 3, 1, 2 }, CorrectAssignment = new int[][] { new[]{ 2, 3, 1 }, new[] { 2 } } },
+                new TestCase { CellsString = "     ■   x■■   ", Values = new int[]{ 2, 3, 1, 2 }, CorrectAssignment = new int[][] { new[]{ 2, 3, 1 }, new[] { 2 } } },
 
-                new TestCase { CellsString = " x■x      ", Values = new int[]{ 1,3,1 }, CorrectAssignment = new int[][] { new int [] { }, new[]{ 1 }, new[] { 3,1 } } },
+                new TestCase { CellsString = " x■x      ", Values = new int[]{ 1, 3, 1 }, CorrectAssignment = new int[][] { new int [] { }, new[]{ 1 }, new[] { 3, 1 } } },
 
-                new TestCase { CellsString = "    ■  ■x■     ", Values = new int[]{ 1,1,2,1,2 }, CorrectAssignment = new int[][] { new[]{ 1,1,2,1 }, new[] { 2 } }  },
+                new TestCase { CellsString = "    ■  ■x■     ", Values = new int[]{ 1, 1, 2, 1, 2 }, CorrectAssignment = new int[][] { new[]{ 1, 1, 2, 1 }, new[] { 2 } }  },
 
-                new TestCase { CellsString = "     ■x■  ■    ", Values = new int[]{ 2,1,2,1,1 }, CorrectAssignment = new int[][] { new[]{ 2,1 }, new[] { 2,1,1 } } },
+                new TestCase { CellsString = "     ■x■  ■    ", Values = new int[]{ 2, 1, 2, 1, 1 }, CorrectAssignment = new int[][] { new[]{ 2, 1 }, new[] { 2, 1, 1 } } },
 
-                new TestCase { CellsString = "    ■■■ ■x  ■   ■x  ", Values = new int[]{ 1,5,2,2,1 }, CorrectAssignment = new int[][] { new[]{ 1,5 }, new[] { 2,2 }, new[] { 1 } } },
+                new TestCase { CellsString = "    ■■■ ■x  ■   ■x  ", Values = new int[]{ 1, 5, 2, 2, 1 }, CorrectAssignment = new int[][] { new[]{ 1, 5 }, new[] { 2, 2 }, new[] { 1 } } },
 
-                new TestCase { CellsString = "  x■   ■  x■ ■■■    ", Values = new int[]{ 1,2,2,5,1 }, CorrectAssignment = new int[][] { new[]{ 1 }, new[] { 2,2 }, new[] { 5,1 } } },
+                new TestCase { CellsString = "  x■   ■  x■ ■■■    ", Values = new int[]{ 1, 2, 2, 5, 1 }, CorrectAssignment = new int[][] { new[]{ 1 }, new[] { 2, 2 }, new[] { 5, 1 } } },
 
-                new TestCase { CellsString = " x■  ■ ", Values = new int[]{ 1,3 }, CorrectAssignment = new int[][] { new int[]{  }, new[] { 1,3 } } },
+                new TestCase { CellsString = " x■  ■ ", Values = new int[]{ 1, 3 }, CorrectAssignment = new int[][] { new int[]{  }, new[] { 1, 3 } } },
 
-                new TestCase { CellsString = "    x■  ■ ", Values = new int[] { 1,1 }, CorrectAssignment = new int[][] { new int[]{ }, new[] { 1,1 } } },
+                new TestCase { CellsString = "    x■  ■ ", Values = new int[] { 1, 1 }, CorrectAssignment = new int[][] { new int[]{ }, new[] { 1, 1 } } },
 
-                new TestCase { CellsString = "    x■  ■ ", Values = new int[] { 2,2 }, CorrectAssignment = new int[][] { new int[]{ }, new[] { 2,2 } } },
+                new TestCase { CellsString = "    x■  ■ ", Values = new int[] { 2, 2 }, CorrectAssignment = new int[][] { new int[]{ }, new[] { 2, 2 } } },
 
-                new TestCase { CellsString="      ■■x    x ", Values = new int[] { 2,1 }, CorrectAssignment =new int[][] { new int[]{ 2 }, new[] { 1 }, new int[] {  } }  },
+                new TestCase { CellsString="      ■■x    x ", Values = new int[] { 2, 1 }, CorrectAssignment =new int[][] { new int[]{ 2 }, new[] { 1 }, new int[] {  } }  },
             };
 
             testNumber = 1;
