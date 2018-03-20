@@ -140,7 +140,8 @@ namespace SharePointMvc.Controllers
             string url = "http://www.animenewsnetwork.com/news/rss.xml";
 
             string contents = GetUrlTextData(url)
-                .Replace("animenewsnetwork.cc", "animenewsnetwork.com");
+                .Replace("animenewsnetwork.cc", "animenewsnetwork.com")
+                .Replace("http://", "https://");
 
             return Content(contents, "application/rss+xml; charset=UTF-8", Encoding.UTF8);
         }
