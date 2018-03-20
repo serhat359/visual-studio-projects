@@ -69,6 +69,7 @@
     <Compile Include="Extensions.cs" />
     <Compile Include="HeroesV.cs" />
     <Compile Include="Intersection.cs" />
+    <Compile Include="MyJsonConvert.cs" />
     <Compile Include="MyThread.cs" />
     <Compile Include="OpenGlPixelProcessing.cs" />
     <Compile Include="Program.cs" />

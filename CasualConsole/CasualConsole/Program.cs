@@ -1,5 +1,8 @@
 ﻿using Bencode;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
@@ -19,6 +22,37 @@ using System.Xml.Serialization;
 
 namespace CasualConsole
 {
+    class SomeClass
+    {
+        public int Number { get; set; }
+    }
+
+    class BigJsonClass
+    {
+        public int Number { get; set; }
+        public string Text { get; set; }
+        public int[] IntArray { get; set; }
+        public C Object { get; set; }
+        public List<D> ObjArray { get; set; }
+        public List<E> AnotherObjArray { get; set; }
+    }
+
+    class E
+    {
+        public int? Num { get; set; }
+    }
+
+    class D
+    {
+        public object Field { get; set; }
+        public DateTime Date { get; set; }
+    }
+
+    class C
+    {
+        public bool SomeBool { get; set; }
+    }
+
     public class Program
     {
         public static void Main(string[] args)
@@ -58,8 +92,31 @@ namespace CasualConsole
             //TestInputParser();
 
             //TestDNSPings();
-            
 
+            SomeClass res = MyJsonConvert.CustomJsonParse<SomeClass>("{ \"Number\" : 3 }");
+
+            string someJsonText = @"
+            {
+	            ""Number"": -2,
+	            ""Text"": ""Serhat"",
+	            ""IntArray"": [2,3],
+	            ""Object"": {
+		            ""SomeBool"": true
+	            },
+	            ""ObjArray"": [
+		            { ""Field"": null, ""Date"": ""2017-02-03"" },
+		            { ""Field"": {}, ""Date"": ""2018-05-09"" }
+	            ],
+                ""AnotherObjArray"" : [
+                    { ""Num"" : null },
+                    { ""Num"" : 4 }
+                ]
+            }
+            ";
+
+            BigJsonClass obj = MyJsonConvert.CustomJsonParse<BigJsonClass>(someJsonText);
+
+            var obj2 = MyJsonConvert.CustomJsonParse(someJsonText, typeof(BigJsonClass));
 
             // Closing, Do Not Delete!
             Console.WriteLine();
