@@ -25,14 +25,19 @@ namespace CasualConsole
 
         private static object JsonCastValue(JToken jval, Type type)
         {
-            if (jval is JArray jarr)
+            if (type == typeof(string))
             {
-                if (typeof(IEnumerable).IsAssignableFrom(type))
-                {
-                    Type ienumerableType = type.GetGenericArguments().FirstOrDefault();
-                    Type underlyingType = ienumerableType ?? type.GetElementType();
+                return jval.ToObject(type);
+            }
+            else if (typeof(IEnumerable).IsAssignableFrom(type)) // Expected type is IEnumerable
+            {
+                Type ienumerableType = type.GetGenericArguments().FirstOrDefault();
+                Type underlyingType = ienumerableType ?? type.GetElementType();
 
-                    bool isArray = ienumerableType == null;
+                bool isArray = ienumerableType == null;
+
+                if (jval is JArray jarr)
+                {
                     int length = jarr.Count;
 
                     if (isArray)
@@ -60,52 +65,8 @@ namespace CasualConsole
                         return list;
                     }
                 }
-
-                throw new Exception("The value needs to be IEnumerable");
-            }
-            else if (jval is JObject jobj)
-            {
-                dynamic obj = Activator.CreateInstance(type);
-
-                foreach (PropertyInfo prop in obj.GetType().GetProperties())
+                else
                 {
-                    JToken subval = jval[prop.Name];
-
-                    if (subval != null)
-                    {
-                        dynamic convertedVal = JsonCastValue(subval, prop.PropertyType);
-
-                        prop.SetValue(obj, convertedVal);
-                    }
-                }
-
-                foreach (FieldInfo field in type.GetFields())
-                {
-                    JToken subval = jval[field.Name];
-
-                    if (subval != null)
-                    {
-                        dynamic convertedVal = JsonCastValue(subval, field.FieldType);
-
-                        field.SetValue(obj, convertedVal);
-                    }
-                }
-
-                return obj;
-            }
-            else // This means the value is a basic type
-            {
-                if (type == typeof(string))
-                {
-                    return jval.ToObject(type);
-                }
-                else if (typeof(IEnumerable).IsAssignableFrom(type))
-                {
-                    Type ienumerableType = type.GetGenericArguments().FirstOrDefault();
-                    Type underlyingType = ienumerableType ?? type.GetElementType();
-
-                    bool isArray = ienumerableType == null;
-
                     dynamic subValue = JsonCastValue(jval, underlyingType);
 
                     if (isArray)
@@ -121,8 +82,47 @@ namespace CasualConsole
                         return list;
                     }
                 }
-                else
+            }
+            else // Expected type is either a basic type or object
+            {
+                if (jval is JArray jarr)
+                {
+                    throw new Exception("The value needs to be IEnumerable");
+                }
+                else if (jval is JObject jobj) // The value is a JS object
+                {
+                    dynamic obj = Activator.CreateInstance(type);
+
+                    foreach (PropertyInfo prop in type.GetProperties())
+                    {
+                        JToken subval = jval[prop.Name];
+
+                        if (subval != null)
+                        {
+                            dynamic convertedVal = JsonCastValue(subval, prop.PropertyType);
+
+                            prop.SetValue(obj, convertedVal);
+                        }
+                    }
+
+                    foreach (FieldInfo field in type.GetFields())
+                    {
+                        JToken subval = jval[field.Name];
+
+                        if (subval != null)
+                        {
+                            dynamic convertedVal = JsonCastValue(subval, field.FieldType);
+
+                            field.SetValue(obj, convertedVal);
+                        }
+                    }
+
+                    return obj;
+                }
+                else // The value is a basic type
+                {
                     return jval.ToObject(type);
+                }
             }
         }
     }
