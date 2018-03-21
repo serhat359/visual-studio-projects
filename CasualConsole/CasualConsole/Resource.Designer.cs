@@ -19,7 +19,7 @@ namespace CasualConsole {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "4.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "15.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     public class Resource {
@@ -106,6 +106,50 @@ namespace CasualConsole {
         public static string Pattern {
             get {
                 return ResourceManager.GetString("Pattern", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [
+        ///[&quot;Kanji&quot;,&quot;Stroke&quot;,&quot;Radicals&quot;],
+        ///[&quot;一&quot;,1,[1]],
+        ///[&quot;丶&quot;,1,[3]],
+        ///[&quot;丿&quot;,1,[4]],
+        ///[&quot;乙&quot;,1,[5]],
+        ///[&quot;亅&quot;,1,[6]],
+        ///[&quot;丁&quot;,2,[1,6]],
+        ///[&quot;七&quot;,2,[4,5,25]],
+        ///[&quot;乂&quot;,2,[3,4]],
+        ///[&quot;乃&quot;,2,[1,2,4,36]],
+        ///[&quot;九&quot;,2,[34]],
+        ///[&quot;了&quot;,2,[1,6]],
+        ///[&quot;二&quot;,2,[7]],
+        ///[&quot;亠&quot;,2,[8]],
+        ///[&quot;人&quot;,2,[9]],
+        ///[&quot;儿&quot;,2,[12]],
+        ///[&quot;入&quot;,2,[13]],
+        ///[&quot;八&quot;,2,[14]],
+        ///[&quot;冂&quot;,2,[16]],
+        ///[&quot;冖&quot;,2,[17]],
+        ///[&quot;冫&quot;,2,[18]],
+        ///[&quot;几&quot;,2,[19]],
+        ///[&quot;凵&quot;,2,[20]],
+        ///[&quot;刀&quot;,2,[21]],
+        ///[&quot;力&quot;,2,[23]],
+        ///[&quot;勹&quot;,2,[24]],
+        ///[&quot;匕&quot;,2,[25]],
+        ///[&quot;匚&quot;,2,[26]],
+        ///[&quot;匸&quot;,2,[26]],
+        ///[&quot;十&quot;,2,[27]],
+        ///[&quot;卜&quot;,2,[28]],
+        ///[&quot;卩&quot;,2,[29]],
+        ///[&quot;厂&quot;,2,[30]],
+        ///[&quot;厶&quot;,2,[31]],
+        ///[&quot;又&quot;,2,[32 [rest of string was truncated]&quot;;.
+        /// </summary>
+        public static string RadicalsKanji {
+            get {
+                return ResourceManager.GetString("RadicalsKanji", resourceCulture);
             }
         }
         

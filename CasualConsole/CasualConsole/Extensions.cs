@@ -80,6 +80,26 @@ namespace CasualConsole
             }
         }
 
+        public static bool SafeEquals<T>(this IEnumerable<T> collection, IEnumerable<T> other) where T : IEquatable<T>
+        {
+            if (collection == null && other == null)
+                return true;
+
+            if (collection == null || other == null)
+                return false;
+
+            var firstEnumerator = collection.GetEnumerator();
+            var secondEnumerator = other.GetEnumerator();
+
+            while (firstEnumerator.MoveNext() && secondEnumerator.MoveNext())
+            {
+                if (!firstEnumerator.Current.Equals(secondEnumerator.Current))
+                    return false;
+            }
+
+            return true;
+        }
+
         public static IEnumerable<Group> GroupList(this Match match)
         {
             for (int i = 0; i < match.Groups.Count; i++)

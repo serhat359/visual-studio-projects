@@ -23,6 +23,11 @@ namespace CasualConsole
             return JsonCastValue(jval, type);
         }
 
+        private static T JsonCastValue<T>(JToken jval)
+        {
+            return (T)JsonCastValue(jval, typeof(T));
+        }
+
         private static object JsonCastValue(JToken jval, Type type)
         {
             if (type == typeof(string))
@@ -40,29 +45,94 @@ namespace CasualConsole
                 {
                     int length = jarr.Count;
 
-                    if (isArray)
+                    bool isMyOwnCustomFormat = jarr.Count > 0 && jarr[0] is JArray ja && !typeof(IEnumerable).IsAssignableFrom(underlyingType);
+
+                    if (!isMyOwnCustomFormat)
                     {
-                        dynamic arr = Activator.CreateInstance(type, new object[] { length });
-
-                        for (int i = 0; i < length; i++)
+                        if (isArray)
                         {
-                            dynamic subValue = JsonCastValue(jarr[i], underlyingType);
-                            arr[i] = subValue;
-                        }
+                            dynamic arr = Activator.CreateInstance(type, new object[] { length });
 
-                        return arr;
+                            for (int i = 0; i < length; i++)
+                            {
+                                dynamic subValue = JsonCastValue(jarr[i], underlyingType);
+                                arr[i] = subValue;
+                            }
+
+                            return arr;
+                        }
+                        else
+                        {
+                            dynamic list = Activator.CreateInstance(type);
+
+                            for (int i = 0; i < length; i++)
+                            {
+                                dynamic subValue = JsonCastValue(jarr[i], underlyingType);
+                                list.Add(subValue);
+                            }
+
+                            return list;
+                        }
                     }
                     else
                     {
-                        dynamic list = Activator.CreateInstance(type);
+                        string[] propNames = JsonCastValue<string[]>(jarr[0]);
 
-                        for (int i = 0; i < length; i++)
+                        var propDic = propNames.Select((x, i) => new { Index = i, Value = x }).ToDictionary(x => x.Value, x => x.Index);
+
+                        var havingProps = underlyingType.GetProperties().Where(x => propDic.ContainsKey(x.Name)).ToList();
+                        var havingFields = underlyingType.GetFields().Where(x => propDic.ContainsKey(x.Name)).ToList();
+
+                        if (isArray)
                         {
-                            dynamic subValue = JsonCastValue(jarr[i], underlyingType);
-                            list.Add(subValue);
-                        }
+                            dynamic arr = Activator.CreateInstance(type, new object[] { length - 1 });
 
-                        return list;
+                            for (int i = 1; i < length; i++)
+                            {
+                                dynamic newObj = Activator.CreateInstance(underlyingType);
+
+                                var objArray = jarr[i] as JArray;
+
+                                foreach (var prop in havingProps)
+                                {
+                                    prop.SetValue(newObj, JsonCastValue(objArray[propDic[prop.Name]], prop.PropertyType));
+                                }
+
+                                foreach (var field in havingFields)
+                                {
+                                    field.SetValue(newObj, JsonCastValue(objArray[propDic[field.Name]], field.FieldType));
+                                }
+
+                                arr[i] = newObj;
+                            }
+
+                            return arr;
+                        }
+                        else
+                        {
+                            dynamic list = Activator.CreateInstance(type);
+
+                            for (int i = 1; i < length; i++)
+                            {
+                                dynamic newObj = Activator.CreateInstance(underlyingType);
+
+                                var objArray = jarr[i] as JArray;
+
+                                foreach (var prop in havingProps)
+                                {
+                                    prop.SetValue(newObj, JsonCastValue(objArray[propDic[prop.Name]], prop.PropertyType));
+                                }
+
+                                foreach (var field in havingFields)
+                                {
+                                    field.SetValue(newObj, JsonCastValue(objArray[propDic[field.Name]], field.FieldType));
+                                }
+
+                                list.Add(newObj);
+                            }
+
+                            return list;
+                        }
                     }
                 }
                 else

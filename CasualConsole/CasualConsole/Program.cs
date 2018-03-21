@@ -22,12 +22,31 @@ using System.Xml.Serialization;
 
 namespace CasualConsole
 {
-    class SomeClass
+    class IntClass : IEquatable<IntClass>
     {
         public int Number { get; set; }
+
+        public bool Equals(IntClass other)
+        {
+            return this.Number == other.Number;
+        }
     }
 
-    class BigJsonClass
+    class RadicalEntry : IEquatable<RadicalEntry>
+    {
+        public string Kanji { get; set; }
+        public int Stroke { get; set; }
+        public int[] Radicals { get; set; }
+
+        public bool Equals(RadicalEntry other)
+        {
+            return this.Kanji == other.Kanji &&
+                this.Stroke == other.Stroke &&
+                this.Radicals.SafeEquals(other.Radicals);
+        }
+    }
+
+    class BigJsonClass : IEquatable<BigJsonClass>
     {
         public int Number { get; set; }
         public string Text { get; set; }
@@ -35,22 +54,48 @@ namespace CasualConsole
         public C Object { get; set; }
         public List<D> ObjArray { get; set; }
         public List<E> AnotherObjArray { get; set; }
+
+        public bool Equals(BigJsonClass other)
+        {
+            return this.Number.Equals(other.Number) &&
+                this.Text == other.Text &&
+                this.IntArray.SafeEquals(other.IntArray) &&
+                this.Object.Equals(other.Object) &&
+                this.ObjArray.SafeEquals(other.ObjArray) &&
+                this.AnotherObjArray.SafeEquals(other.AnotherObjArray);
+        }
     }
 
-    class E
+    class E : IEquatable<E>
     {
         public int? Num { get; set; }
+
+        public bool Equals(E other)
+        {
+            return this.Num == other.Num;
+        }
     }
 
-    class D
+    class D : IEquatable<D>
     {
         public object Field { get; set; }
         public DateTime Date { get; set; }
+
+        public bool Equals(D other)
+        {
+            return (this.Field == null) == (other.Field == null) &&
+                this.Date == other.Date;
+        }
     }
 
-    class C
+    class C : IEquatable<C>
     {
         public bool SomeBool { get; set; }
+
+        public bool Equals(C other)
+        {
+            return this.SomeBool == other.SomeBool;
+        }
     }
 
     public class Program
@@ -93,9 +138,33 @@ namespace CasualConsole
 
             //TestDNSPings();
 
-            SomeClass res = MyJsonConvert.CustomJsonParse<SomeClass>("{ \"Number\" : 3 }");
+            for (int i = 0; i < 10; i++)
+            {
+                CustomJsonParserCodes();
+            }
 
-            string someJsonText = @"
+            // Closing, Do Not Delete!
+            Console.WriteLine();
+            Console.WriteLine("Program has terminated, press a key to exit");
+            Console.ReadKey();
+        }
+
+        private static void CustomJsonParserCodes()
+        {
+            bool res = new object().Equals(new object());
+
+            TestCustomJsonParser("true", true);
+            TestCustomJsonParser("false", false);
+            TestCustomJsonParser("1", 1);
+            TestCustomJsonParser("-8", -8);
+            TestCustomJsonParser("\"serhat\"", "serhat");
+            TestCustomJsonParser("\"2018-03-08\"", new DateTime(2018, 3, 8));
+            TestCustomJsonParser("{ \"Number\" : 4 }", new IntClass { Number = 4 });
+            TestCustomJsonParserEnumerable("[-3,8]", new int[] { -3, 8 });
+            TestCustomJsonParserEnumerable("[-3,8]", new List<int> { -3, 8 });
+            TestCustomJsonParser("{ \"Kanji\" : \"上\" }", new RadicalEntry { Kanji = "上" });
+
+            string bigClassJson = @"
             {
 	            ""Number"": -2,
 	            ""Text"": ""Serhat"",
@@ -113,15 +182,50 @@ namespace CasualConsole
                 ]
             }
             ";
+            BigJsonClass bigJsonObj = new BigJsonClass
+            {
+                Number = -2,
+                Text = "Serhat",
+                IntArray = new int[] { 2, 3 },
+                Object = new C { SomeBool = true },
+                ObjArray = new List<D> {
+                    new D { Field = null, Date = new DateTime(2017, 2, 3) },
+                    new D { Field = new object(), Date = new DateTime(2018, 5, 9) }
+                },
+                AnotherObjArray = new List<E> {
+                    new E { Num = null },
+                    new E { Num = 4 }
+                }
+            };
+            TestCustomJsonParser(bigClassJson, bigJsonObj);
 
-            BigJsonClass obj = MyJsonConvert.CustomJsonParse<BigJsonClass>(someJsonText);
+            BigJsonClass obj = MyJsonConvert.CustomJsonParse<BigJsonClass>(bigClassJson);
 
-            var obj2 = MyJsonConvert.CustomJsonParse(someJsonText, typeof(BigJsonClass));
+            var obj2 = MyJsonConvert.CustomJsonParse(bigClassJson, typeof(BigJsonClass));
 
-            // Closing, Do Not Delete!
-            Console.WriteLine();
-            Console.WriteLine("Program has terminated, press a key to exit");
-            Console.ReadKey();
+            var s = MyJsonConvert.CustomJsonParse<List<RadicalEntry>>(Resource.RadicalsKanji);
+
+            var sStringified = JsonConvert.SerializeObject(s);
+
+            var s2 = MyJsonConvert.CustomJsonParse<List<RadicalEntry>>(sStringified);
+
+            bool areEquals = s.SafeEquals(s2);
+        }
+
+        public static void TestCustomJsonParserEnumerable<T>(string jsonText, IEnumerable<T> actualObject) where T : IEquatable<T>
+        {
+            IEnumerable<T> parsed = MyJsonConvert.CustomJsonParse<List<T>>(jsonText);
+
+            if (!actualObject.SafeEquals(parsed))
+                throw new Exception("The objects are not equal");
+        }
+
+        public static void TestCustomJsonParser<T>(string jsonText, T actualObject) where T : IEquatable<T>
+        {
+            T parsed = MyJsonConvert.CustomJsonParse<T>(jsonText);
+
+            if (!parsed.Equals(actualObject))
+                throw new Exception("The objects are not equal");
         }
 
         public static IEnumerable<int> GetHanoiNumbers()
