@@ -146,10 +146,11 @@ namespace SharePointMvc.Controllers
             return Content(contents, "application/rss+xml; charset=UTF-8", Encoding.UTF8);
         }
 
+        [HttpGet]
         public ActionResult FixNyaaFiltering()
         {
             string url = "https://nyaa.si/?page=rss&q=violet+evergarden+vivid+-superior&c=1_2&f=1";
-            
+
             string contents = GetUrlTextData(url);
 
             XmlDocument document = new XmlDocument();
@@ -168,6 +169,37 @@ namespace SharePointMvc.Controllers
             contents = XmlToString(document);
 
             return Content(contents, "application/rss+xml; charset=UTF-8", Encoding.UTF8);
+        }
+
+        [HttpGet]
+        public ActionResult MangadeepParseXml(string mangaName)
+        {
+            string url = "http://www.mangadeep.com/"+mangaName;
+
+            string contents = GetUrlTextData(url);
+            
+            string startTag = "<ul class=\"lst\">";
+            string endTag = "</ul>";
+
+            int indexOfStart = contents.IndexOf(startTag);
+            int indexOfEnd = contents.IndexOf(endTag, indexOfStart);
+
+            string ulPart = contents.Substring(indexOfStart, indexOfEnd - indexOfStart + endTag.Length);
+
+            XmlDocument document = new XmlDocument();
+            document.LoadXml(ulPart);
+
+            var liNodes = document.ChildNodes[0].ChildNodes;
+            
+            RssResult rssObject = new RssResult(liNodes.AsEnumerable<XmlNode>().Select(liNode => new RssResultItem
+            {
+                description = "This was parsed from MangeDeep.com",
+                link = liNode.GetChildNamed("a").Attributes["href"].Value,
+                pubDate = DateTime.Parse(liNode.GetChildNamed("a").ChildNodes.AsEnumerable<XmlNode>().FirstOrDefault(x => x.Attributes["class"].Value == "dte").InnerText),
+                title = liNode.GetChildNamed("a").Attributes["title"].Value,
+            }));
+
+            return this.Xml(rssObject);
         }
 
         #endregion
