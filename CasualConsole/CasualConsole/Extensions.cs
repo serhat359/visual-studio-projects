@@ -91,8 +91,20 @@ namespace CasualConsole
             var firstEnumerator = collection.GetEnumerator();
             var secondEnumerator = other.GetEnumerator();
 
-            while (firstEnumerator.MoveNext() && secondEnumerator.MoveNext())
+            while (true)
             {
+                var firstMoveNext = firstEnumerator.MoveNext();
+                var secondMoveNext = secondEnumerator.MoveNext();
+
+                if (firstMoveNext == true && secondMoveNext == false)
+                    return false;
+
+                if (firstMoveNext == false && secondMoveNext == true)
+                    return false;
+
+                if (firstMoveNext == false && secondMoveNext == false)
+                    break;
+
                 if (!firstEnumerator.Current.Equals(secondEnumerator.Current))
                     return false;
             }
