@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.27130.2024
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CasualConsole", "CasualConsole\CasualConsole.csproj", "{94279BAB-F62C-4D42-BBA5-A6F03CEAD7B0}"
 EndProject
@@ -20,6 +20,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HeroesMapManipulator", "HeroesMapManipulator\HeroesMapManipulator.csproj", "{E78BE959-EEC1-4BB8-92D5-A93BA48FF790}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TurkishEncodingFixer", "TurkishEncodingFixer\TurkishEncodingFixer.csproj", "{6C358CE8-7866-4C2B-9D1C-7F02B673094C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TextCompare", "TextCompare\TextCompare.csproj", "{545A3E99-C97A-4FB3-A60B-845FA3C2AD9D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -127,8 +129,23 @@ Global
 		{6C358CE8-7866-4C2B-9D1C-7F02B673094C}.Release|x64.Build.0 = Release|Any CPU
 		{6C358CE8-7866-4C2B-9D1C-7F02B673094C}.Release|x86.ActiveCfg = Release|Any CPU
 		{6C358CE8-7866-4C2B-9D1C-7F02B673094C}.Release|x86.Build.0 = Release|Any CPU
+		{545A3E99-C97A-4FB3-A60B-845FA3C2AD9D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{545A3E99-C97A-4FB3-A60B-845FA3C2AD9D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{545A3E99-C97A-4FB3-A60B-845FA3C2AD9D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{545A3E99-C97A-4FB3-A60B-845FA3C2AD9D}.Debug|x64.Build.0 = Debug|Any CPU
+		{545A3E99-C97A-4FB3-A60B-845FA3C2AD9D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{545A3E99-C97A-4FB3-A60B-845FA3C2AD9D}.Debug|x86.Build.0 = Debug|Any CPU
+		{545A3E99-C97A-4FB3-A60B-845FA3C2AD9D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{545A3E99-C97A-4FB3-A60B-845FA3C2AD9D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{545A3E99-C97A-4FB3-A60B-845FA3C2AD9D}.Release|x64.ActiveCfg = Release|Any CPU
+		{545A3E99-C97A-4FB3-A60B-845FA3C2AD9D}.Release|x64.Build.0 = Release|Any CPU
+		{545A3E99-C97A-4FB3-A60B-845FA3C2AD9D}.Release|x86.ActiveCfg = Release|Any CPU
+		{545A3E99-C97A-4FB3-A60B-845FA3C2AD9D}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {2EB9F538-A8FB-47B3-8FBA-C1F658A10AD6}
 	EndGlobalSection
 EndGlobal
