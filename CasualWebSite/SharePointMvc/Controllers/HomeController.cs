@@ -147,6 +147,22 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
+        public ActionResult FixTomsNews()
+        {
+            string url = "https://www.tomshardware.com/feeds/rss2/news.xml";
+
+            return FixToms(url);
+        }
+
+        [HttpGet]
+        public ActionResult FixTomsArticles()
+        {
+            string url = "https://www.tomshardware.com/feeds/rss2/articles.xml";
+
+            return FixToms(url);
+        }
+
+        [HttpGet]
         public ActionResult FixNyaaFiltering()
         {
             string url = "https://nyaa.si/?page=rss&q=violet+evergarden+vivid+-superior&c=1_2&f=1";
@@ -174,10 +190,10 @@ namespace SharePointMvc.Controllers
         [HttpGet]
         public ActionResult MangadeepParseXml(string mangaName)
         {
-            string url = "http://www.mangadeep.com/"+mangaName;
+            string url = "http://www.mangadeep.com/" + mangaName;
 
             string contents = GetUrlTextData(url);
-            
+
             string startTag = "<ul class=\"lst\">";
             string endTag = "</ul>";
 
@@ -190,7 +206,7 @@ namespace SharePointMvc.Controllers
             document.LoadXml(ulPart);
 
             var liNodes = document.ChildNodes[0].ChildNodes;
-            
+
             RssResult rssObject = new RssResult(liNodes.AsEnumerable<XmlNode>().Select(liNode => new RssResultItem
             {
                 description = "This was parsed from MangeDeep.com",
@@ -233,6 +249,54 @@ namespace SharePointMvc.Controllers
             }));
 
             return this.Xml(rssObject);
+        }
+
+        private ActionResult FixToms(string url)
+        {
+            string contents = GetUrlTextData(url);
+
+            XmlDocument document = new XmlDocument();
+
+            document.LoadXml(contents);
+
+            var items = document.GetElementsByTagName("item").AsEnumerable<XmlNode>();
+
+            var iterator = items.GetEnumerator();
+
+            List<XmlNode> invalidNodes = new List<XmlNode>();
+
+            XmlNode oldOne = null;
+            while (iterator.MoveNext())
+            {
+                var curr = iterator.Current;
+
+                if (oldOne != null)
+                {
+                    var oldTitle = oldOne.GetChildNamed("title").InnerText;
+                    var currTitle = curr.GetChildNamed("title").InnerText;
+
+                    if (oldTitle.Equals(currTitle))
+                    {
+                        invalidNodes.Add(oldOne);
+                    }
+                }
+
+                var link = curr.GetChildNamed("link");
+                link.InnerText = link.InnerText.Replace("#xtor=RSS-5", "");
+
+                oldOne = curr;
+            }
+
+            foreach (var tag in invalidNodes)
+            {
+                tag.ParentNode.RemoveChild(tag);
+            }
+
+            contents = XmlToString(document);
+
+            contents = contents.Replace("&#039;", "'");
+
+            return Content(contents, "application/rss+xml; charset=UTF-8", Encoding.UTF8);
         }
 
         private static string GetJsonSearchResult(string q, string channelId)
