@@ -100,7 +100,9 @@ namespace PicrossSolver
             {
                 string puzzlePath = allpuzzles[i];
                 string fileName = new FileInfo(puzzlePath).Name;
-                PuzzleJson puzzleJson = JsonConvert.DeserializeObject<PuzzleJson>(File.ReadAllText(puzzlePath));
+                string allText = File.ReadAllText(puzzlePath);
+
+                PuzzleJson puzzleJson = ConvertToPuzzle(allText);
                 Console.WriteLine("solving: " + fileName);
 
                 //FixJsonFormat(puzzlePath, puzzle);
@@ -149,6 +151,52 @@ namespace PicrossSolver
                     string solvedCase = ToJson2D(solvedPicture);
                 }
             }
+        }
+
+        private static PuzzleJson ConvertToPuzzle(string allText)
+        {
+            //JsonConvert.DeserializeObject<PuzzleJson>(allText);
+            //return JsonConvert.DeserializeObject<PuzzleJson>(allText);
+
+            PuzzleJson puzzle = new PuzzleJson();
+
+            var colon = allText.IndexOf(':');
+            var quote = allText.IndexOf('"', colon);
+
+            string correctPart = allText.Substring(colon + 4, quote - colon - 9);
+
+            var subPuzzles = correctPart.Split(new string[] { "],\n[" }, StringSplitOptions.None);
+
+            int rowLength = subPuzzles.Length;
+            int colLength = subPuzzles[0].Split(',').Length;
+
+            byte[,] correct = new byte[rowLength, colLength];
+
+            for (int row = 0; row < rowLength; row++)
+            {
+                var wholeRow = subPuzzles[row].Split(',');
+
+                for (int col = 0; col < colLength; col++)
+                {
+                    correct[row, col] = byte.Parse(wholeRow[col]);
+                }
+            }
+
+            puzzle.Correct = correct;
+
+            var leftColon = allText.IndexOf(':', quote);
+            var leftQuote = allText.IndexOf('"', leftColon);
+            var leftPart = allText.Substring(leftColon + 4, leftQuote - leftColon - 9);
+            var leftSplit = leftPart.Split(new string[] { "],\n[" }, StringSplitOptions.None);
+            puzzle.LeftColumn = leftSplit.Select(x => x.Split(',').Select(y => int.Parse(y)).ToArray()).ToArray();
+
+            var rightColon = allText.IndexOf(':', leftQuote);
+            var rightQuote = allText.IndexOf('}', rightColon);
+            var rightPart = allText.Substring(rightColon + 4, rightQuote - rightColon - 8);
+            var rightSplit = rightPart.Split(new string[] { "],\n[" }, StringSplitOptions.None);
+            puzzle.UpColumn = rightSplit.Select(x => x.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(y => int.Parse(y)).ToArray()).ToArray();
+
+            return puzzle;
         }
 
         private static void FixJsonFormat(string puzzlePath, PuzzleJson puzzle)

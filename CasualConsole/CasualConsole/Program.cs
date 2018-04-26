@@ -58,7 +58,7 @@ namespace CasualConsole
         public bool Equals(BigJsonClass other)
         {
             return this.Number.Equals(other.Number) &&
-                this.Text == other.Text &&
+                this.Text.Equals(other.Text) &&
                 this.IntArray.SafeEquals(other.IntArray) &&
                 this.Object.Equals(other.Object) &&
                 this.ObjArray.SafeEquals(other.ObjArray) &&
@@ -137,10 +137,30 @@ namespace CasualConsole
             //TestInputParser();
 
             //TestDNSPings();
-
-            for (int i = 0; i < 10; i++)
+            
+            for (int y = 0; y < 10; y++)
             {
-                CustomJsonParserCodes();
+                {
+                    DateTime now = DateTime.Now;
+                    for (int i = 0; i < 5000; i++)
+                    {
+                        CustomJsonParserCodes();
+                    }
+                    var diff = DateTime.Now - now;
+                    Console.WriteLine(diff);
+                }
+
+                {
+                    DateTime now = DateTime.Now;
+                    for (int i = 0; i < 5000; i++)
+                    {
+                        OriginalJsonParserCodes();
+                    }
+                    var diff = DateTime.Now - now;
+                    Console.WriteLine(diff);
+                }
+
+                Console.WriteLine();
             }
 
             // Closing, Do Not Delete!
@@ -149,10 +169,57 @@ namespace CasualConsole
             Console.ReadKey();
         }
 
+        private static void OriginalJsonParserCodes()
+        {
+            TestOriginalParser("true", true);
+            TestOriginalParser("false", false);
+            TestOriginalParser("1", 1);
+            TestOriginalParser("-8", -8);
+            TestOriginalParser("\"serhat\"", "serhat");
+            TestOriginalParser("\"2018-03-08\"", new DateTime(2018, 3, 8));
+            TestOriginalParser("{ \"Number\" : 4 }", new IntClass { Number = 4 });
+            TestOriginalParserEnumerable("[-3,8]", new int[] { -3, 8 });
+            TestOriginalParserEnumerable("[-3,8]", new List<int> { -3, 8 });
+            TestOriginalParser("{ \"Kanji\" : \"上\" }", new RadicalEntry { Kanji = "上" });
+
+            string bigClassJson = @"
+            {
+	            ""Number"": -2,
+	            ""Text"": ""Serhat"",
+	            ""IntArray"": [2,3],
+	            ""Object"": {
+		            ""SomeBool"": true
+	            },
+	            ""ObjArray"": [
+		            { ""Field"": null, ""Date"": ""2017-02-03"" },
+		            { ""Field"": {}, ""Date"": ""2018-05-09"" }
+	            ],
+                ""AnotherObjArray"" : [
+                    { ""Num"" : null },
+                    { ""Num"" : 4 }
+                ]
+            }
+            ";
+            BigJsonClass bigJsonObj = new BigJsonClass
+            {
+                Number = -2,
+                Text = "Serhat",
+                IntArray = new int[] { 2, 3 },
+                Object = new C { SomeBool = true },
+                ObjArray = new List<D> {
+                    new D { Field = null, Date = new DateTime(2017, 2, 3) },
+                    new D { Field = new object(), Date = new DateTime(2018, 5, 9) }
+                },
+                AnotherObjArray = new List<E> {
+                    new E { Num = null },
+                    new E { Num = 4 }
+                }
+            };
+            TestOriginalParser(bigClassJson, bigJsonObj);
+        }
+
         private static void CustomJsonParserCodes()
         {
-            bool res = new object().Equals(new object());
-
             TestCustomJsonParser("true", true);
             TestCustomJsonParser("false", false);
             TestCustomJsonParser("1", 1);
@@ -198,18 +265,6 @@ namespace CasualConsole
                 }
             };
             TestCustomJsonParser(bigClassJson, bigJsonObj);
-
-            BigJsonClass obj = MyJsonConvert.CustomJsonParse<BigJsonClass>(bigClassJson);
-
-            var obj2 = MyJsonConvert.CustomJsonParse(bigClassJson, typeof(BigJsonClass));
-
-            var s = MyJsonConvert.CustomJsonParse<List<RadicalEntry>>(Resource.RadicalsKanji);
-
-            var sStringified = JsonConvert.SerializeObject(s);
-
-            var s2 = MyJsonConvert.CustomJsonParse<List<RadicalEntry>>(sStringified);
-
-            bool areEquals = s.SafeEquals(s2);
         }
 
         public static void TestCustomJsonParserEnumerable<T>(string jsonText, IEnumerable<T> actualObject) where T : IEquatable<T>
@@ -223,6 +278,22 @@ namespace CasualConsole
         public static void TestCustomJsonParser<T>(string jsonText, T actualObject) where T : IEquatable<T>
         {
             T parsed = MyJsonConvert.CustomJsonParse<T>(jsonText);
+
+            if (!parsed.Equals(actualObject))
+                throw new Exception("The objects are not equal");
+        }
+
+        public static void TestOriginalParserEnumerable<T>(string jsonText, IEnumerable<T> actualObject) where T : IEquatable<T>
+        {
+            IEnumerable<T> parsed = JsonConvert.DeserializeObject<List<T>>(jsonText);
+
+            if (!actualObject.SafeEquals(parsed))
+                throw new Exception("The objects are not equal");
+        }
+
+        public static void TestOriginalParser<T>(string jsonText, T actualObject) where T : IEquatable<T>
+        {
+            T parsed = JsonConvert.DeserializeObject<T>(jsonText);
 
             if (!parsed.Equals(actualObject))
                 throw new Exception("The objects are not equal");
