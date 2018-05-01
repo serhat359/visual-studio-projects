@@ -81,10 +81,10 @@ namespace SharePointMvc.Controllers
 
             RssResult rssObject = new RssResult(torrents.Select(x => new RssResultItem
             {
-                description = string.Format("Seed: {0}, Leech: {1}, Size: {2}", x.Seeds, x.Leechers, x.Size),
-                link = x.Magnet,
-                pubDate = x.UploadDate,
-                title = x.Name,
+                Description = string.Format("Seed: {0}, Leech: {1}, Size: {2}", x.Seeds, x.Leechers, x.Size),
+                Link = x.Magnet,
+                PubDate = x.UploadDate,
+                Title = x.Name,
             }));
 
             return this.Xml(rssObject);
@@ -188,8 +188,10 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
-        public ActionResult MangadeepParseXml(string mangaName)
+        public ActionResult MangadeepParseXml(string id)
         {
+            string mangaName = id;
+
             string url = "http://www.mangadeep.com/" + mangaName;
 
             string contents = GetUrlTextData(url);
@@ -209,10 +211,10 @@ namespace SharePointMvc.Controllers
 
             RssResult rssObject = new RssResult(liNodes.AsEnumerable<XmlNode>().Select(liNode => new RssResultItem
             {
-                description = "This was parsed from MangeDeep.com",
-                link = liNode.GetChildNamed("a").Attributes["href"].Value,
-                pubDate = DateTime.Parse(liNode.GetChildNamed("a").ChildNodes.AsEnumerable<XmlNode>().FirstOrDefault(x => x.Attributes["class"].Value == "dte").InnerText),
-                title = liNode.GetChildNamed("a").Attributes["title"].Value,
+                Description = "This was parsed from MangeDeep.com",
+                Link = liNode.GetChildNamed("a").Attributes["href"].Value,
+                PubDate = DateTime.Parse(liNode.GetChildNamed("a").ChildNodes.AsEnumerable<XmlNode>().FirstOrDefault(x => x.Attributes["class"].Value == "dte").InnerText),
+                Title = liNode.GetChildNamed("a").Attributes["title"].Value,
             }));
 
             return this.Xml(rssObject);
@@ -242,10 +244,10 @@ namespace SharePointMvc.Controllers
 
             RssResult rssObject = new RssResult(youtubeSearchResult.items.Select(x => new RssResultItem
             {
-                description = x.snippet.description,
-                link = string.Format(youtubeWatchBaseUrl, x.id.videoId),
-                pubDate = x.snippet.publishedAt,
-                title = x.snippet.title,
+                Description = x.snippet.description,
+                Link = string.Format(youtubeWatchBaseUrl, x.id.videoId),
+                PubDate = x.snippet.publishedAt,
+                Title = x.snippet.title,
             }));
 
             return this.Xml(rssObject);

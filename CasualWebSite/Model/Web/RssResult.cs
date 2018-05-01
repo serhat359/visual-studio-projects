@@ -33,13 +33,17 @@ namespace Model.Web
 
     public class RssResultItem
     {
-        public string title { get; set; }
+        [XmlTag(XmlTagAttribute.XmlTagType.CamelCase)]
+        public string Title { get; set; }
 
-        public string link { get; set; }
+        [XmlTag(XmlTagAttribute.XmlTagType.CamelCase)]
+        public string Link { get; set; }
 
-        public string description { get; set; }
+        [XmlTag(XmlTagAttribute.XmlTagType.CamelCase)]
+        public string Description { get; set; }
 
+        [XmlTag(XmlTagAttribute.XmlTagType.CamelCase)]
         [XmlFormat("R")]
-        public DateTime pubDate { get; set; }
+        public DateTime PubDate { get; set; }
     }
 }

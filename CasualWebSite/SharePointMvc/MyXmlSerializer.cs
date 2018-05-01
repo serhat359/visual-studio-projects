@@ -70,7 +70,9 @@ namespace SharePointMvc
                 objToString = EscapeXMLValue(objToString);
 
                 XmlElementAttribute elementAttribute = GetAttribute<XmlElementAttribute>(customAttributes);
-                xmlNodeName = elementAttribute?.ElementName ?? xmlNodeName;
+                XmlTagAttribute tagAttribute = GetAttribute<XmlTagAttribute>(customAttributes);
+                string xmlNodeRestylized = tagAttribute?.Format(xmlNodeName);
+                xmlNodeName = elementAttribute?.ElementName ?? xmlNodeRestylized ?? xmlNodeName;
 
                 string formattedNode = xmlNodeName != null
                     ? string.Format("<{0}>{1}</{0}>\n", xmlNodeName, objToString)
