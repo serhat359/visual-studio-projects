@@ -175,11 +175,11 @@ namespace SharePointMvc.Controllers
 
             var items = document.GetElementsByTagName("item");
 
-            List<XmlNode> invalidNodes = items.AsEnumerable<XmlNode>().Where(x => !x.GetChildNamed("title").InnerText.Contains("v2")).ToList();
+            List<XmlNode> invalidNodes = items.Cast<XmlNode>().Where(x => !x.GetChildNamed("title").InnerText.Contains("v2")).ToList();
 
-            foreach (var tag in invalidNodes)
+            foreach (var node in invalidNodes)
             {
-                tag.ParentNode.RemoveChild(tag);
+                node.ParentNode.RemoveChild(node);
             }
 
             contents = XmlToString(document);
@@ -209,11 +209,11 @@ namespace SharePointMvc.Controllers
 
             var liNodes = document.ChildNodes[0].ChildNodes;
 
-            RssResult rssObject = new RssResult(liNodes.AsEnumerable<XmlNode>().Select(liNode => new RssResultItem
+            RssResult rssObject = new RssResult(liNodes.Cast<XmlNode>().Select(liNode => new RssResultItem
             {
                 Description = "This was parsed from MangeDeep.com",
                 Link = liNode.GetChildNamed("a").Attributes["href"].Value,
-                PubDate = DateTime.Parse(liNode.GetChildNamed("a").ChildNodes.AsEnumerable<XmlNode>().FirstOrDefault(x => x.Attributes["class"].Value == "dte").InnerText),
+                PubDate = DateTime.Parse(liNode.GetChildNamed("a").ChildNodes.Cast<XmlNode>().FirstOrDefault(x => x.Attributes["class"].Value == "dte").InnerText),
                 Title = liNode.GetChildNamed("a").Attributes["title"].Value,
             }));
 
@@ -261,7 +261,14 @@ namespace SharePointMvc.Controllers
 
             document.LoadXml(contents);
 
-            var items = document.GetElementsByTagName("item").AsEnumerable<XmlNode>();
+            var items = document.GetElementsByTagName("item").Cast<XmlNode>();
+
+            items.Where(x => x.GetChildNamed("link").InnerXml.Contains("tomshardware.co.uk")).ToList().ForEach(node =>
+            {
+                node.ParentNode.RemoveChild(node);
+            });
+
+            items = document.GetElementsByTagName("item").Cast<XmlNode>();
 
             var iterator = items.GetEnumerator();
 
@@ -289,9 +296,9 @@ namespace SharePointMvc.Controllers
                 oldOne = curr;
             }
 
-            foreach (var tag in invalidNodes)
+            foreach (var node in invalidNodes)
             {
-                tag.ParentNode.RemoveChild(tag);
+                node.ParentNode.RemoveChild(node);
             }
 
             contents = XmlToString(document);

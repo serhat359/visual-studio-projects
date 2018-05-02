@@ -25,18 +25,10 @@ namespace Extensions
         {
             return str == null || str.Equals("");
         }
-
-        public static IEnumerable<T> AsEnumerable<T>(this IEnumerable collection)
-        {
-            foreach (var item in collection)
-            {
-                yield return (T)item;
-            }
-        }
-
+        
         public static XmlNode GetChildNamed(this XmlNode node, string name)
         {
-            return node.ChildNodes.AsEnumerable<XmlNode>().FirstOrDefault(x => x.Name == name);
+            return node.ChildNodes.Cast<XmlNode>().FirstOrDefault(x => x.Name == name);
         }
     }
 }
