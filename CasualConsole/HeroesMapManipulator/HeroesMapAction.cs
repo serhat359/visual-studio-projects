@@ -96,7 +96,7 @@ namespace HeroesMapManipulator
 
         public static void DeleteAdditionalStacks(XmlDocument document)
         {
-            var tags = Extensions.AsEnumerable<XmlNode>(document.GetElementsByTagName("AdditionalStacks"));
+            var tags = document.GetElementsByTagName("AdditionalStacks").Cast<XmlNode>();
 
             List<XmlNode> removeList = new List<XmlNode>();
 
@@ -120,13 +120,13 @@ namespace HeroesMapManipulator
         {
             var monsters = document.GetElementsByTagName("AdvMapMonster");
 
-            foreach (var monster in monsters.AsEnumerable<XmlNode>())
+            foreach (var monster in monsters.Cast<XmlNode>())
             {
-                var custom = monster.ChildNodes.AsEnumerable<XmlNode>().First(x => x.Name == "Custom");
+                var custom = monster.ChildNodes.Cast<XmlNode>().First(x => x.Name == "Custom");
 
                 if (custom.FirstChild.Value == "true")
                 {
-                    var amount = monster.ChildNodes.AsEnumerable<XmlNode>().First(x => x.Name == "Amount");
+                    var amount = monster.ChildNodes.Cast<XmlNode>().First(x => x.Name == "Amount");
 
                     custom.FirstChild.Value = "false";
 
@@ -142,9 +142,9 @@ namespace HeroesMapManipulator
 
             var monsters = document.GetElementsByTagName("AdvMapMonster");
 
-            foreach (var monster in monsters.AsEnumerable<XmlNode>())
+            foreach (var monster in monsters.Cast<XmlNode>())
             {
-                var shared = monster.ChildNodes.AsEnumerable<XmlNode>().First(x => x.Name == "Shared");
+                var shared = monster.ChildNodes.Cast<XmlNode>().First(x => x.Name == "Shared");
 
                 var href = shared.Attributes["href"].Value;
 
@@ -175,15 +175,15 @@ namespace HeroesMapManipulator
         {
             var items = document.GetElementsByTagName("AdvMapTreasure");
 
-            foreach (var item in items.AsEnumerable<XmlNode>())
+            foreach (var item in items.Cast<XmlNode>())
             {
-                var shared = item.ChildNodes.AsEnumerable<XmlNode>().First(x => x.Name == "Shared");
+                var shared = item.ChildNodes.Cast<XmlNode>().First(x => x.Name == "Shared");
 
                 var href = shared.Attributes["href"].Value;
 
                 if (href.Contains("MapObjects/Chest"))
                 {
-                    var isCustom = item.ChildNodes.AsEnumerable<XmlNode>().First(x => x.Name == "IsCustom");
+                    var isCustom = item.ChildNodes.Cast<XmlNode>().First(x => x.Name == "IsCustom");
 
                     isCustom.FirstChild.Value = "false";
                 }
@@ -198,9 +198,9 @@ namespace HeroesMapManipulator
 
             var artifacts = document.GetElementsByTagName("AdvMapArtifact");
 
-            foreach (var artifact in artifacts.AsEnumerable<XmlNode>())
+            foreach (var artifact in artifacts.Cast<XmlNode>())
             {
-                var shared = artifact.ChildNodes.AsEnumerable<XmlNode>().First(x => x.Name == "Shared");
+                var shared = artifact.ChildNodes.Cast<XmlNode>().First(x => x.Name == "Shared");
 
                 var href = shared.Attributes["href"].Value;
 
@@ -242,8 +242,8 @@ namespace HeroesMapManipulator
         #region Private Methods
         private static List<XmlNode> GetItemsFiltered(XmlDocument document, string type)
         {
-            return Extensions.AsEnumerable<XmlNode>(document.GetElementsByTagName("Item"))
-                            .Where(x => x.FirstChild != null && x.FirstChild.ChildNodes.AsEnumerable<XmlNode>()
+            return document.GetElementsByTagName("Item").Cast<XmlNode>()
+                            .Where(x => x.FirstChild != null && x.FirstChild.ChildNodes.Cast<XmlNode>()
                                 .Any(y => y.Name == "Shared" && y.Attributes["href"].Value.Contains(type))
                             ).ToList();
         }
@@ -252,7 +252,7 @@ namespace HeroesMapManipulator
         {
             if (allMonstersWithPos == null)
             {
-                var allMonsters = document.GetElementsByTagName("AdvMapMonster").AsEnumerable<XmlNode>();
+                var allMonsters = document.GetElementsByTagName("AdvMapMonster").Cast<XmlNode>();
 
                 allMonstersWithPos = allMonsters.Select(monster =>
                 {

@@ -71,15 +71,7 @@ namespace CasualConsole
             else
                 return null;
         }
-
-        public static IEnumerable<T> AsEnumerable<T>(this IEnumerable collection)
-        {
-            foreach (var item in collection)
-            {
-                yield return (T)item;
-            }
-        }
-
+        
         public static bool SafeEquals<T>(this IEnumerable<T> collection, IEnumerable<T> other) where T : IEquatable<T>
         {
             if (collection == null && other == null)
@@ -255,7 +247,7 @@ namespace CasualConsole
 
         public static XmlNode GetChildNamed(this XmlNode node, string name)
         {
-            return node.ChildNodes.AsEnumerable<XmlNode>().FirstOrDefault(x => x.Name == name);
+            return node.ChildNodes.Cast<XmlNode>().FirstOrDefault(x => x.Name == name);
         }
 
         public static bool ContainsCaseInsensitive(this string whole, string substring)

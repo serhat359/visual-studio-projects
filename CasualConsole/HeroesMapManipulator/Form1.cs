@@ -121,7 +121,7 @@ namespace HeroesMapManipulator
 
         private void RepackFile(XmlDocument document)
         {
-            XmlNode mapNameNode = document.GetElementsByTagName("MapName").AsEnumerable<XmlNode>().First();
+            XmlNode mapNameNode = document.GetElementsByTagName("MapName").Cast<XmlNode>().First();
 
             var oldMapName = mapNameNode.FirstChild.Value;
 
