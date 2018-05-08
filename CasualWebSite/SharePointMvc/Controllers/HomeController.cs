@@ -155,9 +155,33 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
+        public ActionResult FixTomsNewsAlternative()
+        {
+            string url = "https://www.tomshardware.com/feeds/rss2/all.xml";
+
+            return FixToms(url, "/news/");
+        }
+
+        [HttpGet]
         public ActionResult FixTomsArticles()
         {
             string url = "https://www.tomshardware.com/feeds/rss2/articles.xml";
+
+            return FixToms(url);
+        }
+
+        [HttpGet]
+        public ActionResult FixTomsArticlesAlternative()
+        {
+            string url = "https://www.tomshardware.com/feeds/rss2/all.xml";
+
+            return FixToms(url, "/reviews/");
+        }
+
+        [HttpGet]
+        public ActionResult FixTomsAll()
+        {
+            string url = "https://www.tomshardware.com/feeds/rss2/all.xml";
 
             return FixToms(url);
         }
@@ -253,9 +277,13 @@ namespace SharePointMvc.Controllers
             return this.Xml(rssObject);
         }
 
-        private ActionResult FixToms(string url)
+        private ActionResult FixToms(string url, string linkContains = null)
         {
             string contents = GetUrlTextData(url);
+
+            contents = contents.Replace(".co.uk", ".com");
+
+            //contents = IndentXml(contents);
 
             XmlDocument document = new XmlDocument();
 
@@ -267,6 +295,14 @@ namespace SharePointMvc.Controllers
             {
                 node.ParentNode.RemoveChild(node);
             });
+
+            if (linkContains != null)
+            {
+                items.Where(x => !x.GetChildNamed("link").InnerXml.Contains(linkContains)).ToList().ForEach(node =>
+                {
+                    node.ParentNode.RemoveChild(node);
+                });
+            }
 
             items = document.GetElementsByTagName("item").Cast<XmlNode>();
 
@@ -330,10 +366,19 @@ namespace SharePointMvc.Controllers
         {
             string s;
 
-            using (MyWebClient client = new MyWebClient())
+            try
             {
-                client.Encoding = Encoding.UTF8;
-                s = client.DownloadString(url);
+                using (MyWebClient client = new MyWebClient())
+                {
+                    client.Encoding = Encoding.UTF8;
+                    s = client.DownloadString(url);
+                }
+            }
+            catch (Exception e)
+            {
+
+
+                throw;
             }
 
             return s;
@@ -377,6 +422,48 @@ namespace SharePointMvc.Controllers
             return result;
         }
 
+        private static string IndentXml(string xml)
+        {
+            string result = "";
+
+            MemoryStream mStream = new MemoryStream();
+            XmlTextWriter writer = new XmlTextWriter(mStream, Encoding.Unicode);
+            XmlDocument document = new XmlDocument();
+
+            try
+            {
+                // Load the XmlDocument with the XML.
+                document.LoadXml(xml);
+
+                writer.Formatting = System.Xml.Formatting.Indented;
+
+                // Write the XML into a formatting XmlTextWriter
+                document.WriteContentTo(writer);
+                writer.Flush();
+                mStream.Flush();
+
+                // Have to rewind the MemoryStream in order to read
+                // its contents.
+                mStream.Position = 0;
+
+                // Read MemoryStream contents into a StreamReader.
+                StreamReader sReader = new StreamReader(mStream);
+
+                // Extract the text from the StreamReader.
+                string formattedXML = sReader.ReadToEnd();
+
+                result = formattedXML.Replace("  ", "\t");
+
+                mStream.Close();
+                writer.Close();
+            }
+            catch (XmlException)
+            {
+            }
+
+            return result;
+        }
+
         #endregion
     }
 
@@ -385,7 +472,7 @@ namespace SharePointMvc.Controllers
         protected override WebRequest GetWebRequest(Uri address)
         {
             HttpWebRequest request = base.GetWebRequest(address) as HttpWebRequest;
-            request.AutomaticDecompression = DecompressionMethods.Deflate | DecompressionMethods.GZip;
+            request.AutomaticDecompression = DecompressionMethods.GZip;
             return request;
         }
     }
