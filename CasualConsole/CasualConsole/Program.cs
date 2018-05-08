@@ -192,9 +192,75 @@ namespace CasualConsole
             };
             EquatableAdd(dictionary, bigClassJson, bigJsonObj);
 
+            // Parser test 1
             foreach (var originalValue in dictionary.Select(x => x.Value))
             {
-                var result = JSONParserTiny.FromJson(JSONParserTiny.ToJson(originalValue), originalValue.GetType());
+                var json = JSONParserTiny.ToJson(originalValue);
+                var result = JSONParserTiny.FromJson(json, originalValue.GetType());
+
+                Type type = result.GetType();
+
+                if (type != typeof(string) && typeof(System.Collections.IEnumerable).IsAssignableFrom(type))
+                {
+                    Type underlyingType = type.GetGenericArguments().FirstOrDefault() ?? type.GetElementType();
+
+                    var methodInfo = GetMethodInfo((Func<int[], int[], bool>)Extensions.SafeEquals);
+
+                    object compareResult = methodInfo.Invoke(result, new object[] { originalValue, result });
+
+                    if (!(bool)compareResult)
+                    {
+                        throw new Exception("These are not equals");
+                    }
+                }
+                else
+                {
+                    MethodInfo methodInfo = type.GetMethod("Equals", new Type[] { type });
+
+                    if (!(bool)methodInfo.Invoke(result, new object[] { originalValue }))
+                    {
+                        throw new Exception("These are not equals");
+                    }
+                }
+            }
+
+            // Parser test 2
+            foreach (var originalValue in dictionary.Select(x => x.Value))
+            {
+                var json = JSONParserTiny.ToJson(originalValue);
+                var result = JsonConvert.DeserializeObject(json, originalValue.GetType());
+
+                Type type = result.GetType();
+
+                if (type != typeof(string) && typeof(System.Collections.IEnumerable).IsAssignableFrom(type))
+                {
+                    Type underlyingType = type.GetGenericArguments().FirstOrDefault() ?? type.GetElementType();
+
+                    var methodInfo = GetMethodInfo((Func<int[], int[], bool>)Extensions.SafeEquals);
+
+                    object compareResult = methodInfo.Invoke(result, new object[] { originalValue, result });
+
+                    if (!(bool)compareResult)
+                    {
+                        throw new Exception("These are not equals");
+                    }
+                }
+                else
+                {
+                    MethodInfo methodInfo = type.GetMethod("Equals", new Type[] { type });
+
+                    if (!(bool)methodInfo.Invoke(result, new object[] { originalValue }))
+                    {
+                        throw new Exception("These are not equals");
+                    }
+                }
+            }
+
+            // Parser test 3
+            foreach (var originalValue in dictionary.Select(x => x.Value))
+            {
+                var json = JsonConvert.SerializeObject(originalValue);
+                var result = JSONParserTiny.FromJson(json, originalValue.GetType());
 
                 Type type = result.GetType();
 
