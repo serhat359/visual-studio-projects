@@ -17,12 +17,12 @@ namespace XMLBeautifier
         {
             string oldStr = ((RichTextBox)sender).Text;
 
-            string newStr = PrintXML(oldStr);
+            string newStr = IndentXml(oldStr);
 
             richTextBox2.Text = newStr;
         }
 
-        public static string PrintXML(string XML)
+        public static string IndentXml(string xml)
         {
             string result = "";
 
@@ -33,7 +33,7 @@ namespace XMLBeautifier
             try
             {
                 // Load the XmlDocument with the XML.
-                document.LoadXml(XML);
+                document.LoadXml(xml);
 
                 writer.Formatting = Formatting.Indented;
 
