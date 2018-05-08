@@ -80,6 +80,7 @@
       <DesignTime>True</DesignTime>
     </Compile>
     <Compile Include="StackPool.cs" />
+    <Compile Include="TinyJson.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config">

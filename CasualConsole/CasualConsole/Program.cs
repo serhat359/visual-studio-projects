@@ -1,19 +1,15 @@
 ﻿using Bencode;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
 using System.Drawing;
-using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
-using System.Linq.Expressions;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.ServiceProcess;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
@@ -137,31 +133,8 @@ namespace CasualConsole
             //TestInputParser();
 
             //TestDNSPings();
-            
-            for (int y = 0; y < 10; y++)
-            {
-                {
-                    DateTime now = DateTime.Now;
-                    for (int i = 0; i < 5000; i++)
-                    {
-                        CustomJsonParserCodes();
-                    }
-                    var diff = DateTime.Now - now;
-                    Console.WriteLine(diff);
-                }
 
-                {
-                    DateTime now = DateTime.Now;
-                    for (int i = 0; i < 5000; i++)
-                    {
-                        OriginalJsonParserCodes();
-                    }
-                    var diff = DateTime.Now - now;
-                    Console.WriteLine(diff);
-                }
-
-                Console.WriteLine();
-            }
+            //BenchmarkJsonParsers();
 
             // Closing, Do Not Delete!
             Console.WriteLine();
@@ -169,18 +142,20 @@ namespace CasualConsole
             Console.ReadKey();
         }
 
-        private static void OriginalJsonParserCodes()
+        private static void BenchmarkJsonParsers()
         {
-            TestOriginalParser("true", true);
-            TestOriginalParser("false", false);
-            TestOriginalParser("1", 1);
-            TestOriginalParser("-8", -8);
-            TestOriginalParser("\"serhat\"", "serhat");
-            TestOriginalParser("\"2018-03-08\"", new DateTime(2018, 3, 8));
-            TestOriginalParser("{ \"Number\" : 4 }", new IntClass { Number = 4 });
-            TestOriginalParserEnumerable("[-3,8]", new int[] { -3, 8 });
-            TestOriginalParserEnumerable("[-3,8]", new List<int> { -3, 8 });
-            TestOriginalParser("{ \"Kanji\" : \"上\" }", new RadicalEntry { Kanji = "上" });
+            var dictionary = new List<KeyValuePair<string, object>>();
+            EquatableAdd(dictionary, "true", true);
+            EquatableAdd(dictionary, "false", false);
+            EquatableAdd(dictionary, "1", 1);
+            EquatableAdd(dictionary, "-8", -8);
+            EquatableAdd(dictionary, "\"serhat\"", "serhat");
+            EquatableAdd(dictionary, "\"I said \\\"GO\\\" get it?\"", "I said \"GO\" get it?");
+            EquatableAdd(dictionary, "\"2018-03-08\"", new DateTime(2018, 3, 8));
+            EquatableAdd(dictionary, "{ \"Number\" : 4 }", new IntClass { Number = 4 });
+            EquatableEnumerableAdd(dictionary, "[-3,8]", new int[] { -3, 8 });
+            EquatableEnumerableAdd(dictionary, "[-3,8]", new List<int> { -3, 8 });
+            EquatableAdd(dictionary, "{ \"Kanji\" : \"上\" }", new RadicalEntry { Kanji = "上" });
 
             string bigClassJson = @"
             {
@@ -215,88 +190,156 @@ namespace CasualConsole
                     new E { Num = 4 }
                 }
             };
-            TestOriginalParser(bigClassJson, bigJsonObj);
-        }
+            EquatableAdd(dictionary, bigClassJson, bigJsonObj);
 
-        private static void CustomJsonParserCodes()
-        {
-            TestCustomJsonParser("true", true);
-            TestCustomJsonParser("false", false);
-            TestCustomJsonParser("1", 1);
-            TestCustomJsonParser("-8", -8);
-            TestCustomJsonParser("\"serhat\"", "serhat");
-            TestCustomJsonParser("\"2018-03-08\"", new DateTime(2018, 3, 8));
-            TestCustomJsonParser("{ \"Number\" : 4 }", new IntClass { Number = 4 });
-            TestCustomJsonParserEnumerable("[-3,8]", new int[] { -3, 8 });
-            TestCustomJsonParserEnumerable("[-3,8]", new List<int> { -3, 8 });
-            TestCustomJsonParser("{ \"Kanji\" : \"上\" }", new RadicalEntry { Kanji = "上" });
+            foreach (var originalValue in dictionary.Select(x => x.Value))
+            {
+                var result = JSONParserTiny.FromJson(JSONParserTiny.ToJson(originalValue), originalValue.GetType());
 
-            string bigClassJson = @"
-            {
-	            ""Number"": -2,
-	            ""Text"": ""Serhat"",
-	            ""IntArray"": [2,3],
-	            ""Object"": {
-		            ""SomeBool"": true
-	            },
-	            ""ObjArray"": [
-		            { ""Field"": null, ""Date"": ""2017-02-03"" },
-		            { ""Field"": {}, ""Date"": ""2018-05-09"" }
-	            ],
-                ""AnotherObjArray"" : [
-                    { ""Num"" : null },
-                    { ""Num"" : 4 }
-                ]
-            }
-            ";
-            BigJsonClass bigJsonObj = new BigJsonClass
-            {
-                Number = -2,
-                Text = "Serhat",
-                IntArray = new int[] { 2, 3 },
-                Object = new C { SomeBool = true },
-                ObjArray = new List<D> {
-                    new D { Field = null, Date = new DateTime(2017, 2, 3) },
-                    new D { Field = new object(), Date = new DateTime(2018, 5, 9) }
-                },
-                AnotherObjArray = new List<E> {
-                    new E { Num = null },
-                    new E { Num = 4 }
+                Type type = result.GetType();
+
+                if (type != typeof(string) && typeof(System.Collections.IEnumerable).IsAssignableFrom(type))
+                {
+                    Type underlyingType = type.GetGenericArguments().FirstOrDefault() ?? type.GetElementType();
+
+                    var methodInfo = GetMethodInfo((Func<int[], int[], bool>)Extensions.SafeEquals);
+
+                    object compareResult = methodInfo.Invoke(result, new object[] { originalValue, result });
+
+                    if (!(bool)compareResult)
+                    {
+                        throw new Exception("These are not equals");
+                    }
                 }
-            };
-            TestCustomJsonParser(bigClassJson, bigJsonObj);
+                else
+                {
+                    MethodInfo methodInfo = type.GetMethod("Equals", new Type[] { type });
+
+                    if (!(bool)methodInfo.Invoke(result, new object[] { originalValue }))
+                    {
+                        throw new Exception("These are not equals");
+                    }
+                }
+            }
+
+            Console.WriteLine("Staring benchmark");
+            for (int y = 0; y < 10; y++)
+            {
+                {
+                    Func<string, object, object> customParser = (s, o) => MyJsonConvert.CustomJsonParse(s, o.GetType());
+                    TestJsonParserWithTest(dictionary, customParser);
+                    DateTime now = DateTime.Now;
+                    for (int i = 0; i < 10000; i++)
+                    {
+                        TestJsonParser(dictionary, customParser);
+                    }
+                    var diff = DateTime.Now - now;
+                    Console.WriteLine(diff);
+                }
+
+                {
+                    Func<string, object, object> originalParser = (s, o) => JsonConvert.DeserializeObject(s, o.GetType());
+                    TestJsonParserWithTest(dictionary, originalParser);
+                    DateTime now = DateTime.Now;
+                    for (int i = 0; i < 10000; i++)
+                    {
+                        TestJsonParser(dictionary, originalParser);
+                    }
+                    var diff = DateTime.Now - now;
+                    Console.WriteLine(diff);
+                }
+
+                {
+                    Func<string, object, object> tinyParser = (s, o) => JSONParserTiny.FromJson(s, o.GetType());
+                    TestJsonParserWithTest(dictionary, tinyParser);
+                    DateTime now = DateTime.Now;
+                    for (int i = 0; i < 10000; i++)
+                    {
+                        TestJsonParser(dictionary, tinyParser);
+                    }
+                    var diff = DateTime.Now - now;
+                    Console.WriteLine(diff);
+                }
+
+                Console.WriteLine();
+            }
         }
 
-        public static void TestCustomJsonParserEnumerable<T>(string jsonText, IEnumerable<T> actualObject) where T : IEquatable<T>
+        private static void EquatableEnumerableAdd<T>(List<KeyValuePair<string, object>> dictionary, string jsonText, IEnumerable<T> actualObject) where T : IEquatable<T>
         {
-            IEnumerable<T> parsed = MyJsonConvert.CustomJsonParse<List<T>>(jsonText);
-
-            if (!actualObject.SafeEquals(parsed))
-                throw new Exception("The objects are not equal");
+            dictionary.Add(new KeyValuePair<string, object>(jsonText, actualObject));
         }
 
-        public static void TestCustomJsonParser<T>(string jsonText, T actualObject) where T : IEquatable<T>
+        private static void EquatableAdd<T>(List<KeyValuePair<string, object>> dictionary, string jsonText, T actualObject) where T : IEquatable<T>
         {
-            T parsed = MyJsonConvert.CustomJsonParse<T>(jsonText);
-
-            if (!parsed.Equals(actualObject))
-                throw new Exception("The objects are not equal");
+            dictionary.Add(new KeyValuePair<string, object>(jsonText, actualObject));
         }
 
-        public static void TestOriginalParserEnumerable<T>(string jsonText, IEnumerable<T> actualObject) where T : IEquatable<T>
+        private static string ListToJson(System.Collections.IEnumerable list)
         {
-            IEnumerable<T> parsed = JsonConvert.DeserializeObject<List<T>>(jsonText);
+            List<string> serializedOnes = new List<string>();
 
-            if (!actualObject.SafeEquals(parsed))
-                throw new Exception("The objects are not equal");
+            foreach (var item in list)
+            {
+                if (item is System.Collections.IEnumerable itemList)
+                {
+                    serializedOnes.Add(ListToJson(itemList));
+                }
+                else
+                {
+                    serializedOnes.Add(item.ToString());
+                }
+            }
+
+            return "[" + string.Join(",", serializedOnes.ToArray()) + "]";
         }
 
-        public static void TestOriginalParser<T>(string jsonText, T actualObject) where T : IEquatable<T>
+        private static void TestJsonParser(List<KeyValuePair<string, object>> dictionary, Func<string, object, object> converter)
         {
-            T parsed = JsonConvert.DeserializeObject<T>(jsonText);
+            foreach (var pair in dictionary)
+            {
+                var result = converter(pair.Key, pair.Value);
+            }
+        }
 
-            if (!parsed.Equals(actualObject))
-                throw new Exception("The objects are not equal");
+        private static void TestJsonParserWithTest(List<KeyValuePair<string, object>> dictionary, Func<string, object, object> converter)
+        {
+            foreach (var pair in dictionary)
+            {
+                var result = converter(pair.Key, pair.Value);
+
+                Type type = result.GetType();
+
+                if (type != typeof(string) && typeof(System.Collections.IEnumerable).IsAssignableFrom(type))
+                {
+                    Type underlyingType = type.GetGenericArguments().FirstOrDefault() ?? type.GetElementType();
+
+                    var methodInfo = GetMethodInfo((Func<int[], int[], bool>)Extensions.SafeEquals);
+
+                    object compareResult = methodInfo.Invoke(result, new object[] { pair.Value, result });
+
+                    if (!(bool)compareResult)
+                    {
+                        throw new Exception("These are not equals");
+                    }
+                }
+                else
+                {
+                    MethodInfo methodInfo = type.GetMethod("Equals", new Type[] { type });
+
+                    object compareResult = methodInfo.Invoke(result, new object[] { pair.Value });
+
+                    if (!(bool)compareResult)
+                    {
+                        throw new Exception("These are not equals");
+                    }
+                }
+            }
+        }
+
+        private static MethodInfo GetMethodInfo(Delegate d)
+        {
+            return d.Method;
         }
 
         public static IEnumerable<int> GetHanoiNumbers()
