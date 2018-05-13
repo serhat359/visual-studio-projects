@@ -187,6 +187,61 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
+        public ActionResult FixTomsNewsManualParse()
+        {
+            string url = "https://www.tomshardware.com/articles/news/";
+            string baseUrl = "https://www.tomshardware.com";
+
+            string contents = GetUrlTextData(url);
+
+            string startTag = "<ul class=\"listing-items\">";
+            string endTag = "</ul>";
+
+            int indexOfStart = contents.IndexOf(startTag);
+            int indexOfEnd = contents.IndexOf(endTag, indexOfStart);
+
+            string ulPart = contents.Substring(indexOfStart, indexOfEnd - indexOfStart + endTag.Length);
+            ulPart = ulPart.Replace(" itemscope ", "  ");
+
+            while (true)
+            {
+                var metaIndex = ulPart.IndexOf("<meta");
+
+                if (metaIndex < 0)
+                    break;
+
+                var metaEndIndex = ulPart.IndexOf(">", metaIndex) + 1;
+
+                ulPart = ulPart.Replace(ulPart.Substring(metaIndex, metaEndIndex - metaIndex), "");
+            }
+
+            XmlDocument document = new XmlDocument();
+            document.LoadXml(ulPart);
+
+            var liNodes = document.ChildNodes[0].ChildNodes;
+
+            RssResult rssObject = new RssResult(liNodes.Cast<XmlNode>().Select(liNode =>
+            {
+                var firstDegree = liNode.ChildNodes.Cast<XmlNode>();
+                var secondDegree = firstDegree.SelectMany(x => x.ChildNodes.Cast<XmlNode>());
+                var thirdDegree = secondDegree.SelectMany(x => x.ChildNodes.Cast<XmlNode>());
+                var fourthtDegree = thirdDegree.SelectMany(x => x.ChildNodes.Cast<XmlNode>());
+
+                var aNode = thirdDegree.First(x => x.Name == "a");
+
+                return new RssResultItem
+                {
+                    Description = "",
+                    Link = baseUrl + aNode.Attributes["href"].Value,
+                    PubDate = DateTime.Parse(fourthtDegree.First(x => x.Name == "div").GetChildNamed("time").InnerText),
+                    Title = aNode.Attributes["title"].Value,
+                };
+            }));
+
+            return this.Xml(rssObject);
+        }
+
+        [HttpGet]
         public ActionResult FixNyaaFiltering()
         {
             string url = "https://nyaa.si/?page=rss&q=violet+evergarden+vivid+-superior&c=1_2&f=1";
