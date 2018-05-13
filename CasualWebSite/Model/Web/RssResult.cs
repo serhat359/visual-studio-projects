@@ -31,18 +31,15 @@ namespace Model.Web
         public List<RssResultItem> items;
     }
 
+    [XmlTag(XmlTagAttribute.XmlTagType.CamelCase)]
     public class RssResultItem
     {
-        [XmlTag(XmlTagAttribute.XmlTagType.CamelCase)]
         public string Title { get; set; }
-
-        [XmlTag(XmlTagAttribute.XmlTagType.CamelCase)]
+        
         public string Link { get; set; }
-
-        [XmlTag(XmlTagAttribute.XmlTagType.CamelCase)]
+        
         public string Description { get; set; }
-
-        [XmlTag(XmlTagAttribute.XmlTagType.CamelCase)]
+        
         [XmlFormat("R")]
         public DateTime PubDate { get; set; }
     }

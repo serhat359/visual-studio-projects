@@ -55,7 +55,7 @@ namespace SharePointMvc
             return attrribute;
         }
 
-        private void SerializeElement<T>(T obj, List<Attribute> customAttributes, string xmlNodeName = null)
+        private void SerializeElement<T>(T obj, List<Attribute> customAttributes, string xmlNodeName = null, XmlTagAttribute classTagAttribute = null)
         {
             if (customAttributes.Any(x => x.GetType() == typeof(XmlIgnoreAttribute)))
                 return;
@@ -72,7 +72,8 @@ namespace SharePointMvc
                 XmlElementAttribute elementAttribute = GetAttribute<XmlElementAttribute>(customAttributes);
                 XmlTagAttribute tagAttribute = GetAttribute<XmlTagAttribute>(customAttributes);
                 string xmlNodeRestylized = tagAttribute?.Format(xmlNodeName);
-                xmlNodeName = elementAttribute?.ElementName ?? xmlNodeRestylized ?? xmlNodeName;
+                string xmlNodeClassRestylized = classTagAttribute?.Format(xmlNodeName);
+                xmlNodeName = elementAttribute?.ElementName ?? xmlNodeRestylized ?? xmlNodeClassRestylized ?? xmlNodeName;
 
                 string formattedNode = xmlNodeName != null
                     ? string.Format("<{0}>{1}</{0}>\n", xmlNodeName, objToString)
@@ -132,6 +133,7 @@ namespace SharePointMvc
 
                 XmlRootAttribute rootAttribute = GetAttribute<XmlRootAttribute>(customAttributes);
                 XmlElementAttribute elementAttribute = GetAttribute<XmlElementAttribute>(customAttributes);
+                XmlTagAttribute tagAttribute = GetAttribute<XmlTagAttribute>(customAttributes);
 
                 xmlNodeName = elementAttribute?.ElementName ?? rootAttribute?.ElementName ?? xmlNodeName ?? objType.Name;
 
@@ -156,7 +158,7 @@ namespace SharePointMvc
                     }
                     else
                     {
-                        SerializeElement(property.GetValue(obj, null), propertyAttributes, property.Name);
+                        SerializeElement(property.GetValue(obj, null), propertyAttributes, property.Name, tagAttribute);
                     }
                 }
 
@@ -173,7 +175,7 @@ namespace SharePointMvc
                     }
                     else
                     {
-                        SerializeElement(field.GetValue(obj), fieldAttributes, field.Name);
+                        SerializeElement(field.GetValue(obj), fieldAttributes, field.Name, tagAttribute);
                     }
                 }
 
