@@ -118,7 +118,7 @@ namespace SharePointMvc
 
                 foreach (var item in obj as IEnumerable)
                 {
-                    SerializeElement(item, new List<Attribute>(), itemNodeName);
+                    SerializeElement(item, new List<Attribute>(), itemNodeName, classTagAttribute);
                 }
 
                 if (indent)
@@ -158,7 +158,7 @@ namespace SharePointMvc
                     }
                     else
                     {
-                        SerializeElement(property.GetValue(obj, null), propertyAttributes, property.Name, tagAttribute);
+                        SerializeElement(property.GetValue(obj, null), propertyAttributes, property.Name, tagAttribute ?? classTagAttribute);
                     }
                 }
 
@@ -175,7 +175,7 @@ namespace SharePointMvc
                     }
                     else
                     {
-                        SerializeElement(field.GetValue(obj), fieldAttributes, field.Name, tagAttribute);
+                        SerializeElement(field.GetValue(obj), fieldAttributes, field.Name, tagAttribute ?? classTagAttribute);
                     }
                 }
 

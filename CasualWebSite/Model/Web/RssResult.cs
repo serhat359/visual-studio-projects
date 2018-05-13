@@ -5,6 +5,7 @@ using System.Xml.Serialization;
 
 namespace Model.Web
 {
+    [XmlTag(XmlTagAttribute.XmlTagType.CamelCase)]
     [XmlRoot("rss")]
     public class RssResult
     {
@@ -31,7 +32,6 @@ namespace Model.Web
         public List<RssResultItem> items;
     }
 
-    [XmlTag(XmlTagAttribute.XmlTagType.CamelCase)]
     public class RssResultItem
     {
         public string Title { get; set; }
