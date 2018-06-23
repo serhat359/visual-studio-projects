@@ -10,6 +10,7 @@ using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.ServiceProcess;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
@@ -288,7 +289,7 @@ namespace CasualConsole
                 }
             }
 
-            Console.WriteLine("Staring benchmark");
+            Console.WriteLine("Starting benchmark");
             for (int y = 0; y < 10; y++)
             {
                 {

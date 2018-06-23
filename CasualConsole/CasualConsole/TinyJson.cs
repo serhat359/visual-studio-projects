@@ -27,14 +27,14 @@ namespace CasualConsole
     // - Parsing of abstract classes or interfaces is NOT supported and will throw an exception.
     public static class JSONParserTiny
     {
-        private static readonly Type[] validTypes = new Type[] { typeof(string), typeof(int), typeof(long), typeof(float),
-                typeof(double), typeof(bool), typeof(byte), typeof(char), typeof(DateTime) };
+        private static readonly Type[] validTypes = new Type[] { typeof(int), typeof(long), typeof(float),
+                typeof(double), typeof(byte), typeof(char) };
 
         [ThreadStatic] static Stack<List<string>> splitArrayPool;
         [ThreadStatic] static StringBuilder stringBuilder;
         [ThreadStatic] static Dictionary<Type, Dictionary<string, FieldInfo>> fieldInfoCache;
         [ThreadStatic] static Dictionary<Type, Dictionary<string, PropertyInfo>> propertyInfoCache;
-
+        
         public static string ToJson(object obj)
         {
             Type objType = obj?.GetType();

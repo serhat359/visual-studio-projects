@@ -271,6 +271,9 @@ namespace SharePointMvc.Controllers
         {
             string mangaName = id;
 
+            if (string.IsNullOrWhiteSpace(mangaName))
+                throw new Exception("manganame can't be empty");
+
             string url = "http://www.mangadeep.com/" + mangaName;
 
             string contents = GetUrlTextData(url);
@@ -292,7 +295,7 @@ namespace SharePointMvc.Controllers
             {
                 Description = "This was parsed from MangeDeep.com",
                 Link = liNode.GetChildNamed("a").Attributes["href"].Value,
-                PubDate = DateTime.Parse(liNode.GetChildNamed("a").ChildNodes.Cast<XmlNode>().FirstOrDefault(x => x.Attributes["class"].Value == "dte").InnerText),
+                PubDate = DateTime.Parse(liNode.GetChildNamed("a").ChildNodes.Cast<XmlNode>().FirstOrDefault(x => x.Attributes["class"].Value == "dte").Attributes["title"].Value.Replace("Published on ", "")),
                 Title = liNode.GetChildNamed("a").Attributes["title"].Value,
             }));
 
