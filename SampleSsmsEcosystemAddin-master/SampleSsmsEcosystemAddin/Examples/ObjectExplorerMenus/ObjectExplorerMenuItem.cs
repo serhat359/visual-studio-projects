@@ -33,7 +33,7 @@ namespace SampleSsmsEcosystemAddin.Examples.ObjectExplorerMenus
 
         public override Image ItemImage
         {
-            get { return (Image) new CommandImageForEmbeddedResources(Assembly.GetExecutingAssembly(), "SampleSsmsEcosystemAddin.Examples.ObjectExplorerMenus.icon.png").GetImage(); }
+            get { return (Image)new CommandImageForEmbeddedResources(Assembly.GetExecutingAssembly(), "SampleSsmsEcosystemAddin.Examples.ObjectExplorerMenus.icon.png").GetImage(); }
         }
 
 
@@ -52,7 +52,7 @@ namespace SampleSsmsEcosystemAddin.Examples.ObjectExplorerMenus
         /// </summary>
         public override void OnAction(ObjectExplorerNodeDescriptorBase node)
         {
-            var oeNode = (IOeNode) node;
+            var oeNode = (IOeNode)node;
             if (oeNode == null)
             {
                 m_Provider.QueryWindow.OpenNew("null");

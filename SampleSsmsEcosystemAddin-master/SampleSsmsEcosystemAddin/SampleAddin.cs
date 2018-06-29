@@ -42,7 +42,7 @@ namespace SampleSsmsEcosystemAddin
         public void OnLoad(ISsmsExtendedFunctionalityProvider provider)
         {
             m_Provider = (ISsmsFunctionalityProvider6)provider;    //Caste to the latest version of the interface
-            
+
             m_MessageLog = new MessageLog();
             var messagesView = new MessagesView { DataContext = m_MessageLog };
             m_MessageLogWindow = m_Provider.ToolWindow.Create(messagesView, "Sample Add-in", new Guid(c_MessageWindowGuid));
@@ -60,7 +60,7 @@ namespace SampleSsmsEcosystemAddin
         {
             var command = new OpenCustomQueryWindowCommand(m_Provider);
             m_Provider.AddToolbarItem(command);
-        }  
+        }
 
         private void AddObjectExplorerListener()
         {
@@ -100,7 +100,7 @@ namespace SampleSsmsEcosystemAddin
         public void OnNodeChanged(ObjectExplorerNodeDescriptorBase node)
         {
         }
-        
+
         private void AddMenuBarMenu()
         {
             var command = new SharedCommand(m_Provider, LogAndDisplayMessage);
@@ -144,9 +144,9 @@ namespace SampleSsmsEcosystemAddin
         {
             m_MessageLogWindow.Activate(true);
         }
-        
 
 
-        
+
+
     }
 }

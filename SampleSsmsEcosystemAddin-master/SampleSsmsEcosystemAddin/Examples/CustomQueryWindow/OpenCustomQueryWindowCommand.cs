@@ -21,25 +21,25 @@ namespace SampleSsmsEcosystemAddin.Examples.CustomQueryWindow
             Execute();
         }
 
-public void Execute()
-{
-    var control = new CustomQueryWindowControl(m_Provider);
-    m_Provider.GetQueryWindowManager().CreateAugmentedQueryWindow(string.Empty, "SQL", control);
-    control.Dock = DockStyle.Bottom;
-    GetConnection(control);
-}
+        public void Execute()
+        {
+            var control = new CustomQueryWindowControl(m_Provider);
+            m_Provider.GetQueryWindowManager().CreateAugmentedQueryWindow(string.Empty, "SQL", control);
+            control.Dock = DockStyle.Bottom;
+            GetConnection(control);
+        }
 
-private void GetConnection(CustomQueryWindowControl control)
-{
-    var parent = control.Parent;
-    var type = parent.GetType();
-    var connectionProperty = type.GetProperty("Connection");
-    var connection = connectionProperty.GetValue(parent, new object[] {});
-    //connection has all the information in it
-}
+        private void GetConnection(CustomQueryWindowControl control)
+        {
+            var parent = control.Parent;
+            var type = parent.GetType();
+            var connectionProperty = type.GetProperty("Connection");
+            var connection = connectionProperty.GetValue(parent, new object[] { });
+            //connection has all the information in it
+        }
 
         public string Caption { get { return "Open Custom Query Window"; } }
-        public string Tooltip { get { return "Tooltip"; }}
+        public string Tooltip { get { return "Tooltip"; } }
         public ICommandImage Icon { get { return m_CommandImage; } }
         public string[] DefaultBindings { get { return new[] { "global::Ctrl+Alt+J" }; } }
         public bool Visible { get { return true; } }

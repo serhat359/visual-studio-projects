@@ -28,7 +28,7 @@ namespace SampleSsmsEcosystemAddin.Examples
         }
 
         public string Caption { get { return "Red Gate Sample Command"; } }
-        public string Tooltip { get { return "Tooltip"; }}
+        public string Tooltip { get { return "Tooltip"; } }
         public ICommandImage Icon { get { return m_CommandImage; } }
         public string[] DefaultBindings { get { return new[] { "global::Ctrl+Alt+D" }; } }
         public bool Visible { get { return true; } }
