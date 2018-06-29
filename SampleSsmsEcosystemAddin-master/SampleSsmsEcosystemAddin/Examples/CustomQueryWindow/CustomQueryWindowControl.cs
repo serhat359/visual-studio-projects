@@ -19,15 +19,7 @@ namespace SampleSsmsEcosystemAddin.Examples.CustomQueryWindow
             m_Provider = provider;
             InitializeComponent();
         }
-
-        //Convert
-        private void button1_Click(object sender, EventArgs e)
-        {
-            var currentText = GetText();
-            var convertedText = currentText.ToUpper();
-            m_Provider.QueryWindow.OpenNew(convertedText);
-        }
-
+        
         private string GetText()
         {
             return m_Provider.GetQueryWindowManager().GetActiveAugmentedQueryWindowContents();

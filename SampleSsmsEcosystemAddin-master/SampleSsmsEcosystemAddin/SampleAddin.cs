@@ -43,17 +43,25 @@ namespace SampleSsmsEcosystemAddin
         {
             m_Provider = (ISsmsFunctionalityProvider6)provider;    //Caste to the latest version of the interface
 
-            m_MessageLog = new MessageLog();
-            var messagesView = new MessagesView { DataContext = m_MessageLog };
-            m_MessageLogWindow = m_Provider.ToolWindow.Create(messagesView, "Sample Add-in", new Guid(c_MessageWindowGuid));
-            m_MessageLogWindow.Window.Dock();
-            DisplayMessages();
+            bool isDebugEnable = false;
 
-            AddMenuBarMenu();
+            if (isDebugEnable)
+                AddDebugMenuBottom();
+
+            //AddMenuBarMenu();
             AddCustomQueryWindowButton();
             AddObjectExplorerContextMenu();
             AddObjectExplorerListener();
-            AddToolbarButton();
+            //AddToolbarButton();
+        }
+
+        private void AddDebugMenuBottom()
+        {
+            m_MessageLog = new MessageLog();
+            var messagesView = new MessagesView { DataContext = m_MessageLog };
+            m_MessageLogWindow = m_Provider.ToolWindow.Create(messagesView, "Debug", new Guid(c_MessageWindowGuid));
+            m_MessageLogWindow.Window.Dock();
+            DisplayMessages();
         }
 
         private void AddCustomQueryWindowButton()
@@ -70,16 +78,16 @@ namespace SampleSsmsEcosystemAddin
 
         private void OnSelectionChanged(ISelectionChangedEventArgs args)
         {
-            m_MessageLog.AddMessage(string.Format("Object explorer selection: {0}", args.Selection.Path));
+            m_MessageLog?.AddMessage(string.Format("Object explorer selection: {0}", args.Selection.Path));
         }
 
         private void OnConnectionsChanged(IConnectionsChangedEventArgs args)
         {
-            m_MessageLog.AddMessage("Object explorer connections:");
+            m_MessageLog?.AddMessage("Object explorer connections:");
             int count = 1;
             foreach (var connection in args.Connections)
             {
-                m_MessageLog.AddMessage(string.Format("\t{0}: {1}", count, connection.Server));
+                m_MessageLog?.AddMessage(string.Format("\t{0}: {1}", count, connection.Server));
                 count++;
             }
         }
@@ -137,7 +145,7 @@ namespace SampleSsmsEcosystemAddin
 
         public void LogMessage(string text)
         {
-            m_MessageLog.AddMessage(text);
+            m_MessageLog?.AddMessage(text);
         }
 
         public void DisplayMessages()
