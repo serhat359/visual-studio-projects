@@ -24,7 +24,7 @@ namespace SampleSsmsEcosystemAddin.Examples.CustomQueryWindow
 public void Execute()
 {
     var control = new CustomQueryWindowControl(m_Provider);
-    m_Provider.GetQueryWindowManager().CreateAugmentedQueryWindow(string.Empty, "Custom query window", control);
+    m_Provider.GetQueryWindowManager().CreateAugmentedQueryWindow(string.Empty, "SQL", control);
     control.Dock = DockStyle.Bottom;
     GetConnection(control);
 }
