@@ -137,10 +137,23 @@ namespace CasualConsole
 
             //BenchmarkJsonParsers();
 
+            //SomeMethodWithAttributeParameter(null);
+
             // Closing, Do Not Delete!
             Console.WriteLine();
             Console.WriteLine("Program has terminated, press a key to exit");
             Console.ReadKey();
+        }
+
+        public static void SomeMethodWithAttributeParameter([XmlArray]string parameter)
+        {
+            var props = typeof(Program).GetMethod(nameof(SomeMethodWithAttributeParameter));
+
+            var attribute = props.GetParameters()[0].GetCustomAttribute<XmlArrayAttribute>();
+
+            var methodName = MethodBase.GetCurrentMethod().Name;
+
+            Console.WriteLine(methodName);
         }
 
         private static void BenchmarkJsonParsers()
