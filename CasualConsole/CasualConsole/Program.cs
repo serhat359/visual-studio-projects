@@ -94,7 +94,7 @@ namespace CasualConsole
             return this.SomeBool == other.SomeBool;
         }
     }
-
+    
     public class Program
     {
         public static void Main(string[] args)
@@ -138,6 +138,8 @@ namespace CasualConsole
             //BenchmarkJsonParsers();
 
             //SomeMethodWithAttributeParameter(null);
+
+            //LaytonClockPuzzle.TestLaytonClockPuzzle();
 
             // Closing, Do Not Delete!
             Console.WriteLine();
