@@ -242,6 +242,36 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
+        public ActionResult FixNyaaFullMetal(int filter)
+        {
+            string url = "https://nyaa.si/?page=rss&q=full+metal+panic+horrible+720&c=1_2&f=0";
+
+            string contents = GetUrlTextData(url);
+            
+            XmlDocument document = new XmlDocument();
+
+            document.LoadXml(contents);
+
+            var items = document.GetElementsByTagName("item");
+
+            List<XmlNode> invalidNodes = items.Cast<XmlNode>().Where(x =>
+            {
+                string text = x.GetChildNamed("title").InnerText;
+                int number = int.Parse(text.Split(new string[] { " - " }, StringSplitOptions.RemoveEmptyEntries)[1].Split(' ', '.')[0]);
+                return number < filter;
+            }).ToList();
+
+            foreach (var node in invalidNodes)
+            {
+                node.ParentNode.RemoveChild(node);
+            }
+
+            contents = XmlToString(document);
+
+            return Content(contents, "application/rss+xml; charset=UTF-8", Encoding.UTF8);
+        }
+
+        [HttpGet]
         public ActionResult FixNyaaFiltering()
         {
             string url = "https://nyaa.si/?page=rss&q=violet+evergarden+vivid+-superior&c=1_2&f=1";
@@ -529,6 +559,7 @@ namespace SharePointMvc.Controllers
     {
         protected override WebRequest GetWebRequest(Uri address)
         {
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
             HttpWebRequest request = base.GetWebRequest(address) as HttpWebRequest;
             request.AutomaticDecompression = DecompressionMethods.GZip;
             return request;
