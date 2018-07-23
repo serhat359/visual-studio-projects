@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.27703.2042
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebModelFactory", "WebModelFactory\WebModelFactory.csproj", "{0C1E467A-8226-494D-9A25-EF2511F7DF0E}"
 EndProject
@@ -18,6 +18,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharePointMvc", "SharePointMvc\SharePointMvc.csproj", "{990BCC0A-ED2B-4CD3-AC95-76EC33B2602E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThePirateBay", "ThePirateBay\ThePirateBay.csproj", "{A13F287E-3627-4E41-905C-637C08579AB7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ImgurRedirect", "ImgurRedirect\ImgurRedirect.csproj", "{510FE6D9-42D2-46A4-BD40-4CE168F4CEC0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -113,8 +115,23 @@ Global
 		{A13F287E-3627-4E41-905C-637C08579AB7}.Release|Mixed Platforms.Build.0 = Release|Any CPU
 		{A13F287E-3627-4E41-905C-637C08579AB7}.Release|x86.ActiveCfg = Release|Any CPU
 		{A13F287E-3627-4E41-905C-637C08579AB7}.Release|x86.Build.0 = Release|Any CPU
+		{510FE6D9-42D2-46A4-BD40-4CE168F4CEC0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{510FE6D9-42D2-46A4-BD40-4CE168F4CEC0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{510FE6D9-42D2-46A4-BD40-4CE168F4CEC0}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
+		{510FE6D9-42D2-46A4-BD40-4CE168F4CEC0}.Debug|Mixed Platforms.Build.0 = Debug|Any CPU
+		{510FE6D9-42D2-46A4-BD40-4CE168F4CEC0}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{510FE6D9-42D2-46A4-BD40-4CE168F4CEC0}.Debug|x86.Build.0 = Debug|Any CPU
+		{510FE6D9-42D2-46A4-BD40-4CE168F4CEC0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{510FE6D9-42D2-46A4-BD40-4CE168F4CEC0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{510FE6D9-42D2-46A4-BD40-4CE168F4CEC0}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
+		{510FE6D9-42D2-46A4-BD40-4CE168F4CEC0}.Release|Mixed Platforms.Build.0 = Release|Any CPU
+		{510FE6D9-42D2-46A4-BD40-4CE168F4CEC0}.Release|x86.ActiveCfg = Release|Any CPU
+		{510FE6D9-42D2-46A4-BD40-4CE168F4CEC0}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {DA364D70-D8C4-4E28-8372-CF605D2B7EFA}
 	EndGlobalSection
 EndGlobal
