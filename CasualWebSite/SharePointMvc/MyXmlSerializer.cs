@@ -26,7 +26,7 @@ namespace SharePointMvc
             return string.Concat(stringList);
         }
 
-        private static string EscapeXMLValue(string xmlString)
+        public static string EscapeXMLValue(string xmlString)
         {
             if (xmlString == null)
                 throw new ArgumentNullException("xmlString");

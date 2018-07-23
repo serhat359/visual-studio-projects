@@ -91,6 +91,30 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
+        public ActionResult ConvertNyaa(string url)
+        {
+            var contents = GetUrlTextData(url);
+
+            XmlDocument document = new XmlDocument();
+
+            document.LoadXml(contents);
+
+            var items = document.GetElementsByTagName("item");
+
+            var host = ((System.Web.HttpRequestWrapper)Request).Url.Authority;
+
+            RssResult rssObject = new RssResult(items.Cast<XmlNode>().Select(x => new RssResultItem
+            {
+                Description = x.GetChildNamed("description").InnerText,
+                Link = x.GetChildNamed("link").InnerText.Replace("https:", "http:"),
+                PubDate = DateTime.Parse(x.GetChildNamed("pubDate").InnerText),
+                Title = x.GetChildNamed("title").InnerText,
+            }));
+
+            return this.Xml(rssObject);
+        }
+
+        [HttpGet]
         public ActionResult Pokemon()
         {
             PokemonModel model = base.ModelFactory.LoadCasual();
@@ -143,7 +167,7 @@ namespace SharePointMvc.Controllers
                 .Replace("animenewsnetwork.cc", "animenewsnetwork.com")
                 .Replace("http://", "https://");
 
-            return Content(contents, "application/rss+xml; charset=UTF-8", Encoding.UTF8);
+            return Content(contents, "application/xml; charset=UTF-8", Encoding.UTF8);
         }
 
         [HttpGet]
@@ -247,7 +271,7 @@ namespace SharePointMvc.Controllers
             string url = "https://nyaa.si/?page=rss&q=full+metal+panic+horrible+720&c=1_2&f=0";
 
             string contents = GetUrlTextData(url);
-            
+
             XmlDocument document = new XmlDocument();
 
             document.LoadXml(contents);
@@ -268,7 +292,9 @@ namespace SharePointMvc.Controllers
 
             contents = XmlToString(document);
 
-            return Content(contents, "application/rss+xml; charset=UTF-8", Encoding.UTF8);
+            contents = XmlEncodeForHtml(contents);
+
+            return Content(contents, "application/xml; charset=UTF-8", Encoding.UTF8);
         }
 
         [HttpGet]
@@ -293,7 +319,7 @@ namespace SharePointMvc.Controllers
 
             contents = XmlToString(document);
 
-            return Content(contents, "application/rss+xml; charset=UTF-8", Encoding.UTF8);
+            return Content(contents, "application/xml; charset=UTF-8", Encoding.UTF8);
         }
 
         [HttpGet]
@@ -330,6 +356,14 @@ namespace SharePointMvc.Controllers
             }));
 
             return this.Xml(rssObject);
+        }
+
+        [HttpGet]
+        public ActionResult DownloadNyaa(string link)
+        {
+            var data = GetUrlTextDataArray(link);
+
+            return File(data, "application/x-bittorrent");
         }
 
         #endregion
@@ -429,7 +463,7 @@ namespace SharePointMvc.Controllers
 
             contents = contents.Replace("&#039;", "'");
 
-            return Content(contents, "application/rss+xml; charset=UTF-8", Encoding.UTF8);
+            return Content(contents, "application/xml; charset=UTF-8", Encoding.UTF8);
         }
 
         private static string GetJsonSearchResult(string q, string channelId)
@@ -450,6 +484,25 @@ namespace SharePointMvc.Controllers
             return jsonResult;
         }
 
+        private static byte[] GetUrlTextDataArray(string url)
+        {
+            byte[] s;
+
+            try
+            {
+                using (MyWebClient client = new MyWebClient())
+                {
+                    s = client.DownloadData(url);
+                }
+            }
+            catch (Exception e)
+            {
+                throw;
+            }
+
+            return s;
+        }
+
         private static string GetUrlTextData(string url)
         {
             string s;
@@ -464,12 +517,50 @@ namespace SharePointMvc.Controllers
             }
             catch (Exception e)
             {
-
-
                 throw;
             }
 
             return s;
+        }
+
+        private static string XmlEncodeForHtml(string str)
+        {
+            StringBuilder stringBuilder = new StringBuilder();
+
+            int i = 0;
+
+            while (i < str.Length)
+            {
+                var c = str[i];
+
+                if (c == '<')
+                {
+                    //var finishingIndex = str.IndexOf('>', i + 1);
+
+                    var finishingIndex = FindClosingIndex(str, i);
+                    if (finishingIndex == -1)
+                        throw new Exception();
+
+                    stringBuilder.Append(str.Substring(i, finishingIndex + 1 - i));
+
+                    i = finishingIndex + 1;
+                    continue;
+                }
+
+                int startingIndex = i;
+                int endingIndex = i;
+
+                while (str[endingIndex] != '<')
+                {
+                    endingIndex++;
+                }
+
+                string sub = str.Substring(i, endingIndex - i);
+                stringBuilder.Append(MyXmlSerializer.EscapeXMLValue(sub));
+                i = endingIndex;
+            }
+
+            return stringBuilder.ToString();
         }
 
         private static string XmlToString(XmlDocument document)
@@ -550,6 +641,29 @@ namespace SharePointMvc.Controllers
             }
 
             return result;
+        }
+
+        private static int FindClosingIndex(string str, int startingIndex)
+        {
+            int i = startingIndex;
+            int count = 0;
+            while (true)
+            {
+                var c = str[i];
+                if (c == '<')
+                {
+                    count++;
+                }
+                else if (c == '>')
+                {
+                    count--;
+                    if (count == 0)
+                    {
+                        return i;
+                    }
+                }
+                i++;
+            }
         }
 
         #endregion
