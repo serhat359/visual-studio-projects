@@ -43,7 +43,7 @@ namespace SampleSsmsEcosystemAddin
         {
             m_Provider = (ISsmsFunctionalityProvider6)provider;    //Caste to the latest version of the interface
 
-            bool isDebugEnable = false;
+            bool isDebugEnable = true;
 
             if (isDebugEnable)
                 AddDebugMenuBottom();
@@ -53,6 +53,8 @@ namespace SampleSsmsEcosystemAddin
             AddObjectExplorerContextMenu();
             AddObjectExplorerListener();
             //AddToolbarButton();
+
+            //m_Provider.GetQueryWindowManager().AddQueryWindowContextMenuItem("rename serhat", new SharedCommand(m_Provider, LogAndDisplayMessage));
         }
 
         private void AddDebugMenuBottom()
@@ -66,7 +68,7 @@ namespace SampleSsmsEcosystemAddin
 
         private void AddCustomQueryWindowButton()
         {
-            var command = new OpenCustomQueryWindowCommand(m_Provider);
+            var command = new OpenCustomQueryWindowCommand(m_Provider, LogAndDisplayMessage);
             m_Provider.AddToolbarItem(command);
         }
 
