@@ -34,7 +34,7 @@ namespace CasualConsole
         [ThreadStatic] static StringBuilder stringBuilder;
         [ThreadStatic] static Dictionary<Type, Dictionary<string, FieldInfo>> fieldInfoCache;
         [ThreadStatic] static Dictionary<Type, Dictionary<string, PropertyInfo>> propertyInfoCache;
-        
+
         public static string ToJson(object obj)
         {
             Type objType = obj?.GetType();

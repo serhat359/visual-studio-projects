@@ -5,8 +5,10 @@ using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.ServiceProcess;
@@ -94,11 +96,67 @@ namespace CasualConsole
             return this.SomeBool == other.SomeBool;
         }
     }
-    
+
+    class PhoneMaker
+    {
+        public int Maker { get; set; }
+        public string[] PhoneLinks { get; set; }
+    }
+
+    class Link
+    {
+        public string Url { get; set; }
+        public bool IsChecked { get; set; }
+        public bool IsSuccess { get; set; }
+        public int Width { get; set; }
+        public int Height { get; set; }
+        public bool IsNotAndroid { get; set; }
+        public bool IsNoResolution { get; set; }
+        public double? ScreenSize { get; set; }
+        public string OSInfo { get; set; }
+    }
+
+    public class Option
+    {
+        public int[] Changes { get; set; }
+    }
+
+    public class Result
+    {
+        public List<int> FinalCopy { get; set; }
+        public List<int> Comb { get; set; }
+    }
+
+    public class EqComparer : IEqualityComparer<List<int>>
+    {
+        public bool Equals(List<int> x, List<int> y)
+        {
+            if (x.Count != y.Count)
+                return false;
+
+            for (int i = 0; i < x.Count; i++)
+            {
+                if (x[i] != y[i])
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        public int GetHashCode(List<int> obj)
+        {
+            return obj[0] + 10 * obj[1] + 100 * obj[2] + 1000 * obj[3];
+        }
+    }
+
     public class Program
     {
         public static void Main(string[] args)
         {
+            client.Encoding = Encoding.UTF8;
+
             //TestPivot();
 
             //TestRegex();
@@ -141,10 +199,430 @@ namespace CasualConsole
 
             //LaytonClockPuzzle.TestLaytonClockPuzzle();
 
+            //MvcBinder.Test();
+
+            //CreateFileLinks();
+
+            //ConvertLinks();
+
+            //const string path = @"C:\Users\Xhertas\Desktop\allLinks.txt";
+            //var allLinks = JsonConvert.DeserializeObject<List<Link>>(File.ReadAllText(path));
+
+            //SetResolutions(path, allLinks);
+
+            //SetScreenSize(path, allLinks);
+
+            //FilterFurther(path, allLinks);
+
+            //FilterMoreAndMore();
+
+            //OtherLaytonPuzzle();
+
             // Closing, Do Not Delete!
             Console.WriteLine();
             Console.WriteLine("Program has terminated, press a key to exit");
             Console.ReadKey();
+        }
+
+        private static void OtherLaytonPuzzle()
+        {
+            var start = new List<int> { 1, 2, 3, 4 };
+
+            var ops = new List<Option> {
+                new Option{ Changes = new int[]{  0, 1, 1, 0 } },
+                new Option{ Changes = new int[]{  1,-1, 1,-1 } },
+                new Option{ Changes = new int[]{ -2, 0, 0, 2 } },
+                new Option{ Changes = new int[]{  0, 0, 1, 4 } },
+                new Option{ Changes = new int[]{ -4,-3,-2,-1 } },
+            };
+
+            var combinations = new List<List<int>>();
+
+            for (int i = 0; i < 5; i++)
+                for (int j = 0; j < 5; j++)
+                    for (int k = 0; k < 5; k++)
+                        for (int l = 0; l < 5; l++)
+                            combinations.Add(new List<int> { i, j, k, l });
+
+            foreach (var comb in combinations)
+            {
+                comb.Sort();
+            }
+
+            combinations = combinations.Distinct(new EqComparer()).ToList();
+
+            Action<Option, List<int>> apply = (op, ar) =>
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    ar[i] += op.Changes[i];
+                    ar[i] = ((ar[i] % 6) + 6) % 6;
+                    if (ar[i] == 0) ar[i] = 6;
+                }
+            };
+
+            List<Result> results = combinations.Select(comb =>
+            {
+                var copy = start.ToList();
+                var selectedOptions = comb.Select(x => ops[x]);
+                foreach (var op in selectedOptions)
+                {
+                    apply(op, copy);
+                }
+                return new Result { FinalCopy = copy, Comb = comb };
+            }).ToList();
+
+            var correctResult = results.Where(x => x.FinalCopy.All(y => y == 3)).Select(x => x.Comb).ToList();
+        }
+
+        private static void FilterMoreAndMore()
+        {
+            const string filteredPath = @"C:\Users\Xhertas\Desktop\filteredLinks.txt";
+            var filteredLinks = JsonConvert.DeserializeObject<List<Link>>(File.ReadAllText(filteredPath));
+            int notCheckCount = filteredLinks.Where(x => x.OSInfo == null).Count();
+
+            int i = 0;
+            foreach (var link in filteredLinks.Where(x => x.OSInfo == null))
+            {
+                i++;
+
+                Action write = () =>
+                {
+                    File.WriteAllText(filteredPath, JsonConvert.SerializeObject(filteredLinks));
+                    Console.WriteLine($"Writing {i} out of {notCheckCount}...");
+                };
+
+                if (i % 10 == 0) write();
+
+                string content = client.DownloadString(link.Url);
+
+                var part = GetPart(content, 0, "td class=\"nfo\" data-spec=\"os\"", " </td>");
+                var index = part.IndexOf('>');
+                var lastIndex = part.IndexOf('<', index);
+
+                var realPart = part.Substring(index + 1, lastIndex - index - 1);
+
+                link.OSInfo = realPart;
+            }
+
+            filteredLinks = filteredLinks.OrderBy(x => x.Height / (double)x.Width).ToList();
+
+            filteredLinks.RemoveAll(x => x.ScreenSize > 4.5);
+            filteredLinks.RemoveAll(x => x.OSInfo.Contains("Android 2.3"));
+            filteredLinks.RemoveAll(x => x.OSInfo.Contains("Android 2.1"));
+            filteredLinks.RemoveAll(x => x.OSInfo.Contains("Android 2.2"));
+            filteredLinks.RemoveAll(x => x.OSInfo.Contains("planned upgrade to 4.4.2"));
+
+            File.WriteAllText(filteredPath, JsonConvert.SerializeObject(filteredLinks));
+        }
+
+        private static void FilterFurther(string path, List<Link> allLinks)
+        {
+            foreach (var item in allLinks.Where(x => x.IsSuccess && x.ScreenSize.HasValue))
+            {
+                if (item.Width == 480 && item.Height == 854) item.IsSuccess = false;
+                if (item.Width == 240) item.IsSuccess = false;
+                if (item.Height == 240) item.IsSuccess = false;
+                if (item.Width == 320) item.IsSuccess = false;
+                if (item.Height == 320) item.IsSuccess = false;
+                if (item.Width == 400) item.IsSuccess = false;
+                if (item.Width == 360) item.IsSuccess = false;
+
+                if (item.ScreenSize.Value > 5.0) item.IsSuccess = false;
+                if (item.ScreenSize.Value < 3.6) item.IsSuccess = false;
+
+                //Console.WriteLine($"width: {item.Width}, height: {item.Height}, ratio: {(item.Height / (double)item.Width).ToString("N2")}, size: {item.ScreenSize.Value}");
+                //Console.WriteLine(item.Url);
+            }
+
+            int allcount = allLinks.Count;
+            int IsNotAndroid = allLinks.Count(x => x.IsNotAndroid);
+            int IsNoResolution = allLinks.Count(x => x.IsNoResolution);
+            int IsSuccess = allLinks.Count(x => x.IsSuccess);
+
+            var successOnes = allLinks.Where(x => x.IsSuccess).Select(x => x.Url).ToList();
+
+            var ss = successOnes
+                .GroupBy(x => x.Replace("https://www.gsmarena.com/", "").Split('_')[0])
+                .Where(x => x.Key != "yezz"
+                         && x.Key != "orange"
+                         && x.Key != "oppo"
+                         && x.Key != "zte"
+                         && x.Key != "xolo"
+                         && x.Key != "meizu"
+                         && x.Key != "maxwest"
+                         && x.Key != "wiko"
+                         && x.Key != "vivo"
+                         && x.Key != "verykool"
+                         && x.Key != "niu"
+                         && x.Key != "unnecto"
+                         && x.Key != "panasonic"
+                         && x.Key != "pantech"
+                         && x.Key != "plum"
+                         && x.Key != "posh"
+                         && x.Key != "spice"
+                         && x.Key != "lava"
+                         && x.Key != "allview"
+                         && x.Key != "dell"
+                         && x.Key != "cat"
+                         && x.Key != "casio"
+                         && x.Key != "qmobile"
+                         && x.Key != "gionee"
+                         && x.Key != "archos"
+                         && x.Key != "energizer"
+                         && x.Key != "icemobile"
+                         && x.Key != "kyocera"
+                         && x.Key != "prestigio"
+                         && x.Key != "gigabyte"
+                         && x.Key != "vertu"
+                         && x.Key != "sonim"
+                         && x.Key != "sharp"
+                         && x.Key != "sagem");
+
+            var otherLinks = new List<Link>();
+            foreach (var item in ss.OrderByDescending(x => x.Count()))
+            {
+                Console.WriteLine(item.Key);
+                foreach (var link in item.AsEnumerable())
+                {
+                    Console.WriteLine("    " + link);
+
+                    otherLinks.Add(allLinks.First(x => x.Url == link));
+                }
+            }
+
+            File.WriteAllText(path, JsonConvert.SerializeObject(allLinks));
+            File.WriteAllText(@"C:\Users\Xhertas\Desktop\filteredLinks.txt", JsonConvert.SerializeObject(otherLinks));
+        }
+
+        private static void SetScreenSize(string path, List<Link> allLinks)
+        {
+            IEnumerable<Link> willBeCheckedLinks = allLinks.Where(x => x.IsSuccess && x.ScreenSize == null);
+            int notCheckCount = willBeCheckedLinks.Count();
+
+            int i = 0;
+            foreach (var link in willBeCheckedLinks)
+            {
+                i++;
+
+                Action write = () =>
+                {
+                    File.WriteAllText(path, JsonConvert.SerializeObject(allLinks));
+                    Console.WriteLine($"Writing {i} out of {notCheckCount}...");
+                };
+
+                if (i % 10 == 0) write();
+
+                string content = client.DownloadString(link.Url);
+
+                var part = GetPart(content, 0, "<span data-spec=\"displaysize", "</span>");
+                var index = part.IndexOf('>');
+                var lastIndex = part.IndexOf('<', index);
+
+                var realPart = part.Substring(index + 1, lastIndex - index - 1);
+
+                realPart = realPart.Replace("\"", "");
+
+                if (realPart == "&nbsp;") continue;
+
+                link.ScreenSize = double.Parse(realPart, CultureInfo.InvariantCulture);
+            }
+        }
+
+        private static void SetResolutions(string path, List<Link> allLinks)
+        {
+            int notCheckCount = allLinks.Where(x => !x.IsChecked).Count();
+
+            int i = 0;
+            foreach (var link in allLinks.Where(x => !x.IsChecked))
+            {
+                i++;
+
+                Action write = () =>
+                {
+                    File.WriteAllText(path, JsonConvert.SerializeObject(allLinks));
+                    Console.WriteLine($"Writing {i} out of {notCheckCount}...");
+                };
+
+                if (i % 10 == 0) write();
+
+                string content = client.DownloadString(link.Url);
+
+                if (!content.Contains("Android"))
+                {
+                    link.IsChecked = true;
+                    link.IsNotAndroid = true;
+                    continue;
+                }
+
+                var part = GetPart(content, 0, "<td class=\"nfo\" data-spec=\"displayre", "</td>");
+
+                var index = part.IndexOf('>');
+                var lastIndex = part.IndexOf('<', index);
+
+                var realPart = part.Substring(index + 1, lastIndex - index - 1);
+                var split = realPart.Split(' ');
+
+                if (string.IsNullOrEmpty(split[0]))
+                {
+                    link.IsNoResolution = true;
+                    link.IsChecked = true;
+                    continue;
+                }
+
+                var first = int.Parse(split[0]);
+                var second = int.Parse(split[2].Replace(",", ""));
+
+                var gcd = GCD(first, second);
+
+                var firstSimplified = first / gcd;
+                var secondSimplified = second / gcd;
+
+                link.IsChecked = true;
+
+                if (firstSimplified == 9 && secondSimplified == 16)
+                    continue;
+
+                link.IsSuccess = true;
+                link.Width = first;
+                link.Height = second;
+
+                write();
+            }
+        }
+
+        private static void ConvertLinks()
+        {
+            var makers = JsonConvert.DeserializeObject<List<PhoneMaker>>(File.ReadAllText(@"C:\Users\Xhertas\Desktop\gsmArenaLinks.txt"));
+
+            var allLinks = makers.SelectMany(x => x.PhoneLinks).Select(x => "https://www.gsmarena.com/" + x);
+
+            var links = allLinks.Select(x => new Link { Url = x }).ToList();
+
+            File.WriteAllText(@"C:\Users\Xhertas\Desktop\allLinks.txt", JsonConvert.SerializeObject(links));
+        }
+
+        private static int GCD(int a, int b)
+        {
+            while (a != 0 && b != 0)
+            {
+                if (a > b)
+                    a %= b;
+                else
+                    b %= a;
+            }
+
+            return a == 0 ? b : a;
+        }
+
+        private static void CreateFileLinks()
+        {
+            var baseLinks = Resource.GsmArenaLinks.Split(new string[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+            List<PhoneMaker> makers = new List<PhoneMaker>();
+
+            int i = 0;
+            foreach (var maker in baseLinks)
+            {
+                var allLinks = GetAllLinksFromBase(maker);
+                makers.Add(new PhoneMaker
+                {
+                    Maker = ++i,
+                    PhoneLinks = allLinks.ToArray()
+                });
+
+                File.WriteAllText(@"C:\Users\Xhertas\Desktop\gsmArenaLinks.txt", JsonConvert.SerializeObject(makers));
+            }
+        }
+
+        static MyWebClient client = new MyWebClient();
+
+        public static List<string> GetAllLinksFromBase(string baseLink)
+        {
+            client.Encoding = Encoding.UTF8;
+            string s = client.DownloadString(baseLink);
+
+            var part = GetPart(s, 0, "<div class=\"nav-pages\"", "</div>");
+            int pageCount;
+
+            if (part == null)
+            {
+                pageCount = 1;
+            }
+            else
+            {
+                var lastA = part.Substring(part.LastIndexOf("<a"));
+                var lastAEnd = lastA.Substring(lastA.IndexOf(">") + 1);
+                var number = lastAEnd.Substring(0, lastAEnd.IndexOf("<"));
+
+                pageCount = int.Parse(number);
+            }
+
+            var lastDashIndex = baseLink.LastIndexOf('-');
+            var leftOfDash = baseLink.Substring(0, lastDashIndex);
+            var rightOfDash = baseLink.Substring(lastDashIndex);
+            var rightSplit = rightOfDash.Split('.');
+
+            var allPageLinks = new string[] { baseLink }.Concat(Enumerable.Range(2, pageCount - 1).Select(i => leftOfDash + "-f" + rightSplit[0] + "-0-p" + i + ".php")).ToArray();
+
+            var phoneLinks = GetPhoneLinksFromContent(s);
+            foreach (var link in allPageLinks.Skip(1))
+            {
+                client.Encoding = Encoding.UTF8;
+                string otherPageContent = client.DownloadString(link);
+                var otherPhoneLinks = GetPhoneLinksFromContent(otherPageContent);
+                foreach (var phoneLink in otherPhoneLinks)
+                {
+                    phoneLinks.Add(phoneLink);
+                }
+            }
+
+            return phoneLinks;
+        }
+
+        private static List<string> GetPhoneLinksFromContent(string s)
+        {
+            var makers = GetPart(s, 0, "<div class=\"makers\">", "</div>");
+
+            var allHrefs = GetAllParts(makers, "<a", "/a>");
+
+            var allLinks = allHrefs.Select(x =>
+            {
+                var linkPart = GetPart(x, 0, "\"", "\"");
+                return linkPart.Substring(1, linkPart.Length - 2);
+            }).ToList();
+
+            return allLinks;
+        }
+
+        public static List<string> GetAllParts(string wholeString, string start, string end)
+        {
+            List<string> foundOnes = new List<string>();
+
+            int index = 0;
+            while (true)
+            {
+                var foundIndex = wholeString.IndexOf(start, index);
+                if (foundIndex < 0) break;
+
+                var lastIndex = wholeString.IndexOf(end, foundIndex);
+                foundOnes.Add(wholeString.Substring(foundIndex, lastIndex - foundIndex + end.Length));
+
+                index = lastIndex;
+            }
+
+            return foundOnes;
+        }
+
+        public static string GetPart(string wholeString, int startIndex, string start, string end)
+        {
+            var foundIndex = wholeString.IndexOf(start, startIndex);
+            if (foundIndex < 0)
+            {
+                return null;
+            }
+            var lastIndex = wholeString.IndexOf(end, foundIndex + 1);
+
+            return wholeString.Substring(foundIndex, lastIndex - foundIndex + end.Length);
         }
 
         public static void SomeMethodWithAttributeParameter([XmlArray]string parameter)
@@ -1660,5 +2138,16 @@ namespace CasualConsole
     {
         public string[] Included { get; set; }
         public string[] Excluded { get; set; }
+    }
+    
+    public class MyWebClient : WebClient
+    {
+        protected override WebRequest GetWebRequest(Uri address)
+        {
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
+            HttpWebRequest request = base.GetWebRequest(address) as HttpWebRequest;
+            request.AutomaticDecompression = DecompressionMethods.GZip;
+            return request;
+        }
     }
 }

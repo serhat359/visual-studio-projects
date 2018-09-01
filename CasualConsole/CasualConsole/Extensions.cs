@@ -71,7 +71,7 @@ namespace CasualConsole
             else
                 return null;
         }
-        
+
         public static bool SafeEquals<T>(this IEnumerable<T> collection, IEnumerable<T> other) where T : IEquatable<T>
         {
             if (collection == null && other == null)
@@ -98,6 +98,38 @@ namespace CasualConsole
                     break;
 
                 if (!firstEnumerator.Current.Equals(secondEnumerator.Current))
+                    return false;
+            }
+
+            return true;
+        }
+
+        public static bool SafeEquals<T>(this IEnumerable<T> collection, IEnumerable<T> other, Func<T, T, bool> comparer)
+        {
+            if (collection == null && other == null)
+                return true;
+
+            if (collection == null || other == null)
+                return false;
+
+            var firstEnumerator = collection.GetEnumerator();
+            var secondEnumerator = other.GetEnumerator();
+
+            while (true)
+            {
+                var firstMoveNext = firstEnumerator.MoveNext();
+                var secondMoveNext = secondEnumerator.MoveNext();
+
+                if (firstMoveNext == true && secondMoveNext == false)
+                    return false;
+
+                if (firstMoveNext == false && secondMoveNext == true)
+                    return false;
+
+                if (firstMoveNext == false && secondMoveNext == false)
+                    break;
+
+                if (!comparer(firstEnumerator.Current, secondEnumerator.Current))
                     return false;
             }
 

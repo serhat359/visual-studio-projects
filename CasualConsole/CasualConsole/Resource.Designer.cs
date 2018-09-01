@@ -90,6 +90,26 @@ namespace CasualConsole {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to https://www.gsmarena.com/acer-phones-59.php
+        ///https://www.gsmarena.com/alcatel-phones-5.php
+        ///https://www.gsmarena.com/allview-phones-88.php
+        ///https://www.gsmarena.com/amazon-phones-76.php
+        ///https://www.gsmarena.com/amoi-phones-28.php
+        ///https://www.gsmarena.com/apple-phones-48.php
+        ///https://www.gsmarena.com/archos-phones-90.php
+        ///https://www.gsmarena.com/asus-phones-46.php
+        ///https://www.gsmarena.com/at&amp;t-phones-57.php
+        ///https://www.gsmarena.com/benefon-phones-15.php
+        ///https://www.gsmarena.com/benq-phones-31.php
+        ///http [rest of string was truncated]&quot;;.
+        /// </summary>
+        public static string GsmArenaLinks {
+            get {
+                return ResourceManager.GetString("GsmArenaLinks", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to return ExecuteToList&lt;{1}&gt;(&quot;{0}&quot;, container.ToList());.
         /// </summary>
         public static string NewPattern {
@@ -159,6 +179,17 @@ namespace CasualConsole {
         public static string SearchText {
             get {
                 return ResourceManager.GetString("SearchText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to What is Lorem Ipsum?
+        ///
+        ///Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry&apos;s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently wi [rest of string was truncated]&quot;;.
+        /// </summary>
+        public static string SomeBigText {
+            get {
+                return ResourceManager.GetString("SomeBigText", resourceCulture);
             }
         }
         

@@ -70,6 +70,8 @@
     <Compile Include="HeroesV.cs" />
     <Compile Include="Intersection.cs" />
     <Compile Include="LaytonClockPuzzle.cs" />
+    <Compile Include="MvcBinder.cs" />
+    <Compile Include="MvcBinderController.cs" />
     <Compile Include="MyJsonConvert.cs" />
     <Compile Include="MyThread.cs" />
     <Compile Include="OpenGlPixelProcessing.cs" />
