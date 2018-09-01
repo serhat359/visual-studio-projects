@@ -282,32 +282,25 @@ namespace CasualConsole
             }
             if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Dictionary<,>))
             {
-                Type keyType, valueType;
-                {
-                    Type[] args = type.GetGenericArguments();
-                    keyType = args[0];
-                    valueType = args[1];
-                }
+                Type[] args = type.GetGenericArguments();
+                var pairType = typeof(KeyValuePair<,>).MakeGenericType(args);
+                var keyProp = pairType.GetProperty("Key");
+                var valueProp = pairType.GetProperty("Value");
 
-                //Refuse to parse dictionary keys that aren't of type string
-                if (keyType != typeof(string))
-                    return null;
                 //Must be a valid dictionary element
-                if (json[0] != '{' || json[json.Length - 1] != '}')
+                if (json[0] != '[' || json[json.Length - 1] != ']')
                     return null;
-                //The list is split into key/value pairs only, this means the split must be divisible by 2 to be valid JSON
+
                 List<string> elems = Split(json);
-                if (elems.Count % 2 != 0)
-                    return null;
 
                 var dictionary = (IDictionary)type.GetConstructor(new Type[] { typeof(int) }).Invoke(new object[] { elems.Count / 2 });
-                for (int i = 0; i < elems.Count; i += 2)
+                for (int i = 0; i < elems.Count; i += 1)
                 {
-                    if (elems[i].Length <= 2)
-                        continue;
-                    string keyValue = elems[i].Substring(1, elems[i].Length - 2);
-                    object val = ParseValue(valueType, elems[i + 1]);
-                    dictionary.Add(keyValue, val);
+                    var pair = ParseValue(pairType, elems[i]);
+                    var key = keyProp.GetValue(pair);
+                    var value = valueProp.GetValue(pair);
+
+                    dictionary.Add(key, value);
                 }
                 return dictionary;
             }
@@ -422,6 +415,11 @@ namespace CasualConsole
                 propertyInfoCache.Add(type, nameToProperty);
             }
 
+            bool isKeyValuePair = type.IsGenericType && type.GetGenericTypeDefinition() == typeof(KeyValuePair<,>);
+            Type[] genericTypes = isKeyValuePair ? type.GetGenericArguments() : null;
+            object pairKey = null;
+            object pairValue = null;
+
             for (int i = 0; i < elems.Count; i += 2)
             {
                 if (elems[i].Length <= 2)
@@ -429,15 +427,26 @@ namespace CasualConsole
                 string key = elems[i].Substring(1, elems[i].Length - 2);
                 string value = elems[i + 1];
 
-                FieldInfo fieldInfo;
-                PropertyInfo propertyInfo;
-                if (nameToField.TryGetValue(key, out fieldInfo))
-                    fieldInfo.SetValue(instance, ParseValue(fieldInfo.FieldType, value));
-                else if (nameToProperty.TryGetValue(key, out propertyInfo))
-                    propertyInfo.SetValue(instance, ParseValue(propertyInfo.PropertyType, value), null);
+                if (!isKeyValuePair)
+                {
+                    FieldInfo fieldInfo;
+                    PropertyInfo propertyInfo;
+                    if (nameToField.TryGetValue(key, out fieldInfo))
+                        fieldInfo.SetValue(instance, ParseValue(fieldInfo.FieldType, value));
+                    else if (nameToProperty.TryGetValue(key, out propertyInfo))
+                        propertyInfo.SetValue(instance, ParseValue(propertyInfo.PropertyType, value), null);
+                }
+                else
+                {
+                    if (key == "Key") pairKey = ParseValue(genericTypes[0], value);
+                    else if (key == "Value") pairValue = ParseValue(genericTypes[1], value);
+                }
             }
 
-            return instance;
+            if (isKeyValuePair)
+                return type.GetConstructor(genericTypes).Invoke(new object[] { pairKey, pairValue });
+            else
+                return instance;
         }
     }
 }

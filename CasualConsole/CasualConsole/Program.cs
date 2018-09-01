@@ -1,6 +1,7 @@
 ﻿using Bencode;
 using Newtonsoft.Json;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
@@ -29,6 +30,13 @@ namespace CasualConsole
         {
             return this.Number == other.Number;
         }
+    }
+
+    class PairAndValueComparer<K, V>
+    {
+        public K Key { get; set; }
+        public V Value { get; set; }
+        public Func<V, V, bool> Comparer { get; set; }
     }
 
     class RadicalEntry : IEquatable<RadicalEntry>
@@ -149,6 +157,28 @@ namespace CasualConsole
         {
             return obj[0] + 10 * obj[1] + 100 * obj[2] + 1000 * obj[3];
         }
+    }
+
+    public class KeyValuePairEquator<TKey, TValue> : IEqualityComparer<KeyValuePair<TKey, TValue>>
+        where TKey : IEquatable<TKey>
+        where TValue : IEquatable<TValue>
+    {
+        public bool Equals(KeyValuePair<TKey, TValue> x, KeyValuePair<TKey, TValue> y)
+        {
+            return x.Key.Equals(y.Key) && x.Value.Equals(y.Value);
+        }
+
+        public int GetHashCode(KeyValuePair<TKey, TValue> obj)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class JsonTestCase
+    {
+        public string Description { get; set; }
+        public Func<object, string> Serializer { get; set; }
+        public Func<string, Type, object> Deserializer { get; set; }
     }
 
     public class Program
@@ -638,7 +668,7 @@ namespace CasualConsole
 
         private static void BenchmarkJsonParsers()
         {
-            var dictionary = new List<KeyValuePair<string, object>>();
+            var dictionary = new List<PairAndValueComparer<string, object>>();
             EquatableAdd(dictionary, "true", true);
             EquatableAdd(dictionary, "false", false);
             EquatableAdd(dictionary, "1", 1);
@@ -650,6 +680,23 @@ namespace CasualConsole
             EquatableEnumerableAdd(dictionary, "[-3,8]", new int[] { -3, 8 });
             EquatableEnumerableAdd(dictionary, "[-3,8]", new List<int> { -3, 8 });
             EquatableAdd(dictionary, "{ \"Kanji\" : \"上\" }", new RadicalEntry { Kanji = "上" });
+
+            var jsonDic = @"[
+            {
+              ""Key"": 3,
+              ""Value"": ""uc""
+            },
+            {
+              ""Key"": 4,
+              ""Value"": ""alti""
+            }
+            ]";
+            Dictionary<int, string> objDic = new Dictionary<int, string>
+            {
+                { 3, "uc" },
+                { 4, "alti" }
+            };
+            EquatableEnumerableAdd(dictionary, jsonDic, objDic, new KeyValuePairEquator<int, string>());
 
             string bigClassJson = @"
             {
@@ -686,101 +733,61 @@ namespace CasualConsole
             };
             EquatableAdd(dictionary, bigClassJson, bigJsonObj);
 
-            // Parser test 1
-            foreach (var originalValue in dictionary.Select(x => x.Value))
-            {
-                var json = JSONParserTiny.ToJson(originalValue);
-                var result = JSONParserTiny.FromJson(json, originalValue.GetType());
-
-                Type type = result.GetType();
-
-                if (type != typeof(string) && typeof(System.Collections.IEnumerable).IsAssignableFrom(type))
+            var tests = new JsonTestCase[]{
+                new JsonTestCase
                 {
-                    Type underlyingType = type.GetGenericArguments().FirstOrDefault() ?? type.GetElementType();
-
-                    var methodInfo = GetMethodInfo((Func<int[], int[], bool>)Extensions.SafeEquals);
-
-                    object compareResult = methodInfo.Invoke(result, new object[] { originalValue, result });
-
-                    if (!(bool)compareResult)
-                    {
-                        throw new Exception("These are not equals");
-                    }
+                    Description = "string with Tiny, object with Tiny",
+                    Serializer = JSONParserTiny.ToJson,
+                    Deserializer = JSONParserTiny.FromJson
+                },
+                new JsonTestCase
+                {
+                    Description = "string with Tiny, object with Newtonsoft",
+                    Serializer = JSONParserTiny.ToJson,
+                    Deserializer = (str,type) => JsonConvert.DeserializeObject(str, type, new DictionaryConverter())
+                },
+                new JsonTestCase
+                {
+                    Description = "string with Newtonsoft, object with Tiny",
+                    Serializer = obj => JsonConvert.SerializeObject(obj, new DictionaryConverter()),
+                    Deserializer = JSONParserTiny.FromJson
                 }
-                else
-                {
-                    MethodInfo methodInfo = type.GetMethod("Equals", new Type[] { type });
+            };
 
-                    if (!(bool)methodInfo.Invoke(result, new object[] { originalValue }))
+            foreach (var test in tests)
+            {
+                foreach (var pair in dictionary)
+                {
+                    var originalValue = pair.Value;
+
+                    var json = test.Serializer(originalValue);
+                    var result = test.Deserializer(json, originalValue.GetType());
+
+                    Type type = result.GetType();
+
+                    if (type != typeof(string) && typeof(System.Collections.IEnumerable).IsAssignableFrom(type))
                     {
-                        throw new Exception("These are not equals");
+                        var methodInfo = pair.Comparer;
+
+                        bool compareResult = methodInfo(originalValue, result);
+
+                        if (!compareResult)
+                        {
+                            throw new Exception("These are not equals");
+                        }
+                    }
+                    else
+                    {
+                        MethodInfo methodInfo = type.GetMethod("Equals", new Type[] { type });
+
+                        if (!(bool)methodInfo.Invoke(result, new object[] { originalValue }))
+                        {
+                            throw new Exception("These are not equals");
+                        }
                     }
                 }
             }
-
-            // Parser test 2
-            foreach (var originalValue in dictionary.Select(x => x.Value))
-            {
-                var json = JSONParserTiny.ToJson(originalValue);
-                var result = JsonConvert.DeserializeObject(json, originalValue.GetType());
-
-                Type type = result.GetType();
-
-                if (type != typeof(string) && typeof(System.Collections.IEnumerable).IsAssignableFrom(type))
-                {
-                    Type underlyingType = type.GetGenericArguments().FirstOrDefault() ?? type.GetElementType();
-
-                    var methodInfo = GetMethodInfo((Func<int[], int[], bool>)Extensions.SafeEquals);
-
-                    object compareResult = methodInfo.Invoke(result, new object[] { originalValue, result });
-
-                    if (!(bool)compareResult)
-                    {
-                        throw new Exception("These are not equals");
-                    }
-                }
-                else
-                {
-                    MethodInfo methodInfo = type.GetMethod("Equals", new Type[] { type });
-
-                    if (!(bool)methodInfo.Invoke(result, new object[] { originalValue }))
-                    {
-                        throw new Exception("These are not equals");
-                    }
-                }
-            }
-
-            // Parser test 3
-            foreach (var originalValue in dictionary.Select(x => x.Value))
-            {
-                var json = JsonConvert.SerializeObject(originalValue);
-                var result = JSONParserTiny.FromJson(json, originalValue.GetType());
-
-                Type type = result.GetType();
-
-                if (type != typeof(string) && typeof(System.Collections.IEnumerable).IsAssignableFrom(type))
-                {
-                    Type underlyingType = type.GetGenericArguments().FirstOrDefault() ?? type.GetElementType();
-
-                    var methodInfo = GetMethodInfo((Func<int[], int[], bool>)Extensions.SafeEquals);
-
-                    object compareResult = methodInfo.Invoke(result, new object[] { originalValue, result });
-
-                    if (!(bool)compareResult)
-                    {
-                        throw new Exception("These are not equals");
-                    }
-                }
-                else
-                {
-                    MethodInfo methodInfo = type.GetMethod("Equals", new Type[] { type });
-
-                    if (!(bool)methodInfo.Invoke(result, new object[] { originalValue }))
-                    {
-                        throw new Exception("These are not equals");
-                    }
-                }
-            }
+            Console.WriteLine("All json tests are successful!");
 
             Console.WriteLine("Starting benchmark");
             for (int y = 0; y < 10; y++)
@@ -825,36 +832,49 @@ namespace CasualConsole
             }
         }
 
-        private static void EquatableEnumerableAdd<T>(List<KeyValuePair<string, object>> dictionary, string jsonText, IEnumerable<T> actualObject) where T : IEquatable<T>
+        private static void EquatableEnumerableAdd<T>(List<PairAndValueComparer<string, object>> dictionary, string jsonText, IEnumerable<T> actualObject, IEqualityComparer<T> baseComparer)
         {
-            dictionary.Add(new KeyValuePair<string, object>(jsonText, actualObject));
-        }
+            object value = actualObject;
+            Func<IEnumerable<T>, IEnumerable<T>, bool> comparer = (x, y) => x.SafeEquals(y, (a, b) => baseComparer.Equals(a, b));
+            Func<object, object, bool> castedComparer = (x, y) => comparer((IEnumerable<T>)x, (IEnumerable<T>)y);
 
-        private static void EquatableAdd<T>(List<KeyValuePair<string, object>> dictionary, string jsonText, T actualObject) where T : IEquatable<T>
-        {
-            dictionary.Add(new KeyValuePair<string, object>(jsonText, actualObject));
-        }
-
-        private static string ListToJson(System.Collections.IEnumerable list)
-        {
-            List<string> serializedOnes = new List<string>();
-
-            foreach (var item in list)
+            var obj = new PairAndValueComparer<string, object>
             {
-                if (item is System.Collections.IEnumerable itemList)
-                {
-                    serializedOnes.Add(ListToJson(itemList));
-                }
-                else
-                {
-                    serializedOnes.Add(item.ToString());
-                }
-            }
+                Key = jsonText,
+                Value = actualObject,
+                Comparer = castedComparer
+            };
 
-            return "[" + string.Join(",", serializedOnes.ToArray()) + "]";
+            dictionary.Add(obj);
         }
 
-        private static void TestJsonParser(List<KeyValuePair<string, object>> dictionary, Func<string, object, object> converter)
+        private static void EquatableEnumerableAdd<T>(List<PairAndValueComparer<string, object>> dictionary, string jsonText, IEnumerable<T> actualObject) where T : IEquatable<T>
+        {
+            object value = actualObject;
+            Func<IEnumerable<T>, IEnumerable<T>, bool> comparer = (x, y) => x.SafeEquals(y, (a, b) => a.Equals(b));
+            Func<object, object, bool> castedComparer = (x, y) => comparer((x as IEnumerable).Cast<T>(), (y as IEnumerable).Cast<T>());
+
+            var obj = new PairAndValueComparer<string, object>
+            {
+                Key = jsonText,
+                Value = actualObject,
+                Comparer = castedComparer
+            };
+
+            dictionary.Add(obj);
+        }
+
+        private static void EquatableAdd<T>(List<PairAndValueComparer<string, object>> dictionary, string jsonText, T actualObject) where T : IEquatable<T>
+        {
+            dictionary.Add(new PairAndValueComparer<string, object>
+            {
+                Key = jsonText,
+                Value = actualObject,
+                Comparer = (x, y) => x.Equals(y)
+            });
+        }
+
+        private static void TestJsonParser(List<PairAndValueComparer<string, object>> dictionary, Func<string, object, object> converter)
         {
             foreach (var pair in dictionary)
             {
@@ -862,7 +882,7 @@ namespace CasualConsole
             }
         }
 
-        private static void TestJsonParserWithTest(List<KeyValuePair<string, object>> dictionary, Func<string, object, object> converter)
+        private static void TestJsonParserWithTest(List<PairAndValueComparer<string, object>> dictionary, Func<string, object, object> converter)
         {
             foreach (var pair in dictionary)
             {
