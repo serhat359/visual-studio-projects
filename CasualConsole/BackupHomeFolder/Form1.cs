@@ -120,7 +120,7 @@ namespace BackupHomeFolder
                 {
                     string srcFilePath = destFilePath.Replace(destinationFolder, sourceFolder);
 
-                    FileInfo destFileInfo = new FileInfo(destFilePath);
+                    var destFileInfo = new Delimon.Win32.IO.FileInfo(destFilePath);
 
                     if (!File.Exists(srcFilePath))
                     {
@@ -146,9 +146,9 @@ namespace BackupHomeFolder
                 {
                     string newFilePath = oldFilePath.Replace(sourceFolder, destinationFolder);
 
-                    FileInfo newFileInfo = new FileInfo(newFilePath);
-                    FileInfo oldFileInfo = new FileInfo(oldFilePath);
-
+                    var newFileInfo = new Delimon.Win32.IO.FileInfo(newFilePath);
+                    var oldFileInfo = new Delimon.Win32.IO.FileInfo(oldFilePath);
+                    
                     if (!newFileInfo.Exists || oldFileInfo.LastWriteTime > newFileInfo.LastWriteTime)
                     {
                         fileCountToCopy++;

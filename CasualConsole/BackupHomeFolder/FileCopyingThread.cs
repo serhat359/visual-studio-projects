@@ -46,12 +46,16 @@ namespace BackupHomeFolder
             filesToCopy.Each((copyInfo, i) =>
             {
                 UpdateLabel(fileCopyLabel, string.Format("Copying {0} of {1} files", (i + 1), filesToCopy.Count));
-                Directory.CreateDirectory(Path.GetDirectoryName(copyInfo.DestinationPath));
+                string directoryPath = Delimon.Win32.IO.Path.GetDirectoryName(copyInfo.DestinationPath);
+                if (!Directory.Exists(directoryPath))
+                    Directory.CreateDirectory(directoryPath);
 
                 try
                 {
-                    try { File.SetAttributes(copyInfo.DestinationPath, FileAttributes.Normal); } catch (FileNotFoundException) { }
-                    File.Copy(copyInfo.SourcePath, copyInfo.DestinationPath, true);
+                    try { Delimon.Win32.IO.File.SetAttributes(copyInfo.DestinationPath, Delimon.Win32.IO.FileAttributes.Normal); }
+                    catch (System.IO.FileNotFoundException) { }
+                    catch (System.Exception e) { if (!e.Message.StartsWith("The system cannot find the file specified")) throw; }
+                    Delimon.Win32.IO.File.Copy(copyInfo.SourcePath, copyInfo.DestinationPath, true);
                 }
                 catch (UnauthorizedAccessException) { }
 

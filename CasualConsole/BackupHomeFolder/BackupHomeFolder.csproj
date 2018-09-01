@@ -53,6 +53,9 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Delimon.Win32.IO">
+      <HintPath>lib\Delimon.Win32.IO.dll</HintPath>
+    </Reference>
     <Reference Include="Newtonsoft.Json">
       <HintPath>..\..\..\Libraries\JSON\Newtonsoft.Json.dll</HintPath>
     </Reference>
