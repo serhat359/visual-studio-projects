@@ -266,6 +266,82 @@ namespace CasualConsole
 
             return contains;
         }
+
+        public static void SortBy<T, E>(this List<T> list, Func<T, E> selector) where E : IComparable<E>
+        {
+            list.Sort(MakeComparer(selector));
+        }
+
+        [Obsolete("It is probably a better idea to use Dictionary instead, trust me")]
+        public static int BinarySearchBy<T, E>(this List<T> list, Func<T, E> selector, E target) where E : IComparable<E>
+        {
+            int first = 0;
+            int last = list.Count - 1;
+            int mid;
+
+            while (first <= last)
+            {
+                mid = (first + last) / 2;
+
+                if (target.IsLessThan(selector(list[mid])))
+                {
+                    last = mid - 1;
+                }
+                else if (target.IsGreaterThan(selector(list[mid])))
+                {
+                    first = mid + 1;
+                }
+                else
+                {
+                    return mid;
+                }
+            }
+
+            return -1;
+        }
+
+        [Obsolete("It is probably a better idea to use Dictionary instead, trust me")]
+        public static int BinarySearchByDescending<T, E>(this List<T> list, Func<T, E> selector, E target) where E : IComparable<E>
+        {
+            int first = 0;
+            int last = list.Count - 1;
+            int mid;
+
+            while (first <= last)
+            {
+                mid = (first + last) / 2;
+
+                if (target.IsGreaterThan(selector(list[mid])))
+                {
+                    last = mid - 1;
+                }
+                else if (target.IsLessThan(selector(list[mid])))
+                {
+                    first = mid + 1;
+                }
+                else
+                {
+                    return mid;
+                }
+            }
+
+            return -1;
+        }
+
+        private static System.Collections.Generic.Comparer<T> MakeComparer<T, E>(Func<T, E> func) where E : IComparable<E>
+        {
+            return System.Collections.Generic.Comparer<T>.Create((x, y) => func(x).CompareTo(func(y)));
+        }
+
+        public static bool IsLessThan<E>(this E first, E second) where E : IComparable<E>
+        {
+            return first.CompareTo(second) < 0;
+        }
+
+        public static bool IsGreaterThan<E>(this E first, E second) where E : IComparable<E>
+        {
+            return first.CompareTo(second) > 0;
+        }
     }
 }
 

@@ -225,7 +225,7 @@ namespace CasualConsole
 
             //TestDNSPings();
 
-            BenchmarkJsonParsers();
+            //BenchmarkJsonParsers();
 
             //SomeMethodWithAttributeParameter(null);
 
@@ -250,10 +250,78 @@ namespace CasualConsole
 
             //OtherLaytonPuzzle();
 
+            //TestBinarySearchAgainstOhers();
+
             // Closing, Do Not Delete!
             Console.WriteLine();
             Console.WriteLine("Program has terminated, press a key to exit");
             Console.ReadKey();
+        }
+
+        private static void TestBinarySearchAgainstOhers()
+        {
+            var dic = new Dictionary<string, int>();
+
+            int size = 100;
+            int element = size * 9 / 10;
+            int searchCount = 1000;
+
+            for (int i = 0; i < size; i++)
+            {
+                dic.Add("test" + i, i);
+            }
+
+            var list = dic.ToList();
+            list.SortBy(x => x.Value);
+
+            // Test starts now
+
+            int innerTestCount = 10;
+            int outerTestCount = 10;
+            Stopwatch watch = new Stopwatch();
+
+            for (int j = 0; j < outerTestCount; j++)
+            {
+                // First test
+                watch.Restart();
+                for (int i = 0; i < innerTestCount; i++)
+                {
+                    list.SortBy(x => x.Value);
+                    for (int k = 0; k < searchCount; k++)
+                    {
+                        var index = list.BinarySearchBy(x => x.Value, element);
+                    }
+                }
+                watch.Stop();
+                Console.WriteLine("Binary Search Time: " + watch.ElapsedTicks);
+
+                // Second test
+                watch.Restart();
+                for (int i = 0; i < innerTestCount; i++)
+                {
+                    for (int k = 0; k < searchCount; k++)
+                    {
+                        var index = list.FindIndex(x => x.Value == element);
+                    }
+                }
+                watch.Stop();
+                Console.WriteLine("Normal Search Time: " + watch.ElapsedTicks);
+
+                // Third test
+                watch.Restart();
+                for (int i = 0; i < innerTestCount; i++)
+                {
+                    var dict = list.ToDictionary(x => x.Value, x => x);
+                    for (int k = 0; k < searchCount; k++)
+                    {
+                        var index = dict[element];
+                    }
+                }
+                watch.Stop();
+                Console.WriteLine("Dictionary Search Time: " + watch.ElapsedTicks);
+
+                Console.WriteLine();
+            }
         }
 
         private static void OtherLaytonPuzzle()
