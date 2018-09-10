@@ -59,6 +59,25 @@ namespace CasualConsole
             {
                 return obj.ToString();
             }
+            else if (objType.IsGenericType && objType.GetGenericTypeDefinition() == typeof(Dictionary<,>))
+            {
+                Type[] args = objType.GetGenericArguments();
+                var pairType = typeof(KeyValuePair<,>).MakeGenericType(args);
+                var keyProp = pairType.GetProperty("Key");
+                var valueProp = pairType.GetProperty("Value");
+
+                Dictionary<string, string> values = new Dictionary<string, string>();
+
+                foreach (var pair in obj as IEnumerable)
+                {
+                    var key = keyProp.GetValue(pair);
+                    var value = valueProp.GetValue(pair);
+
+                    values.Add("\"" + ToJson(key) + "\"", ToJson(value));
+                }
+
+                return "{" + string.Join(",", values.Select(x => x.Key + ":" + x.Value)) + "}";
+            }
             else if (typeof(IEnumerable).IsAssignableFrom(objType))
             {
                 return "[" + string.Join(",", (obj as IEnumerable).Cast<object>().Select(x => ToJson(x))) + "]";
@@ -282,25 +301,29 @@ namespace CasualConsole
             }
             if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Dictionary<,>))
             {
-                Type[] args = type.GetGenericArguments();
-                var pairType = typeof(KeyValuePair<,>).MakeGenericType(args);
-                var keyProp = pairType.GetProperty("Key");
-                var valueProp = pairType.GetProperty("Value");
+                Type keyType, valueType;
+                {
+                    Type[] args = type.GetGenericArguments();
+                    keyType = args[0];
+                    valueType = args[1];
+                }
 
                 //Must be a valid dictionary element
-                if (json[0] != '[' || json[json.Length - 1] != ']')
+                if (json[0] != '{' || json[json.Length - 1] != '}')
+                    return null;
+                //The list is split into key/value pairs only, this means the split must be divisible by 2 to be valid JSON
+                List<string> elems = Split(json);
+                if (elems.Count % 2 != 0)
                     return null;
 
-                List<string> elems = Split(json);
-
                 var dictionary = (IDictionary)type.GetConstructor(new Type[] { typeof(int) }).Invoke(new object[] { elems.Count / 2 });
-                for (int i = 0; i < elems.Count; i += 1)
+                for (int i = 0; i < elems.Count; i += 2)
                 {
-                    var pair = ParseValue(pairType, elems[i]);
-                    var key = keyProp.GetValue(pair);
-                    var value = valueProp.GetValue(pair);
-
-                    dictionary.Add(key, value);
+                    if (elems[i].Length <= 2)
+                        continue;
+                    object keyValue = ParseValue(keyType, elems[i].Substring(1, elems[i].Length - 2));
+                    object val = ParseValue(valueType, elems[i + 1]);
+                    dictionary.Add(keyValue, val);
                 }
                 return dictionary;
             }
@@ -448,5 +471,32 @@ namespace CasualConsole
             else
                 return instance;
         }
+
+        [Obsolete("This is a parser for converting a key-value pair list into a dictionary")]
+        private static object DictionaryParseByKeyValueList(Type type, string json)
+        {
+            Type[] args = type.GetGenericArguments();
+            var pairType = typeof(KeyValuePair<,>).MakeGenericType(args);
+            var keyProp = pairType.GetProperty("Key");
+            var valueProp = pairType.GetProperty("Value");
+
+            //Must be a valid dictionary element
+            if (json[0] != '[' || json[json.Length - 1] != ']')
+                return null;
+
+            List<string> elems = Split(json);
+
+            var dictionary = (IDictionary)type.GetConstructor(new Type[] { typeof(int) }).Invoke(new object[] { elems.Count / 2 });
+            for (int i = 0; i < elems.Count; i += 1)
+            {
+                var pair = ParseValue(pairType, elems[i]);
+                var key = keyProp.GetValue(pair);
+                var value = valueProp.GetValue(pair);
+
+                dictionary.Add(key, value);
+            }
+            return dictionary;
+        }
+
     }
 }

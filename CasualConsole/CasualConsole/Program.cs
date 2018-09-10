@@ -183,6 +183,8 @@ namespace CasualConsole
 
     public class Program
     {
+        static MyWebClient client = new MyWebClient();
+
         public static void Main(string[] args)
         {
             client.Encoding = Encoding.UTF8;
@@ -223,7 +225,7 @@ namespace CasualConsole
 
             //TestDNSPings();
 
-            //BenchmarkJsonParsers();
+            BenchmarkJsonParsers();
 
             //SomeMethodWithAttributeParameter(null);
 
@@ -564,8 +566,6 @@ namespace CasualConsole
             }
         }
 
-        static MyWebClient client = new MyWebClient();
-
         public static List<string> GetAllLinksFromBase(string baseLink)
         {
             client.Encoding = Encoding.UTF8;
@@ -744,12 +744,12 @@ namespace CasualConsole
                 {
                     Description = "string with Tiny, object with Newtonsoft",
                     Serializer = JSONParserTiny.ToJson,
-                    Deserializer = (str,type) => JsonConvert.DeserializeObject(str, type, new DictionaryConverter())
+                    Deserializer = JsonConvert.DeserializeObject
                 },
                 new JsonTestCase
                 {
                     Description = "string with Newtonsoft, object with Tiny",
-                    Serializer = obj => JsonConvert.SerializeObject(obj, new DictionaryConverter()),
+                    Serializer = JsonConvert.SerializeObject,
                     Deserializer = JSONParserTiny.FromJson
                 }
             };
@@ -2159,7 +2159,7 @@ namespace CasualConsole
         public string[] Included { get; set; }
         public string[] Excluded { get; set; }
     }
-    
+
     public class MyWebClient : WebClient
     {
         protected override WebRequest GetWebRequest(Uri address)
