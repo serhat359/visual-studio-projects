@@ -1391,33 +1391,45 @@ namespace apPatcherApp
             {
                 this.crchash = string.Empty;
                 System.IO.File.SetAttributes(file, FileAttributes.Normal);
-                using (FileStream stream = System.IO.File.Open(file, FileMode.Open))
+                progress.Maximum = 4;
+                progress.Value = 1;
+                status.Text = "CRC32 Check " + this.origFileLocToNewFileName(file, false, false, "");
+                Application.DoEvents();
+                progress.Value = 0;
+
+                string fileName = this.origFileLocToNewFileName(file, false, false, "");
+
+                var crc = GetCRC(fileName);
+
+                if (string.IsNullOrEmpty(crc))
                 {
-                    progress.Maximum = 4;
-                    progress.Value = 1;
-                    status.Text = "CRC32 Check " + this.origFileLocToNewFileName(file, false, false, "");
-                    Application.DoEvents();
-                    progress.Value = 0;
-
-                    string fileName = this.origFileLocToNewFileName(file, false, false, "");
-
-                    Action<long, long> action = (block, blockCount) =>
+                    using (FileStream stream = System.IO.File.Open(file, FileMode.Open))
                     {
-                        double percentage = block * 100.0 / blockCount;
-                        //status.Text = string.Format("Calculating CRC32 {0}%", (int)percentage);
-                        status.Text = string.Concat(new object[] { "CRC32 Check ", (int)percentage, "%", " - ", fileName });
-                        Application.DoEvents();
-                    };
+                        Action<long, long> action = (block, blockCount) =>
+                        {
+                            double percentage = block * 100.0 / blockCount;
+                            //status.Text = string.Format("Calculating CRC32 {0}%", (int)percentage);
+                            status.Text = string.Concat(new object[] { "CRC32 Check ", (int)percentage, "%", " - ", fileName });
+                            Application.DoEvents();
+                        };
 
-                    foreach (byte num in this.crc32.ComputeHash(stream, action))
-                    {
-                        this.crchash = this.crchash + num.ToString("x2").ToUpper();
-                        progress.Value++;
-                        status.Text = string.Concat(new object[] { "CRC32 Check ", fileName, " ", this.run.hexAndMathFunction.getPercentage(progress.Value, progress.Maximum), "%" });
-                        Application.DoEvents();
+                        foreach (byte num in this.crc32.ComputeHash(stream, action))
+                        {
+                            this.crchash = this.crchash + num.ToString("x2").ToUpper();
+                            progress.Value++;
+                            status.Text = string.Concat(new object[] { "CRC32 Check ", fileName, " ", this.run.hexAndMathFunction.getPercentage(progress.Value, progress.Maximum), "%" });
+                            Application.DoEvents();
+                        }
+
+                        stream.Close();
                     }
-
-                    stream.Close();
+                }
+                else
+                {
+                    this.crchash = crc;
+                    progress.Value = 4;
+                    status.Text = string.Concat(new object[] { "CRC32 Check ", fileName, " ", this.run.hexAndMathFunction.getPercentage(progress.Value, progress.Maximum), "%" });
+                    Application.DoEvents();
                 }
             }
             catch (Exception)
@@ -2284,9 +2296,9 @@ namespace apPatcherApp
                         this.pic3DSCard.Visible = false;
                         this.picDSCard.Visible = true;
                         continue;
-                    Label_033B:
+                        Label_033B:
                         this.webInfo_wifi.Visible = false;
-                    Label_0347:
+                        Label_0347:
                         if (romInfoItem.val == "NNT")
                         {
                             this.picNinNetwork.Visible = true;
@@ -2296,16 +2308,16 @@ namespace apPatcherApp
                             this.picNinNetwork.Visible = false;
                         }
                         continue;
-                    Label_0486:
+                        Label_0486:
                         this.webInfo_dscompat.Visible = false;
                         continue;
-                    Label_04CF:
+                        Label_04CF:
                         this.webInfo_date.Text = "never";
                         continue;
-                    Label_051C:
+                        Label_051C:
                         this.webInfo_newsdate.Text = "unknown";
                         continue;
-                    Label_05F1:
+                        Label_05F1:
                         str = strArray2[num4];
                         if (str != "")
                         {
@@ -2313,13 +2325,13 @@ namespace apPatcherApp
                             num++;
                         }
                         num4++;
-                    Label_061C:
+                        Label_061C:
                         if (num4 < strArray2.Length)
                         {
                             goto Label_05F1;
                         }
                         continue;
-                    Label_0626:
+                        Label_0626:
                         MessageBox.Show("unsupported webInfo value '" + romInfoItem.key + "'");
                     }
                 }
@@ -2686,7 +2698,7 @@ namespace apPatcherApp
                 }
                 MemoryStream stream2 = new MemoryStream();
                 byte[] buffer = new byte[0x200];
-            Label_0139:
+                Label_0139:
                 num3 = responseStream.Read(buffer, 0, buffer.Length);
                 if (num3 == 0)
                 {
@@ -5233,7 +5245,7 @@ namespace apPatcherApp
                         goto Label_0116;
                 }
             }
-        Label_0116:
+            Label_0116:
             num2 = 1;
             while (System.IO.File.Exists(Path.Combine(outPutFolder, str)))
             {
@@ -5521,7 +5533,7 @@ namespace apPatcherApp
                         return ("Success] [Output: " + destfn);
                 }
             }
-        Label_0129:
+            Label_0129:
             return ("unknown error code: " + err);
         }
 
@@ -5788,6 +5800,41 @@ namespace apPatcherApp
                 status.Text = "Traffic Jam! Waiting for free memory [using " + $"{((int)(process.WorkingSet64 / 0x400L)):n0}" + "kb]";
                 Application.DoEvents();
             }*/
+        }
+
+        private static string GetCRC(string fileName)
+        {
+            int length = fileName.Length;
+
+            for (int i = 0; i < length; i++)
+            {
+                int bracIndex = fileName.IndexOf('[', i);
+
+                if (bracIndex >= 0)
+                {
+                    int bracEndIndex = fileName.IndexOf(']', bracIndex);
+
+                    if (bracEndIndex - bracIndex == 9)
+                    {
+                        string code = fileName.Substring(bracIndex + 1, 8);
+                        if (code.All(c => IsHexadecimal(c)))
+                            return code;
+                    }
+                }
+                else
+                    break;
+
+                i = bracIndex + 1;
+            }
+
+            return null;
+        }
+
+        private static bool IsHexadecimal(char c)
+        {
+            Func<char, char, char, bool> between = (ch, start, end) => ch >= start && ch <= end;
+
+            return between(c, '0', '9') || between(c, 'a', 'f') || between(c, 'A', 'F');
         }
 
         public class cmpCheckFileType
