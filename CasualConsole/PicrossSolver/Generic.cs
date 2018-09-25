@@ -2,12 +2,119 @@
 using System.Collections.Generic;
 using System.Linq;
 using CasualConsole;
+using PairType = CasualConsole.Pair<byte[], System.Collections.Generic.List<PicrossSolver.Range>>;
+using DicValueType = System.Collections.Generic.List<CasualConsole.Pair<byte[], System.Collections.Generic.List<PicrossSolver.Range>>>;
 
 namespace PicrossSolver
 {
     public static class Generic
     {
         private static int testNumber = -1;
+
+        private static Dictionary<int, DicValueType> pool = new Dictionary<int, DicValueType>();
+
+        public static void SetPossibles(Form1.CellSeries baseCells)
+        {
+            var length = baseCells.Length;
+
+            var generated = GetPool(length);
+
+            var validOnes = GetValidOnesByRange(generated, baseCells.CellColumnValues);
+
+            var matchingOnes = GetCoveringOnes(baseCells, validOnes);
+
+            for (int i = 0; i < length; i++)
+            {
+                if (matchingOnes.All(x => x[i] == 1))
+                    baseCells[i] = 1;
+                else if (matchingOnes.All(x => x[i] == 2))
+                    baseCells[i] = 2;
+            }
+        }
+
+        private static List<byte[]> GetCoveringOnes(Form1.CellSeries baseCells, List<byte[]> validOnes)
+        {
+            return validOnes.Where(x =>
+            {
+                for (int i = 0; i < baseCells.Length; i++)
+                {
+                    if (baseCells[i] != 0 && x[i] != baseCells[i])
+                        return false;
+                }
+                return true;
+            }).ToList();
+        }
+
+        private static List<byte[]> GetValidOnesByRange(DicValueType generated, Form1.CellColumnValues cellColumnValues)
+        {
+            return generated.Where(x =>
+            {
+                if (cellColumnValues.Length == 0)
+                    debug();
+
+                if (x.value2.Count != cellColumnValues.Length)
+                    return false;
+
+                for (int i = 0; i < x.value2.Count; i++)
+                {
+                    if (x.value2[i].size != cellColumnValues[i])
+                        return false;
+                }
+
+                return true;
+            })
+            .Select(x => x.value1)
+            .ToList();
+        }
+
+        private static DicValueType GetPool(int length)
+        {
+            if (pool.TryGetValue(length, out var generated))
+            {
+                return generated;
+            }
+            generated = GenerateForLength(length);
+            pool[length] = generated;
+            return generated;
+        }
+
+        private static DicValueType GenerateForLength(int length)
+        {
+            var combinations = new DicValueType();
+
+            List<byte[]> combined = new List<byte[]> { new byte[] { } };
+
+            for (int i = 0; i < length; i++)
+            {
+                combined = combined.SelectMany(x => Combine(x, 2)).ToList();
+            }
+
+            foreach (var bytes in combined)
+            {
+                if (bytes.All(x => x == 1))
+                    debug();
+                if (bytes.All(x => x == 2))
+                    debug();
+                var cellsFromBytes = new Form1.CellSeries(bytes, new int[] { });
+                var ranges = FindDividedAreas(cellsFromBytes);
+                var pair = new PairType(bytes, ranges);
+                combinations.Add(pair);
+            }
+
+            return combinations;
+        }
+
+        private static List<byte[]> Combine(byte[] by, int v)
+        {
+            return Enumerable.Range(1, v).Select(x =>
+            {
+                var newBytes = new byte[by.Length + 1];
+                for (int i = 0; i < by.Length; i++)
+                    newBytes[i] = by[i];
+                newBytes[by.Length] = (byte)x;
+                return newBytes;
+            }).ToList();
+        }
 
         public static void TestMatchingByDivided()
         {
@@ -134,7 +241,7 @@ namespace PicrossSolver
             }
         }
 
-        private static byte[] StrToBytes(string s)
+        public static byte[] StrToBytes(string s)
         {
             byte[] bytes = new byte[s.Length];
 
@@ -1553,7 +1660,7 @@ namespace PicrossSolver
                 }
             }
 
-            if (nonEmpty > 0)
+            if (nonEmpty >= 0)
             {
                 areaList.Add(new Range(nonEmpty, cells.Length - 1, containsFilled));
                 nonEmpty = -1;

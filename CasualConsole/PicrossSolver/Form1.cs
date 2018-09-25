@@ -38,7 +38,8 @@ namespace PicrossSolver
         enum Mode
         {
             Development,
-            GUI
+            GUI,
+            BruteForce
         }
 
         Mode mode = Mode.Development;
@@ -67,6 +68,21 @@ namespace PicrossSolver
                 Console.WriteLine("Time it took: {0}", timeDiff);
                 Console.ReadKey();
             }
+            else if (mode == Mode.BruteForce)
+            {
+                Console.WriteLine("No tests required");
+                Console.WriteLine();
+
+                programStartTime = DateTime.Now;
+
+                SolveHavingSolutionBrute(puzzlesHavingSolution);
+                SolveHavingSolutionBrute(puzzlesNotHavingSolution);
+
+                TimeSpan timeDiff = DateTime.Now - programStartTime;
+
+                Console.WriteLine("Time it took: {0}", timeDiff);
+                Console.ReadKey();
+            }
             else if (mode == Mode.GUI)
             {
                 string puzzleLocation = puzzlesNotHavingSolution;
@@ -89,6 +105,67 @@ namespace PicrossSolver
                 solverWindow.Invalidate();
 
                 Application.Run(solverWindow);
+            }
+        }
+
+        private static void SolveHavingSolutionBrute(string puzzleLocation)
+        {
+            string[] allpuzzles = Directory.GetFiles(puzzleLocation);
+
+            for (int i = 0; i < allpuzzles.Length; i++)
+            {
+                string puzzlePath = allpuzzles[i];
+                string fileName = new FileInfo(puzzlePath).Name;
+                string allText = File.ReadAllText(puzzlePath);
+
+                PuzzleJson puzzleJson = ConvertToPuzzle(allText);
+                Console.WriteLine("solving: " + fileName);
+
+                //FixJsonFormat(puzzlePath, puzzle);
+
+                var leftColumn = puzzleJson.LeftColumn;
+                var upColumn = puzzleJson.UpColumn;
+                var correct = puzzleJson.Correct;
+                int rowCount = leftColumn.Length;
+                int colCount = upColumn.Length;
+
+                Puzzle puzzle = new Puzzle
+                {
+                    PuzzleJson = puzzleJson,
+                    IsRowCompleted = new bool[rowCount],
+                    IsColCompleted = new bool[colCount],
+                    Correct = correct.Length > 0 ? correct : null,
+                    CorrectExists = correct.Length > 0,
+                };
+
+                int leftSum = leftColumn.Sum(x => x.Sum());
+                int upSum = upColumn.Sum(x => x.Sum());
+
+                if (leftSum != upSum)
+                    throw new Exception("Numbers are entered wrong!");
+
+                var solvedPicture = SolveAndDisplayBrute(puzzle, out bool isSolved);
+
+                bool correctExists = puzzle.CorrectExists;
+
+                if (correctExists)
+                {
+                    var allPuzzleBytes = Array2dAsEnumerable(puzzleJson.Correct).SelectMany(x => x);
+
+                    if (allPuzzleBytes.Count(x => x == Form1.FILLED) != leftSum)
+                        throw new Exception("Solution are entered wrong!");
+                }
+
+                if (!isSolved && correctExists)
+                {
+                    Display(correct, "This is how it should be", puzzle, true);
+                }
+
+                if (isSolved && !correctExists)
+                {
+                    Display(solvedPicture, "I solved it!", puzzle, true);
+                    string solvedCase = ToJson2D(solvedPicture);
+                }
             }
         }
 
@@ -225,6 +302,30 @@ namespace PicrossSolver
             return "[\n" + string.Join(",\n", arr.Select(x => "[" + string.Join(",", x) + "]")) + "\n]";
         }
 
+        private static byte[,] SolveAndDisplayBrute(Puzzle puzzle, out bool isSolved)
+        {
+            var leftColumn = puzzle.PuzzleJson.LeftColumn;
+            var upColumn = puzzle.PuzzleJson.UpColumn;
+
+            byte[,] picture = new byte[leftColumn.Length, upColumn.Length];
+            puzzle.PictureRef = new byte[leftColumn.Length, upColumn.Length];
+
+            isSolved = SolveBrute(picture, puzzle);
+
+            //string joined = string.Join(",\n", Array2dAsEnumerable(picture).Select(x => string.Join(",", x)));
+
+            if (!isSolved)
+            {
+                TimeSpan timeDiff = DateTime.Now - programStartTime;
+
+                Console.WriteLine("Time it took: {0}", timeDiff);
+
+                Display(picture, "I could only solve this much", puzzle, true);
+            }
+
+            return picture;
+        }
+
         private static byte[,] SolveAndDisplay(Puzzle puzzle, out bool isSolved)
         {
             var leftColumn = puzzle.PuzzleJson.LeftColumn;
@@ -235,7 +336,7 @@ namespace PicrossSolver
 
             isSolved = Solve(picture, puzzle);
 
-            string joined = string.Join(",\n", Array2dAsEnumerable(picture).Select(x => string.Join(",", x)));
+            //string joined = string.Join(",\n", Array2dAsEnumerable(picture).Select(x => string.Join(",", x)));
 
             if (!isSolved)
             {
@@ -257,6 +358,58 @@ namespace PicrossSolver
 
                 yield return rowList;
             }
+        }
+
+        private static bool SolveBrute(byte[,] picture, Puzzle puzzle)
+        {
+            var leftColumn = puzzle.PuzzleJson.LeftColumn;
+            var upColumn = puzzle.PuzzleJson.UpColumn;
+            var isColCompleted = puzzle.IsColCompleted;
+            var isRowCompleted = puzzle.IsRowCompleted;
+
+            int iteration = 0;
+            bool isSolvedCompletely;
+            while (true)
+            {
+                for (int row = 0; row < picture.rowCount(); row++)
+                {
+                    if (!isRowCompleted[row])
+                    {
+                        var cells = new CellSeries(row, picture, Direction.Horizontal, leftColumn[row], puzzle.Correct);
+                        Generic.SetPossibles(cells);
+                        if (cells.AsIterable.All(x => x != 0))
+                            isRowCompleted[row] = true;
+                    }
+                }
+
+                for (int col = 0; col < picture.colCount(); col++)
+                {
+                    if (!isColCompleted[col])
+                    {
+                        var cells = new CellSeries(col, picture, Direction.Vertical, upColumn[col], puzzle.Correct);
+                        Generic.SetPossibles(cells);
+                        if (cells.AsIterable.All(x => x != 0))
+                            isColCompleted[col] = true;
+                    }
+                }
+
+                isSolvedCompletely = puzzle.IsRowCompleted.All(x => x == true) || puzzle.IsColCompleted.All(x => x == true);
+
+                if (isSolvedCompletely)
+                    break;
+                else if (iteration == 500)
+                    break;
+                else
+                {
+                    ++iteration;
+                    //Console.WriteLine("Trying iteration: " + (++iteration));
+                    //Display(picture, "", puzzle, true);
+                }
+            }
+
+            if (isSolvedCompletely)
+                Console.WriteLine($"Took {iteration} iterations");
+            return isSolvedCompletely;
         }
 
         private static bool Solve(byte[,] picture, Puzzle puzzle)
