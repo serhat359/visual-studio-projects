@@ -1,6 +1,7 @@
 ﻿using Extensions;
 using Model.Web;
 using Newtonsoft.Json;
+using SharePointMvc.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -156,6 +157,57 @@ namespace SharePointMvc.Controllers
             Response.AddHeader("Content-Length", contentLength.ToString());
 
             return File(fileStream, "application/unknown", "new file" + extension);
+        }
+
+        [HttpGet]
+        public ActionResult DownloadEncrypted(string path)
+        {
+            try
+            {
+                string root = @"C:\Users\Xhertas\";
+                string fullPath = root + path;
+                string extension = Path.GetExtension(fullPath);
+                long fileSize = (new System.IO.FileInfo(fullPath)).Length;
+                var fileStream = new EncryptStream(() => new FileStream(fullPath, FileMode.Open));
+
+                long contentLength;
+                string rangeResult = Request.Params["HTTP_RANGE"];
+                if (rangeResult == null)
+                {
+                    contentLength = fileSize;
+                }
+                else
+                {
+                    long bytesToSkip = long.Parse(Regex.Match(rangeResult, @"\d+").Value, NumberFormatInfo.InvariantInfo);
+
+                    fileStream.Position = bytesToSkip;
+
+                    long startbyte = bytesToSkip;
+                    long endbyte = fileSize - 1;
+                    contentLength = endbyte - startbyte + 1;
+                    Response.StatusCode = 206;
+                    Response.AddHeader("Content-Range", string.Format("bytes {0}-{1}/{2}", startbyte, endbyte, fileSize));
+                }
+
+                Response.BufferOutput = false;
+                Response.AddHeader("Content-Length", contentLength.ToString());
+
+                return File(fileStream, "application/unknown", "new file" + extension);
+            }
+            catch (Exception e)
+            {
+                var logPath = @"C:\Users\Xhertas\Desktop\iislogs.txt";
+
+                System.IO.File.AppendAllLines(logPath, new string[] {
+                    "Error on DownloadEncrypted",
+                    e.Message,
+                    e.StackTrace,
+                    e.InnerException?.Message,
+                    e.InnerException?.StackTrace
+                });
+
+                return null;
+            }
         }
 
         [HttpGet]
@@ -321,7 +373,7 @@ namespace SharePointMvc.Controllers
 
             return Content(contents, "application/xml; charset=UTF-8", Encoding.UTF8);
         }
-
+        
         [HttpGet]
         public ActionResult MangadeepParseXml(string id)
         {
