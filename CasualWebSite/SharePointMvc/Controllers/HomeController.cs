@@ -255,6 +255,29 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
+        public ActionResult FixTomsArticlesManual()
+        {
+            string[] keywords = {
+                "review/",
+                "reference/",
+                "feature/",
+                "how-to/",
+                "opinion/",
+                "round-up/",
+                "best-picks/",
+                "buying-guide/"
+            };
+
+            keywords = keywords.Select(x => "https://www.tomshardware.com/articles/" + x).ToArray();
+
+            var ss = keywords.Select(url => GetRssObjectFromTomsUrl(url));
+
+            var rssObject = new RssResult(ss.SelectMany(x => x.channel.items).Where(x => !x.Link.Contains("/news/")).OrderByDescending(x => x.PubDate));
+
+            return this.Xml(rssObject, false);
+        }
+
+        [HttpGet]
         public ActionResult FixTomsAll()
         {
             string url = "https://www.tomshardware.com/feeds/rss2/all.xml";
@@ -266,6 +289,14 @@ namespace SharePointMvc.Controllers
         public ActionResult FixTomsNewsManualParse()
         {
             string url = "https://www.tomshardware.com/articles/news/";
+
+            var rssObject = GetRssObjectFromTomsUrl(url);
+
+            return this.Xml(rssObject);
+        }
+
+        private static RssResult GetRssObjectFromTomsUrl(string url)
+        {
             string baseUrl = "https://www.tomshardware.com";
 
             string contents = GetUrlTextData(url);
@@ -304,17 +335,22 @@ namespace SharePointMvc.Controllers
                 var fourthtDegree = thirdDegree.SelectMany(x => x.ChildNodes.Cast<XmlNode>());
 
                 var aNode = thirdDegree.First(x => x.Name == "a");
+                var link = baseUrl + aNode.Attributes["href"].Value;
+
+                var imgNode = aNode.ChildNodes.Cast<XmlNode>().First(x => x.Name == "img");
+                var imgSrc = imgNode.Attributes["data-src"].InnerText;
+                
+                var img = $"<a href=\"{link}\"><img src=\"{imgSrc}\" /></a>";
 
                 return new RssResultItem
                 {
-                    Description = "",
-                    Link = baseUrl + aNode.Attributes["href"].Value,
+                    Description = $"<![CDATA[{img}]]>",
+                    Link = link,
                     PubDate = DateTime.Parse(fourthtDegree.First(x => x.Name == "div").GetChildNamed("time").InnerText),
                     Title = aNode.Attributes["title"].Value,
                 };
             }));
-
-            return this.Xml(rssObject);
+            return rssObject;
         }
 
         [HttpGet]
@@ -373,7 +409,7 @@ namespace SharePointMvc.Controllers
 
             return Content(contents, "application/xml; charset=UTF-8", Encoding.UTF8);
         }
-        
+
         [HttpGet]
         public ActionResult MangadeepParseXml(string id)
         {
@@ -608,7 +644,7 @@ namespace SharePointMvc.Controllers
                 }
 
                 string sub = str.Substring(i, endingIndex - i);
-                stringBuilder.Append(MyXmlSerializer.EscapeXMLValue(sub));
+                stringBuilder.Append(MyXmlSerializer.EscapeXMLValue(sub, true));
                 i = endingIndex;
             }
 
