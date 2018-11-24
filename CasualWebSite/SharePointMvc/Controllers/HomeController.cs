@@ -274,7 +274,7 @@ namespace SharePointMvc.Controllers
 
             var rssObject = new RssResult(ss.SelectMany(x => x.channel.items).Where(x => !x.Link.Contains("/news/")).OrderByDescending(x => x.PubDate));
 
-            return this.Xml(rssObject, false);
+            return this.Xml(rssObject);
         }
 
         [HttpGet]

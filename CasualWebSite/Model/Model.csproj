@@ -59,6 +59,7 @@
     <Compile Include="Web\PokemonModel.cs" />
     <Compile Include="Web\RssResult.cs" />
     <Compile Include="Web\YoutubeSearchResult.cs" />
+    <Compile Include="XmlCDataAttribute.cs" />
     <Compile Include="XmlFormatAttribute.cs" />
     <Compile Include="XmlTagAttribute.cs" />
   </ItemGroup>

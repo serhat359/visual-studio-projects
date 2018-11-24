@@ -21,22 +21,22 @@ namespace SharePointMvc
         {
             Append("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
 
-            SerializeElement(obj, new List<Attribute>(), null);
+            SerializeElement(obj, new List<Attribute>(), xmlNodeName: null);
 
             return string.Concat(stringList);
         }
 
-        public static string EscapeXMLValue(string xmlString)
+        public static string EscapeXMLValue(string xmlString, bool xmlEncode)
         {
             if (xmlString == null)
                 throw new ArgumentNullException("xmlString");
 
-            return xmlString
+            return xmlEncode ? xmlString
                 .Replace("&", "&amp;")
                 .Replace("'", "&apos;")
                 .Replace("\"", "&quot;")
                 .Replace(">", "&gt;")
-                .Replace("<", "&lt;");
+                .Replace("<", "&lt;") : xmlString;
         }
 
         private int Append(string text)
@@ -67,7 +67,8 @@ namespace SharePointMvc
                 XmlFormatAttribute formatAttribute = GetAttribute<XmlFormatAttribute>(customAttributes);
 
                 string objToString = string.Format("{0" + (formatAttribute == null ? "" : ":" + formatAttribute.Format) + "}", obj);
-                objToString = EscapeXMLValue(objToString);
+                bool xmlEncode = GetAttribute<XmlCDataAttribute>(customAttributes) == null;
+                objToString = EscapeXMLValue(objToString, xmlEncode);
 
                 XmlElementAttribute elementAttribute = GetAttribute<XmlElementAttribute>(customAttributes);
                 XmlTagAttribute tagAttribute = GetAttribute<XmlTagAttribute>(customAttributes);

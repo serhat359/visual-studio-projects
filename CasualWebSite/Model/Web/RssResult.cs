@@ -38,6 +38,7 @@ namespace Model.Web
         
         public string Link { get; set; }
         
+        [XmlCData]
         public string Description { get; set; }
         
         [XmlFormat("R")]

@@ -12,9 +12,9 @@ namespace SharePointMvc.Controllers
             this.ModelFactory = new T();
         }
 
-        protected ActionResult Xml<E>(E obj, bool xmlEncode = true)
+        protected ActionResult Xml<E>(E obj)
         {
-            string xml = new MyXmlSerializer().Serialize(obj, xmlEncode);
+            string xml = new MyXmlSerializer().Serialize(obj);
 
             return Content(xml, "application/xml");
         }
