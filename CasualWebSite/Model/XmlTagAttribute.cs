@@ -8,7 +8,7 @@ namespace Model.Web
         {
             UpperCase, // EXAMPLESTRING
             LowerCase, // examplestring
-            TitleCase, // ExampleString
+            PascalCase, // ExampleString
             CamelCase, // exampleString
         }
 
@@ -25,7 +25,7 @@ namespace Model.Web
 
             switch (Type)
             {
-                case XmlTagType.TitleCase:
+                case XmlTagType.PascalCase:
                     firstChar = oldTag[0];
                     firstChar = Char.ToUpperInvariant(firstChar);
                     return firstChar + oldTag.Substring(1);

@@ -30,5 +30,25 @@ namespace Extensions
         {
             return node.ChildNodes.Cast<XmlNode>().FirstOrDefault(x => x.Name == name);
         }
+
+        public static IEnumerable<XmlNode> GetAllNodes(this XmlNode node)
+        {
+            yield return node;
+
+            foreach (XmlNode item in node.ChildNodes)
+            {
+                var allNodes = item.GetAllNodes();
+
+                foreach (var newNode in allNodes)
+                {
+                    yield return newNode;
+                }
+            }
+        }
+
+        public static XmlNode SearchByTag(this XmlNode node, string name)
+        {
+            return node.GetAllNodes().First(c => c.Name == name);
+        }
     }
 }

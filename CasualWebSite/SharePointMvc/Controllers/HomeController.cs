@@ -257,22 +257,11 @@ namespace SharePointMvc.Controllers
         [HttpGet]
         public ActionResult FixTomsArticlesManual()
         {
-            string[] keywords = {
-                "review/",
-                "reference/",
-                "feature/",
-                "how-to/",
-                "opinion/",
-                "round-up/",
-                "best-picks/",
-                "buying-guide/"
-            };
+            string[] urls = { "https://www.tomshardware.com/reviews/", "https://www.tomshardware.com/reviews/page/2" };
 
-            keywords = keywords.Select(x => "https://www.tomshardware.com/articles/" + x).ToArray();
+            var ss = urls.SelectMany(url => GetRssObjectFromTomsUrlNew(url));
 
-            var ss = keywords.Select(url => GetRssObjectFromTomsUrl(url));
-
-            var rssObject = new RssResult(ss.SelectMany(x => x.channel.items).Where(x => !x.Link.Contains("/news/")).OrderByDescending(x => x.PubDate));
+            var rssObject = new RssResult(ss.Where(x => !x.Link.Contains("/news/")).OrderByDescending(x => x.PubDate));
 
             return this.Xml(rssObject);
         }
@@ -288,69 +277,91 @@ namespace SharePointMvc.Controllers
         [HttpGet]
         public ActionResult FixTomsNewsManualParse()
         {
-            string url = "https://www.tomshardware.com/articles/news/";
+            string[] urls = { "https://www.tomshardware.com/news/", "https://www.tomshardware.com/news/page/2" };
 
-            var rssObject = GetRssObjectFromTomsUrl(url);
+            var elements = urls.SelectMany(url => GetRssObjectFromTomsUrlNew(url));
+
+            var rssObject = new RssResult(elements.OrderByDescending(c => c.PubDate));
 
             return this.Xml(rssObject);
         }
-
-        private static RssResult GetRssObjectFromTomsUrl(string url)
+        
+        private static IEnumerable<RssResultItem> GetRssObjectFromTomsUrlNew(string url)
         {
-            string baseUrl = "https://www.tomshardware.com";
-
             string contents = GetUrlTextData(url);
 
-            string startTag = "<ul class=\"listing-items\">";
-            string endTag = "</ul>";
+            string startTag = "<section data-next=\"latest\"";
+            string endTag = "</section>";
 
             int indexOfStart = contents.IndexOf(startTag);
             int indexOfEnd = contents.IndexOf(endTag, indexOfStart);
 
-            string ulPart = contents.Substring(indexOfStart, indexOfEnd - indexOfStart + endTag.Length);
-            ulPart = ulPart.Replace(" itemscope ", "  ");
+            string sectionPart = contents.Substring(indexOfStart, indexOfEnd - indexOfStart + endTag.Length);
+            sectionPart = sectionPart.Replace(" itemscope ", "  ");
+            sectionPart = sectionPart.Replace("&rsquo;", "&apos;");
+            sectionPart = sectionPart.Replace("&lsquo;", "&apos;");
+            sectionPart = sectionPart.Replace("&pound;", "£");
 
-            while (true)
-            {
-                var metaIndex = ulPart.IndexOf("<meta");
-
-                if (metaIndex < 0)
-                    break;
-
-                var metaEndIndex = ulPart.IndexOf(">", metaIndex) + 1;
-
-                ulPart = ulPart.Replace(ulPart.Substring(metaIndex, metaEndIndex - metaIndex), "");
-            }
+            sectionPart = FixIncompleteImgs(sectionPart);
 
             XmlDocument document = new XmlDocument();
-            document.LoadXml(ulPart);
+            document.LoadXml(sectionPart);
 
-            var liNodes = document.ChildNodes[0].ChildNodes;
-
-            RssResult rssObject = new RssResult(liNodes.Cast<XmlNode>().Select(liNode =>
+            var divs = document.GetAllNodes().Where(c =>
             {
-                var firstDegree = liNode.ChildNodes.Cast<XmlNode>();
-                var secondDegree = firstDegree.SelectMany(x => x.ChildNodes.Cast<XmlNode>());
-                var thirdDegree = secondDegree.SelectMany(x => x.ChildNodes.Cast<XmlNode>());
-                var fourthtDegree = thirdDegree.SelectMany(x => x.ChildNodes.Cast<XmlNode>());
+                var classValue = c.Attributes?["class"]?.Value;
+                return classValue?.Contains("listingResult small") == true
+                    && classValue?.Contains("sponsored") != true;
+            }).ToList();
 
-                var aNode = thirdDegree.First(x => x.Name == "a");
-                var link = baseUrl + aNode.Attributes["href"].Value;
+            var elements = divs.Cast<XmlNode>().Select(liNode =>
+            {
+                var aNode = liNode.SearchByTag("a");
+                var link = aNode.Attributes["href"].Value;
 
-                var imgNode = aNode.ChildNodes.Cast<XmlNode>().First(x => x.Name == "img");
-                var imgSrc = imgNode.Attributes["data-src"].InnerText;
-                
+                var imgNode = liNode.SearchByTag("img");
+                var imgSrc = imgNode.Attributes["data-src"]?.InnerText ?? imgNode.Attributes["src"].InnerText;
+
                 var img = $"<a href=\"{link}\"><img src=\"{imgSrc}\" /></a>";
 
                 return new RssResultItem
                 {
                     Description = $"<![CDATA[{img}]]>",
                     Link = link,
-                    PubDate = DateTime.Parse(fourthtDegree.First(x => x.Name == "div").GetChildNamed("time").InnerText),
-                    Title = aNode.Attributes["title"].Value,
+                    PubDate = DateTime.Parse(liNode.SearchByTag("time").Attributes["datetime"].Value),
+                    Title = liNode.SearchByTag("h3").InnerText,
                 };
-            }));
-            return rssObject;
+            });
+
+            return elements;
+        }
+
+        private static string FixIncompleteImgs(string sectionPart)
+        {
+            var ss = new StringBuilder();
+
+            int lastIndex = 0;
+            while (true)
+            {
+                var i = sectionPart.IndexOf("<img", lastIndex);
+                if (i < 0) break;
+
+                var ii = sectionPart.IndexOf(">", i);
+
+                if (sectionPart[ii - 1] == '/') continue;
+
+                ss.Append(sectionPart.Substring(lastIndex, ii - lastIndex));
+                ss.Append("/");
+                lastIndex = ii;
+            }
+
+            if (lastIndex > 0)
+            {
+                ss.Append(sectionPart.Substring(lastIndex));
+                return ss.ToString();
+            }
+            else
+                return sectionPart;
         }
 
         [HttpGet]
