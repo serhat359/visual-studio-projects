@@ -206,7 +206,7 @@ namespace SharePointMvc.Controllers
                     e.InnerException?.StackTrace
                 });
 
-                return null;
+                return Content("There was an error, check iislogs.txt on desktop");
             }
         }
 
@@ -447,6 +447,110 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
+        public ActionResult MangagoParseXml(string id)
+        {
+            string mangaName = id;
+
+            if (string.IsNullOrWhiteSpace(mangaName))
+                throw new Exception("manganame can't be empty");
+
+            string url = "http://www.mangago.me/read-manga/" + mangaName;
+
+            string contents = GetUrlTextData(url, client =>
+                {
+                    client.Headers.Add(HttpRequestHeader.Cookie, "__utma=5576751.1839360451.1493553979.1493715144.1549998116.8; __atuvc=2%7C7; __unam=57d317c-168e3164884-26803dd2-4; __cfduid=d31bdce544f944651c31af6da4d152d511569740230; _mtma=_uc15704533962020.18596782751504148; cf_clearance=ede1830af8b2df75f54b3b7cbaa43a438561c991-1570641185-0-150; PHPSESSID=q61v27jf87jt3mcektbs7ls4v4; __utmd=a4762f3196be64c16ed72b4aad6b34d3");
+                    client.Headers.Add(HttpRequestHeader.Host, "www.mangago.me");
+                    client.Headers.Add(HttpRequestHeader.UserAgent, "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:60.9) Gecko/20100101 Goanna/4.4 Firefox/60.9 PaleMoon/28.7.1");
+                    client.Headers.Add(HttpRequestHeader.Accept, "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+                    client.Headers.Add(HttpRequestHeader.AcceptLanguage, "en,en-US;q=0.8,tr-TR;q=0.5,tr;q=0.3");
+                    client.Headers.Add(HttpRequestHeader.AcceptEncoding, "gzip");
+                    client.Headers.Add(HttpRequestHeader.CacheControl, "max-age=0");
+                }
+            );
+
+            string startTag = "<table class=\"listing\" id=\"chapter_table\">";
+            string endTag = "</table>";
+
+            int indexOfStart = contents.IndexOf(startTag);
+            int indexOfEnd = contents.IndexOf(endTag, indexOfStart);
+
+            string tablePart = contents.Substring(indexOfStart, indexOfEnd - indexOfStart + endTag.Length);
+
+            XmlDocument document = new XmlDocument();
+            document.LoadXml(tablePart);
+
+            var trNodes = document.ChildNodes[0].ChildNodes[0].ChildNodes;
+
+            RssResult rssObject = new RssResult(trNodes.Cast<XmlNode>().Select(trNode =>
+            {
+                var aNode = trNode.ChildNodes[0].ChildNodes[0].ChildNodes[0];
+                var secondTdNode = trNode.ChildNodes[1];
+                return new RssResultItem
+                {
+                    Description = "This was parsed from Mangago.me",
+                    Link = aNode.Attributes["href"].Value,
+                    PubDate = DateTime.Parse(secondTdNode.InnerText),
+                    Title = aNode.InnerText.Replace("<b>", "").Replace("</b>", "").Replace("\t", "").Replace("\n", ""),
+                };
+            }));
+
+            return this.Xml(rssObject);
+        }
+
+        [HttpGet]
+        public ActionResult Parse1337FailedAttempt(string id, string contains)
+        {
+            var today = DateTime.Today;
+
+            id = id.Replace(' ', '+');
+            var url = $"https://1337x.to/search/{id}/1/";
+
+            string contents = GetUrlTextData(url);
+
+            string startTag = "<table class=\"table-list table table-responsive table-striped\">";
+            string endTag = "</table>";
+
+            int indexOfStart = contents.IndexOf(startTag);
+            int indexOfEnd = contents.IndexOf(endTag, indexOfStart);
+
+            string tablePart = contents.Substring(indexOfStart, indexOfEnd - indexOfStart + endTag.Length);
+
+            XmlDocument document = new XmlDocument();
+            document.LoadXml(tablePart);
+
+            var rows = document.ChildNodes[0].ChildNodes[1].ChildNodes;
+
+            var list = new List<RssResultItem>();
+            foreach (XmlNode row in rows)
+            {
+                var name = row.ChildNodes[0].ChildNodes[1].InnerText;
+                var seed = row.ChildNodes[1].InnerText;
+                var leech = row.ChildNodes[2].InnerText;
+                var size = row.ChildNodes[4].InnerXml;
+                size = size.Substring(0, size.IndexOf('<'));
+
+                if (contains != null && !name.Contains(contains))
+                {
+                    continue;
+                }
+
+                var description = $"{name} {size} S:{seed} L:{leech}";
+
+                list.Add(new RssResultItem
+                {
+                    Description = description,
+                    PubDate = today,
+                    Title = description,
+                    Link = ""
+                });
+            }
+
+            RssResult rssResult = new RssResult(list);
+
+            return this.Xml(rssResult);
+        }
+
+        [HttpGet]
         public ActionResult DownloadNyaa(string link)
         {
             var data = GetUrlTextDataArray(link);
@@ -591,7 +695,7 @@ namespace SharePointMvc.Controllers
             return s;
         }
 
-        private static string GetUrlTextData(string url)
+        private static string GetUrlTextData(string url, Action<WebClient> extraAction = null)
         {
             string s;
 
@@ -600,6 +704,9 @@ namespace SharePointMvc.Controllers
                 using (MyWebClient client = new MyWebClient())
                 {
                     client.Encoding = Encoding.UTF8;
+
+                    extraAction?.Invoke(client);
+
                     s = client.DownloadString(url);
                 }
             }
