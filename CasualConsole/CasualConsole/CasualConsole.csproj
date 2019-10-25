@@ -45,13 +45,26 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\Libraries\Cudafy\Cudafy.NET.dll</HintPath>
     </Reference>
+    <Reference Include="EPPlus, Version=4.5.3.2, Culture=neutral, PublicKeyToken=ea159fdaa78159a1, processorArchitecture=MSIL">
+      <HintPath>..\packages\EPPlus.4.5.3.2\lib\net40\EPPlus.dll</HintPath>
+    </Reference>
     <Reference Include="Newtonsoft.Json">
       <HintPath>..\..\..\Libraries\JSON\Newtonsoft.Json.dll</HintPath>
     </Reference>
+    <Reference Include="PresentationCore" />
+    <Reference Include="Syncfusion.Compression.Base, Version=17.3451.0.14, Culture=neutral, PublicKeyToken=3d67ed1f87d44c89, processorArchitecture=MSIL">
+      <HintPath>..\packages\Syncfusion.Compression.Base.17.3.0.14\lib\net451\Syncfusion.Compression.Base.dll</HintPath>
+    </Reference>
+    <Reference Include="Syncfusion.Licensing, Version=17.3451.0.14, Culture=neutral, PublicKeyToken=632609b4d040f6b4, processorArchitecture=MSIL">
+      <HintPath>..\packages\Syncfusion.Licensing.17.3.0.14\lib\net451\Syncfusion.Licensing.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
+    <Reference Include="System.configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.IO.Compression" />
     <Reference Include="System.Numerics" />
+    <Reference Include="System.Security" />
     <Reference Include="System.ServiceProcess" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="Microsoft.CSharp" />
@@ -66,14 +79,17 @@
     <Compile Include="ConvertJob.cs" />
     <Compile Include="DataUtil.cs" />
     <Compile Include="DictionaryConverter.cs" />
+    <Compile Include="ExcelHelper.cs" />
     <Compile Include="ExpressionCodes.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="HeroesV.cs" />
     <Compile Include="Intersection.cs" />
+    <Compile Include="LaytonBridgePuzzle.cs" />
     <Compile Include="LaytonClockPuzzle.cs" />
     <Compile Include="MvcBinder.cs" />
     <Compile Include="MvcBinderController.cs" />
     <Compile Include="MyJsonConvert.cs" />
+    <Compile Include="MyOtherThread.cs" />
     <Compile Include="MyThread.cs" />
     <Compile Include="OpenGlPixelProcessing.cs" />
     <Compile Include="Program.cs" />
@@ -84,7 +100,9 @@
       <DesignTime>True</DesignTime>
     </Compile>
     <Compile Include="StackPool.cs" />
+    <Compile Include="StringJoin.cs" />
     <Compile Include="TinyJson.cs" />
+    <Compile Include="UnityEncryption.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config">

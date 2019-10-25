@@ -95,7 +95,7 @@ namespace PicrossSolver
                     debug();
                 if (bytes.All(x => x == 2))
                     debug();
-                var cellsFromBytes = new Form1.CellSeries(bytes, new int[] { });
+                var cellsFromBytes = Form1.CellSeries.FromBytes(bytes, new int[] { });
                 var ranges = FindDividedAreas(cellsFromBytes);
                 var pair = new PairType(bytes, ranges);
                 combinations.Add(pair);
@@ -154,7 +154,7 @@ namespace PicrossSolver
             testNumber = 1;
             foreach (var test in dividedTests)
             {
-                Form1.CellSeries cells = new Form1.CellSeries(StrToBytes(test.CellsString), test.Values);
+                Form1.CellSeries cells = Form1.CellSeries.FromBytes(StrToBytes(test.CellsString), test.Values);
 
                 List<Range> areaList = FindDividedAreas(cells);
 
@@ -215,7 +215,7 @@ namespace PicrossSolver
             testNumber = 1;
             foreach (var test in filledTests)
             {
-                var cellsExternal = new Form1.CellSeries(StrToBytes(test.CellsString), test.Values);
+                var cellsExternal = Form1.CellSeries.FromBytes(StrToBytes(test.CellsString), test.Values);
 
                 List<Range> filledRanges = FindFilledGroups(cellsExternal, 0, cellsExternal.Length - 1);
 
@@ -1075,11 +1075,11 @@ namespace PicrossSolver
                     int backwardMinRange = backwardValues.Sum(x => x.Value) + backwardValues.Count - 1;
                     if (range.containsFilled && backwardValues.Count - forwardValues.Count == -1 && forwardValues.Max(x => x.Index) - backwardValues.Min(x => x.Index) <= 1)
                     {
-                        byte[] cellsCopyForForward = Form1.CellSeries.Slice(cells, range.start, range.end, new int[] { }).AsIterable.ToArray();
-                        byte[] cellsCopyForBackward = cellsCopyForForward.ToArray();
+                        byte[] cellsTempCopyForForward = Form1.CellSeries.Slice(cells, range.start, range.end, new int[] { }).AsIterable.ToArray();
+                        byte[] cellsTempCopyForBackward = cellsTempCopyForForward.ToArray();
 
-                        var forwardCells = new Form1.CellSeries(cellsCopyForForward, forwardValues.Select(x => x.Value).ToArray());
-                        var backwardCells = new Form1.CellSeries(cellsCopyForBackward, backwardValues.Select(x => x.Value).ToArray());
+                        var forwardCells = Form1.CellSeries.FromBytes(cellsTempCopyForForward, forwardValues.Select(x => x.Value).ToArray());
+                        var backwardCells = Form1.CellSeries.FromBytes(cellsTempCopyForBackward, backwardValues.Select(x => x.Value).ToArray());
 
                         bool forwardHasError = false;
                         bool backwardHasError = false;
@@ -1120,10 +1120,10 @@ namespace PicrossSolver
                         }
                         else
                         {
-                            for (int i = 0; i < cellsCopyForForward.Length; i++)
+                            for (int i = 0; i < forwardCells.Length; i++)
                             {
-                                if (cellsCopyForForward[i] == cellsCopyForBackward[i] && cellsCopyForForward[i] != Form1.UNKNOWN)
-                                    cells[range.start + i] = cellsCopyForForward[i];
+                                if (forwardCells[i] == backwardCells[i] && forwardCells[i] != Form1.UNKNOWN)
+                                    cells[range.start + i] = forwardCells[i];
                             }
                         }
                     }

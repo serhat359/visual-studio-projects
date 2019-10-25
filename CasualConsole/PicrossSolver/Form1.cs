@@ -42,7 +42,7 @@ namespace PicrossSolver
             BruteForce
         }
 
-        Mode mode = Mode.Development;
+        Mode mode = Mode.GUI;
 
         public Form1()
         {
@@ -375,7 +375,7 @@ namespace PicrossSolver
                 {
                     if (!isRowCompleted[row])
                     {
-                        var cells = new CellSeries(row, picture, Direction.Horizontal, leftColumn[row], puzzle.Correct);
+                        var cells = new CellSeries(row, picture, Direction.Horizontal, leftColumn[row], puzzle.Correct, 0, picture.colCount());
                         Generic.SetPossibles(cells);
                         if (cells.AsIterable.All(x => x != 0))
                             isRowCompleted[row] = true;
@@ -386,7 +386,7 @@ namespace PicrossSolver
                 {
                     if (!isColCompleted[col])
                     {
-                        var cells = new CellSeries(col, picture, Direction.Vertical, upColumn[col], puzzle.Correct);
+                        var cells = new CellSeries(col, picture, Direction.Vertical, upColumn[col], puzzle.Correct, 0, picture.rowCount());
                         Generic.SetPossibles(cells);
                         if (cells.AsIterable.All(x => x != 0))
                             isColCompleted[col] = true;
@@ -516,15 +516,38 @@ namespace PicrossSolver
             var isColCompleted = puzzle.IsColCompleted;
             var isRowCompleted = puzzle.IsRowCompleted;
 
+            if (!puzzle.isInitialized)
+            {
+                int rowCount = picture.rowCount();
+                puzzle.horizontals = new CellSeries[rowCount];
+                puzzle.horizontalReverses = new CellSeries[rowCount];
+                for (int row = 0; row < rowCount; row++)
+                {
+                    puzzle.horizontals[row] = new CellSeries(row, picture, Direction.Horizontal, leftColumn[row], puzzle.Correct, 0, picture.colCount());
+                    puzzle.horizontalReverses[row] = new CellSeries(row, picture, Direction.HorizontalReverse, leftColumn[row], puzzle.Correct, 0, picture.colCount());
+                }
+
+                int colCount = picture.colCount();
+                puzzle.verticals = new CellSeries[colCount];
+                puzzle.verticalReverses = new CellSeries[colCount];
+                for (int col = 0; col < colCount; col++)
+                {
+                    puzzle.verticals[col] = new CellSeries(col, picture, Direction.Vertical, upColumn[col], puzzle.Correct, 0, picture.rowCount());
+                    puzzle.verticalReverses[col] = new CellSeries(col, picture, Direction.VerticalReverse, upColumn[col], puzzle.Correct, 0, picture.rowCount());
+                }
+
+                puzzle.isInitialized = true;
+            }
+
             for (int row = 0; row < picture.rowCount(); row++)
             {
                 if (!isRowCompleted[row])
                 {
-                    processing(new CellSeries(row, picture, Direction.Horizontal, leftColumn[row], puzzle.Correct));
+                    processing(puzzle.horizontals[row]);
 
                     if (isTwoWay)
                     {
-                        processing(new CellSeries(row, picture, Direction.HorizontalReverse, leftColumn[row], puzzle.Correct));
+                        processing(puzzle.horizontalReverses[row]);
                     }
                 }
             }
@@ -533,11 +556,11 @@ namespace PicrossSolver
             {
                 if (!isColCompleted[col])
                 {
-                    processing(new CellSeries(col, picture, Direction.Vertical, upColumn[col], puzzle.Correct));
+                    processing(puzzle.verticals[col]);
 
                     if (isTwoWay)
                     {
-                        processing(new CellSeries(col, picture, Direction.VerticalReverse, upColumn[col], puzzle.Correct));
+                        processing(puzzle.verticalReverses[col]);
                     }
                 }
             }
@@ -761,6 +784,7 @@ namespace PicrossSolver
                 get { return valueGetter(i); }
             }
             public IEnumerable<int> AsIterable { get { return Iterable(); } }
+            public string Debug { get { return string.Format("[{0}]", string.Join(",", AsIterable)); } }
 
             private int _length;
             private Func<int, int> valueGetter;
@@ -800,15 +824,15 @@ namespace PicrossSolver
 
         public class CellSeries
         {
-            public CellColumnValues CellColumnValues { get { return _cellColumnValues; } }
-            public int Length { get { return _length; } }
+            public CellColumnValues CellColumnValues { get { return this._cellColumnValues; } }
+            public int Length { get { return this._length; } }
             public byte this[int i]
             {
-                get { return valueGetter(i); }
+                get { return this.valueGetter(i); }
                 set
                 {
 #if DEBUG
-                    byte oldCell = valueGetter(i);
+                    byte oldCell = this.valueGetter(i);
                     if ((oldCell == EMPTY && value == FILLED) || (oldCell == FILLED && value == EMPTY))
                         throw new Exception("Error Detected");
 
@@ -822,10 +846,26 @@ namespace PicrossSolver
                     valueSetter(i, value);
                 }
             }
-            public IEnumerable<byte> AsIterable { get { return Iterable(); } }
+            public IEnumerable<byte> AsIterable
+            {
+                get
+                {
+                    for (int i = 0; i < this._length; i++)
+                        yield return this.valueGetter(i);
+                }
+            }
+            public IEnumerable<byte> AsCorrectIterable
+            {
+                get
+                {
+                    for (int i = 0; i < this._length; i++)
+                        yield return this._correctValueGetter(i);
+                }
+            }
             public Direction direction = Direction.NotSet;
             public int? rowOrCol = null;
             public string AsString { get { return new string(AsIterable.Select(x => chars[x]).ToArray()); } }
+            public string AsCorrectString { get { return new string(AsCorrectIterable.Select(x => chars[x]).ToArray()); } }
 
 #if DEBUG
             public string FirstTimeString { get; set; }
@@ -833,57 +873,63 @@ namespace PicrossSolver
 
             private CellColumnValues _cellColumnValues;
             private int _length;
+            private int start;
+            private byte[,] picture;
+            private byte[,] correct;
             private Func<int, byte> valueGetter;
             private Func<int, byte> _correctValueGetter;
             private Action<int, byte> valueSetter;
             private bool correctExists;
 
-            public CellSeries(int rowOrCol, byte[,] picture, Direction direction, int[] columnValues, byte[,] correct)
+            public CellSeries(int rowOrCol, byte[,] picture, Direction direction, int[] columnValues, byte[,] correct, int start, int length)
             {
-                _cellColumnValues = new CellColumnValues(columnValues, direction);
+                this._cellColumnValues = new CellColumnValues(columnValues, direction);
                 this.direction = direction;
                 this.rowOrCol = rowOrCol;
+                this.picture = picture;
+                this.correct = correct;
+                this.start = start;
 
-                correctExists = correct != null;
+                this.correctExists = correct != null;
 
                 switch (direction)
                 {
                     case Direction.Horizontal:
                         {
                             int row = rowOrCol;
-                            valueGetter = col => picture[row, col];
-                            _correctValueGetter = col => correct[row, col];
-                            valueSetter = (col, cell) => picture[row, col] = cell;
-                            _length = picture.colCount();
+                            this.valueGetter = col => picture[row, start + col];
+                            this._correctValueGetter = col => correct[row, start + col];
+                            this.valueSetter = (col, cell) => picture[row, start + col] = cell;
+                            this._length = length;
                         }
                         break;
                     case Direction.Vertical:
                         {
                             int col = rowOrCol;
-                            valueGetter = row => picture[row, col];
-                            _correctValueGetter = row => correct[row, col];
-                            valueSetter = (row, cell) => picture[row, col] = cell;
-                            _length = picture.rowCount();
+                            this.valueGetter = row => picture[start + row, col];
+                            this._correctValueGetter = row => correct[start + row, col];
+                            this.valueSetter = (row, cell) => picture[start + row, col] = cell;
+                            this._length = length;
                         }
                         break;
                     case Direction.HorizontalReverse:
                         {
                             int row = rowOrCol;
                             int lastCol = picture.colCount() - 1;
-                            valueGetter = col => picture[row, lastCol - col];
-                            _correctValueGetter = col => correct[row, lastCol - col];
-                            valueSetter = (col, cell) => picture[row, lastCol - col] = cell;
-                            _length = picture.colCount();
+                            this.valueGetter = col => picture[row, lastCol - col - start];
+                            this._correctValueGetter = col => correct[row, lastCol - col - start];
+                            this.valueSetter = (col, cell) => picture[row, lastCol - col - start] = cell;
+                            this._length = length;
                         }
                         break;
                     case Direction.VerticalReverse:
                         {
                             int col = rowOrCol;
                             int lastRow = picture.rowCount() - 1;
-                            valueGetter = row => picture[lastRow - row, col];
-                            _correctValueGetter = row => correct[lastRow - row, col];
-                            valueSetter = (row, cell) => picture[lastRow - row, col] = cell;
-                            _length = picture.rowCount();
+                            this.valueGetter = row => picture[lastRow - row - start, col];
+                            this._correctValueGetter = row => correct[lastRow - row - start, col];
+                            this.valueSetter = (row, cell) => picture[lastRow - row - start, col] = cell;
+                            this._length = length;
                         }
                         break;
                     default:
@@ -895,71 +941,84 @@ namespace PicrossSolver
 #endif
             }
 
-            private CellSeries(CellColumnValues _cellColumnValues, int _length, Func<int, byte> valueGetter, Action<int, byte> valueSetter, Func<int, byte> correctValueGetter)
-            {
-                this._cellColumnValues = _cellColumnValues;
-                this._length = _length;
-                this.valueGetter = valueGetter;
-                this.valueSetter = valueSetter;
-                this._correctValueGetter = correctValueGetter;
-#if DEBUG
-                this.FirstTimeString = this.AsString;
-#endif
-            }
-
             public static CellSeries Slice(CellSeries old, int startIndex, int endIndex, int[] newValues)
             {
-                int size = endIndex - startIndex + 1;
-                Func<int, byte> getter = x => old[startIndex + x];
-                Action<int, byte> setter = (x, cell) => old[startIndex + x] = cell;
-                CellColumnValues cellColumnValues = new CellColumnValues(newValues, Direction.Horizontal);
+                int newLength = endIndex - startIndex + 1;
 
-                if (size < 0)
-                    size = 0;
+                if (newLength < 0)
+                    newLength = 0;
 #if DEBUG
-                if (size < newValues.Sum() + newValues.Length - 1)
+                if (newLength < newValues.Sum() + newValues.Length - 1)
                     throw new Exception("Bre insafsız!");
 #endif
-                return new CellSeries(cellColumnValues, size, getter, setter, old._correctValueGetter);
+                if (old.direction == Direction.HorizontalReverse || old.direction == Direction.VerticalReverse)
+                {
+                    newValues = newValues.Reverse().ToArray();
+                }
+                return new CellSeries(old.rowOrCol.Value, old.picture, old.direction, newValues, old.correct, old.start + startIndex, newLength);
+                //return new CellSeries(cellColumnValues, newLength, getter, setter, old._correctValueGetter);
             }
 
             public static CellSeries Reverse(CellSeries old)
             {
-                int[] newValues = old.CellColumnValues.AsIterable.Reverse().ToArray();
+                int[] newValues;
 
-                int cellLength = old.Length;
-                int lastCellIndex = old.Length - 1;
-                Func<int, byte> getter = x => old[lastCellIndex - x];
-                Action<int, byte> setter = (x, cell) => old[lastCellIndex - x] = cell;
-                CellColumnValues cellColumnValues = new CellColumnValues(newValues, Direction.Horizontal);
+                Direction newDirection;
+                switch (old.direction)
+                {
+                    case Direction.Horizontal:
+                        newDirection = Direction.HorizontalReverse;
+                        newValues = old.CellColumnValues.AsIterable.ToArray();
+                        break;
+                    case Direction.Vertical:
+                        newDirection = Direction.VerticalReverse;
+                        newValues = old.CellColumnValues.AsIterable.ToArray();
+                        break;
+                    case Direction.HorizontalReverse:
+                        newDirection = Direction.Horizontal;
+                        newValues = old.CellColumnValues.AsIterable.Reverse().ToArray();
+                        break;
+                    case Direction.VerticalReverse:
+                        newDirection = Direction.Vertical;
+                        newValues = old.CellColumnValues.AsIterable.Reverse().ToArray();
+                        break;
+                    case Direction.NotSet:
+                        newDirection = Direction.NotSet;
+                        newValues = null;
+                        break;
+                    default:
+                        throw new Exception();
+                }
 
-                CellSeries cells = new CellSeries(cellColumnValues, cellLength, getter, setter, old._correctValueGetter);
+                var oldStart = old.start;
+                var oldRangeLength = old.Length;
+                var oldTotalLength = old.TotalLength();
+                var newStart = oldTotalLength - oldStart - oldRangeLength;
 
+                CellSeries cells = new CellSeries(old.rowOrCol.Value, old.picture, newDirection, newValues, old.correct, newStart, old.Length);
+                //CellSeries cells = new CellSeries(cellColumnValues, cellLength, getter, setter, old._correctValueGetter);
+
+#if DEBUG
                 var oldvals = old.CellColumnValues.AsIterable;
                 var newvals = cells.CellColumnValues.AsIterable;
-#if DEBUG
+
                 if (!Enumerable.SequenceEqual(oldvals, newvals.Reverse()))
+                    throw new Exception("Error at reversing");
+
+                if (!Enumerable.SequenceEqual(old.AsIterable, cells.AsIterable.Reverse()))
                     throw new Exception("Error at reversing");
 #endif
                 return cells;
             }
 
-            public CellSeries(byte[] bytes, int[] values)
+            public static CellSeries FromBytes(byte[] bytes, int[] values)
             {
-                _length = bytes.Length;
-                valueGetter = x => bytes[x];
-                valueSetter = (x, b) => bytes[x] = b;
-                _cellColumnValues = new CellColumnValues(values, Direction.Horizontal);
-
-#if DEBUG
-                this.FirstTimeString = this.AsString;
-#endif
-            }
-
-            public IEnumerable<byte> Iterable()
-            {
-                for (int i = 0; i < _length; i++)
-                    yield return valueGetter(i);
+                var newSource = new byte[1, bytes.Length];
+                for (int i = 0; i < bytes.Length; i++)
+                {
+                    newSource[0, i] = bytes[i];
+                }
+                return new CellSeries(0, newSource, Direction.Horizontal, values, null, 0, bytes.Length);
             }
 
             public bool SafeCheck(int index, Func<byte, bool> checker)
@@ -972,6 +1031,22 @@ namespace PicrossSolver
                 if (index >= 0 && index < this.Length)
                     this[index] = value;
             }
+
+            private int TotalLength()
+            {
+                switch (direction)
+                {
+                    case Direction.Horizontal:
+                    case Direction.HorizontalReverse:
+                        return picture.colCount();
+                    case Direction.Vertical:
+                    case Direction.VerticalReverse:
+                        return picture.rowCount();
+                    case Direction.NotSet:
+                    default:
+                        throw new Exception();
+                }
+            }
         }
 
         public class Puzzle
@@ -982,6 +1057,12 @@ namespace PicrossSolver
             public byte[,] Correct { get; set; }
             public byte[,] PictureRef { get; set; }
             public bool CorrectExists { get; set; }
+
+            public bool isInitialized;
+            public CellSeries[] horizontals;
+            public CellSeries[] horizontalReverses;
+            public CellSeries[] verticals;
+            public CellSeries[] verticalReverses;
         }
 
         public class PuzzleJson
@@ -1152,18 +1233,19 @@ namespace PicrossSolver
         {
             if (isCheckEnabled)
             {
-                byte[] originalValues = new Form1.CellSeries(row, picture, Form1.Direction.Horizontal, leftColumn[row], null).AsIterable.ToArray();
+                var originalCells = new Form1.CellSeries(row, picture, Form1.Direction.Horizontal, leftColumn[row], null, 0, picture.colCount());
+                byte[] originalValues = originalCells.AsIterable.ToArray();
 
                 byte[] copyValues = originalValues.ToArray();
 
-                var cells = new Form1.CellSeries(copyValues, leftColumn[row]);
+                var copyCells = Form1.CellSeries.FromBytes(copyValues, leftColumn[row]);
 
                 bool hasError = false;
 
                 try
                 {
-                    Generic.ProcessAllAlgorithms(cells);
-                    Generic.ProcessAllAlgorithms(Form1.CellSeries.Reverse(cells));
+                    Generic.ProcessAllAlgorithms(copyCells);
+                    Generic.ProcessAllAlgorithms(Form1.CellSeries.Reverse(copyCells));
                 }
                 catch (Exception)
                 {
@@ -1174,7 +1256,7 @@ namespace PicrossSolver
                 {
                     leftColumnColors[row] = Color.Red;
                 }
-                else if (Enumerable.SequenceEqual(originalValues, copyValues))
+                else if (Enumerable.SequenceEqual(originalCells.AsIterable, copyCells.AsIterable))
                 {
                     leftColumnColors[row] = Color.Black;
                 }
@@ -1189,18 +1271,19 @@ namespace PicrossSolver
         {
             if (isCheckEnabled)
             {
-                byte[] originalValues = new Form1.CellSeries(col, picture, Form1.Direction.Vertical, upColumn[col], null).AsIterable.ToArray();
+                var originalCells = new Form1.CellSeries(col, picture, Form1.Direction.Vertical, upColumn[col], null, 0, picture.rowCount());
+                byte[] originalValues = originalCells.AsIterable.ToArray();
 
                 byte[] copyValues = originalValues.ToArray();
 
-                var cells = new Form1.CellSeries(copyValues, upColumn[col]);
+                var copyCells = Form1.CellSeries.FromBytes(copyValues, upColumn[col]);
 
                 bool hasError;
 
                 try
                 {
-                    Generic.ProcessAllAlgorithms(cells);
-                    Generic.ProcessAllAlgorithms(Form1.CellSeries.Reverse(cells));
+                    Generic.ProcessAllAlgorithms(copyCells);
+                    Generic.ProcessAllAlgorithms(Form1.CellSeries.Reverse(copyCells));
                     hasError = false;
                 }
                 catch (Exception)
@@ -1212,7 +1295,7 @@ namespace PicrossSolver
                 {
                     upColumnColors[col] = Color.Red;
                 }
-                else if (Enumerable.SequenceEqual(originalValues, copyValues))
+                else if (Enumerable.SequenceEqual(originalCells.AsIterable, copyCells.AsIterable))
                 {
                     upColumnColors[col] = Color.Black;
                 }
