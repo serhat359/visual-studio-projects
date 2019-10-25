@@ -285,7 +285,7 @@ namespace SharePointMvc.Controllers
 
             return this.Xml(rssObject);
         }
-        
+
         private static IEnumerable<RssResultItem> GetRssObjectFromTomsUrlNew(string url)
         {
             string contents = GetUrlTextData(url);
@@ -300,6 +300,8 @@ namespace SharePointMvc.Controllers
             sectionPart = sectionPart.Replace(" itemscope ", "  ");
             sectionPart = sectionPart.Replace("&rsquo;", "&apos;");
             sectionPart = sectionPart.Replace("&lsquo;", "&apos;");
+            sectionPart = sectionPart.Replace("&rdquo;", "\"");
+            sectionPart = sectionPart.Replace("&ldquo;", "\"");
             sectionPart = sectionPart.Replace("&pound;", "£");
 
             sectionPart = FixIncompleteImgs(sectionPart);
@@ -567,6 +569,52 @@ namespace SharePointMvc.Controllers
             var data = GetUrlTextDataArray(link);
 
             return File(data, "application/x-bittorrent");
+        }
+
+        [HttpGet]
+        public ActionResult LHScanParse(string id)
+        {
+            string mangaName = id;
+
+            if (string.IsNullOrWhiteSpace(mangaName))
+                throw new Exception("manganame can't be empty");
+
+            string url = $"https://lhscan.net/{mangaName}.html";
+            string baseLink = "https://lhscan.net/";
+
+            string contents = GetUrlTextData(url);
+
+            string startTag = "<table class=\"table table-hover\">";
+            string endTag = "</table>";
+
+            int indexOfStart = contents.IndexOf(startTag);
+            int indexOfEnd = contents.IndexOf(endTag, indexOfStart);
+
+            string tablePart = contents.Substring(indexOfStart, indexOfEnd - indexOfStart + endTag.Length);
+
+            XmlDocument document = new XmlDocument();
+            document.LoadXml(tablePart);
+
+            (string timeName, int timedays)[] dates = { ("day", 1), ("week", 7), ("month", 30), ("year", 365) };
+            DateTime today = DateTime.Today;
+
+            var result = new RssResult(document.SearchByTag("tbody").ChildNodes.Cast<XmlNode>().Select(x =>
+            {
+                var dateString = x.SearchByTag("time").InnerText.ToLowerInvariant();
+                var days = dates.First(c => dateString.Contains(c.timeName)).timedays;
+
+                var realDays = int.Parse(dateString.Split(' ')[0]) * days;
+                
+                return new RssResultItem
+                {
+                    Description = "This was parsed from LHscan.net",
+                    Link = baseLink + x.SearchByTag("a").Attributes["href"].Value,
+                    PubDate = today.AddDays(-realDays),
+                    Title = x.SearchByTag("b").InnerText
+                };
+            }));
+
+            return Xml(result);
         }
 
         #endregion

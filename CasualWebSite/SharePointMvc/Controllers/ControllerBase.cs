@@ -18,5 +18,10 @@ namespace SharePointMvc.Controllers
 
             return Content(xml, "application/xml");
         }
+
+        protected  ActionResult ExcelFile(byte[] byteArray, string fileNameWithExtension)
+        {
+            return File(byteArray, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileNameWithExtension);
+        }
     }
 }
