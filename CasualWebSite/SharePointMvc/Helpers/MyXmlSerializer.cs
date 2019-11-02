@@ -17,9 +17,10 @@ namespace SharePointMvc
         private List<string> stringList = new List<string>();
         private int nestCount = 0;
 
-        public string Serialize<T>(T obj)
+        public string Serialize<T>(T obj, bool igroneXmlVersion = false)
         {
-            Append("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
+            if(!igroneXmlVersion)
+                Append("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
 
             SerializeElement(obj, new List<Attribute>(), xmlNodeName: null);
 
@@ -180,14 +181,20 @@ namespace SharePointMvc
                     }
                 }
 
+                var xmlModeType = GetAttribute<XmlModeAttribute>(customAttributes);
+                var isEnclosing = !(xmlModeType?.type == XmlModeAttribute.XmlModeType.NotEnclosing);
+
+                var endingTagFormat = isEnclosing ? "</{0}>\n" : "";
+                var beginningTagFormat = isEnclosing ? "<{0}{1}{2}>\n" : "<{0}{1}{2} />\n";
+
                 nestCount--;
-                Append(string.Format("</{0}>\n", xmlNodeName));
+                Append(string.Format(endingTagFormat, xmlNodeName)); // this is appending the ending tag
 
                 IEnumerable<string> wholeAttributes = xmlAttributes.Select(x => x.Key + "=\"" + x.Value + "\"");
 
-                string xmlRoot = string.Format("<{0}{1}{2}>\n", xmlNodeName, (wholeAttributes.Any() ? " " : ""), string.Join(" ", wholeAttributes));
+                string xmlRoot = string.Format(beginningTagFormat, xmlNodeName, (wholeAttributes.Any() ? " " : ""), string.Join(" ", wholeAttributes));
 
-                stringList[xmlRootIndex] = xmlRoot;
+                stringList[xmlRootIndex] = xmlRoot; // this is appending the beginning tag
             }
         }
 

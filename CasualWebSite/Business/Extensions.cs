@@ -25,6 +25,11 @@ namespace Extensions
         {
             return str == null || str.Equals("");
         }
+
+        public static bool ContainsCaseInsensitive(this string source, string value)
+        {
+            return source.IndexOf(value, StringComparison.OrdinalIgnoreCase) < 0;
+        }
         
         public static XmlNode GetChildNamed(this XmlNode node, string name)
         {
@@ -49,6 +54,22 @@ namespace Extensions
         public static XmlNode SearchByTag(this XmlNode node, string name)
         {
             return node.GetAllNodes().First(c => c.Name == name);
+        }
+
+        public static int IndexOfFirst<T>(this IEnumerable<T> source, Func<T, bool> predicate)
+        {
+            int i = 0;
+            foreach (var item in source)
+            {
+                if (predicate(item))
+                {
+                    return i;
+                }
+
+                i++;
+            }
+
+            return -1;
         }
     }
 }

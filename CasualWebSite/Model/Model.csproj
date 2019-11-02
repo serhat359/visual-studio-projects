@@ -58,9 +58,11 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Web\PokemonModel.cs" />
     <Compile Include="Web\RssResult.cs" />
+    <Compile Include="Web\UtorrentRssResult.cs" />
     <Compile Include="Web\YoutubeSearchResult.cs" />
     <Compile Include="XmlCDataAttribute.cs" />
     <Compile Include="XmlFormatAttribute.cs" />
+    <Compile Include="XmlModeAttribute.cs" />
     <Compile Include="XmlTagAttribute.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

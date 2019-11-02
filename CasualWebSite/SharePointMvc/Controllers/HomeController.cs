@@ -20,6 +20,9 @@ namespace SharePointMvc.Controllers
     [HandleError]
     public class HomeController : ControllerBase<HomeModelFactory>
     {
+        readonly (string monthName, int monthNumber)[] months = { ("January", 1), ("February", 2), ("March", 3), ("April", 4), ("May", 5), ("June", 6),
+            ("July", 7), ("August", 8), ("September", 9), ("October", 10), ("November", 11), ("December", 12) };
+
         #region Get Methods
 
         [HttpGet]
@@ -511,15 +514,15 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
-        public ActionResult Parse1337FailedAttempt(string id, string contains)
+        public ActionResult Parse1337FailedAttempt(string id, string[] contains)
         {
-            var today = DateTime.Today;
+            contains = contains ?? new string[0];
 
             id = id.Replace(' ', '+');
             var url = $"https://1337x.to/search/{id}/1/";
 
             string contents = GetUrlTextData(url);
-
+            
             string startTag = "<table class=\"table-list table table-responsive table-striped\">";
             string endTag = "</table>";
 
@@ -533,34 +536,75 @@ namespace SharePointMvc.Controllers
 
             var rows = document.ChildNodes[0].ChildNodes[1].ChildNodes;
 
-            var list = new List<RssResultItem>();
+            var baseDomain = Request.Url.Scheme + "://" + Request.Url.Authority;
+            var list = new List<UtorrentRssResultItem>();
             foreach (XmlNode row in rows)
             {
                 var name = row.ChildNodes[0].ChildNodes[1].InnerText;
+                var link = row.ChildNodes[0].ChildNodes[1].Attributes["href"].Value;
                 var seed = row.ChildNodes[1].InnerText;
                 var leech = row.ChildNodes[2].InnerText;
+                var time = row.ChildNodes[3].InnerText;
                 var size = row.ChildNodes[4].InnerXml;
                 size = size.Substring(0, size.IndexOf('<'));
 
-                if (contains != null && !name.Contains(contains))
+                if (contains.Any(x => name.ContainsCaseInsensitive(x)))
                 {
                     continue;
                 }
 
                 var description = $"{name} {size} S:{seed} L:{leech}";
 
-                list.Add(new RssResultItem
+                var timeparts = time.Split(new[] { ' ', '.', '\'' }, StringSplitOptions.RemoveEmptyEntries);
+
+                int month = months.First(x => x.monthName.StartsWith(timeparts[0])).monthNumber;
+                int year = 2000 + int.Parse(timeparts[2]);
+                var dayPart = timeparts[1];
+                int indexOfFirst = dayPart.IndexOfFirst(x => x < '0' || x > '9');
+                int day = int.Parse(dayPart.Substring(0, indexOfFirst));
+                var date = new DateTime(year: year, month: month, day: day);
+
+                var newLink = baseDomain + $"/Home/{nameof(Get1337Torrent)}?link={Uri.EscapeDataString(link)}";
+
+                list.Add(new UtorrentRssResultItem
                 {
                     Description = description,
-                    PubDate = today,
+                    PubDate = date,
                     Title = description,
-                    Link = ""
+                    Link = newLink,
+                    Guid = newLink
                 });
             }
 
-            RssResult rssResult = new RssResult(list);
+            var rssResult = new UtorrentRssResult(list);
 
-            return this.Xml(rssResult);
+            return this.Xml(rssResult, igroneXmlVersion: true);
+        }
+
+        [HttpGet]
+        public ActionResult Get1337Torrent(string link)
+        {
+            var linkBase = "https://1337x.to";
+            link = linkBase + link;
+
+            string contents = GetUrlTextData(link);
+
+            var itorrentsIndex = contents.IndexOf("ITORRENTS MIRROR");
+            var indexOfStart = contents.LastIndexOf("<a", itorrentsIndex);
+            string endTag = "</a>";
+            var indexOfEnd = contents.IndexOf(endTag, indexOfStart);
+
+            string linkPart = contents.Substring(indexOfStart, indexOfEnd - indexOfStart + endTag.Length);
+
+            XmlDocument document = new XmlDocument();
+            document.LoadXml(linkPart);
+            var torrentLink = document.ChildNodes[0].Attributes["href"].Value;
+            torrentLink = torrentLink.Replace("http://", "https://");
+
+            var torrentContent = GetUrlTextDataArray(torrentLink);
+            var torrentFileName = torrentLink.Substring(torrentLink.LastIndexOf("/"));
+
+            return TorrentFile(torrentContent, torrentFileName);
         }
 
         [HttpGet]
@@ -604,7 +648,7 @@ namespace SharePointMvc.Controllers
                 var days = dates.First(c => dateString.Contains(c.timeName)).timedays;
 
                 var realDays = int.Parse(dateString.Split(' ')[0]) * days;
-                
+
                 return new RssResultItem
                 {
                     Description = "This was parsed from LHscan.net",
