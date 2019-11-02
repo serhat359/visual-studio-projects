@@ -639,7 +639,7 @@ namespace SharePointMvc.Controllers
             XmlDocument document = new XmlDocument();
             document.LoadXml(tablePart);
 
-            (string timeName, int timedays)[] dates = { ("day", 1), ("week", 7), ("month", 30), ("year", 365) };
+            (string timeName, double timedays)[] dates = { ("day", 1.0), ("week", 7.0), ("month", 30.0), ("year", 365.0), ("hour", 1.0/24.0) };
             DateTime today = DateTime.Today;
 
             var result = new RssResult(document.SearchByTag("tbody").ChildNodes.Cast<XmlNode>().Select(x =>
