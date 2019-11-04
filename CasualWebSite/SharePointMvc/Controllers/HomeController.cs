@@ -522,7 +522,7 @@ namespace SharePointMvc.Controllers
             var url = $"https://1337x.to/search/{id}/1/";
 
             string contents = GetUrlTextData(url);
-            
+
             string startTag = "<table class=\"table-list table table-responsive table-striped\">";
             string endTag = "</table>";
 
@@ -553,16 +553,33 @@ namespace SharePointMvc.Controllers
                     continue;
                 }
 
-                var description = $"{name} {size} S:{seed} L:{leech}";
+                var description = $"{name} {size} Seed:{seed} Leech:{leech}";
 
-                var timeparts = time.Split(new[] { ' ', '.', '\'' }, StringSplitOptions.RemoveEmptyEntries);
+                Func<string, DateTime> todayDateParser = timeParam =>
+                {
+                    timeParam = timeParam.ToLowerInvariant();
+                    var isAm = timeParam.Contains("am");
+                    timeParam = timeParam.Substring(0, timeParam.IndexOfFirst(x => x >= 'a' && x <= 'z'));
+                    var timeparts = timeParam.Split(':');
+                    var hour = int.Parse(timeparts[0]) + (isAm ? 0 : 12);
+                    var minute = int.Parse(timeparts[1]);
+                    var newDate = DateTime.Today + new TimeSpan(hour, minute, seconds: 0);
+                    return newDate;
+                };
+                Func<string, DateTime> regularDateParser = timeParam =>
+                {
+                    var timeparts = timeParam.Split(new[] { ' ', '.', '\'' }, StringSplitOptions.RemoveEmptyEntries);
 
-                int month = months.First(x => x.monthName.StartsWith(timeparts[0])).monthNumber;
-                int year = 2000 + int.Parse(timeparts[2]);
-                var dayPart = timeparts[1];
-                int indexOfFirst = dayPart.IndexOfFirst(x => x < '0' || x > '9');
-                int day = int.Parse(dayPart.Substring(0, indexOfFirst));
-                var date = new DateTime(year: year, month: month, day: day);
+                    int month = months.First(x => x.monthName.StartsWith(timeparts[0])).monthNumber;
+                    int year = 2000 + int.Parse(timeparts[2]);
+                    var dayPart = timeparts[1];
+                    int indexOfFirst = dayPart.IndexOfFirst(x => x < '0' || x > '9');
+                    int day = int.Parse(dayPart.Substring(0, indexOfFirst));
+                    var newDate = new DateTime(year: year, month: month, day: day);
+                    return newDate;
+                };
+
+                DateTime date = time.Contains("'") ? regularDateParser(time) : todayDateParser(time);
 
                 var newLink = baseDomain + $"/Home/{nameof(Get1337Torrent)}?link={Uri.EscapeDataString(link)}";
 
@@ -639,7 +656,7 @@ namespace SharePointMvc.Controllers
             XmlDocument document = new XmlDocument();
             document.LoadXml(tablePart);
 
-            (string timeName, double timedays)[] dates = { ("day", 1.0), ("week", 7.0), ("month", 30.0), ("year", 365.0), ("hour", 1.0/24.0) };
+            (string timeName, double timedays)[] dates = { ("day", 1.0), ("week", 7.0), ("month", 30.0), ("year", 365.0), ("hour", 1.0 / 24.0) };
             DateTime today = DateTime.Today;
 
             var result = new RssResult(document.SearchByTag("tbody").ChildNodes.Cast<XmlNode>().Select(x =>
