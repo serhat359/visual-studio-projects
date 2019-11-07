@@ -519,7 +519,7 @@ namespace SharePointMvc.Controllers
             contains = contains ?? new string[0];
 
             id = id.Replace(' ', '+');
-            var url = $"https://1337x.to/search/{id}/1/";
+            var url = $"https://www.1377x.to/search/{id}/1/";
 
             string contents = GetUrlTextData(url);
 
@@ -566,6 +566,17 @@ namespace SharePointMvc.Controllers
                     var newDate = DateTime.Today + new TimeSpan(hour, minute, seconds: 0);
                     return newDate;
                 };
+                Func<string, DateTime> yesterdayDateParser = timeParam =>
+                {
+                    var timeparts = timeParam.Split(new[] { ' ', '.' }, StringSplitOptions.RemoveEmptyEntries);
+                    int month = months.First(x => x.monthName.StartsWith(timeparts[1])).monthNumber;
+                    int year = DateTime.Today.Year;
+                    var dayPart = timeparts[2];
+                    int indexOfFirst = dayPart.IndexOfFirst(x => x < '0' || x > '9');
+                    int day = int.Parse(dayPart.Substring(0, indexOfFirst));
+                    var newDate = new DateTime(year: year, month: month, day: day);
+                    return newDate;
+                };
                 Func<string, DateTime> regularDateParser = timeParam =>
                 {
                     var timeparts = timeParam.Split(new[] { ' ', '.', '\'' }, StringSplitOptions.RemoveEmptyEntries);
@@ -579,7 +590,7 @@ namespace SharePointMvc.Controllers
                     return newDate;
                 };
 
-                DateTime date = time.Contains("'") ? regularDateParser(time) : todayDateParser(time);
+                DateTime date = time.Contains("'") ? regularDateParser(time) : time.Contains(":") ? todayDateParser(time) : yesterdayDateParser(time);
 
                 var newLink = baseDomain + $"/Home/{nameof(Get1337Torrent)}?link={Uri.EscapeDataString(link)}";
 
@@ -592,6 +603,8 @@ namespace SharePointMvc.Controllers
                     Guid = newLink
                 });
             }
+
+            list = list.OrderByDescending(c => c.PubDate).ToList();
 
             var rssResult = new UtorrentRssResult(list);
 
