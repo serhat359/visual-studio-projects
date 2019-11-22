@@ -519,7 +519,7 @@ namespace SharePointMvc.Controllers
             contains = contains ?? new string[0];
 
             id = id.Replace(' ', '+');
-            var url = $"https://www.1377x.to/search/{id}/1/";
+            var url = $"https://1337x.to/search/{id}/1/";
 
             string contents = GetUrlTextData(url);
 
