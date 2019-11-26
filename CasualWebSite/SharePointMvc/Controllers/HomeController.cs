@@ -310,6 +310,7 @@ namespace SharePointMvc.Controllers
             sectionPart = FixIncompleteImgs(sectionPart);
 
             XmlDocument document = new XmlDocument();
+            sectionPart = FixTomsHardwareBrokenXml(sectionPart);
             document.LoadXml(sectionPart);
 
             var divs = document.GetAllNodes().Where(c =>
@@ -339,6 +340,35 @@ namespace SharePointMvc.Controllers
             });
 
             return elements;
+        }
+
+        private static string FixTomsHardwareBrokenXml(string sectionPart)
+        {
+            var ariaText = "aria-label";
+            var i = 0;
+
+            while (true)
+            {
+                var i1 = sectionPart.IndexOf(ariaText, i);
+                if (i1 < 0)
+                    break;
+
+                var i2 = sectionPart.IndexOf('"', i1);
+                var i3 = sectionPart.IndexOf('"', i2 + 1);
+                if (sectionPart[i3 + 1] == '>')
+                {
+                    i += ariaText.Length;
+                    continue;
+                }
+                else
+                {
+                    var labelPart = sectionPart.Substring(i2 + 1, i3 - i2 - 1);
+                    var restPart = sectionPart.Substring(sectionPart.IndexOf('>', i2));
+                    sectionPart = sectionPart.Substring(0, i2) + '"' + labelPart + '"' + restPart;
+                }
+            }
+
+            return sectionPart;
         }
 
         private static string FixIncompleteImgs(string sectionPart)
