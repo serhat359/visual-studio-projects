@@ -346,6 +346,7 @@ namespace SharePointMvc.Controllers
         {
             var ariaText = "aria-label";
             var i = 0;
+            var ss = new StringBuilder();
 
             while (true)
             {
@@ -362,13 +363,18 @@ namespace SharePointMvc.Controllers
                 }
                 else
                 {
-                    var labelPart = sectionPart.Substring(i2 + 1, i3 - i2 - 1);
+                    var labelPart = sectionPart.Substring(i2, i3 - i2 + 1);
                     var restPart = sectionPart.Substring(sectionPart.IndexOf('>', i2));
-                    sectionPart = sectionPart.Substring(0, i2) + '"' + labelPart + '"' + restPart;
+                    ss.Append(sectionPart.Substring(0, i2));
+                    ss.Append(labelPart);
+                    sectionPart = restPart;
+                    i = 0;
                 }
             }
 
-            return sectionPart;
+            ss.Append(sectionPart);
+
+            return ss.ToString();
         }
 
         private static string FixIncompleteImgs(string sectionPart)
