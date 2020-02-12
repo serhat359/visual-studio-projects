@@ -1,0 +1,68 @@
+﻿@model AllFilesModel
+
+@{
+    ViewData["Title"] = "All Files";
+}
+
+<h1>All Files</h1>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Icon</th>
+            <th>File Name</th>
+            <th>File Size</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>
+                @if (Model.BackFolderPath != null)
+                {
+                    <a href="?q=@System.Net.WebUtility.UrlEncode(Model.BackFolderPath)"><i class="fa fa-arrow-left"></i></a>
+                }
+                else
+                {
+                    <i class="fa fa-arrow-left"></i>
+                }
+            </td>
+            <td>
+                @if (Model.BackFolderPath != null)
+                {
+                    <a href="?q=@System.Net.WebUtility.UrlEncode(Model.BackFolderPath)">..</a>
+                }
+            </td>
+            <td></td>
+            <td></td>
+        </tr>
+        @foreach (var fileInfo in Model.FileList)
+        {
+            <tr>
+                <td>
+                    @if (fileInfo.IsFolder)
+                    {
+                        <i class="fa fa-folder-open"></i>
+                    }
+                </td>
+                <td>
+                    @if (fileInfo.IsFolder)
+                    {
+                        <a href="?q=@(System.Net.WebUtility.UrlEncode(Model.CurrentPath + fileInfo.Name))">@fileInfo.Name</a>
+                    }
+                    else
+                    {
+                        @fileInfo.Name
+                    }
+                </td>
+                <td>@fileInfo.FileSizeString</td>
+                <td>
+                    @if (!fileInfo.IsFolder)
+                    {
+                        <a href="DownloadFile?q=@(System.Net.WebUtility.UrlEncode(Model.CurrentPath + fileInfo.Name))"><i class="fa fa-download"></i></a>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
