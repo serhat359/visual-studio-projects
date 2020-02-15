@@ -66,9 +66,6 @@ namespace DotNetCoreWebsite
                 {
                     //dispose managed resources
                 }
-
-                stream.Dispose();
-                stream.Close();
             }
             //dispose unmanaged resources
             disposed = true;

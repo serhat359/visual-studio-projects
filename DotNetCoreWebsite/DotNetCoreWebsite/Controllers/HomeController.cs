@@ -95,7 +95,8 @@ namespace DotNetCoreWebsite.Controllers
 
                 Response.StatusCode = 206;
                 Response.Headers.Add("Content-Length", (fileLength - startbyte).ToString());
-                Response.Headers.Add("Content-Range", string.Format("bytes {0}-{1}/{2}", startbyte, fileLength - 1, fileLength));
+                string contentRange = string.Format("bytes {0}-{1}/{2}", startbyte, fileLength - 1, fileLength);
+                Response.Headers.Add("Content-Range", contentRange);
             }
 
             Response.Headers.Add("Accept-Ranges", "bytes");
