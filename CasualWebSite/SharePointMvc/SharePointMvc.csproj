@@ -163,11 +163,22 @@
     <Compile Include="Helpers\Encryption.cs" />
     <Compile Include="Helpers\EncryptStream.cs" />
     <Compile Include="Helpers\ExcelHelper.cs" />
+    <Compile Include="Helpers\MyTorrentRssHelper.cs" />
     <Compile Include="Helpers\MyXmlSerializer.cs" />
     <Compile Include="Models\AccountModels.cs" />
     <Compile Include="Models\Category.cs" />
     <Compile Include="Models\Discussion.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Resource1.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resource1.resx</DependentUpon>
+    </Compile>
+    <Compile Include="rssLinks.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>rssLinks.json</DependentUpon>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Content Include="favicon.ico" />
@@ -193,11 +204,15 @@
     <Folder Include="App_Data\" />
     <Folder Include="Content\" />
     <Folder Include="fonts\" />
-    <Folder Include="Views\Home\" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
     <None Include="Properties\PublishProfiles\FolderProfile.pubxml" />
+    <Content Include="Views\Home\GetRssLinks.cshtml" />
+    <Content Include="rssLinks.json">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>rssLinks.Designer.cs</LastGenOutput>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Business\Business.csproj">
@@ -216,6 +231,12 @@
       <Project>{0c1e467a-8226-494d-9a25-ef2511f7df0e}</Project>
       <Name>WebModelFactory</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resource1.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resource1.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>

@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -260,9 +261,9 @@ namespace SharePointMvc.Controllers
         [HttpGet]
         public ActionResult FixTomsArticlesManual()
         {
-            var xmlResultResult = CacheHelper<ActionResult>.GetTomsArticlesKey(() =>
-            {
-                string[] urls = { "https://www.tomshardware.com/reviews/",
+            var xmlResultResult = CacheHelper.Get<ActionResult>(CacheHelper.TomsArticlesKey, () =>
+             {
+                 string[] urls = { "https://www.tomshardware.com/reviews/",
                               "https://www.tomshardware.com/reviews/page/2",
                               "https://www.tomshardware.com/reference/",
                               "https://www.tomshardware.com/features/",
@@ -270,16 +271,16 @@ namespace SharePointMvc.Controllers
                               "https://www.tomshardware.com/opinion/",
                               "https://www.tomshardware.com/round-up/",
                               "https://www.tomshardware.com/best-picks/",
-                            };
+                             };
 
-                var ss = urls.SelectMany(url => GetRssObjectFromTomsUrlNew(url));
+                 var ss = urls.SelectMany(url => GetRssObjectFromTomsUrlNew(url));
 
-                var rssObject = new RssResult(ss.Where(x => !x.Link.Contains("/news/")).OrderByDescending(x => x.PubDate));
+                 var rssObject = new RssResult(ss.Where(x => !x.Link.Contains("/news/")).OrderByDescending(x => x.PubDate));
 
-                var xmlResult = this.Xml(rssObject);
+                 var xmlResult = this.Xml(rssObject);
 
-                return xmlResult;
-            });
+                 return xmlResult;
+             }, TimeSpan.FromHours(2));
 
             return xmlResultResult;
         }
@@ -302,125 +303,6 @@ namespace SharePointMvc.Controllers
             var rssObject = new RssResult(elements.OrderByDescending(c => c.PubDate));
 
             return this.Xml(rssObject);
-        }
-
-        private static IEnumerable<RssResultItem> GetRssObjectFromTomsUrlNew(string url)
-        {
-            string contents = GetUrlTextData(url);
-
-            string startTag = "<section data-next=\"latest\"";
-            string endTag = "</section>";
-
-            int indexOfStart = contents.IndexOf(startTag);
-            int indexOfEnd = contents.IndexOf(endTag, indexOfStart);
-
-            string sectionPart = contents.Substring(indexOfStart, indexOfEnd - indexOfStart + endTag.Length);
-            sectionPart = sectionPart.Replace(" itemscope ", "  ");
-            sectionPart = sectionPart.Replace("&rsquo;", "&apos;");
-            sectionPart = sectionPart.Replace("&lsquo;", "&apos;");
-            sectionPart = sectionPart.Replace("&rdquo;", "\"");
-            sectionPart = sectionPart.Replace("&ldquo;", "\"");
-            sectionPart = sectionPart.Replace("&pound;", "£");
-            sectionPart = sectionPart.Replace("&sup2;", "²");
-
-            sectionPart = FixIncompleteImgs(sectionPart);
-
-            XmlDocument document = new XmlDocument();
-            sectionPart = FixTomsHardwareBrokenXml(sectionPart);
-            document.LoadXml(sectionPart);
-
-            var divs = document.GetAllNodes().Where(c =>
-            {
-                var classValue = c.Attributes?["class"]?.Value;
-                return classValue?.Contains("listingResult small") == true
-                    && classValue?.Contains("sponsored") != true;
-            }).ToList();
-
-            var elements = divs.Cast<XmlNode>().Select(liNode =>
-            {
-                var aNode = liNode.SearchByTag("a");
-                var link = aNode.Attributes["href"].Value;
-
-                var imgNode = liNode.SearchByTag("img");
-                var imgSrc = imgNode.Attributes["data-src"]?.InnerText ?? imgNode.Attributes["src"].InnerText;
-
-                var img = $"<a href=\"{link}\"><img src=\"{imgSrc}\" /></a>";
-
-                return new RssResultItem
-                {
-                    Description = $"<![CDATA[{img}]]>",
-                    Link = link,
-                    PubDate = DateTime.Parse(liNode.SearchByTag("time").Attributes["datetime"].Value),
-                    Title = liNode.SearchByTag("h3").InnerText,
-                };
-            });
-
-            return elements;
-        }
-
-        private static string FixTomsHardwareBrokenXml(string sectionPart)
-        {
-            var ariaText = "aria-label";
-            var i = 0;
-            var ss = new StringBuilder();
-
-            while (true)
-            {
-                var i1 = sectionPart.IndexOf(ariaText, i);
-                if (i1 < 0)
-                    break;
-
-                var i2 = sectionPart.IndexOf('"', i1);
-                var i3 = sectionPart.IndexOf('"', i2 + 1);
-                if (sectionPart[i3 + 1] == '>')
-                {
-                    i += ariaText.Length;
-                    continue;
-                }
-                else
-                {
-                    var labelPart = sectionPart.Substring(i2, i3 - i2 + 1);
-                    var restPart = sectionPart.Substring(sectionPart.IndexOf('>', i2));
-                    ss.Append(sectionPart.Substring(0, i2));
-                    ss.Append(labelPart);
-                    sectionPart = restPart;
-                    i = 0;
-                }
-            }
-
-            sectionPart = sectionPart.Replace("&alpha;", "");
-
-            ss.Append(sectionPart);
-
-            return ss.ToString();
-        }
-
-        private static string FixIncompleteImgs(string sectionPart)
-        {
-            var ss = new StringBuilder();
-
-            int lastIndex = 0;
-            while (true)
-            {
-                var i = sectionPart.IndexOf("<img", lastIndex);
-                if (i < 0) break;
-
-                var ii = sectionPart.IndexOf(">", i);
-
-                if (sectionPart[ii - 1] == '/') continue;
-
-                ss.Append(sectionPart.Substring(lastIndex, ii - lastIndex));
-                ss.Append("/");
-                lastIndex = ii;
-            }
-
-            if (lastIndex > 0)
-            {
-                ss.Append(sectionPart.Substring(lastIndex));
-                return ss.ToString();
-            }
-            else
-                return sectionPart;
         }
 
         [HttpGet]
@@ -851,29 +733,74 @@ namespace SharePointMvc.Controllers
             })));
         }
 
-        private static string FixUseLinks(string s)
+        [HttpGet]
+        public ActionResult GenerateRssResult()
         {
-            var useLinkFixIndex = 0;
-            var sb = new StringBuilder();
-            var endTag = "</use>";
-
-            while (true)
+            return CacheHelper.Get<ContentResult>(CacheHelper.MyRssKey, () =>
             {
-                var newIndex = s.IndexOf("<use", useLinkFixIndex);
+                var links = MyTorrentRssHelper.Instance(Request.PhysicalApplicationPath).GetLinks().Keys;
 
-                if (newIndex >= 0)
-                {
-                    sb.Append(s.Substring(useLinkFixIndex, newIndex - useLinkFixIndex));
-                    useLinkFixIndex = s.IndexOf(endTag, newIndex) + endTag.Length;
-                }
-                else
-                {
-                    sb.Append(s.Substring(useLinkFixIndex, s.Length - useLinkFixIndex));
-                    break;
-                }
-            }
+                var allLinks = new List<(DateTime date, XmlNode node)>();
 
-            return sb.ToString();
+                foreach (var link in links)
+                {
+                    try
+                    {
+                        var result = GetUrlTextData(link);
+                        var xml = new XmlDocument();
+                        xml.LoadXml(result);
+
+                        var itemNodes = xml.ChildNodes[0].ChildNodes[0].ChildNodes.Cast<XmlNode>().Where(x => x.Name == "item").ToList();
+                        foreach (var itemNode in itemNodes)
+                        {
+                            var date = DateTime.Parse(itemNode.SearchByTag("pubDate").InnerText);
+
+                            // This line was added for browser compatibility, should not be used with bittorrent clients
+                            itemNode.SearchByTag("link").InnerText = itemNode.SearchByTag("guid").InnerText;
+
+                            allLinks.Add((date, itemNode));
+                        }
+                    }
+                    catch (Exception e)
+                    {
+
+                    }
+                }
+
+                allLinks = allLinks.OrderByDescending(x => x.date).ToList();
+
+                var rssFinalResult = string.Format(Resource1.RssTemplate, string.Join("", allLinks.Select(x => x.node.OuterXml)));
+
+                var contentResult = Content(rssFinalResult, "application/xml");
+
+                return contentResult;
+            }, TimeSpan.FromHours(2));
+        }
+
+        [HttpGet]
+        public ActionResult GetRssLinks()
+        {
+            var links = MyTorrentRssHelper.Instance(Request.PhysicalApplicationPath).GetLinks();
+
+            return View(links);
+        }
+
+        [HttpPost]
+        public ActionResult AddRssLink(string link, string name)
+        {
+            MyTorrentRssHelper.Instance(Request.PhysicalApplicationPath).AddLink(link: link, name: name);
+            CacheHelper.Delete(CacheHelper.MyRssKey);
+
+            return RedirectToAction(nameof(GetRssLinks));
+        }
+
+        [HttpGet]
+        public ActionResult DeleteRssLink(string link)
+        {
+            MyTorrentRssHelper.Instance(Request.PhysicalApplicationPath).RemoveLink(link);
+            CacheHelper.Delete(CacheHelper.MyRssKey);
+
+            return RedirectToAction(nameof(GetRssLinks));
         }
 
         #endregion
@@ -1177,6 +1104,150 @@ namespace SharePointMvc.Controllers
                 }
                 i++;
             }
+        }
+
+        private static IEnumerable<RssResultItem> GetRssObjectFromTomsUrlNew(string url)
+        {
+            string contents = GetUrlTextData(url);
+
+            string startTag = "<section data-next=\"latest\"";
+            string endTag = "</section>";
+
+            int indexOfStart = contents.IndexOf(startTag);
+            int indexOfEnd = contents.IndexOf(endTag, indexOfStart);
+
+            string sectionPart = contents.Substring(indexOfStart, indexOfEnd - indexOfStart + endTag.Length);
+            sectionPart = sectionPart.Replace(" itemscope ", "  ");
+            sectionPart = sectionPart.Replace("&rsquo;", "&apos;");
+            sectionPart = sectionPart.Replace("&lsquo;", "&apos;");
+            sectionPart = sectionPart.Replace("&rdquo;", "\"");
+            sectionPart = sectionPart.Replace("&ldquo;", "\"");
+            sectionPart = sectionPart.Replace("&pound;", "£");
+            sectionPart = sectionPart.Replace("&sup2;", "²");
+
+            sectionPart = FixIncompleteImgs(sectionPart);
+
+            XmlDocument document = new XmlDocument();
+            sectionPart = FixTomsHardwareBrokenXml(sectionPart);
+            document.LoadXml(sectionPart);
+
+            var divs = document.GetAllNodes().Where(c =>
+            {
+                var classValue = c.Attributes?["class"]?.Value;
+                return classValue?.Contains("listingResult small") == true
+                    && classValue?.Contains("sponsored") != true;
+            }).ToList();
+
+            var elements = divs.Cast<XmlNode>().Select(liNode =>
+            {
+                var aNode = liNode.SearchByTag("a");
+                var link = aNode.Attributes["href"].Value;
+
+                var imgNode = liNode.SearchByTag("img");
+                var imgSrc = imgNode.Attributes["data-src"]?.InnerText ?? imgNode.Attributes["src"].InnerText;
+
+                var img = $"<a href=\"{link}\"><img src=\"{imgSrc}\" /></a>";
+
+                return new RssResultItem
+                {
+                    Description = $"<![CDATA[{img}]]>",
+                    Link = link,
+                    PubDate = DateTime.Parse(liNode.SearchByTag("time").Attributes["datetime"].Value),
+                    Title = liNode.SearchByTag("h3").InnerText,
+                };
+            });
+
+            return elements;
+        }
+
+        private static string FixTomsHardwareBrokenXml(string sectionPart)
+        {
+            var ariaText = "aria-label";
+            var i = 0;
+            var ss = new StringBuilder();
+
+            while (true)
+            {
+                var i1 = sectionPart.IndexOf(ariaText, i);
+                if (i1 < 0)
+                    break;
+
+                var i2 = sectionPart.IndexOf('"', i1);
+                var i3 = sectionPart.IndexOf('"', i2 + 1);
+                if (sectionPart[i3 + 1] == '>')
+                {
+                    i += ariaText.Length;
+                    continue;
+                }
+                else
+                {
+                    var labelPart = sectionPart.Substring(i2, i3 - i2 + 1);
+                    var restPart = sectionPart.Substring(sectionPart.IndexOf('>', i2));
+                    ss.Append(sectionPart.Substring(0, i2));
+                    ss.Append(labelPart);
+                    sectionPart = restPart;
+                    i = 0;
+                }
+            }
+
+            sectionPart = sectionPart.Replace("&alpha;", "");
+
+            ss.Append(sectionPart);
+
+            return ss.ToString();
+        }
+
+        private static string FixIncompleteImgs(string sectionPart)
+        {
+            var ss = new StringBuilder();
+
+            int lastIndex = 0;
+            while (true)
+            {
+                var i = sectionPart.IndexOf("<img", lastIndex);
+                if (i < 0) break;
+
+                var ii = sectionPart.IndexOf(">", i);
+
+                if (sectionPart[ii - 1] == '/') continue;
+
+                ss.Append(sectionPart.Substring(lastIndex, ii - lastIndex));
+                ss.Append("/");
+                lastIndex = ii;
+            }
+
+            if (lastIndex > 0)
+            {
+                ss.Append(sectionPart.Substring(lastIndex));
+                return ss.ToString();
+            }
+            else
+                return sectionPart;
+        }
+
+        private static string FixUseLinks(string s)
+        {
+            var useLinkFixIndex = 0;
+            var sb = new StringBuilder();
+            var endTag = "</use>";
+
+            while (true)
+            {
+                var newIndex = s.IndexOf("<use", useLinkFixIndex);
+
+                if (newIndex >= 0)
+                {
+                    sb.Append(s.Substring(useLinkFixIndex, newIndex - useLinkFixIndex));
+                    useLinkFixIndex = s.IndexOf(endTag, newIndex) + endTag.Length;
+                }
+                else
+                {
+                    sb.Append(s.Substring(useLinkFixIndex, s.Length - useLinkFixIndex));
+                    break;
+                }
+            }
+
+            return sb.ToString();
         }
 
         #endregion
