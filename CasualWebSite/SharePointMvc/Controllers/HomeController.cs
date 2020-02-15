@@ -260,13 +260,28 @@ namespace SharePointMvc.Controllers
         [HttpGet]
         public ActionResult FixTomsArticlesManual()
         {
-            string[] urls = { "https://www.tomshardware.com/reviews/", "https://www.tomshardware.com/reviews/page/2" };
+            var xmlResultResult = CacheHelper<ActionResult>.GetTomsArticlesKey(() =>
+            {
+                string[] urls = { "https://www.tomshardware.com/reviews/",
+                              "https://www.tomshardware.com/reviews/page/2",
+                              "https://www.tomshardware.com/reference/",
+                              "https://www.tomshardware.com/features/",
+                              "https://www.tomshardware.com/how-to/",
+                              "https://www.tomshardware.com/opinion/",
+                              "https://www.tomshardware.com/round-up/",
+                              "https://www.tomshardware.com/best-picks/",
+                            };
 
-            var ss = urls.SelectMany(url => GetRssObjectFromTomsUrlNew(url));
+                var ss = urls.SelectMany(url => GetRssObjectFromTomsUrlNew(url));
 
-            var rssObject = new RssResult(ss.Where(x => !x.Link.Contains("/news/")).OrderByDescending(x => x.PubDate));
+                var rssObject = new RssResult(ss.Where(x => !x.Link.Contains("/news/")).OrderByDescending(x => x.PubDate));
 
-            return this.Xml(rssObject);
+                var xmlResult = this.Xml(rssObject);
+
+                return xmlResult;
+            });
+
+            return xmlResultResult;
         }
 
         [HttpGet]
@@ -306,6 +321,7 @@ namespace SharePointMvc.Controllers
             sectionPart = sectionPart.Replace("&rdquo;", "\"");
             sectionPart = sectionPart.Replace("&ldquo;", "\"");
             sectionPart = sectionPart.Replace("&pound;", "£");
+            sectionPart = sectionPart.Replace("&sup2;", "²");
 
             sectionPart = FixIncompleteImgs(sectionPart);
 
@@ -371,6 +387,8 @@ namespace SharePointMvc.Controllers
                     i = 0;
                 }
             }
+
+            sectionPart = sectionPart.Replace("&alpha;", "");
 
             ss.Append(sectionPart);
 
@@ -725,6 +743,137 @@ namespace SharePointMvc.Controllers
             }));
 
             return Xml(result);
+        }
+
+        [HttpGet]
+        public ActionResult MangaTownParse(string id)
+        {
+            string mangaName = id;
+
+            if (string.IsNullOrWhiteSpace(mangaName))
+                throw new Exception("manganame can't be empty");
+
+            string url = $"https://www.mangatown.com/manga/{mangaName}/";
+            string baseLink = "https://www.mangatown.com";
+
+            string contents = GetUrlTextData(url);
+
+            string startTag = "<ul class=\"chapter_list\">";
+            string endTag = "</ul>";
+
+            int indexOfStart = contents.IndexOf(startTag);
+            int indexOfEnd = contents.IndexOf(endTag, indexOfStart);
+
+            string tablePart = contents.Substring(indexOfStart, indexOfEnd - indexOfStart + endTag.Length);
+
+            XmlDocument document = new XmlDocument();
+            document.LoadXml(tablePart);
+
+            var result = new RssResult(document.ChildNodes[0].ChildNodes.Cast<XmlNode>().Select(x =>
+            {
+                var dateString = x.SearchByTag("span", @class: "time").InnerText;
+
+                dateString = dateString.Replace("Today ", "");
+                dateString = dateString.Replace("Yesterday ", "");
+
+                if (!DateTime.TryParse(dateString, out var date))
+                {
+                    throw new Exception($"could not parse string to date: {dateString}");
+                }
+
+                var link = x.SearchByTag("a");
+
+                return new RssResultItem
+                {
+                    Description = "This was parsed from mangatown.com",
+                    Link = baseLink + link.Attributes["href"].Value,
+                    PubDate = date,
+                    Title = link.InnerText
+                };
+            }).Take(10));
+
+            return Xml(result);
+        }
+
+        [HttpGet]
+        public ActionResult GetOmoriResults()
+        {
+            var url = "https://www.borderless-house.com/jp/sharehouse/omori/";
+
+            string baseLink = "https://www.borderless-house.com";
+
+            string contents = GetUrlTextData(url);
+
+            string divStart = "<div id=\"panel-4\"";
+
+            int indexOfDivStart = contents.IndexOf(divStart);
+
+            string startTag = "<tbody>";
+            string endTag = "</tbody>";
+
+            int indexOfStart = contents.IndexOf(startTag, indexOfDivStart);
+            int indexOfEnd = contents.IndexOf(endTag, indexOfStart);
+
+            string tablePart = contents.Substring(indexOfStart, indexOfEnd - indexOfStart + endTag.Length);
+
+            tablePart = FixUseLinks(tablePart);
+
+            XmlDocument document = new XmlDocument();
+            document.LoadXml(tablePart);
+
+            var elements = document.ChildNodes[0].ChildNodes.Cast<XmlNode>()
+                .Where(x => !string.IsNullOrEmpty(x.InnerText))
+                .Where(x => !x.InnerText.Contains("Female"))
+                .Where(x => !x.InnerText.Contains("Japanese nationality"))
+                .Where(x => !x.InnerText.Contains("Room for 2"))
+                .Where(x => !x.InnerText.Contains("Room for 3"))
+                .Where(x => !x.InnerText.Contains("Room for 4"))
+                .Where(x =>
+                {
+                    var areaText = x.ChildNodes.Cast<XmlNode>().Where(y => y.InnerText.Contains("㎡")).FirstOrDefault()?.InnerText;
+
+                    if (areaText == null)
+                        return false;
+
+                    var area = double.Parse(areaText.Replace("㎡", ""));
+
+                    return area > 8;
+                });
+
+            var date = DateTime.Today;
+
+            return Xml(new RssResult(elements.Select(x => new RssResultItem
+            {
+                Description = x.InnerText,
+                PubDate = date,
+                Title = "Omori",
+                Link = url
+            })));
+        }
+
+        private static string FixUseLinks(string s)
+        {
+            var useLinkFixIndex = 0;
+            var sb = new StringBuilder();
+            var endTag = "</use>";
+
+            while (true)
+            {
+                var newIndex = s.IndexOf("<use", useLinkFixIndex);
+
+                if (newIndex >= 0)
+                {
+                    sb.Append(s.Substring(useLinkFixIndex, newIndex - useLinkFixIndex));
+                    useLinkFixIndex = s.IndexOf(endTag, newIndex) + endTag.Length;
+                }
+                else
+                {
+                    sb.Append(s.Substring(useLinkFixIndex, s.Length - useLinkFixIndex));
+                    break;
+                }
+            }
+
+            return sb.ToString();
         }
 
         #endregion

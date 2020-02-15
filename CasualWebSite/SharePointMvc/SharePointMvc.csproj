@@ -159,6 +159,7 @@
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
+    <Compile Include="Helpers\CacheHelper.cs" />
     <Compile Include="Helpers\Encryption.cs" />
     <Compile Include="Helpers\EncryptStream.cs" />
     <Compile Include="Helpers\ExcelHelper.cs" />
