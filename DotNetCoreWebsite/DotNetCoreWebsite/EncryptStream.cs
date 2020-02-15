@@ -7,12 +7,14 @@ namespace DotNetCoreWebsite
     {
         private Stream stream;
         private CoreEncryption coreEncryption;
+        private long misalignment;
         bool disposed;
 
-        public EncryptStream(Func<Stream> streamer, CoreEncryption coreEncryption)
+        public EncryptStream(Func<Stream> streamer, CoreEncryption coreEncryption, long misalignment)
         {
             stream = streamer();
             this.coreEncryption = coreEncryption;
+            this.misalignment = misalignment;
         }
 
         public override bool CanRead => stream.CanRead;
@@ -33,7 +35,7 @@ namespace DotNetCoreWebsite
         public override int Read(byte[] buffer, int offset, int count)
         {
             var readCount = stream.Read(buffer, offset, count);
-            coreEncryption.EncryptInPlace(buffer);
+            coreEncryption.EncryptInPlace(buffer, this.misalignment);
             return readCount;
         }
 

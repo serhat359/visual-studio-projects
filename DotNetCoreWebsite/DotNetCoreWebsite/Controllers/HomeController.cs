@@ -75,20 +75,23 @@ namespace DotNetCoreWebsite.Controllers
             if (q != null)
                 rootPath = System.IO.Path.Combine(rootPath, q);
 
+            var rangeStart = GetByteOffset();
+
             string fullPath = rootPath;
             long fileLength = (new System.IO.FileInfo(fullPath)).Length;
-            var fileStream = new EncryptStream(() => new System.IO.FileStream(fullPath, System.IO.FileMode.Open), this.coreEncryption);
+            var fileStream = new EncryptStream(() => new System.IO.FileStream(fullPath, System.IO.FileMode.Open), this.coreEncryption, (rangeStart ?? 0) % 512);
 
             long contentLength;
-            string rangeResult = Request.Query["HTTP_RANGE"].ToString().NullIfEmpty() ?? Request.Headers["Range"].ToString();
-            if (string.IsNullOrEmpty(rangeResult))
+
+            if (rangeStart == null)
             {
                 contentLength = fileLength;
                 Response.Headers.Add("Content-Length", contentLength.ToString());
             }
             else
             {
-                long startbyte = long.Parse(Regex.Match(rangeResult, @"\d+").Value, NumberFormatInfo.InvariantInfo);
+                long startbyte = rangeStart.Value;
+
                 long endByte = fileLength - 1;
 
                 fileStream.Position = startbyte;
@@ -144,6 +147,24 @@ namespace DotNetCoreWebsite.Controllers
             }
 
             return backFolderPath;
+        }
+
+        private long? GetByteOffset()
+        {
+            string rangeResult = Request.Query["HTTP_RANGE"].ToString().NullIfEmpty() ?? Request.Headers["Range"].ToString();
+
+            if (string.IsNullOrEmpty(rangeResult))
+                return null;
+            else
+            {
+                var index = rangeResult.IndexOf('-');
+                if (index >= 0)
+                    rangeResult = rangeResult.Substring(0, index);
+
+                long startbyte = long.Parse(Regex.Match(rangeResult, @"\d+").Value, NumberFormatInfo.InvariantInfo);
+
+                return startbyte;
+            }
         }
     }
 }

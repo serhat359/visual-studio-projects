@@ -19,13 +19,13 @@ namespace DotNetCoreWebsite
             _instance = this;
         }
 
-        public void EncryptInPlace(byte[] content)
+        public void EncryptInPlace(byte[] content, long misalignment)
         {
             var pass = password.Value;
 
             for (int i = 0; i < content.Length; i++)
             {
-                content[i] = (byte)(content[i] + pass[i % pass.Length]);
+                content[i] = (byte)(content[i] + pass[(i + misalignment) % pass.Length]);
             }
         }
 
