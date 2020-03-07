@@ -7,7 +7,7 @@ namespace DotNetCoreWebsite
     {
         private Stream stream;
         private CoreEncryption coreEncryption;
-        private long misalignment;
+        private readonly long misalignment;
         bool disposed;
 
         public EncryptStream(Func<Stream> streamer, CoreEncryption coreEncryption, long misalignment)

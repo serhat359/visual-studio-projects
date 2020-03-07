@@ -81,12 +81,9 @@ namespace DotNetCoreWebsite.Controllers
             long fileLength = (new System.IO.FileInfo(fullPath)).Length;
             var fileStream = new EncryptStream(() => new System.IO.FileStream(fullPath, System.IO.FileMode.Open), this.coreEncryption, (rangeStart ?? 0) % 512);
 
-            long contentLength;
-
             if (rangeStart == null)
             {
-                contentLength = fileLength;
-                Response.Headers.Add("Content-Length", contentLength.ToString());
+                Response.Headers.Add("Content-Length", fileLength.ToString());
             }
             else
             {
