@@ -1144,7 +1144,7 @@ namespace SharePointMvc.Controllers
                 var link = aNode.Attributes["href"].Value;
 
                 var imgNode = liNode.SearchByTag("img");
-                var imgSrc = imgNode.Attributes["data-src"]?.InnerText ?? imgNode.Attributes["src"].InnerText;
+                var imgSrc = imgNode.Attributes["data-srcset"]?.InnerText?.BeforeFirst(" ") ?? imgNode.Attributes["data-src"]?.InnerText ?? imgNode.Attributes["src"].InnerText;
 
                 var img = $"<a href=\"{link}\"><img src=\"{imgSrc}\" /></a>";
 

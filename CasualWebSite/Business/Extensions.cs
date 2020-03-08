@@ -74,5 +74,15 @@ namespace Extensions
 
             return -1;
         }
+
+        public static string BeforeFirst(this string s, string needle)
+        {
+            var index = s.IndexOf(needle);
+
+            if (index >= 0)
+                return s.Substring(0, index);
+            else
+                return s;
+        }
     }
 }
