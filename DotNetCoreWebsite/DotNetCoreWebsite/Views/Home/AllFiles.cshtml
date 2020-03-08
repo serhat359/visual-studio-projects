@@ -12,6 +12,7 @@
             <th>Icon</th>
             <th>File Name</th>
             <th>File Size</th>
+            <th>Date</th>
             <th></th>
         </tr>
     </thead>
@@ -35,6 +36,7 @@
             </td>
             <td></td>
             <td></td>
+            <td></td>
         </tr>
         @foreach (var fileInfo in Model.FileList)
         {
@@ -56,6 +58,7 @@
                     }
                 </td>
                 <td>@fileInfo.FileSizeString</td>
+                <td>@fileInfo.ModifiedDateString</td>
                 <td>
                     @if (!fileInfo.IsFolder)
                     {

@@ -1,6 +1,7 @@
 ﻿using DotNetCoreWebsite.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -42,11 +43,16 @@ namespace DotNetCoreWebsite.Controllers
             if (q != null)
                 rootPath = System.IO.Path.Combine(rootPath, q);
 
-            var directoryInfos = System.IO.Directory.EnumerateDirectories(rootPath).Select(x => new FileInfo
+            var directoryInfos = System.IO.Directory.EnumerateDirectories(rootPath).Select(x =>
             {
-                Name = new System.IO.DirectoryInfo(x).Name,
-                IsFolder = true,
-                FileSize = null
+                var dInfo = new System.IO.DirectoryInfo(x);
+                return new FileInfo
+                {
+                    Name = dInfo.Name,
+                    IsFolder = true,
+                    FileSize = null,
+                    ModifiedDate = dInfo.LastWriteTimeUtc
+                };
             });
 
             var fileInfos = System.IO.Directory.EnumerateFiles(rootPath).Select(x =>
@@ -56,9 +62,13 @@ namespace DotNetCoreWebsite.Controllers
                 {
                     Name = fInfo.Name,
                     IsFolder = false,
-                    FileSize = fInfo.Length
+                    FileSize = fInfo.Length,
+                    ModifiedDate = fInfo.LastWriteTimeUtc
                 };
             });
+
+            directoryInfos = directoryInfos.OrderByDescending(x => x.ModifiedDate);
+            fileInfos = fileInfos.OrderByDescending(x => x.ModifiedDate);
 
             return View(new AllFilesModel
             {
