@@ -67,6 +67,7 @@ namespace Decryptor
 
                     Directory.CreateDirectory(folderPath);
 
+                    long totalBytesDone = 0L;
                     foreach (var fileInfo in fileInfos)
                     {
                         var realFileNameFullPath = result[fileInfo.Name];
@@ -83,7 +84,6 @@ namespace Decryptor
                         using (var destination = File.Create(newPath))
                         using (var source = File.Open(fileInfo.FullName, FileMode.Open, FileAccess.Read))
                         {
-                            long totalBytesDone = 0l;
                             while (true)
                             {
                                 var readCount = source.Read(buffer, 0, buffer.Length);
