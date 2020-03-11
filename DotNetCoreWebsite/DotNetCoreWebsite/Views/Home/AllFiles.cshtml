@@ -21,7 +21,7 @@
             <td>
                 @if (Model.BackFolderPath != null)
                 {
-                    <a href="?q=@System.Net.WebUtility.UrlEncode(Model.BackFolderPath)"><i class="fa fa-arrow-left"></i></a>
+                    <a href="?q=@WebUtility.UrlEncode(Model.BackFolderPath)"><i class="fa fa-arrow-left"></i></a>
                 }
                 else
                 {
@@ -31,7 +31,7 @@
             <td>
                 @if (Model.BackFolderPath != null)
                 {
-                    <a href="?q=@System.Net.WebUtility.UrlEncode(Model.BackFolderPath)">..</a>
+                    <a href="?q=@WebUtility.UrlEncode(Model.BackFolderPath)">..</a>
                 }
             </td>
             <td></td>
@@ -50,7 +50,7 @@
                 <td>
                     @if (fileInfo.IsFolder)
                     {
-                        <a href="?q=@(System.Net.WebUtility.UrlEncode(Model.CurrentPath + fileInfo.Name))">@fileInfo.Name</a>
+                        <a href="?q=@WebUtility.UrlEncode(Model.CurrentPath + fileInfo.Name)">@fileInfo.Name</a>
                     }
                     else
                     {
@@ -62,7 +62,7 @@
                 <td>
                     @if (!fileInfo.IsFolder)
                     {
-                        <a href="DownloadFile?q=@(System.Net.WebUtility.UrlEncode(Model.CurrentPath + fileInfo.Name))"><i class="fa fa-download"></i></a>
+                        <a href="DownloadFile?q=@WebUtility.UrlEncode(Model.CurrentPath + fileInfo.Name)"><i class="fa fa-download"></i></a>
                     }
                 </td>
             </tr>
