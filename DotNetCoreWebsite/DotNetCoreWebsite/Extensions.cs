@@ -13,11 +13,11 @@
             if (length < sizeBase)
                 return $"{length} bytes";
             if (length < sizeBase * sizeBase)
-                return string.Format("{0:N2} KB", (length / sizeBaseD));
+                return string.Format("{0:N2} KiB", (length / sizeBaseD));
             if (length < sizeBase * sizeBase * sizeBase)
-                return string.Format("{0:N2} MB", (length / sizeBaseD / sizeBaseD));
+                return string.Format("{0:N2} MiB", (length / sizeBaseD / sizeBaseD));
             if (length < sizeBase * sizeBase * sizeBase * sizeBase)
-                return string.Format("{0:N2} GB", (length / sizeBaseD / sizeBaseD / sizeBaseD));
+                return string.Format("{0:N2} GiB", (length / sizeBaseD / sizeBaseD / sizeBaseD));
 
             return "";
         }
