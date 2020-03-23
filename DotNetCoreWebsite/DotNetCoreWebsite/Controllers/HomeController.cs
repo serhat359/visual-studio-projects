@@ -37,10 +37,7 @@ namespace DotNetCoreWebsite.Controllers
 
         public IActionResult AllFiles(string q = null)
         {
-            var rootPath = GetPathConfig();
-
-            if (q != null)
-                rootPath = System.IO.Path.Combine(rootPath, q);
+            var rootPath = GetSafePath(q);
 
             var directoryInfos = System.IO.Directory.EnumerateDirectories(rootPath).Select(x =>
             {
@@ -79,10 +76,7 @@ namespace DotNetCoreWebsite.Controllers
 
         public IActionResult DownloadFile(string q)
         {
-            var rootPath = GetPathConfig();
-
-            if (q != null)
-                rootPath = System.IO.Path.Combine(rootPath, q);
+            var rootPath = GetSafePath(q);
 
             var rangeStart = GetByteOffset();
 
@@ -131,9 +125,25 @@ namespace DotNetCoreWebsite.Controllers
             return Json(dic);
         }
 
+        #region Private Methods
         private string GetPathConfig()
         {
             return configuration.GetSection("AllFilesRoot").Value;
+        }
+
+        private string GetSafePath(string q)
+        {
+            var basePath = GetPathConfig();
+
+            string pathFunc(string s) => (s != null) ? System.IO.Path.Combine(basePath, s) : basePath;
+
+            var rootPath = pathFunc(q);
+            if (!new System.IO.DirectoryInfo(rootPath).FullName.Contains(basePath))
+            {
+                rootPath = pathFunc("");
+            }
+
+            return rootPath;
         }
 
         private string GetBackFolderPath(string q)
@@ -172,5 +182,6 @@ namespace DotNetCoreWebsite.Controllers
                 return startbyte;
             }
         }
+        #endregion
     }
 }
