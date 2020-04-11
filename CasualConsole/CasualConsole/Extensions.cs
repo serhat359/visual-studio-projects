@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
-using System.Linq;
 using System.Xml;
 
 namespace CasualConsole
@@ -28,6 +28,14 @@ namespace CasualConsole
             {
                 action(t);
             }
+        }
+
+        public static IEnumerable<(T elem, int index)> SelectI<T>(this IEnumerable<T> elements)
+        {
+            int i = 0;
+
+            foreach (var item in elements)
+                yield return (item, i++);
         }
 
         public static T FirstOrCustom<T>(this IEnumerable<T> list, T customValue)
@@ -161,7 +169,7 @@ namespace CasualConsole
                 action(control);
             }
         }
-        
+
         public static partial class Enumerable
         {
             public static IEnumerable<int> RangeByEnd(int start, int end)

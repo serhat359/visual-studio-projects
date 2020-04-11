@@ -17,6 +17,7 @@ using System.ServiceProcess;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Xml;
 using System.Xml.Serialization;
@@ -201,15 +202,15 @@ namespace CasualConsole
 
             var arr = ExcelHelper.WriteToExcel("Sheet1", data);
 
-            var path = @"C:\Users\Xhertas\Documents\Visual Studio 2017\Projects\CasualConsole\CasualConsole\file.xlsx";
+            //TestChannelWithThreads();
 
-            File.WriteAllBytes(path, arr);
+            var list = new List<int>();
 
-            client.Encoding = Encoding.UTF8;
+            var tasks = Enumerable.Range(0, 5).Select(x => { return GetNumber(list, x); }).ToArray();
 
-            var result = StringJoin.Join(new[] { "ser,hat", ",er,c,an" }, ',');
+            Task.WaitAll(tasks);
 
-            var split = StringJoin.Split(result, ',');
+
 
             //MyTestingMethod();
 
@@ -287,6 +288,32 @@ namespace CasualConsole
             Console.WriteLine();
             Console.WriteLine("Program has terminated, press a key to exit");
             Console.ReadKey();
+        }
+
+        private static async Task GetNumber(List<int> list, int number)
+        {
+            await Task.Delay(new Random().Next(0, 1000));
+
+            list.Add(number);
+
+            return;
+        }
+
+        private static void TestChannelWithThreads()
+        {
+            var list = new List<int>();
+
+            var threads = Enumerable.Range(0, 5).Select(i => MyOtherThread.DoInThread(true, x =>
+            {
+                Thread.Sleep(new Random().Next(0, 1000));
+                lock (list)
+                {
+                    list.Add(x);
+                }
+                return 0;
+            }, i)).ToList();
+
+            threads.Select(x => x.Await()).ToList();
         }
 
         private static void MyTestingMethod()
