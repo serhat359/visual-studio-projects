@@ -174,11 +174,6 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resource1.resx</DependentUpon>
     </Compile>
-    <Compile Include="rssLinks.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>rssLinks.json</DependentUpon>
-    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Content Include="favicon.ico" />
@@ -209,10 +204,6 @@
     <None Include="packages.config" />
     <None Include="Properties\PublishProfiles\FolderProfile.pubxml" />
     <Content Include="Views\Home\GetRssLinks.cshtml" />
-    <Content Include="rssLinks.json">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>rssLinks.Designer.cs</LastGenOutput>
-    </Content>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Business\Business.csproj">
@@ -222,10 +213,6 @@
     <ProjectReference Include="..\Model\Model.csproj">
       <Project>{ee7f0a07-998e-4644-97ec-cc8b230c10e6}</Project>
       <Name>Model</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\ThePirateBay\ThePirateBay.csproj">
-      <Project>{a13f287e-3627-4e41-905c-637c08579ab7}</Project>
-      <Name>ThePirateBay</Name>
     </ProjectReference>
     <ProjectReference Include="..\WebModelFactory\WebModelFactory.csproj">
       <Project>{0c1e467a-8226-494d-9a25-ef2511f7df0e}</Project>

@@ -15,16 +15,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleProgram", "Console\C
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapperTextlibrary", "MapperTextlibrary\MapperTextlibrary.csproj", "{96C15EBF-BF2A-4235-9D22-D002EAFFB841}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThePirateBay", "ThePirateBay\ThePirateBay.csproj", "{A13F287E-3627-4E41-905C-637C08579AB7}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ImgurRedirect", "ImgurRedirect\ImgurRedirect.csproj", "{510FE6D9-42D2-46A4-BD40-4CE168F4CEC0}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharePointMvc", "SharePointMvc\SharePointMvc.csproj", "{0845AC87-7E06-42EF-A7C9-A2F4591966A4}"
 EndProject
 Global
-	GlobalSection(Performance) = preSolution
-		HasPerformanceSessions = true
-	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Debug|Mixed Platforms = Debug|Mixed Platforms
@@ -94,18 +89,6 @@ Global
 		{96C15EBF-BF2A-4235-9D22-D002EAFFB841}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
 		{96C15EBF-BF2A-4235-9D22-D002EAFFB841}.Release|Mixed Platforms.Build.0 = Release|Any CPU
 		{96C15EBF-BF2A-4235-9D22-D002EAFFB841}.Release|x86.ActiveCfg = Release|Any CPU
-		{A13F287E-3627-4E41-905C-637C08579AB7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A13F287E-3627-4E41-905C-637C08579AB7}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A13F287E-3627-4E41-905C-637C08579AB7}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
-		{A13F287E-3627-4E41-905C-637C08579AB7}.Debug|Mixed Platforms.Build.0 = Debug|Any CPU
-		{A13F287E-3627-4E41-905C-637C08579AB7}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{A13F287E-3627-4E41-905C-637C08579AB7}.Debug|x86.Build.0 = Debug|Any CPU
-		{A13F287E-3627-4E41-905C-637C08579AB7}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{A13F287E-3627-4E41-905C-637C08579AB7}.Release|Any CPU.Build.0 = Release|Any CPU
-		{A13F287E-3627-4E41-905C-637C08579AB7}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
-		{A13F287E-3627-4E41-905C-637C08579AB7}.Release|Mixed Platforms.Build.0 = Release|Any CPU
-		{A13F287E-3627-4E41-905C-637C08579AB7}.Release|x86.ActiveCfg = Release|Any CPU
-		{A13F287E-3627-4E41-905C-637C08579AB7}.Release|x86.Build.0 = Release|Any CPU
 		{510FE6D9-42D2-46A4-BD40-4CE168F4CEC0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{510FE6D9-42D2-46A4-BD40-4CE168F4CEC0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{510FE6D9-42D2-46A4-BD40-4CE168F4CEC0}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU

@@ -7,13 +7,11 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Web.Mvc;
 using System.Xml;
-using ThePirateBay;
 using WebModelFactory;
 
 namespace SharePointMvc.Controllers
@@ -60,39 +58,6 @@ namespace SharePointMvc.Controllers
             string channelId = "UCpRh2xmGtaVhFVuyCB271pw";
 
             return FilterRssResult(q, channelId);
-        }
-
-        [HttpGet]
-        public ActionResult PirateBayRSS(string query, string containing)
-        {
-            if (query.IsNullOrEmpty())
-            {
-                return Json(new { errorMessage = "please specify query and containing parameters" }, JsonRequestBehavior.AllowGet);
-            }
-
-            IEnumerable<Torrent> torrents = Tpb.Search(new Query(query, 0, QueryOrder.BySeeds));
-
-            if (containing.IsNullOrEmpty())
-                containing = query;
-
-            containing = containing.ToLower();
-
-            string[] containingParts = containing.Split(' ');
-
-            foreach (string part in containingParts)
-            {
-                torrents = torrents.Where(x => x.Name.ToLower().Contains(part));
-            }
-
-            RssResult rssObject = new RssResult(torrents.Select(x => new RssResultItem
-            {
-                Description = string.Format("Seed: {0}, Leech: {1}, Size: {2}", x.Seeds, x.Leechers, x.Size),
-                Link = x.Magnet,
-                PubDate = x.UploadDate,
-                Title = x.Name,
-            }));
-
-            return this.Xml(rssObject);
         }
 
         [HttpGet]
@@ -635,12 +600,12 @@ namespace SharePointMvc.Controllers
             if (string.IsNullOrWhiteSpace(mangaName))
                 throw new Exception("manganame can't be empty");
 
-            string url = $"https://www.mangatown.com/manga/{mangaName}/";
-            string baseLink = "https://www.mangatown.com";
+            string url = $"https://m.mangatown.com/manga/{mangaName}/";
+            string baseLink = "https://m.mangatown.com";
 
             string contents = GetUrlTextData(url);
 
-            string startTag = "<ul class=\"chapter_list\">";
+            string startTag = "<ul class=\"detail-ch-list\">";
             string endTag = "</ul>";
 
             int indexOfStart = contents.IndexOf(startTag);
@@ -670,11 +635,26 @@ namespace SharePointMvc.Controllers
                     Description = "This was parsed from mangatown.com",
                     Link = baseLink + link.Attributes["href"].Value,
                     PubDate = date,
-                    Title = link.InnerText
+                    Title = mangaName + " " + link.FirstChild.InnerText
                 };
             }).Take(10));
 
             return Xml(result);
+        }
+
+        [HttpGet]
+        public ActionResult MankinTrad(string id)
+        {
+            string url = $"http://mankin-trad.net/feed/";
+
+            string contents = GetUrlTextData(url);
+            contents = contents.Replace("&-", "&amp;-");
+
+            contents = FixMankinTradImgs(contents);
+
+            new XmlDocument().LoadXml(contents);
+
+            return Content(contents, "application/xml");
         }
 
         [HttpGet]
@@ -1195,6 +1175,45 @@ namespace SharePointMvc.Controllers
             ss.Append(sectionPart);
 
             return ss.ToString();
+        }
+
+        private static string FixMankinTradImgs(string contents)
+        {
+            var sb = new StringBuilder();
+            var mankinTradBaseLinkSlash = "http://mankin-trad.net/";
+            var mankinTradBaseLinkNormal = "http://mankin-trad.net";
+
+            int lastIndex = 0;
+
+            while (true)
+            {
+                var imgIndex = contents.IndexOf("<img", lastIndex);
+                if (imgIndex >= 0)
+                {
+                    var srcText = "src=\"";
+                    var imgEndIndex = contents.IndexOf("/>", imgIndex);
+                    var imgSrcIndex = contents.IndexOf(srcText, imgIndex);
+
+                    if (imgSrcIndex >= 0 && imgEndIndex >= 0 && imgSrcIndex < imgEndIndex)
+                    {
+                        var sourceTextIndex = imgSrcIndex + srcText.Length;
+                        var isletterI = contents[sourceTextIndex] == 'i';
+                        var isLetterSlash = contents[sourceTextIndex] == '/';
+                        if (isletterI || isLetterSlash)
+                        {
+                            // The work begins
+                            sb.Append(contents.Substring(lastIndex, sourceTextIndex - lastIndex));
+                            sb.Append(isLetterSlash ? mankinTradBaseLinkNormal : mankinTradBaseLinkSlash);
+                            lastIndex = sourceTextIndex;
+                        }
+                    }
+                }
+                else
+                    break;
+            }
+
+            sb.Append(contents.Substring(lastIndex));
+            return sb.ToString();
         }
 
         private static string FixIncompleteImgs(string sectionPart)
