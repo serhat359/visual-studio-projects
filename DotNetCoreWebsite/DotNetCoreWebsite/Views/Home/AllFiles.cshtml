@@ -58,8 +58,8 @@
                     }
                 </td>
                 <td>@fileInfo.FileSizeString</td>
-                <td>@fileInfo.ModifiedDateString</td>
-                <td>
+                <td title="@fileInfo.AgeString">@fileInfo.ModifiedDateString</td>
+                <td class="downloadLink">
                     @if (!fileInfo.IsFolder)
                     {
                         <a href="DownloadFile?q=@WebUtility.UrlEncode(Model.CurrentPath + fileInfo.Name)"><i class="fa fa-download"></i></a>

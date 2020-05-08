@@ -1,9 +1,11 @@
 ﻿using DotNetCoreWebsite.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 
@@ -37,29 +39,33 @@ namespace DotNetCoreWebsite.Controllers
 
         public IActionResult AllFiles(string q = null)
         {
+            var now = DateTime.Now;
+
             var rootPath = GetSafePath(q);
 
-            var directoryInfos = System.IO.Directory.EnumerateDirectories(rootPath).Select(x =>
+            var directoryInfos = Directory.EnumerateDirectories(rootPath).Select(x =>
             {
-                var dInfo = new System.IO.DirectoryInfo(x);
-                return new FileInfo
+                var dInfo = new DirectoryInfo(x);
+                return new FileInfoModel
                 {
                     Name = dInfo.Name,
                     IsFolder = true,
                     FileSize = null,
-                    ModifiedDate = dInfo.LastWriteTimeUtc
+                    ModifiedDate = dInfo.LastWriteTimeUtc,
+                    Age = now - dInfo.LastWriteTimeUtc,
                 };
             });
 
-            var fileInfos = System.IO.Directory.EnumerateFiles(rootPath).Select(x =>
+            var fileInfos = Directory.EnumerateFiles(rootPath).Select(x =>
             {
-                var fInfo = new System.IO.FileInfo(x);
-                return new FileInfo
+                var fInfo = new FileInfo(x);
+                return new FileInfoModel
                 {
                     Name = fInfo.Name,
                     IsFolder = false,
                     FileSize = fInfo.Length,
-                    ModifiedDate = fInfo.LastWriteTimeUtc
+                    ModifiedDate = fInfo.LastWriteTimeUtc,
+                    Age = now - fInfo.LastWriteTimeUtc,
                 };
             });
 
@@ -81,8 +87,8 @@ namespace DotNetCoreWebsite.Controllers
             var rangeStart = GetByteOffset();
 
             string fullPath = rootPath;
-            long fileLength = (new System.IO.FileInfo(fullPath)).Length;
-            var fileStream = new EncryptStream(() => new System.IO.FileStream(fullPath, System.IO.FileMode.Open), this.coreEncryption, (rangeStart ?? 0) % 512);
+            long fileLength = (new FileInfo(fullPath)).Length;
+            var fileStream = new EncryptStream(() => new FileStream(fullPath, FileMode.Open), this.coreEncryption, (rangeStart ?? 0) % 512);
 
             if (rangeStart == null)
             {
@@ -107,8 +113,6 @@ namespace DotNetCoreWebsite.Controllers
             //Response.BufferOutput = false;
 
             return File(fileStream, "application/unknown", fileNameHelper.CreateAlternativeFileName(q) + extension);
-
-            //return File(fileStream, "application/unknown", q);
         }
 
         [HttpPost]
@@ -135,10 +139,10 @@ namespace DotNetCoreWebsite.Controllers
         {
             var basePath = GetPathConfig();
 
-            string pathFunc(string s) => (s != null) ? System.IO.Path.Combine(basePath, s) : basePath;
+            string pathFunc(string s) => (s != null) ? Path.Combine(basePath, s) : basePath;
 
             var rootPath = pathFunc(q);
-            if (!new System.IO.DirectoryInfo(rootPath).FullName.Contains(basePath))
+            if (!new DirectoryInfo(rootPath).FullName.Contains(basePath))
             {
                 rootPath = pathFunc("");
             }
