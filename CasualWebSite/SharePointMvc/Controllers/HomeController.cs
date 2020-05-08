@@ -1,4 +1,5 @@
-﻿using Extensions;
+﻿using Business;
+using Extensions;
 using Model.Web;
 using Newtonsoft.Json;
 using SharePointMvc.Helpers;
@@ -226,9 +227,9 @@ namespace SharePointMvc.Controllers
         [HttpGet]
         public ActionResult FixTomsArticlesManual()
         {
-            var xmlResultResult = CacheHelper.Get<ActionResult>(CacheHelper.TomsArticlesKey, () =>
-             {
-                 string[] urls = { "https://www.tomshardware.com/reviews/",
+            Func<ActionResult> initializer = () =>
+            {
+                string[] urls = { "https://www.tomshardware.com/reviews/",
                               "https://www.tomshardware.com/reviews/page/2",
                               "https://www.tomshardware.com/reference/",
                               "https://www.tomshardware.com/features/",
@@ -238,14 +239,18 @@ namespace SharePointMvc.Controllers
                               "https://www.tomshardware.com/best-picks/",
                              };
 
-                 var ss = urls.SelectMany(url => GetRssObjectFromTomsUrlNew(url));
+                var threads = urls.Select(url => MyThread.DoInThread(true, () => GetRssObjectFromTomsUrlNew(url))).ToList();
 
-                 var rssObject = new RssResult(ss.Where(x => !x.Link.Contains("/news/")).OrderByDescending(x => x.PubDate));
+                var ss = threads.Select(x => x.Await()).SelectMany(x => x);
 
-                 var xmlResult = this.Xml(rssObject);
+                var rssObject = new RssResult(ss.Where(x => !x.Link.Contains("/news/")).OrderByDescending(x => x.PubDate));
 
-                 return xmlResult;
-             }, TimeSpan.FromHours(2));
+                var xmlResult = this.Xml(rssObject);
+
+                return xmlResult;
+            };
+            
+            var xmlResultResult = CacheHelper.Get<ActionResult>(CacheHelper.TomsArticlesKey, initializer, TimeSpan.FromHours(2));
 
             return xmlResultResult;
         }
@@ -616,16 +621,20 @@ namespace SharePointMvc.Controllers
             XmlDocument document = new XmlDocument();
             document.LoadXml(tablePart);
 
+            var today = DateTime.Today;
+
             var result = new RssResult(document.ChildNodes[0].ChildNodes.Cast<XmlNode>().Select(x =>
             {
                 var dateString = x.SearchByTag("span", @class: "time").InnerText;
 
-                dateString = dateString.Replace("Today ", "");
-                dateString = dateString.Replace("Yesterday ", "");
-
                 if (!DateTime.TryParse(dateString, out var date))
                 {
-                    throw new Exception($"could not parse string to date: {dateString}");
+                    if (dateString == "Today")
+                        date = today;
+                    else if (dateString == "Yesterday")
+                        date = today.AddDays(-1);
+                    else
+                        throw new Exception($"could not parse string to date: {dateString}");
                 }
 
                 var link = x.SearchByTag("a");
@@ -633,7 +642,7 @@ namespace SharePointMvc.Controllers
                 return new RssResultItem
                 {
                     Description = "This was parsed from mangatown.com",
-                    Link = baseLink + link.Attributes["href"].Value,
+                    Link = link.Attributes["href"].Value,
                     PubDate = date,
                     Title = mangaName + " " + link.FirstChild.InnerText
                 };
@@ -643,7 +652,7 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
-        public ActionResult MankinTrad(string id)
+        public ActionResult MankinTrad()
         {
             string url = $"http://mankin-trad.net/feed/";
 
@@ -716,17 +725,19 @@ namespace SharePointMvc.Controllers
         [HttpGet]
         public ActionResult GenerateRssResult()
         {
-            return CacheHelper.Get<ContentResult>(CacheHelper.MyRssKey, () =>
+            Func<ContentResult> initializerFunction = () =>
             {
                 var links = MyTorrentRssHelper.Instance(Request.PhysicalApplicationPath).GetLinks().Keys;
 
                 var allLinks = new List<(DateTime date, XmlNode node)>();
 
-                foreach (var link in links)
+                var tasks = links.Select(x => MyThread.DoInThread(false, () => GetUrlTextData(x))).ToArray();
+
+                foreach (var task in tasks)
                 {
                     try
                     {
-                        var result = GetUrlTextData(link);
+                        var result = task.Await();
                         var xml = new XmlDocument();
                         xml.LoadXml(result);
 
@@ -754,7 +765,9 @@ namespace SharePointMvc.Controllers
                 var contentResult = Content(rssFinalResult, "application/xml");
 
                 return contentResult;
-            }, TimeSpan.FromHours(2));
+            };
+
+            return CacheHelper.Get<ContentResult>(CacheHelper.MyRssKey, initializerFunction, TimeSpan.FromHours(2));
         }
 
         [HttpGet]
@@ -924,20 +937,28 @@ namespace SharePointMvc.Controllers
         {
             string s;
 
-            try
+            while (true)
             {
-                using (MyWebClient client = new MyWebClient())
+                try
                 {
-                    client.Encoding = Encoding.UTF8;
+                    using (MyWebClient client = new MyWebClient())
+                    {
+                        client.Encoding = Encoding.UTF8;
 
-                    extraAction?.Invoke(client);
+                        extraAction?.Invoke(client);
 
-                    s = client.DownloadString(url);
+                        s = client.DownloadString(url);
+                        break;
+                    }
                 }
-            }
-            catch (Exception e)
-            {
-                throw;
+                catch (WebException e)
+                {
+
+                }
+                catch (Exception e)
+                {
+                    throw;
+                }
             }
 
             return s;
