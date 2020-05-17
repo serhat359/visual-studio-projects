@@ -6,7 +6,7 @@
 
 <h1>All Files</h1>
 
-<table class="table">
+<table class="table table-hover">
     <thead>
         <tr>
             <th>Icon</th>
@@ -37,6 +37,7 @@
             <td></td>
             <td></td>
             <td></td>
+            <td><input type="checkbox" onchange="checkboxChange()" /></td>
         </tr>
         @foreach (var fileInfo in Model.FileList)
         {
@@ -65,7 +66,62 @@
                         <a href="DownloadFile?q=@WebUtility.UrlEncode(Model.CurrentPath + fileInfo.Name)"><i class="fa fa-download"></i></a>
                     }
                 </td>
+                <td class="downloadCheckBox">
+                    @if (!fileInfo.IsFolder)
+                    {
+                        <input type="checkbox" />
+                    }
+                </td>
             </tr>
         }
     </tbody>
 </table>
+
+<button class="btn btn-secondary" style="float:right" onclick="downloadSelected()">Download Selected</button>
+<br /><br />
+
+<script type="text/javascript">
+    var isSet = false;
+
+    function checkboxChange() {
+        var allCheckBoxes = document.querySelectorAll(".downloadCheckBox input[type=checkbox]");
+
+        isSet = !isSet;
+        for (var i = 0; i < allCheckBoxes.length; i++) {
+            allCheckBoxes[i].checked = isSet;
+        }
+    }
+
+    function downloadSelected() {
+        var path = new URL(window.location.toString()).searchParams.get("q");
+        var fileNames = [];
+        var allSelectedCheckBoxes = document.querySelectorAll(".downloadCheckBox input[type=checkbox]:checked");
+
+        for (var i = 0; i < allSelectedCheckBoxes.length; i++) {
+            var link = allSelectedCheckBoxes[i].parentElement.parentElement.querySelector(".downloadLink a").href;
+            var fileName = new URL(link).searchParams.get("q");
+
+            if (path) {
+                fileName = fileName.replace(path + "/", "");
+            }
+
+            fileNames.push(fileName);
+        }
+
+        var params = fileNames.map(x => "q=" + encodeURIComponent(x));
+        params.push("path=" + encodeURIComponent(path));
+
+        window.location = "DownloadMultiFile?" + params.join("&");
+    }
+</script>
+
+<style>
+    table.table-hover > tbody > tr:hover > td.downloadCheckBox > input[type=checkbox],
+    table.table-hover > tbody > tr > td.downloadCheckBox > input[type=checkbox]:checked {
+        display: block;
+    }
+
+    table.table-hover > tbody > tr > td.downloadCheckBox > input[type=checkbox] {
+        display: none;
+    }
+</style>

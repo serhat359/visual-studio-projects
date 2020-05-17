@@ -9,12 +9,15 @@ namespace DotNetCoreWebsite
         private CoreEncryption coreEncryption;
         private readonly long misalignment;
         bool disposed;
+        Action onClose = null;
+        bool isOnCloseExecuted = false;
 
-        public EncryptStream(Func<Stream> streamer, CoreEncryption coreEncryption, long misalignment)
+        public EncryptStream(Func<Stream> streamer, CoreEncryption coreEncryption, long misalignment, Action onClose = null)
         {
             stream = streamer();
             this.coreEncryption = coreEncryption;
             this.misalignment = misalignment;
+            this.onClose = onClose;
         }
 
         public override bool CanRead => stream.CanRead;
@@ -58,6 +61,12 @@ namespace DotNetCoreWebsite
         {
             base.Close();
             stream.Close();
+
+            if (onClose != null && !isOnCloseExecuted)
+            {
+                isOnCloseExecuted = true;
+                onClose();
+            }
         }
 
         protected virtual void Dispose(bool disposing)

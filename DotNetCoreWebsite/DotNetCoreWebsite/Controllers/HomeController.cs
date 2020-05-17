@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text.RegularExpressions;
 
@@ -82,12 +83,11 @@ namespace DotNetCoreWebsite.Controllers
 
         public IActionResult DownloadFile(string q)
         {
-            var rootPath = GetSafePath(q);
+            var fullPath = GetSafePath(q);
 
             var rangeStart = GetByteOffset();
 
-            string fullPath = rootPath;
-            long fileLength = (new FileInfo(fullPath)).Length;
+            long fileLength = new FileInfo(fullPath).Length;
             var fileStream = new EncryptStream(() => new FileStream(fullPath, FileMode.Open), this.coreEncryption, (rangeStart ?? 0) % 512);
 
             if (rangeStart == null)
@@ -110,9 +110,29 @@ namespace DotNetCoreWebsite.Controllers
 
             Response.Headers.Add("Accept-Ranges", "bytes");
 
-            //Response.BufferOutput = false;
-
             return File(fileStream, "application/unknown", fileNameHelper.CreateAlternativeFileName(q) + extension);
+        }
+
+        public IActionResult DownloadMultiFile(string[] q, string path)
+        {
+            var filePaths = q.Select(x => GetSafePath(Path.Combine(path, x))).ToList();
+
+            var tempLocation = GetTempPathConfig();
+            var newGuidFileName = Guid.NewGuid() + ".zip";
+            var tempFullPath = Path.Combine(tempLocation, newGuidFileName);
+
+            using (var archiveStream = System.IO.File.OpenWrite(tempFullPath))
+            using (var zip = new ZipArchive(archiveStream, ZipArchiveMode.Create))
+            {
+                foreach (var filePath in filePaths)
+                {
+                    var archiveEntry = zip.CreateEntryFromFile(sourceFileName: filePath, entryName: GetShortFileName(filePath));
+                }
+            }
+
+            var fileStream = new EncryptStream(() => new FileStream(tempFullPath, FileMode.Open), this.coreEncryption, 0, () => System.IO.File.Delete(tempFullPath));
+
+            return File(fileStream, "application/unknown", fileNameHelper.CreateAlternativeFileName(newGuidFileName) + extension);
         }
 
         [HttpPost]
@@ -133,6 +153,11 @@ namespace DotNetCoreWebsite.Controllers
         private string GetPathConfig()
         {
             return configuration.GetSection("AllFilesRoot").Value;
+        }
+
+        private string GetTempPathConfig()
+        {
+            return Path.Combine(configuration.GetSection("AllFilesRoot").Value, "temp");
         }
 
         private string GetSafePath(string q)
@@ -185,6 +210,17 @@ namespace DotNetCoreWebsite.Controllers
 
                 return startbyte;
             }
+        }
+
+        private string GetShortFileName(string realFileNameFullPath)
+        {
+            var slashIndex = realFileNameFullPath.LastIndexOf('/');
+            var backSlashIndex = realFileNameFullPath.LastIndexOf('\\');
+            var index = Math.Max(slashIndex, backSlashIndex);
+
+            var fileName = index >= 0 ? realFileNameFullPath.Substring(index + 1) : realFileNameFullPath;
+
+            return fileName;
         }
         #endregion
     }
