@@ -109,7 +109,9 @@
         }
 
         var params = fileNames.map(x => "q=" + encodeURIComponent(x));
-        params.push("path=" + encodeURIComponent(path));
+
+        if (path)
+            params.push("path=" + encodeURIComponent(path));
 
         window.location = "DownloadMultiFile?" + params.join("&");
     }

@@ -115,7 +115,7 @@ namespace DotNetCoreWebsite.Controllers
 
         public IActionResult DownloadMultiFile(string[] q, string path)
         {
-            var filePaths = q.Select(x => GetSafePath(Path.Combine(path, x))).ToList();
+            var filePaths = q.Select(x => GetSafePath(path != null ? Path.Combine(path, x) : x)).ToList();
 
             var tempLocation = GetTempPathConfig();
             var newGuidFileName = Guid.NewGuid() + ".zip";
