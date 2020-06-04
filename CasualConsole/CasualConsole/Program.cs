@@ -192,13 +192,30 @@ namespace CasualConsole
             var data = new[] {
                 new Person{
                     FirstName = "Serhat",
-                    LastName = "Abdulbakioğlu"
+                    LastName = "Abdulbakioğlu",
+                    Id = 3
                 },
                 new Person{
                     FirstName = "Ercan",
-                    LastName = "Görgülü"
+                    LastName = "Görgülü",
+                    Id = 3
                 }
             };
+
+            var s = data.MinBy(x => x.Id);
+
+            var bytes = Encoding.UTF8.GetBytes("serhat abdulbakioğlu");
+
+            var result = Convert.ToBase64String(bytes);
+            var result2 = Base64.EncodeBase64(bytes);
+
+            while (true)
+            {
+                int count = 1000000;
+
+                Benchmark("built-in", () => Convert.ToBase64String(bytes), count);
+                Benchmark("my own", () => Base64.EncodeBase64(bytes), count);
+            }
 
             var arr = ExcelHelper.WriteToExcel("Sheet1", data);
 
@@ -303,17 +320,22 @@ namespace CasualConsole
         {
             var list = new List<int>();
 
-            var threads = Enumerable.Range(0, 5).Select(i => MyOtherThread.DoInThread(true, x =>
+            var threads = Enumerable.Range(0, 5).Select(i => IIFE(val => MyThread.DoInThread(true, () =>
             {
-                Thread.Sleep(new Random().Next(0, 1000));
+                Thread.Sleep(new Random().Next(0, 2000));
                 lock (list)
                 {
-                    list.Add(x);
+                    list.Add(val);
                 }
                 return 0;
-            }, i)).ToList();
+            }), i)).ToList();
 
-            threads.Select(x => x.Await()).ToList();
+            var newList = threads.Select(x => x.Await()).ToList();
+        }
+
+        private static E IIFE<T, E>(Func<T, E> func, T val)
+        {
+            return func(val);
         }
 
         private static void MyTestingMethod()
@@ -357,10 +379,10 @@ namespace CasualConsole
             bool foundOne = false;
             string foundMax = "";
 
-            var threads = new List<MyOtherThread<string, int>>();
+            var threads = new List<MyThread<string>>();
             for (int i = 0; i < str.Length; i++)
             {
-                var thr = MyOtherThread.DoInThread(true, (index) => FindPalindromeFor(str, index), i);
+                var thr = IIFE(index => MyThread.DoInThread(true, () => FindPalindromeFor(str, index)), i);
                 threads.Add(thr);
             }
 

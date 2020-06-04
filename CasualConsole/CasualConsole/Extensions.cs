@@ -30,6 +30,41 @@ namespace CasualConsole
             }
         }
 
+        public static T MinBy<T, E>(this IEnumerable<T> source, Func<T, E> selector) where E : IComparable<E>
+        {
+            return MinBy(source, selector, out var v);
+        }
+
+        public static T MinBy<T, E>(this IEnumerable<T> source, Func<T, E> selector, out E minimumValue) where E : IComparable<E>
+        {
+            if (source == null) throw new ArgumentNullException(nameof(source));
+            if (selector == null) throw new ArgumentNullException(nameof(selector));
+
+            var sourceEnumerator = source.GetEnumerator();
+
+            var hasNoValue = !sourceEnumerator.MoveNext();
+            if (hasNoValue)
+                throw new InvalidOperationException("Sequence contains no elements");
+
+            T minElem = sourceEnumerator.Current;
+            E minValue = selector(minElem);
+
+            while (sourceEnumerator.MoveNext())
+            {
+                T newElem = sourceEnumerator.Current;
+                E newValue = selector(newElem);
+
+                if (newValue.CompareTo(minValue) < 0)
+                {
+                    minElem = newElem;
+                    minValue = newValue;
+                }
+            }
+
+            minimumValue = minValue;
+            return minElem;
+        }
+
         public static IEnumerable<(T elem, int index)> SelectI<T>(this IEnumerable<T> elements)
         {
             int i = 0;
