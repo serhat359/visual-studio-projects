@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using System.Net;
 
 namespace DotNetCoreWebsite
 {
@@ -41,6 +40,20 @@ namespace DotNetCoreWebsite
                 //options.KnownProxies.Add(IPAddress.Parse("10.0.0.100"));
             });
 
+            services.AddResponseCompression(options =>
+            {
+                options.EnableForHttps = true;
+                options.MimeTypes = new[] {
+                    "text/plain",
+                    "text/css",
+                    "application/javascript",
+                    "text/html",
+                    "application/xml",
+                    "text/xml",
+                    "application/json",
+                    "text/json",
+                };
+            });
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
         }
 
@@ -62,6 +75,7 @@ namespace DotNetCoreWebsite
             });
 
             app.UseAuthentication();
+            app.UseResponseCompression();
 
             app.UseStaticFiles();
             app.UseCookiePolicy();
