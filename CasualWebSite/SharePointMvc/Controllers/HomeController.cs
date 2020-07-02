@@ -18,6 +18,7 @@ using WebModelFactory;
 namespace SharePointMvc.Controllers
 {
     [HandleError]
+    [AllowCORS]
     public class HomeController : ControllerBase<HomeModelFactory>
     {
         readonly (string monthName, int monthNumber)[] months = { ("January", 1), ("February", 2), ("March", 3), ("April", 4), ("May", 5), ("June", 6),
@@ -249,7 +250,7 @@ namespace SharePointMvc.Controllers
 
                 return xmlResult;
             };
-            
+
             var xmlResultResult = CacheHelper.Get<ActionResult>(CacheHelper.TomsArticlesKey, initializer, TimeSpan.FromHours(2));
 
             return xmlResultResult;
@@ -422,8 +423,6 @@ namespace SharePointMvc.Controllers
         [HttpGet]
         public ActionResult Parse1337FailedAttempt(string id, string[] contains)
         {
-            contains = contains ?? new string[0];
-
             id = id.Replace(' ', '+');
             var url = $"https://1337x.to/search/{id}/1/";
 
@@ -454,7 +453,7 @@ namespace SharePointMvc.Controllers
                 var size = row.ChildNodes[4].InnerXml;
                 size = size.Substring(0, size.IndexOf('<'));
 
-                if (contains.Any(x => name.ContainsCaseInsensitive(x)))
+                if (contains?.Any(x => name.ContainsCaseInsensitive(x)) == true)
                 {
                     continue;
                 }
@@ -767,7 +766,7 @@ namespace SharePointMvc.Controllers
                 return contentResult;
             };
 
-            return CacheHelper.Get<ContentResult>(CacheHelper.MyRssKey, initializerFunction, TimeSpan.FromHours(2));
+            return CacheHelper.Get<ContentResult>(CacheHelper.MyRssKey, initializerFunction, TimeSpan.FromMinutes(15));
         }
 
         [HttpGet]
@@ -794,6 +793,18 @@ namespace SharePointMvc.Controllers
             CacheHelper.Delete(CacheHelper.MyRssKey);
 
             return RedirectToAction(nameof(GetRssLinks));
+        }
+
+        [HttpGet]
+        public ActionResult BypassCors(string q)
+        {
+            if (string.IsNullOrEmpty(q)) throw new ArgumentNullException(nameof(q));
+
+            using (MyWebClient client = new MyWebClient())
+            {
+                var res = client.GetResponse(q);
+                return File(res.GetResponseStream(), res.ContentType);
+            }
         }
 
         #endregion
@@ -1293,7 +1304,7 @@ namespace SharePointMvc.Controllers
         #endregion
     }
 
-    class MyWebClient : WebClient
+    public class MyWebClient : WebClient
     {
         protected override WebRequest GetWebRequest(Uri address)
         {
@@ -1301,6 +1312,11 @@ namespace SharePointMvc.Controllers
             HttpWebRequest request = base.GetWebRequest(address) as HttpWebRequest;
             request.AutomaticDecompression = DecompressionMethods.GZip;
             return request;
+        }
+
+        public WebResponse GetResponse(string uri)
+        {
+            return GetWebResponse(GetWebRequest(new Uri(uri)));
         }
     }
 }

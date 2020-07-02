@@ -3,6 +3,7 @@ using Data;
 using Model.Data;
 using Model.Web;
 using Extensions;
+using System;
 
 namespace WebModelFactory
 {
@@ -12,7 +13,7 @@ namespace WebModelFactory
         {
             PokemonModel model = new PokemonModel();
 
-            string query = "select * from stat " + (request.GetPropertyOrDefault(x => x.Query) ?? "");
+            string query = "select * from stats " + (request.GetPropertyOrDefault(x => x.Query) ?? "");
 
             try
             {
@@ -20,7 +21,7 @@ namespace WebModelFactory
 
                 model.StatList = statList;
             }
-            catch
+            catch(Exception e)
             {
                 model.StatList = new List<Stat>();
                 model.ErrorExecutingSql = true;
