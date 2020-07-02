@@ -6,7 +6,7 @@
 
 <h1>All Files</h1>
 
-<table class="table table-hover">
+<table class="table table-hover table-bordered">
     <thead>
         <tr>
             <th>Icon</th>
@@ -41,7 +41,7 @@
         </tr>
         @foreach (var fileInfo in Model.FileList)
         {
-            <tr>
+            <tr class="default">
                 <td>
                     @if (fileInfo.IsFolder)
                     {
@@ -69,7 +69,7 @@
                 <td class="downloadCheckBox">
                     @if (!fileInfo.IsFolder)
                     {
-                        <input type="checkbox" />
+                        <input type="checkbox" class="downloadCheckBoxInput" />
                     }
                 </td>
             </tr>
@@ -77,45 +77,55 @@
     </tbody>
 </table>
 
-<button class="btn btn-secondary" style="float:right" onclick="downloadSelected()">Download Selected</button>
+<button id="downloadSelectedButton" class="btn btn-secondary" style="float:right" onclick="downloadSelected()">Download Selected</button>
 <br /><br />
 
-<script type="text/javascript">
-    var isSet = false;
+@section Scripts {
+    <script type="text/javascript">
+        var isSet = false;
 
-    function checkboxChange() {
-        var allCheckBoxes = document.querySelectorAll(".downloadCheckBox input[type=checkbox]");
+        function checkboxChange() {
+            var allCheckBoxes = document.querySelectorAll(".downloadCheckBox input[type=checkbox]");
 
-        isSet = !isSet;
-        for (var i = 0; i < allCheckBoxes.length; i++) {
-            allCheckBoxes[i].checked = isSet;
+            isSet = !isSet;
+            for (var i = 0; i < allCheckBoxes.length; i++) {
+                allCheckBoxes[i].checked = isSet;
+            }
         }
-    }
 
-    function downloadSelected() {
-        var path = new URL(window.location.toString()).searchParams.get("q");
-        var fileNames = [];
-        var allSelectedCheckBoxes = document.querySelectorAll(".downloadCheckBox input[type=checkbox]:checked");
+        function downloadSelected() {
+            var path = new URL(window.location.toString()).searchParams.get("q");
+            var fileNames = [];
+            var allSelectedCheckBoxes = document.querySelectorAll(".downloadCheckBox input[type=checkbox]:checked");
 
-        for (var i = 0; i < allSelectedCheckBoxes.length; i++) {
-            var link = allSelectedCheckBoxes[i].parentElement.parentElement.querySelector(".downloadLink a").href;
-            var fileName = new URL(link).searchParams.get("q");
+            for (var i = 0; i < allSelectedCheckBoxes.length; i++) {
+                var link = allSelectedCheckBoxes[i].parentElement.parentElement.querySelector(".downloadLink a").href;
+                var fileName = new URL(link).searchParams.get("q");
 
-            if (path) {
-                fileName = fileName.replace(path + "/", "");
+                if (path) {
+                    fileName = fileName.replace(path + "/", "");
+                }
+
+                fileNames.push(fileName);
             }
 
-            fileNames.push(fileName);
+            var params = fileNames.map(x => "q=" + encodeURIComponent(x));
+
+            if (path)
+                params.push("path=" + encodeURIComponent(path));
+
+            window.location = "DownloadMultiFile?" + params.join("&");
         }
 
-        var params = fileNames.map(x => "q=" + encodeURIComponent(x));
+        $(document).ready(function () {
+            $('.downloadCheckBoxInput').on("click", function (event) {
+                $('#downloadSelectedButton').setVisible($('.downloadCheckBoxInput:checked').length > 0);
+            })
 
-        if (path)
-            params.push("path=" + encodeURIComponent(path));
-
-        window.location = "DownloadMultiFile?" + params.join("&");
-    }
-</script>
+            $('#downloadSelectedButton').setVisible(false);
+        });
+    </script>
+}
 
 <style>
     table.table-hover > tbody > tr:hover > td.downloadCheckBox > input[type=checkbox],

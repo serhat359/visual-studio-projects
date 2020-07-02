@@ -98,8 +98,6 @@ namespace DotNetCoreWebsite.Controllers
             {
                 long startbyte = rangeStart.Value;
 
-                long endByte = fileLength - 1;
-
                 fileStream.Position = startbyte;
 
                 Response.StatusCode = 206;
