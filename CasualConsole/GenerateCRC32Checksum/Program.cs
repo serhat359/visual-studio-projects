@@ -1,19 +1,22 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 using System.Text;
-using System.IO;
+using System.Text.RegularExpressions;
 
 namespace GenerateCRC32Checksum
 {
     class Program
     {
+        static Regex regex = new Regex(@"\[[a-zA-Z0-9]{8}\]");
+
         static void Main(string[] args)
         {
             string path = Directory.GetCurrentDirectory() + "\\";
 
             string[] filenames = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
 
-            var codelist = filenames.Select(x => new { filename = x.Replace(path,""), code = GetCRC(x) }).Where(x => x.code != null).ToList();
+            var codelist = filenames.Select(x => new { filename = x.Replace(path, ""), code = GetCRC(x) }).Where(x => x.code != null).ToList();
 
             if (codelist.Count > 0)
             {
@@ -25,6 +28,19 @@ namespace GenerateCRC32Checksum
         }
 
         static string GetCRC(string filename)
+        {
+            var matchResult = regex.Match(filename);
+
+            if (matchResult != Match.Empty)
+            {
+                return matchResult.Value.Substring(1, 8);
+            }
+
+            return null;
+        }
+
+        [Obsolete("This function does not use regex, use GetCRC function instead")]
+        static string GetCRCOld(string filename)
         {
             int length = filename.Length;
 

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Text;
 
 namespace CasualConsole
@@ -14,32 +13,62 @@ namespace CasualConsole
             var newBytes = new byte[PageSize(bytes.Length) * 4];
             var offset = 0;
 
-            foreach (var b in Get3Bytes(bytes))
+            var safeLength = bytes.Length / 3 * 3;
+
+            for (int i = 0; i < safeLength; i += 3)
             {
+                var b1 = bytes[i];
+                var b2 = bytes[i + 1];
+                var b3 = bytes[i + 2];
+
+                int nb1 = b1 >> 2;
+
+                int nb2 = (b1 & 0b0011) << 4;
+                nb2 |= b2 >> 4;
+
+                int nb3 = (b2 & 0b001111) << 2;
+                nb3 |= b3 >> 6;
+
+                int nb4 = b3 & 0b00111111;
+
+                newBytes[offset] = (byte)chars[nb1];
+                newBytes[offset + 1] = (byte)chars[nb2];
+                newBytes[offset + 2] = (byte)chars[nb3];
+                newBytes[offset + 3] = (byte)chars[nb4];
+
+                offset += 4;
+            }
+
+            if (bytes.Length > safeLength)
+            {
+                byte? by1 = safeLength + 0 < bytes.Length ? bytes[safeLength + 0] : (byte?)null;
+                byte? by2 = safeLength + 1 < bytes.Length ? bytes[safeLength + 1] : (byte?)null;
+                byte? by3 = safeLength + 2 < bytes.Length ? bytes[safeLength + 2] : (byte?)null;
+
                 int nb1, nb2, nb3, nb4;
                 nb1 = nb2 = nb3 = nb4 = 0;
 
                 int validByteCount = 1;
 
-                int b1 = b.Item1.Value;
+                int b1 = by1.Value;
                 nb1 = b1 >> 2;
 
                 nb2 = (b1 & 0b0011) << 4;
 
-                if (b.Item2.HasValue)
+                if (by2.HasValue)
                 {
                     validByteCount++;
 
-                    var b2 = b.Item2.Value;
+                    var b2 = by2.Value;
                     nb2 |= b2 >> 4;
 
                     nb3 = (b2 & 0b001111) << 2;
 
-                    if (b.Item3.HasValue)
+                    if (by3.HasValue)
                     {
                         validByteCount++;
 
-                        var b3 = b.Item3.Value;
+                        var b3 = by3.Value;
                         nb3 |= b3 >> 6;
 
                         nb4 = b3 & 0b00111111;
@@ -66,33 +95,9 @@ namespace CasualConsole
                     default:
                         throw new Exception();
                 }
-
-                offset += 4;
             }
 
             return Encoding.UTF8.GetString(newBytes);
-        }
-
-        private static IEnumerable<(byte?, byte?, byte?)> Get3Bytes(byte[] bytes)
-        {
-            int safeLength = bytes.Length / 3 * 3;
-
-            for (int i = 0; i < safeLength; i += 3)
-            {
-                yield return (bytes[i], bytes[i + 1], bytes[i + 2]);
-            }
-
-            switch (bytes.Length - safeLength)
-            {
-                case 2:
-                    yield return (bytes[safeLength], bytes[safeLength + 1], null);
-                    break;
-                case 1:
-                    yield return (bytes[safeLength], null, null);
-                    break;
-                default:
-                    break;
-            }
         }
 
         private static int PageSize(int length)

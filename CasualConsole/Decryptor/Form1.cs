@@ -14,7 +14,7 @@ namespace Decryptor
     public partial class Form1 : Form
     {
         private string[] selectedFiles;
-        private int bufferSizeBytes = 8 * 1024 * 1024;
+        private int bufferSizeBytes = 8 * 1024 * 1024; // 8 Megabytes
 
         public Form1()
         {

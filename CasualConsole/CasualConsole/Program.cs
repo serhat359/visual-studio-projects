@@ -204,10 +204,15 @@ namespace CasualConsole
 
             var s = data.MinBy(x => x.Id);
 
-            var bytes = Encoding.UTF8.GetBytes("serhat abdulbakioğlu");
+            var bytes = Encoding.UTF8.GetBytes("serhat abdulbakioğlu serhat abdulbakioğlu serhat abdulbakioğlu serhat abdulbakioğlu");
 
             var result = Convert.ToBase64String(bytes);
             var result2 = Base64.EncodeBase64(bytes);
+
+            if (result != result2)
+            {
+                throw new Exception("not equal!");
+            }
 
             while (true)
             {
