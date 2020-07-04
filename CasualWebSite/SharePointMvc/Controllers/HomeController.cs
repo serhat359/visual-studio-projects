@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -805,6 +806,66 @@ namespace SharePointMvc.Controllers
                 var res = client.GetResponse(q);
                 return File(res.GetResponseStream(), res.ContentType);
             }
+        }
+
+        [HttpGet]
+        public ActionResult DownloadMankinTrad(string link, string downloadName)
+        {
+            var contents = GetUrlTextData(link);
+
+            int indexOfDivStart = 0;
+
+            string startTag = "<div class=\"reading-content\">";
+            string endTag = "                                            </div>";
+
+            int indexOfStart = contents.IndexOf(startTag, indexOfDivStart);
+            int indexOfEnd = contents.IndexOf(endTag, indexOfStart);
+
+            string body = contents.Substring(indexOfStart, indexOfEnd - indexOfStart + endTag.Length);
+
+            body = FixIncompleteImgs(body);
+
+            XmlDocument document = new XmlDocument();
+            document.LoadXml(body);
+
+            var threads = new List<(string fileName, MyThread<byte[]> thread)>();
+
+            foreach (XmlNode item in document.GetElementsByTagName("img"))
+            {
+                var imgLink = item.Attributes["data-src"].Value.Trim();
+                var fileName = imgLink.Substring(imgLink.LastIndexOf('/') + 1);
+                fileName = Uri.UnescapeDataString(fileName);
+
+                threads.Add((fileName, MyThread.DoInThread(true, () =>
+                {
+                    var data = GetUrlTextDataArray(imgLink);
+                    return data;
+                })));
+            }
+
+            var archiveStream = new MemoryStream();
+
+            using (var zip = new ZipArchive(archiveStream, ZipArchiveMode.Create, leaveOpen: true))
+            {
+                foreach (var thread in threads)
+                {
+                    var data = thread.thread.Await();
+
+                    var entry = zip.CreateEntry(thread.fileName);
+                    using (var stream = entry.Open())
+                    {
+                        stream.Write(data, 0, data.Length);
+                    }
+                }
+            }
+
+            archiveStream.Seek(0, SeekOrigin.Begin);
+
+            HttpContext.Response.AddHeader("Content-Length", archiveStream.Length.ToString());
+            Response.AddHeader("Content-Length", archiveStream.Length.ToString());
+            Response.Headers.Add("Content-Length", archiveStream.Length.ToString());
+
+            return File(archiveStream, contentType: "application/zip", fileDownloadName: downloadName);
         }
 
         #endregion
