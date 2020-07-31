@@ -1,5 +1,4 @@
-﻿using MyThreadProject;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -8,6 +7,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace Decryptor
@@ -15,7 +15,8 @@ namespace Decryptor
     public partial class Form1 : Form
     {
         private string[] selectedFiles;
-        private int bufferSizeBytes = 8 * 1024 * 1024; // 8 Megabytes
+        private int bufferSizeBytes = 2 * 1024 * 1024; // 8 Megabytes
+        private int threadCount = 4;
 
         public Form1()
         {
@@ -51,7 +52,9 @@ namespace Decryptor
             {
                 decryptButton.Enabled = false;
 
-                var newThread = MyThread.DoInThread(false, () =>
+                Task.Run(() => { return 0; });
+
+                var newThread = Task.Run(() =>
                 {
                     var fileInfos = this.selectedFiles.Select(x => new FileInfo(x)).ToList();
 
@@ -80,31 +83,49 @@ namespace Decryptor
                         var fileName = index >= 0 ? realFileNameFullPath.Substring(index + 1) : realFileNameFullPath;
 
                         var newPath = Path.Combine(folderPath, fileName);
-                        var buffer = new byte[bufferSizeBytes];
+                        var buffers = Enumerable.Range(0, threadCount).Select(x => new byte[bufferSizeBytes]).ToArray();
+                        var tasks = new Task[threadCount];
+                        var readCounts = new int[threadCount];
 
                         using (var destination = File.Create(newPath))
                         using (var source = File.Open(fileInfo.FullName, FileMode.Open, FileAccess.Read))
                         {
                             while (true)
                             {
-                                var readCount = source.Read(buffer, 0, buffer.Length);
-                                CoreEncryption.Instance.DecryptInPlace(buffer);
-                                destination.Write(buffer, 0, readCount);
+                                for (int i = 0; i < threadCount; i++)
+                                {
+                                    var buffer = buffers[i];
+                                    var readCount = source.Read(buffer, 0, buffer.Length);
 
-                                // Update UI
-                                totalBytesDone += readCount;
-                                var percentage = (int)(totalBytesDone * 100.0 / totalByteLength);
-                                state.ThreadSafe(x => { x.Text = $"{percentage}% completed"; });
+                                    var task = Task.Run(() => CoreEncryption.Instance.DecryptInPlace(buffer));
 
-                                if (readCount == 0)
+                                    tasks[i] = task;
+
+                                    readCounts[i] = readCount;
+                                }
+
+                                var nestedBreak = false;
+                                for (int i = 0; i < threadCount; i++)
+                                {
+                                    tasks[i].Wait();
+                                    destination.Write(buffers[i], 0, readCounts[i]);
+
+                                    // Update UI
+                                    totalBytesDone += readCounts[i];
+                                    var percentage = (int)(totalBytesDone * 100.0 / totalByteLength);
+                                    state.ThreadSafe(x => { x.Text = $"{percentage}% completed"; });
+
+                                    if (readCounts[i] == 0)
+                                        nestedBreak = true;
+                                }
+
+                                if (nestedBreak)
                                     break;
                             }
                         }
                     }
 
                     state.ThreadSafe(x => { x.Text = $"100% completed"; });
-
-                    return 0;
                 });
             }
             catch (Exception ex)
