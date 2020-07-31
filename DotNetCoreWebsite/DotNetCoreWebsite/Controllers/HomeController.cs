@@ -113,11 +113,11 @@ namespace DotNetCoreWebsite.Controllers
 
         public IActionResult DownloadMultiFile(string[] q, string path)
         {
-            var filePaths = q.Select(x => GetSafePath(path != null ? Path.Combine(path, x) : x)).ToList();
+            var filePaths = q.Select(x => GetSafePath(SafeCombine(path, x))).ToList();
 
             var tempLocation = GetTempPathConfig();
             var newGuidFileName = Guid.NewGuid() + ".zip";
-            var tempFullPath = Path.Combine(tempLocation, newGuidFileName);
+            var tempFullPath = SafeCombine(tempLocation, newGuidFileName);
 
             using (var archiveStream = System.IO.File.OpenWrite(tempFullPath))
             using (var zip = new ZipArchive(archiveStream, ZipArchiveMode.Create))
@@ -155,14 +155,14 @@ namespace DotNetCoreWebsite.Controllers
 
         private string GetTempPathConfig()
         {
-            return Path.Combine(configuration.GetSection("AllFilesRoot").Value, "temp");
+            return SafeCombine(configuration.GetSection("AllFilesRoot").Value, "temp");
         }
 
         private string GetSafePath(string q)
         {
             var basePath = GetPathConfig();
 
-            string pathFunc(string s) => (s != null) ? Path.Combine(basePath, s) : basePath;
+            string pathFunc(string s) => SafeCombine(basePath, s);
 
             var rootPath = pathFunc(q);
             if (!new DirectoryInfo(rootPath).FullName.Contains(basePath))
@@ -219,6 +219,13 @@ namespace DotNetCoreWebsite.Controllers
             var fileName = index >= 0 ? realFileNameFullPath.Substring(index + 1) : realFileNameFullPath;
 
             return fileName;
+        }
+
+        private string SafeCombine(string param1, string param2)
+        {
+            if (param1 == null) return param2;
+            if (param2 == null) return param1;
+            return Path.Combine(param1, param2);
         }
         #endregion
     }
