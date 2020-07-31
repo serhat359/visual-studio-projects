@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MyThreadProject;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
@@ -36,7 +37,7 @@ namespace TorrentSeedLeechCounter
 
             this.consoleOutput.Text = "Checking database availability..." + "\n";
 
-            CasualConsole.MyThread.DoInThread(true, threadAction);
+            MyThread.DoInThread(true, threadAction);
         }
 
         public void MainProgram()

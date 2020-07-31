@@ -67,15 +67,19 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="MainForm.resx">
+      <DependentUpon>MainForm.cs</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\CasualConsole\CasualConsole.csproj">
       <Project>{94279bab-f62c-4d42-bba5-a6f03cead7b0}</Project>
       <Name>CasualConsole</Name>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="MainForm.resx">
-      <DependentUpon>MainForm.cs</DependentUpon>
-    </EmbeddedResource>
+    <ProjectReference Include="..\MyThreadProject\MyThreadProject.csproj">
+      <Project>{e70f882e-c3dc-48c7-9a9d-89273d8e7fa3}</Project>
+      <Name>MyThreadProject</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

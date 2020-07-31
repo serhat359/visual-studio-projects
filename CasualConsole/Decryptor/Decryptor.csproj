@@ -68,7 +68,6 @@
     <Compile Include="Form1.Designer.cs">
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
-    <Compile Include="MyThread.cs" />
     <Compile Include="MyWebClient.cs">
       <SubType>Component</SubType>
     </Compile>
@@ -100,6 +99,12 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\MyThreadProject\MyThreadProject.csproj">
+      <Project>{e70f882e-c3dc-48c7-9a9d-89273d8e7fa3}</Project>
+      <Name>MyThreadProject</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

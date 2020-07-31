@@ -1,4 +1,6 @@
 ﻿using Bencode;
+using CasualConsole.MultiReplacer;
+using MyThreadProject;
 using Newtonsoft.Json;
 using OfficeOpenXml;
 using System;
@@ -189,40 +191,15 @@ namespace CasualConsole
 
         public static void Main(string[] args)
         {
-            var data = new[] {
-                new Person{
-                    FirstName = "Serhat",
-                    LastName = "Abdulbakioğlu",
-                    Id = 3
-                },
-                new Person{
-                    FirstName = "Ercan",
-                    LastName = "Görgülü",
-                    Id = 3
-                }
-            };
+            var a = 2;
 
-            var s = data.MinBy(x => x.Id);
+            MyThread.DoInThread(a, (x) => { Thread.Sleep(1000); Console.WriteLine(x); return 0; });
 
-            var bytes = Encoding.UTF8.GetBytes("serhat abdulbakioğlu serhat abdulbakioğlu serhat abdulbakioğlu serhat abdulbakioğlu");
+            a = 4;
 
-            var result = Convert.ToBase64String(bytes);
-            var result2 = Base64.EncodeBase64(bytes);
+            //BenchmarkStringReplace();
 
-            if (result != result2)
-            {
-                throw new Exception("not equal!");
-            }
-
-            while (true)
-            {
-                int count = 1000000;
-
-                Benchmark("built-in", () => Convert.ToBase64String(bytes), count);
-                Benchmark("my own", () => Base64.EncodeBase64(bytes), count);
-            }
-
-            var arr = ExcelHelper.WriteToExcel("Sheet1", data);
+            //BenchmarkBase64();
 
             //TestChannelWithThreads();
 
@@ -232,11 +209,7 @@ namespace CasualConsole
 
             Task.WaitAll(tasks);
 
-
-
             //MyTestingMethod();
-
-            return;
 
             //TestPivot();
 
@@ -312,6 +285,79 @@ namespace CasualConsole
             Console.ReadKey();
         }
 
+        private static void BenchmarkBase64()
+        {
+            var bytes = Encoding.UTF8.GetBytes("serhat abdulbakioğlu serhat abdulbakioğlu serhat abdulbakioğlu serhat abdulbakioğlu");
+
+            var result = Convert.ToBase64String(bytes);
+            var result2 = Base64.EncodeBase64(bytes);
+
+            if (result != result2)
+            {
+                throw new Exception("not equal!");
+            }
+
+            while (true)
+            {
+                int count = 1000000;
+
+                Benchmark("built-in", () => Convert.ToBase64String(bytes), count);
+                Benchmark("my own", () => Base64.EncodeBase64(bytes), count);
+            }
+        }
+
+        private static void BenchmarkStringReplace()
+        {
+            var dic = new Dictionary<string, string> {
+                {"a", "x" },
+                {"bb", "y"},
+                {"dc", "z"},
+            };
+
+            var text = "ccakdcdbbba";
+            var replacer1 = new SimpleReplacer();
+            var replacer2 = new StringBuilderReplacer();
+            var replacer3 = new CustomReplacer();
+            var replacer4 = new OtherCustomReplacer();
+            var res1 = replacer1.Replace(text, dic);
+            var res2 = replacer2.Replace(text, dic);
+            var res3 = replacer3.Replace(text, dic);
+            var res4 = replacer4.Replace(text, dic);
+
+            if (res1 != res2 || res1 != res3 || res1 != res4)
+            {
+                throw new Exception();
+            }
+
+            dic = new Dictionary<string, string> {
+                { ">", "asd"},
+                { "<", "asd2"},
+            };
+
+            text = Resource.ErrorContainingXml;
+
+            res1 = replacer1.Replace(text, dic);
+            res2 = replacer2.Replace(text, dic);
+            res3 = replacer3.Replace(text, dic);
+            res4 = replacer4.Replace(text, dic);
+
+            if (res1 != res2 || res1 != res3 || res1 != res4)
+            {
+                throw new Exception();
+            }
+
+            while (true)
+            {
+                int count = 10000;
+
+                Benchmark("SimpleReplacer", () => replacer1.Replace(text, dic), count);
+                //Benchmark("StringBuilderReplacer", () => replacer2.Replace(text, dic), count);
+                Benchmark("CustomReplacer", () => replacer3.Replace(text, dic), count);
+                Benchmark("OtherCustomReplacer", () => replacer4.Replace(text, dic), count);
+                Console.WriteLine();
+            }
+        }
+
         private static async Task GetNumber(List<int> list, int number)
         {
             await Task.Delay(new Random().Next(0, 1000));
@@ -328,10 +374,7 @@ namespace CasualConsole
             var threads = Enumerable.Range(0, 5).Select(i => IIFE(val => MyThread.DoInThread(true, () =>
             {
                 Thread.Sleep(new Random().Next(0, 2000));
-                lock (list)
-                {
-                    list.Add(val);
-                }
+                lock (list) { list.Add(val); }
                 return 0;
             }), i)).ToList();
 
@@ -1506,7 +1549,7 @@ namespace CasualConsole
 
             for (int i = 0; i < 4; i++)
             {
-                MyThread<int> x = new MyThread<int>(true, () =>
+                MyThread<int> x = MyThread<int>.New(true, () =>
                 {
                     while (true)
                     {

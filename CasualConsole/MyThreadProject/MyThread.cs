@@ -2,18 +2,28 @@
 using System.Collections.Generic;
 using System.Threading;
 
-namespace CasualConsole
+namespace MyThreadProject
 {
     public static class MyThread
     {
         public static MyThread<T> DoInThread<T>(bool isBackground, Func<T> action)
         {
-            return new MyThread<T>(isBackground, action);
+            return MyThread<T>.New(isBackground, action);
+        }
+
+        public static MyThread<T> DoInThread<E, T>(bool isBackground, E val, Func<E, T> action)
+        {
+            return MyThread<T>.New(isBackground, val, action);
         }
 
         public static MyThread<T> DoInThread<T>(Func<T> action)
         {
             return DoInThread(true, action);
+        }
+
+        public static MyThread<T> DoInThread<E, T>(E val, Func<E, T> action)
+        {
+            return DoInThread(true, val, action);
         }
 
         public static void ParallelForeach<T>(IEnumerable<T> elems, Action<T> action)
@@ -50,17 +60,29 @@ namespace CasualConsole
 
         public bool IsRunning { get { return isRunning; } }
 
-        public MyThread(bool isBackground, Func<T> action)
+        // Private Constructor
+        private MyThread() { }
+
+        public static MyThread<T> New(bool isBackground, Func<T> action)
         {
+            return New(isBackground, 0, x => action());
+        }
+
+        public static MyThread<T> New<E>(bool isBackground, E val, Func<E, T> action)
+        {
+            var o = new MyThread<T>();
+
             ThreadStart threadAction = () =>
             {
-                result = action();
-                isRunning = false;
+                o.result = action(val);
+                o.isRunning = false;
             };
 
             Thread thread = new Thread(threadAction);
             thread.IsBackground = isBackground; // If this is true, the thread will terminate halfway when the main thread terminates.
             thread.Start();
+
+            return o;
         }
 
         public T Await()
