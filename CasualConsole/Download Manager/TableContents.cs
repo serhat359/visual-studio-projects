@@ -69,10 +69,13 @@ namespace Download_Manager
     {
         public string FileName { get; set; }
         public string FileSize { get; set; }
-        public long? FileSizeLong { get; set; }
         public DownloadStatus Status { get; set; }
-        public string Referer { get; set; }
         public string Url { get; set; }
+        public string Referer { get; set; }
+
+        public long? FileSizeLong { get; set; }
+        public long BytesDownloaded { get; set; }
+        public long TotalBytes { get; set; }
 
         [JsonIgnore]
         public int? Percentage { get; set; }

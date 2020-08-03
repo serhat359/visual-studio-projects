@@ -13,7 +13,8 @@ namespace Download_Manager
     {
         public static TableContents contents;
 
-        public volatile Dictionary<WebClient, DataRowView> rowLookup = new Dictionary<WebClient, DataRowView>();
+        public volatile Dictionary<WebClient, DataRowView> rowLookupByWebclient = new Dictionary<WebClient, DataRowView>();
+        public volatile Dictionary<DataRow, TableContent> contentLookupByRow = new Dictionary<DataRow, TableContent>();
         BetterTimer timer = new BetterTimer();
 
         public MainWindow()
@@ -63,7 +64,8 @@ namespace Download_Manager
 
             foreach (var item in contents.TableData)
             {
-                table.Rows.Add(item.AsObjectArray());
+                var newRow = table.Rows.Add(item.AsObjectArray());
+                contentLookupByRow[newRow] = item;
             }
 
             dataGridView1.DataSource = table;
@@ -150,15 +152,16 @@ namespace Download_Manager
             {
                 ServicePointManager.Expect100Continue = true;
                 ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-                
-                var client = new MyWebClient(0);
+
+                var bytesDownloaded = contentLookupByRow[row.Row].BytesDownloaded;
+                var client = new MyWebClient(bytesDownloaded);
                 client.Headers["Referer"] = row.Row[Constants.Referer]?.ToString() ?? "";
                 client.Headers["Accept"] = "video/webm,video/ogg,video/*;q=0.9,application/ogg;q=0.7,audio/*;q=0.6,*/*;q=0.5";
                 client.DownloadProgressChanged += new DownloadProgressChangedEventHandler(client_DownloadProgressChanged);
                 client.DownloadFileCompleted += new AsyncCompletedEventHandler(client_DownloadFileCompleted);
                 client.DownloadFileAsync(new Uri(url), downloadPath);
 
-                rowLookup[client] = row;
+                rowLookupByWebclient[client] = row;
 
                 CheckTimer();
             });
@@ -171,7 +174,7 @@ namespace Download_Manager
 
         private void CheckTimer()
         {
-            if (rowLookup.Count == 0)
+            if (rowLookupByWebclient.Count == 0)
                 timer.Stop();
             else if (timer.Enabled == false)
                 timer.Start();
@@ -179,7 +182,7 @@ namespace Download_Manager
 
         private void Timer_Tick(object sender, EventArgs e)
         {
-            foreach (var row in rowLookup.Values)
+            foreach (var row in rowLookupByWebclient.Values)
             {
                 row.Row[Constants.Status] = row.Row[Constants.Percentage] + "% " + DownloadStatus.Downloading;
             }
@@ -202,12 +205,16 @@ namespace Download_Manager
                 //label2.Text = "Downloaded " + e.BytesReceived + " of " + e.TotalBytesToReceive;
                 //progressBar1.Value = int.Parse(Math.Truncate(percentage).ToString());
 
-                var row = rowLookup[(WebClient)sender];
+                var row = rowLookupByWebclient[(WebClient)sender];
                 row.Row[Constants.Percentage] = (int)percentage;
                 if (string.IsNullOrEmpty(row.Row[Constants.FileSize]?.ToString()))
                 {
                     row.Row[Constants.FileSize] = ((long?)totalBytes).ToFileSizeString();
                 }
+
+                var content = contentLookupByRow[row.Row];
+                content.BytesDownloaded = (long)bytesIn;
+                content.TotalBytes = (long)totalBytes;
             });
         }
 
@@ -215,32 +222,43 @@ namespace Download_Manager
         {
             this.BeginInvoke((MethodInvoker)delegate
             {
-                var row = rowLookup[(WebClient)sender];
-                row.Row[Constants.Status] = DownloadStatus.Completed;
+                var row = rowLookupByWebclient[(WebClient)sender];
 
-                var path = GetDownloadPath(row);
-                var newPath = path.Substring(0, path.IndexOf(".part"));
+                var content = contentLookupByRow[row.Row];
+                var isDownloadedCompletely = content.BytesDownloaded == content.TotalBytes;
 
-                Lazy<(string restOfPath, string extension)> fileParts = new Lazy<(string, string)>(() =>
+                if (isDownloadedCompletely)
                 {
-                    var filename = newPath.Substring(newPath.LastIndexOf('/') + 1);
-                    int dotIndex = filename.IndexOf('.');
-                    bool hasDot = dotIndex >= 0;
+                    row.Row[Constants.Status] = DownloadStatus.Completed;
 
-                    if (hasDot)
-                        return (newPath.Substring(0, dotIndex), newPath.Substring(dotIndex));
-                    else
-                        return (newPath, "");
-                });
+                    var path = GetDownloadPath(row);
+                    var newPath = path.Substring(0, path.IndexOf(".part"));
 
-                for (int i = 2; File.Exists(newPath); i++)
-                {
-                    newPath = fileParts.Value.restOfPath + $" ({i})" + fileParts.Value.extension;
+                    Lazy<(string restOfPath, string extension)> fileParts = new Lazy<(string, string)>(() =>
+                    {
+                        var filename = newPath.Substring(newPath.LastIndexOf('/') + 1);
+                        int dotIndex = filename.IndexOf('.');
+                        bool hasDot = dotIndex >= 0;
+
+                        if (hasDot)
+                            return (newPath.Substring(0, dotIndex), newPath.Substring(dotIndex));
+                        else
+                            return (newPath, "");
+                    });
+
+                    for (int i = 2; File.Exists(newPath); i++)
+                    {
+                        newPath = fileParts.Value.restOfPath + $" ({i})" + fileParts.Value.extension;
+                    }
+
+                    File.Move(path, newPath);
+
+                    rowLookupByWebclient.Remove((WebClient)sender);
                 }
-
-                File.Move(path, newPath);
-
-                rowLookup.Remove((WebClient)sender);
+                else
+                {
+                    StartDownload(row);
+                }
             });
 
             CheckTimer();
