@@ -1201,6 +1201,7 @@ namespace SharePointMvc.Controllers
             sectionPart = FixIncompleteImgs(sectionPart);
 
             XmlDocument document = new XmlDocument();
+            sectionPart = FixTomsHardwareBrokenQuoteXml(sectionPart);
             sectionPart = FixTomsHardwareBrokenXml(sectionPart);
             document.LoadXml(sectionPart);
 
@@ -1264,6 +1265,46 @@ namespace SharePointMvc.Controllers
             }
 
             sectionPart = sectionPart.Replace("&alpha;", "");
+
+            ss.Append(sectionPart);
+
+            return ss.ToString();
+        }
+
+        private static string FixTomsHardwareBrokenQuoteXml(string sectionPart)
+        {
+            var ariaText = "aria-label";
+            var i = 0;
+            var ss = new StringBuilder();
+
+            while (true)
+            {
+                var i1 = sectionPart.IndexOf(ariaText, i);
+                if (i1 < 0)
+                    break;
+
+                if (sectionPart[i1 + ariaText.Length + 1] == '\'')
+                {
+                    var i2 = sectionPart.IndexOf('\'', i1);
+                    var i3 = sectionPart.IndexOf('\'', i2 + 1);
+
+                    var attrText = sectionPart.Substring(i2 + 1, i3 - i2 - 1);
+                    attrText = MyXmlSerializer.EscapeXMLValue(attrText, true);
+
+                    ss.Append(sectionPart.Substring(0, i2));
+                    ss.Append('"');
+                    ss.Append(attrText);
+                    ss.Append('"');
+                    var restPart = sectionPart.Substring(i3 + 1);
+                    sectionPart = restPart;
+                    i = 0;
+                }
+                else
+                {
+                    i += ariaText.Length;
+                    continue;
+                }
+            }
 
             ss.Append(sectionPart);
 
