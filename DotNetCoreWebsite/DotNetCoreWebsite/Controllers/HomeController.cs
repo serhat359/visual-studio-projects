@@ -155,7 +155,7 @@ namespace DotNetCoreWebsite.Controllers
 
         private string GetTempPathConfig()
         {
-            return SafeCombine(configuration.GetSection("AllFilesRoot").Value, "temp");
+            return SafeCombine(GetPathConfig(), "temp");
         }
 
         private string GetSafePath(string q)
@@ -164,13 +164,13 @@ namespace DotNetCoreWebsite.Controllers
 
             string pathFunc(string s) => SafeCombine(basePath, s);
 
-            var rootPath = pathFunc(q);
-            if (!new DirectoryInfo(rootPath).FullName.Contains(basePath))
+            var path = pathFunc(q);
+            if (!new DirectoryInfo(path).FullName.Contains(basePath))
             {
-                rootPath = pathFunc("");
+                path = pathFunc("");
             }
 
-            return rootPath;
+            return path;
         }
 
         private string GetBackFolderPath(string q)
