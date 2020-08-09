@@ -10,9 +10,9 @@
     <thead>
         <tr>
             <th>Icon</th>
-            <th>File Name</th>
-            <th>File Size</th>
-            <th>Date</th>
+            <th>File Name <i class="fa fa-sort"></i></th>
+            <th>File Size <i class="fa fa-sort"></i></th>
+            <th>Date <i class="fa fa-sort"></i></th>
             <th></th>
             <th></th>
         </tr>
@@ -133,6 +133,7 @@
         });
     </script>
     <script type="text/javascript">
+        // Allow table sorting
         $('th').click(function () {
             var table = $(this).parents('table').eq(0)
             var rows = table.find('tr:gt(0)').toArray().sort(comparer($(this).index()))
