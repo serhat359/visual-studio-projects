@@ -42,7 +42,7 @@ namespace PicrossSolver
             BruteForce
         }
 
-        Mode mode = Mode.GUI;
+        Mode mode = Mode.BruteForce;
 
         public Form1()
         {
@@ -153,7 +153,7 @@ namespace PicrossSolver
                     var allPuzzleBytes = Array2dAsEnumerable(puzzleJson.Correct).SelectMany(x => x);
 
                     if (allPuzzleBytes.Count(x => x == Form1.FILLED) != leftSum)
-                        throw new Exception("Solution are entered wrong!");
+                        throw new Exception("Solution is entered wrong!");
                 }
 
                 if (!isSolved && correctExists)

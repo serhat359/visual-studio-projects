@@ -1,9 +1,7 @@
-﻿using System;
+﻿using CasualConsole;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using CasualConsole;
-using PairType = CasualConsole.Pair<byte[], System.Collections.Generic.List<PicrossSolver.Range>>;
-using DicValueType = System.Collections.Generic.List<CasualConsole.Pair<byte[], System.Collections.Generic.List<PicrossSolver.Range>>>;
 
 namespace PicrossSolver
 {
@@ -11,28 +9,38 @@ namespace PicrossSolver
     {
         private static int testNumber = -1;
 
-        private static Dictionary<int, DicValueType> pool = new Dictionary<int, DicValueType>();
-
         public static void SetPossibles(Form1.CellSeries baseCells)
         {
             var length = baseCells.Length;
 
-            var generated = GetPool(length);
+            var byteGroup = GenerateForCells(baseCells.Length, baseCells.CellColumnValues);
+            byteGroup = GetCoveringOnes(baseCells, byteGroup);
 
-            var validOnes = GetValidOnesByRange(generated, baseCells.CellColumnValues);
+            var enumerator = byteGroup.GetEnumerator();
+            enumerator.MoveNext();
+            var firstBytes = BytesCopy(enumerator.Current);
 
-            var matchingOnes = GetCoveringOnes(baseCells, validOnes);
-
-            for (int i = 0; i < length; i++)
+            while (enumerator.MoveNext())
             {
-                if (matchingOnes.All(x => x[i] == 1))
-                    baseCells[i] = 1;
-                else if (matchingOnes.All(x => x[i] == 2))
-                    baseCells[i] = 2;
+                var bytes = enumerator.Current;
+                for (int i = 0; i < bytes.Length; i++)
+                {
+                    if (firstBytes[i] != bytes[i])
+                        firstBytes[i] = unknown;
+                }
+            }
+
+            for (int i = 0; i < firstBytes.Length; i++)
+            {
+                var val = firstBytes[i];
+                if (val != unknown)
+                {
+                    baseCells[i] = val;
+                }
             }
         }
 
-        private static List<byte[]> GetCoveringOnes(Form1.CellSeries baseCells, List<byte[]> validOnes)
+        private static IEnumerable<byte[]> GetCoveringOnes(Form1.CellSeries baseCells, IEnumerable<byte[]> validOnes)
         {
             return validOnes.Where(x =>
             {
@@ -42,78 +50,86 @@ namespace PicrossSolver
                         return false;
                 }
                 return true;
-            }).ToList();
+            });
         }
 
-        private static List<byte[]> GetValidOnesByRange(DicValueType generated, Form1.CellColumnValues cellColumnValues)
+        private static byte[] BytesCopy(byte[] bytes)
         {
-            return generated.Where(x =>
+            var newBytes = new byte[bytes.Length];
+            for (int i = 0; i < bytes.Length; i++)
             {
-                if (cellColumnValues.Length == 0)
-                    debug();
+                newBytes[i] = bytes[i];
+            }
+            return newBytes;
+        }
 
-                if (x.value2.Count != cellColumnValues.Length)
-                    return false;
+        private const byte unknown = 0;
+        private const byte filled = 1;
+        private const byte empty = 2;
 
-                for (int i = 0; i < x.value2.Count; i++)
+        private static byte[] bruteForceBuffer;
+        private static IEnumerable<byte[]> GenerateForCells(int length, Form1.CellColumnValues cellColumnValues)
+        {
+            var total = cellColumnValues.Sum() + cellColumnValues.Length - 1;
+            var range = length - total;
+
+            bruteForceBuffer = new byte[length];
+            for (int i = 0; i < bruteForceBuffer.Length; i++)
+            {
+                bruteForceBuffer[i] = empty;
+            }
+
+            if (cellColumnValues.Length == 0)
+            {
+                yield return bruteForceBuffer;
+                yield break;
+            }
+
+            var result = GenerateSubBrute(cellColumnValues, 0, 0, range);
+            foreach (var item in result)
+                yield return item;
+        }
+
+        private static IEnumerable<byte[]> GenerateSubBrute(Form1.CellColumnValues cellColumnValues, int cellValuesIndex, int cellIndex, int range)
+        {
+            var columnValue = cellColumnValues[cellValuesIndex];
+            bool isLastOne = cellValuesIndex == cellColumnValues.Length - 1;
+
+            // Paint yourself
+            for (int j = 0; j < columnValue; j++)
+                bruteForceBuffer[j + cellIndex] = filled;
+
+            if (bruteForceBuffer.Length - cellIndex == columnValue)
+            {
+                yield return bruteForceBuffer;
+                yield break;
+            }
+
+            bruteForceBuffer[columnValue + cellIndex] = empty;
+
+            for (int i = 0; i <= range; i++)
+            {
+                if (i > 0)
                 {
-                    if (x.value2[i].size != cellColumnValues[i])
-                        return false;
+                    bruteForceBuffer[cellIndex + columnValue + i - 1] = filled;
+                    bruteForceBuffer[cellIndex + i - 1] = empty;
                 }
 
-                return true;
-            })
-            .Select(x => x.value1)
-            .ToList();
-        }
-
-        private static DicValueType GetPool(int length)
-        {
-            if (pool.TryGetValue(length, out var generated))
-            {
-                return generated;
-            }
-            generated = GenerateForLength(length);
-            pool[length] = generated;
-            return generated;
-        }
-
-        private static DicValueType GenerateForLength(int length)
-        {
-            var combinations = new DicValueType();
-
-            List<byte[]> combined = new List<byte[]> { new byte[] { } };
-
-            for (int i = 0; i < length; i++)
-            {
-                combined = combined.SelectMany(x => Combine(x, 2)).ToList();
+                if (!isLastOne)
+                {
+                    var result = GenerateSubBrute(cellColumnValues, cellValuesIndex + 1, cellIndex + columnValue + 1 + i, range - i);
+                    foreach (var item in result)
+                        yield return item;
+                }
+                else
+                {
+                    yield return bruteForceBuffer;
+                }
             }
 
-            foreach (var bytes in combined)
-            {
-                if (bytes.All(x => x == 1))
-                    debug();
-                if (bytes.All(x => x == 2))
-                    debug();
-                var cellsFromBytes = Form1.CellSeries.FromBytes(bytes, new int[] { });
-                var ranges = FindDividedAreas(cellsFromBytes);
-                var pair = new PairType(bytes, ranges);
-                combinations.Add(pair);
-            }
-
-            return combinations;
-        }
-
-        private static List<byte[]> Combine(byte[] by, int v)
-        {
-            return Enumerable.Range(1, v).Select(x =>
-            {
-                var newBytes = new byte[by.Length + 1];
-                for (int i = 0; i < by.Length; i++)
-                    newBytes[i] = by[i];
-                newBytes[by.Length] = (byte)x;
-                return newBytes;
-            }).ToList();
+            // Cleanup
+            for (int i = cellIndex; i < bruteForceBuffer.Length; i++)
+                bruteForceBuffer[i] = empty;
         }
 
         public static void TestMatchingByDivided()
