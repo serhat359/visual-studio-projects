@@ -19,7 +19,7 @@ namespace SharePointMvc
 
         public string Serialize<T>(T obj, bool igroneXmlVersion = false)
         {
-            if(!igroneXmlVersion)
+            if (!igroneXmlVersion)
                 Append("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
 
             SerializeElement(obj, new List<Attribute>(), xmlNodeName: null);
@@ -27,11 +27,23 @@ namespace SharePointMvc
             return string.Concat(stringList);
         }
 
+        private static Dictionary<(string, bool), string> dicEscapeXMLValue = new Dictionary<(string, bool), string>();
         public static string EscapeXMLValue(string xmlString, bool xmlEncode)
         {
             if (xmlString == null)
                 throw new ArgumentNullException("xmlString");
 
+            var tuple = (xmlString, xmlEncode);
+            if (dicEscapeXMLValue.TryGetValue(tuple, out var res))
+                return res;
+
+            res = EscapeXMLValueNonCache(xmlString, xmlEncode);
+            dicEscapeXMLValue[tuple] = res;
+            return res;
+        }
+
+        private static string EscapeXMLValueNonCache(string xmlString, bool xmlEncode)
+        {
             return xmlEncode ? xmlString
                 .Replace("&", "&amp;")
                 .Replace("'", "&apos;")
@@ -139,8 +151,8 @@ namespace SharePointMvc
 
                 xmlNodeName = elementAttribute?.ElementName ?? rootAttribute?.ElementName ?? xmlNodeName ?? objType.Name;
 
-                var properties = objType.GetProperties();
-                var fields = objType.GetFields();
+                var properties = GetProperties(objType);
+                var fields = GetFields(objType);
 
                 int xmlRootIndex = Append("");
                 nestCount++;
@@ -198,19 +210,59 @@ namespace SharePointMvc
             }
         }
 
+        private Dictionary<Type, List<Attribute>> typeXmlAttributeDic = new Dictionary<Type, List<Attribute>>();
         private List<Attribute> GetXmlAttributes(Type type)
         {
-            return type.GetCustomAttributes(true).Select(x => (Attribute)x).Where(x => x.GetType().Name.StartsWith("Xml")).ToList();
+            if (!typeXmlAttributeDic.TryGetValue(type, out var res))
+            {
+                res = type.GetCustomAttributes(true).Select(x => (Attribute)x).Where(x => x.GetType().Name.StartsWith("Xml")).ToList();
+                typeXmlAttributeDic[type] = res;
+            }
+            return res;
         }
 
+        private Dictionary<PropertyInfo, List<Attribute>> propXmlAttributeDic = new Dictionary<PropertyInfo, List<Attribute>>();
         private List<Attribute> GetXmlAttributes(PropertyInfo propertyInfo)
         {
-            return propertyInfo.GetCustomAttributes(true).Select(x => (Attribute)x).Where(x => x.GetType().Name.StartsWith("Xml")).ToList();
+            if (!propXmlAttributeDic.TryGetValue(propertyInfo, out var res))
+            {
+                res = propertyInfo.GetCustomAttributes(true).Select(x => (Attribute)x).Where(x => x.GetType().Name.StartsWith("Xml")).ToList();
+                propXmlAttributeDic[propertyInfo] = res;
+            }
+            return res;
         }
 
+        private Dictionary<FieldInfo, List<Attribute>> fieldXmlAttributeDic = new Dictionary<FieldInfo, List<Attribute>>();
         private List<Attribute> GetXmlAttributes(FieldInfo fieldInfo)
         {
-            return fieldInfo.GetCustomAttributes(true).Select(x => (Attribute)x).Where(x => x.GetType().Name.StartsWith("Xml")).ToList();
+            if (!fieldXmlAttributeDic.TryGetValue(fieldInfo, out var res))
+            {
+                res = fieldInfo.GetCustomAttributes(true).Select(x => (Attribute)x).Where(x => x.GetType().Name.StartsWith("Xml")).ToList();
+                fieldXmlAttributeDic[fieldInfo] = res;
+            }
+            return res;
+        }
+
+        private Dictionary<Type, PropertyInfo[]> propDic = new Dictionary<Type, PropertyInfo[]>();
+        private PropertyInfo[] GetProperties(Type t)
+        {
+            if (!propDic.TryGetValue(t, out var res))
+            {
+                res = t.GetProperties();
+                propDic[t] = res;
+            }
+            return res;
+        }
+
+        private Dictionary<Type, FieldInfo[]> fieldDic = new Dictionary<Type, FieldInfo[]>();
+        private FieldInfo[] GetFields(Type t)
+        {
+            if (!fieldDic.TryGetValue(t, out var res))
+            {
+                res = t.GetFields();
+                fieldDic[t] = res;
+            }
+            return res;
         }
     }
 
