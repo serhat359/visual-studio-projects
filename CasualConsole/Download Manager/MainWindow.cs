@@ -16,6 +16,9 @@ namespace Download_Manager
         public volatile Dictionary<WebClient, DataRowView> rowLookupByWebclient = new Dictionary<WebClient, DataRowView>();
         public volatile Dictionary<DataRow, TableContent> contentLookupByRow = new Dictionary<DataRow, TableContent>();
         BetterTimer timer = new BetterTimer();
+        BetterTimer otherTimer = new BetterTimer();
+        Action otherTimerAction = null;
+        volatile bool isFailed = false;
 
         public MainWindow()
         {
@@ -31,6 +34,9 @@ namespace Download_Manager
 
             timer.Tick += Timer_Tick;
             timer.Interval = 200; // millis
+
+            otherTimer.Tick += OtherTimer_Tick;
+            otherTimer.Interval = 200; // millis
         }
 
         private void SetupWindow()
@@ -112,7 +118,8 @@ namespace Download_Manager
                 if (row != null)
                 {
                     var status = row.Row[Constants.Status];
-                    if (GetStatus(status) == DownloadStatus.Stopped)
+                    DownloadStatus statusEnum = GetStatus(status);
+                    if (true || statusEnum == DownloadStatus.Stopped || statusEnum == DownloadStatus.Paused)
                     {
                         StartDownload(row);
                     }
@@ -146,22 +153,49 @@ namespace Download_Manager
         private void StartDownload(DataRowView row)
         {
             var url = row.Row[Constants.Url].ToString();
-            var downloadPath = GetDownloadPath(row);
+            var tempDownloadPath = GetTempDownloadPath(row);
 
             Thread thread = new Thread(() =>
             {
                 ServicePointManager.Expect100Continue = true;
                 ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
 
-                var bytesDownloaded = contentLookupByRow[row.Row].BytesDownloaded;
+                var contentRow = contentLookupByRow[row.Row];
+
+                var bytesDownloaded = 0L;
+                var tempFileInfo = new FileInfo(tempDownloadPath);
+
+                contentRow.TempDownloadPath = tempDownloadPath;
+                contentRow.RealDownloadPath = contentRow.RealDownloadPath ?? GetValidFilePath(tempDownloadPath);
+
+                if (tempFileInfo.Exists)
+                {
+                    using (var completedFile = File.Open(contentRow.RealDownloadPath, FileMode.Append))
+                    using (var tempFile = File.OpenRead(tempDownloadPath))
+                    {
+                        tempFile.CopyTo(completedFile);
+                    }
+
+                    // Reset temp file
+                    File.WriteAllBytes(tempDownloadPath, new byte[] { });
+
+                    bytesDownloaded = new FileInfo(contentRow.RealDownloadPath).Length;
+                    contentRow.BytesDownloadedBefore = bytesDownloaded;
+                }
+
                 var client = new MyWebClient(bytesDownloaded);
                 client.Headers["Referer"] = row.Row[Constants.Referer]?.ToString() ?? "";
                 client.Headers["Accept"] = "video/webm,video/ogg,video/*;q=0.9,application/ogg;q=0.7,audio/*;q=0.6,*/*;q=0.5";
-                client.DownloadProgressChanged += new DownloadProgressChangedEventHandler(client_DownloadProgressChanged);
-                client.DownloadFileCompleted += new AsyncCompletedEventHandler(client_DownloadFileCompleted);
-                client.DownloadFileAsync(new Uri(url), downloadPath);
+                client.DownloadProgressChanged += client_DownloadProgressChanged;
+                client.DownloadFileCompleted += client_DownloadFileCompleted;
+                client.DownloadFileAsync(new Uri(url), tempDownloadPath);
+
+                //client.DownloadDataCompleted += Client_DownloadDataCompleted;
+                //client.DownloadDataAsync(new Uri(url));
 
                 rowLookupByWebclient[client] = row;
+
+
 
                 CheckTimer();
             });
@@ -178,6 +212,11 @@ namespace Download_Manager
                 timer.Stop();
             else if (timer.Enabled == false)
                 timer.Start();
+
+            if (timer.Enabled)
+            {
+                Timer_Tick(null, null);
+            }
         }
 
         private void Timer_Tick(object sender, EventArgs e)
@@ -188,7 +227,16 @@ namespace Download_Manager
             }
         }
 
-        private static string GetDownloadPath(DataRowView row)
+        private void OtherTimer_Tick(object sender, EventArgs e)
+        {
+            if (isFailed)
+            {
+                isFailed = false;
+                otherTimerAction?.Invoke();
+            }
+        }
+
+        private static string GetTempDownloadPath(DataRowView row)
         {
             var filename = row.Row[Constants.Filename].ToString();
             var downloadPath = Path.Combine(Environment.GetEnvironmentVariable("USERPROFILE"), "Downloads", filename) + ".part";
@@ -199,21 +247,22 @@ namespace Download_Manager
         {
             this.BeginInvoke((MethodInvoker)delegate
             {
+                var row = rowLookupByWebclient[(WebClient)sender];
+                var content = contentLookupByRow[row.Row];
+
                 double bytesIn = double.Parse(e.BytesReceived.ToString());
                 double totalBytes = double.Parse(e.TotalBytesToReceive.ToString());
-                double percentage = bytesIn / totalBytes * 100;
+                double percentage = (bytesIn + content.BytesDownloadedBefore) / totalBytes * 100;
                 //label2.Text = "Downloaded " + e.BytesReceived + " of " + e.TotalBytesToReceive;
                 //progressBar1.Value = int.Parse(Math.Truncate(percentage).ToString());
 
-                var row = rowLookupByWebclient[(WebClient)sender];
                 row.Row[Constants.Percentage] = (int)percentage;
                 if (string.IsNullOrEmpty(row.Row[Constants.FileSize]?.ToString()))
                 {
                     row.Row[Constants.FileSize] = ((long?)totalBytes).ToFileSizeString();
                 }
 
-                var content = contentLookupByRow[row.Row];
-                content.BytesDownloaded = (long)bytesIn;
+                content.BytesDownloadedThisSession = (long)bytesIn;
                 content.TotalBytes = (long)totalBytes;
             });
         }
@@ -225,43 +274,64 @@ namespace Download_Manager
                 var row = rowLookupByWebclient[(WebClient)sender];
 
                 var content = contentLookupByRow[row.Row];
-                var isDownloadedCompletely = content.BytesDownloaded == content.TotalBytes;
+                var isDownloadedCompletely = (content.BytesDownloadedThisSession + content.BytesDownloadedBefore) == content.TotalBytes;
+
+                var path = contentLookupByRow[row.Row].TempDownloadPath;
+                var realPath = contentLookupByRow[row.Row].RealDownloadPath;
 
                 if (isDownloadedCompletely)
                 {
                     row.Row[Constants.Status] = DownloadStatus.Completed;
 
-                    var path = GetDownloadPath(row);
-                    var newPath = path.Substring(0, path.IndexOf(".part"));
-
-                    Lazy<(string restOfPath, string extension)> fileParts = new Lazy<(string, string)>(() =>
-                    {
-                        var filename = newPath.Substring(newPath.LastIndexOf('/') + 1);
-                        int dotIndex = filename.IndexOf('.');
-                        bool hasDot = dotIndex >= 0;
-
-                        if (hasDot)
-                            return (newPath.Substring(0, dotIndex), newPath.Substring(dotIndex));
-                        else
-                            return (newPath, "");
-                    });
-
-                    for (int i = 2; File.Exists(newPath); i++)
-                    {
-                        newPath = fileParts.Value.restOfPath + $" ({i})" + fileParts.Value.extension;
-                    }
-
-                    File.Move(path, newPath);
+                    if (!File.Exists(realPath))
+                        File.Move(path, realPath);
+                    else
+                        throw new Exception("something went wrong");
 
                     rowLookupByWebclient.Remove((WebClient)sender);
                 }
                 else
                 {
-                    StartDownload(row);
+                    row.Row[Constants.Status] = DownloadStatus.Paused;
+                    isFailed = true;
+
+                    //using (var completedFile = File.Open(content.DownloadPath, FileMode.Append))
+                    //using (var tempFile = File.OpenRead(path))
+                    //{
+                    //    tempFile.CopyTo(completedFile);
+                    //}
+
+                    //StartDownload(row);
                 }
+
+                otherTimerAction = () => { client_DownloadFileCompleted(sender, e); };
             });
 
             CheckTimer();
+        }
+
+        string GetValidFilePath(string path)
+        {
+            var newPath = path.Substring(0, path.IndexOf(".part"));
+
+            Lazy<(string restOfPath, string extension)> fileParts = new Lazy<(string, string)>(() =>
+            {
+                var filename = newPath.Substring(newPath.LastIndexOf('/') + 1);
+                int dotIndex = filename.IndexOf('.');
+                bool hasDot = dotIndex >= 0;
+
+                if (hasDot)
+                    return (newPath.Substring(0, dotIndex), newPath.Substring(dotIndex));
+                else
+                    return (newPath, "");
+            });
+
+            for (int i = 2; File.Exists(newPath); i++)
+            {
+                newPath = fileParts.Value.restOfPath + $" ({i})" + fileParts.Value.extension;
+            }
+
+            return newPath;
         }
     }
 }

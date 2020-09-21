@@ -194,6 +194,21 @@ namespace CasualConsole {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to {
+        ///	&quot;o&quot;: [
+        ///		{ &quot;a&quot;: &quot;3&quot; },
+        ///		{ &quot;a&quot;: 67 },
+        ///		{ &quot;a&quot;: -98 }
+        ///	]
+        ///}.
+        /// </summary>
+        public static string SomeJson {
+            get {
+                return ResourceManager.GetString("SomeJson", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Windows 10 Pro v.1511 En-us x64 July2016 Pre-Activated-=TEAM OS=	2990	136
         ///Windows 7 SP1 Ultimate (64 Bit)	1649	99
         ///KMSpico 10.1.8 FINAL + Portable (Office and Windows 10 Activator	1275	36
@@ -224,9 +239,9 @@ namespace CasualConsole {
         ///
         ///return MapAll&lt;OtherClass&gt;(table);.
         /// </summary>
-        public static string Statement1 {
+        public static string z {
             get {
-                return ResourceManager.GetString("Statement1", resourceCulture);
+                return ResourceManager.GetString("z", resourceCulture);
             }
         }
     }

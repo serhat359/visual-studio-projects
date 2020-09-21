@@ -67,13 +67,29 @@ namespace PicrossSolver
         private const byte filled = 1;
         private const byte empty = 2;
 
+        private static Dictionary<int, byte[]> buffers = new Dictionary<int, byte[]>();
+
+        private static byte[] GetBuffer(int length)
+        {
+            if (buffers.TryGetValue(length, out var buffer))
+            {
+                return buffer;
+            }
+            else
+            {
+                buffer = new byte[length];
+                buffers[length] = buffer;
+                return buffer;
+            }
+        }
+
         private static byte[] bruteForceBuffer;
         private static IEnumerable<byte[]> GenerateForCells(int length, Form1.CellColumnValues cellColumnValues)
         {
             var total = cellColumnValues.Sum() + cellColumnValues.Length - 1;
             var range = length - total;
 
-            bruteForceBuffer = new byte[length];
+            bruteForceBuffer = GetBuffer(length);
             for (int i = 0; i < bruteForceBuffer.Length; i++)
             {
                 bruteForceBuffer[i] = empty;

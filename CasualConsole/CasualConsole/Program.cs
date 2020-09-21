@@ -2,9 +2,9 @@
 using CasualConsole.MultiReplacer;
 using MyThreadProject;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using OfficeOpenXml;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
@@ -13,6 +13,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.ServiceProcess;
@@ -26,176 +27,68 @@ using System.Xml.Serialization;
 
 namespace CasualConsole
 {
-    class IntClass : IEquatable<IntClass>
-    {
-        public int Number { get; set; }
-
-        public bool Equals(IntClass other)
-        {
-            return this.Number == other.Number;
-        }
-    }
-
-    class PairAndValueComparer<K, V>
-    {
-        public K Key { get; set; }
-        public V Value { get; set; }
-        public Func<V, V, bool> Comparer { get; set; }
-    }
-
-    class RadicalEntry : IEquatable<RadicalEntry>
-    {
-        public string Kanji { get; set; }
-        public int Stroke { get; set; }
-        public int[] Radicals { get; set; }
-
-        public bool Equals(RadicalEntry other)
-        {
-            return this.Kanji == other.Kanji &&
-                this.Stroke == other.Stroke &&
-                this.Radicals.SafeEquals(other.Radicals);
-        }
-    }
-
-    class BigJsonClass : IEquatable<BigJsonClass>
-    {
-        public int Number { get; set; }
-        public string Text { get; set; }
-        public int[] IntArray { get; set; }
-        public C Object { get; set; }
-        public List<D> ObjArray { get; set; }
-        public List<E> AnotherObjArray { get; set; }
-
-        public bool Equals(BigJsonClass other)
-        {
-            return this.Number.Equals(other.Number) &&
-                this.Text.Equals(other.Text) &&
-                this.IntArray.SafeEquals(other.IntArray) &&
-                this.Object.Equals(other.Object) &&
-                this.ObjArray.SafeEquals(other.ObjArray) &&
-                this.AnotherObjArray.SafeEquals(other.AnotherObjArray);
-        }
-    }
-
-    class E : IEquatable<E>
-    {
-        public int? Num { get; set; }
-
-        public bool Equals(E other)
-        {
-            return this.Num == other.Num;
-        }
-    }
-
-    class D : IEquatable<D>
-    {
-        public object Field { get; set; }
-        public DateTime Date { get; set; }
-
-        public bool Equals(D other)
-        {
-            return (this.Field == null) == (other.Field == null) &&
-                this.Date == other.Date;
-        }
-    }
-
-    class C : IEquatable<C>
-    {
-        public bool SomeBool { get; set; }
-
-        public bool Equals(C other)
-        {
-            return this.SomeBool == other.SomeBool;
-        }
-    }
-
-    class PhoneMaker
-    {
-        public int Maker { get; set; }
-        public string[] PhoneLinks { get; set; }
-    }
-
-    class Link
-    {
-        public string Url { get; set; }
-        public bool IsChecked { get; set; }
-        public bool IsSuccess { get; set; }
-        public int Width { get; set; }
-        public int Height { get; set; }
-        public bool IsNotAndroid { get; set; }
-        public bool IsNoResolution { get; set; }
-        public double? ScreenSize { get; set; }
-        public string OSInfo { get; set; }
-    }
-
-    public class Option
-    {
-        public int[] Changes { get; set; }
-    }
-
-    public class Result
-    {
-        public List<int> FinalCopy { get; set; }
-        public List<int> Comb { get; set; }
-    }
-
-    public class EqComparer : IEqualityComparer<List<int>>
-    {
-        public bool Equals(List<int> x, List<int> y)
-        {
-            if (x.Count != y.Count)
-                return false;
-
-            for (int i = 0; i < x.Count; i++)
-            {
-                if (x[i] != y[i])
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        public int GetHashCode(List<int> obj)
-        {
-            return obj[0] + 10 * obj[1] + 100 * obj[2] + 1000 * obj[3];
-        }
-    }
-
-    public class KeyValuePairEquator<TKey, TValue> : IEqualityComparer<KeyValuePair<TKey, TValue>>
-        where TKey : IEquatable<TKey>
-        where TValue : IEquatable<TValue>
-    {
-        public bool Equals(KeyValuePair<TKey, TValue> x, KeyValuePair<TKey, TValue> y)
-        {
-            return x.Key.Equals(y.Key) && x.Value.Equals(y.Value);
-        }
-
-        public int GetHashCode(KeyValuePair<TKey, TValue> obj)
-        {
-            throw new NotImplementedException();
-        }
-    }
-
-    public class JsonTestCase
-    {
-        public string Description { get; set; }
-        public Func<object, string> Serializer { get; set; }
-        public Func<string, Type, object> Deserializer { get; set; }
-    }
-
     public class Program
     {
         static MyWebClient client = new MyWebClient();
 
         public static void Main(string[] args)
         {
-            var a = 2;
+            MainAsync(args).Wait();
+        }
 
-            MyThread.DoInThread(a, (x) => { Thread.Sleep(1000); Console.WriteLine(x); return 0; });
+        public static List<Task<int>> GetTasks()
+        {
+            var r = new Random();
+            var list = new List<Task<int>>();
 
-            a = 4;
+            for (int i = 0; i < 4; i++)
+            {
+                var duration = r.Next(0, 1000);
+                var task = TaskExt.Run(async (x) =>
+                {
+                    await Task.Delay(duration);
+                    return x;
+                }, i);
+                list.Add(task);
+            }
+
+            return list;
+        }
+
+        public static async Task MainAsync(string[] args)
+        {
+            int i = 2;
+            var task = TaskExt.Run(x =>
+            {
+                Console.WriteLine(x.Name);
+            }, new { Name = "serhat" });
+
+            var people = new Person[] {
+                new Person
+                {
+                    Id = 1,
+                    FirstName = "Serhat",
+                    LastName = "Abdulbakioğlu"
+                }
+            };
+
+            var stream = new MemoryStream();
+
+            using (var f = File.OpenWrite(@"D:\OtherDownloads\decrypted_files\sss.xlsx"))
+            {
+                new ExcelPackage(f)
+                    .AddSheet("Sheet1", people.Select(x => new { x.FirstName, x.LastName }))
+                    .Save();
+            }
+
+            stream.Seek(0, SeekOrigin.Begin);
+
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 | SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
+            var serializer = new JsonSerializer();
+            var client = new HttpClient();
+            var res = await client.GetAsync("https://xkcd.com/2340/info.0.json");
+
+            var obj = (await res.Content.ReadAsStreamAsync()).ParseJson<JToken>();
 
             //BenchmarkStringReplace();
 
@@ -208,6 +101,8 @@ namespace CasualConsole
             var tasks = Enumerable.Range(0, 5).Select(x => { return GetNumber(list, x); }).ToArray();
 
             Task.WaitAll(tasks);
+
+            Thread.Sleep(1000);
 
             //MyTestingMethod();
 
@@ -276,8 +171,7 @@ namespace CasualConsole
 
             //UnityDecryption();
 
-
-            LaytonBridgePuzzle.Solve();
+            //LaytonBridgePuzzle.Solve();
 
             // Closing, Do Not Delete!
             Console.WriteLine();
@@ -589,57 +483,6 @@ namespace CasualConsole
 
                 Console.WriteLine();
             }
-        }
-
-        private static void OtherLaytonPuzzle()
-        {
-            var start = new List<int> { 1, 2, 3, 4 };
-
-            var ops = new List<Option> {
-                new Option{ Changes = new int[]{  0, 1, 1, 0 } },
-                new Option{ Changes = new int[]{  1,-1, 1,-1 } },
-                new Option{ Changes = new int[]{ -2, 0, 0, 2 } },
-                new Option{ Changes = new int[]{  0, 0, 1, 4 } },
-                new Option{ Changes = new int[]{ -4,-3,-2,-1 } },
-            };
-
-            var combinations = new List<List<int>>();
-
-            for (int i = 0; i < 5; i++)
-                for (int j = 0; j < 5; j++)
-                    for (int k = 0; k < 5; k++)
-                        for (int l = 0; l < 5; l++)
-                            combinations.Add(new List<int> { i, j, k, l });
-
-            foreach (var comb in combinations)
-            {
-                comb.Sort();
-            }
-
-            combinations = combinations.Distinct(new EqComparer()).ToList();
-
-            Action<Option, List<int>> apply = (op, ar) =>
-            {
-                for (int i = 0; i < 4; i++)
-                {
-                    ar[i] += op.Changes[i];
-                    ar[i] = ((ar[i] % 6) + 6) % 6;
-                    if (ar[i] == 0) ar[i] = 6;
-                }
-            };
-
-            List<Result> results = combinations.Select(comb =>
-            {
-                var copy = start.ToList();
-                var selectedOptions = comb.Select(x => ops[x]);
-                foreach (var op in selectedOptions)
-                {
-                    apply(op, copy);
-                }
-                return new Result { FinalCopy = copy, Comb = comb };
-            }).ToList();
-
-            var correctResult = results.Where(x => x.FinalCopy.All(y => y == 3)).Select(x => x.Comb).ToList();
         }
 
         private static void FilterMoreAndMore()
@@ -999,262 +842,6 @@ namespace CasualConsole
             var methodName = MethodBase.GetCurrentMethod().Name;
 
             Console.WriteLine(methodName);
-        }
-
-        private static void BenchmarkJsonParsers()
-        {
-            var dictionary = new List<PairAndValueComparer<string, object>>();
-            EquatableAdd(dictionary, "true", true);
-            EquatableAdd(dictionary, "false", false);
-            EquatableAdd(dictionary, "1", 1);
-            EquatableAdd(dictionary, "-8", -8);
-            EquatableAdd(dictionary, "\"serhat\"", "serhat");
-            EquatableAdd(dictionary, "\"I said \\\"GO\\\" get it?\"", "I said \"GO\" get it?");
-            EquatableAdd(dictionary, "\"2018-03-08\"", new DateTime(2018, 3, 8));
-            EquatableAdd(dictionary, "{ \"Number\" : 4 }", new IntClass { Number = 4 });
-            EquatableEnumerableAdd(dictionary, "[-3,8]", new int[] { -3, 8 });
-            EquatableEnumerableAdd(dictionary, "[-3,8]", new List<int> { -3, 8 });
-            EquatableAdd(dictionary, "{ \"Kanji\" : \"上\" }", new RadicalEntry { Kanji = "上" });
-
-            var jsonDic = @"[
-            {
-              ""Key"": 3,
-              ""Value"": ""uc""
-            },
-            {
-              ""Key"": 4,
-              ""Value"": ""alti""
-            }
-            ]";
-            Dictionary<int, string> objDic = new Dictionary<int, string>
-            {
-                { 3, "uc" },
-                { 4, "alti" }
-            };
-            EquatableEnumerableAdd(dictionary, jsonDic, objDic, new KeyValuePairEquator<int, string>());
-
-            string bigClassJson = @"
-            {
-	            ""Number"": -2,
-	            ""Text"": ""Serhat"",
-	            ""IntArray"": [2,3],
-	            ""Object"": {
-		            ""SomeBool"": true
-	            },
-	            ""ObjArray"": [
-		            { ""Field"": null, ""Date"": ""2017-02-03"" },
-		            { ""Field"": {}, ""Date"": ""2018-05-09"" }
-	            ],
-                ""AnotherObjArray"" : [
-                    { ""Num"" : null },
-                    { ""Num"" : 4 }
-                ]
-            }
-            ";
-            BigJsonClass bigJsonObj = new BigJsonClass
-            {
-                Number = -2,
-                Text = "Serhat",
-                IntArray = new int[] { 2, 3 },
-                Object = new C { SomeBool = true },
-                ObjArray = new List<D> {
-                    new D { Field = null, Date = new DateTime(2017, 2, 3) },
-                    new D { Field = new object(), Date = new DateTime(2018, 5, 9) }
-                },
-                AnotherObjArray = new List<E> {
-                    new E { Num = null },
-                    new E { Num = 4 }
-                }
-            };
-            EquatableAdd(dictionary, bigClassJson, bigJsonObj);
-
-            var tests = new JsonTestCase[]{
-                new JsonTestCase
-                {
-                    Description = "string with Tiny, object with Tiny",
-                    Serializer = JSONParserTiny.ToJson,
-                    Deserializer = JSONParserTiny.FromJson
-                },
-                new JsonTestCase
-                {
-                    Description = "string with Tiny, object with Newtonsoft",
-                    Serializer = JSONParserTiny.ToJson,
-                    Deserializer = JsonConvert.DeserializeObject
-                },
-                new JsonTestCase
-                {
-                    Description = "string with Newtonsoft, object with Tiny",
-                    Serializer = JsonConvert.SerializeObject,
-                    Deserializer = JSONParserTiny.FromJson
-                }
-            };
-
-            foreach (var test in tests)
-            {
-                foreach (var pair in dictionary)
-                {
-                    var originalValue = pair.Value;
-
-                    var json = test.Serializer(originalValue);
-                    var result = test.Deserializer(json, originalValue.GetType());
-
-                    Type type = result.GetType();
-
-                    if (type != typeof(string) && typeof(System.Collections.IEnumerable).IsAssignableFrom(type))
-                    {
-                        var methodInfo = pair.Comparer;
-
-                        bool compareResult = methodInfo(originalValue, result);
-
-                        if (!compareResult)
-                        {
-                            throw new Exception("These are not equals");
-                        }
-                    }
-                    else
-                    {
-                        MethodInfo methodInfo = type.GetMethod("Equals", new Type[] { type });
-
-                        if (!(bool)methodInfo.Invoke(result, new object[] { originalValue }))
-                        {
-                            throw new Exception("These are not equals");
-                        }
-                    }
-                }
-            }
-            Console.WriteLine("All json tests are successful!");
-
-            Console.WriteLine("Starting benchmark");
-            for (int y = 0; y < 10; y++)
-            {
-                {
-                    Func<string, object, object> customParser = (s, o) => MyJsonConvert.CustomJsonParse(s, o.GetType());
-                    TestJsonParserWithTest(dictionary, customParser);
-                    DateTime now = DateTime.Now;
-                    for (int i = 0; i < 10000; i++)
-                    {
-                        TestJsonParser(dictionary, customParser);
-                    }
-                    var diff = DateTime.Now - now;
-                    Console.WriteLine(diff);
-                }
-
-                {
-                    Func<string, object, object> originalParser = (s, o) => JsonConvert.DeserializeObject(s, o.GetType());
-                    TestJsonParserWithTest(dictionary, originalParser);
-                    DateTime now = DateTime.Now;
-                    for (int i = 0; i < 10000; i++)
-                    {
-                        TestJsonParser(dictionary, originalParser);
-                    }
-                    var diff = DateTime.Now - now;
-                    Console.WriteLine(diff);
-                }
-
-                {
-                    Func<string, object, object> tinyParser = (s, o) => JSONParserTiny.FromJson(s, o.GetType());
-                    TestJsonParserWithTest(dictionary, tinyParser);
-                    DateTime now = DateTime.Now;
-                    for (int i = 0; i < 10000; i++)
-                    {
-                        TestJsonParser(dictionary, tinyParser);
-                    }
-                    var diff = DateTime.Now - now;
-                    Console.WriteLine(diff);
-                }
-
-                Console.WriteLine();
-            }
-        }
-
-        private static void EquatableEnumerableAdd<T>(List<PairAndValueComparer<string, object>> dictionary, string jsonText, IEnumerable<T> actualObject, IEqualityComparer<T> baseComparer)
-        {
-            object value = actualObject;
-            Func<IEnumerable<T>, IEnumerable<T>, bool> comparer = (x, y) => x.SafeEquals(y, (a, b) => baseComparer.Equals(a, b));
-            Func<object, object, bool> castedComparer = (x, y) => comparer((IEnumerable<T>)x, (IEnumerable<T>)y);
-
-            var obj = new PairAndValueComparer<string, object>
-            {
-                Key = jsonText,
-                Value = actualObject,
-                Comparer = castedComparer
-            };
-
-            dictionary.Add(obj);
-        }
-
-        private static void EquatableEnumerableAdd<T>(List<PairAndValueComparer<string, object>> dictionary, string jsonText, IEnumerable<T> actualObject) where T : IEquatable<T>
-        {
-            object value = actualObject;
-            Func<IEnumerable<T>, IEnumerable<T>, bool> comparer = (x, y) => x.SafeEquals(y, (a, b) => a.Equals(b));
-            Func<object, object, bool> castedComparer = (x, y) => comparer((x as IEnumerable).Cast<T>(), (y as IEnumerable).Cast<T>());
-
-            var obj = new PairAndValueComparer<string, object>
-            {
-                Key = jsonText,
-                Value = actualObject,
-                Comparer = castedComparer
-            };
-
-            dictionary.Add(obj);
-        }
-
-        private static void EquatableAdd<T>(List<PairAndValueComparer<string, object>> dictionary, string jsonText, T actualObject) where T : IEquatable<T>
-        {
-            dictionary.Add(new PairAndValueComparer<string, object>
-            {
-                Key = jsonText,
-                Value = actualObject,
-                Comparer = (x, y) => x.Equals(y)
-            });
-        }
-
-        private static void TestJsonParser(List<PairAndValueComparer<string, object>> dictionary, Func<string, object, object> converter)
-        {
-            foreach (var pair in dictionary)
-            {
-                var result = converter(pair.Key, pair.Value);
-            }
-        }
-
-        private static void TestJsonParserWithTest(List<PairAndValueComparer<string, object>> dictionary, Func<string, object, object> converter)
-        {
-            foreach (var pair in dictionary)
-            {
-                var result = converter(pair.Key, pair.Value);
-
-                Type type = result.GetType();
-
-                if (type != typeof(string) && typeof(System.Collections.IEnumerable).IsAssignableFrom(type))
-                {
-                    Type underlyingType = type.GetGenericArguments().FirstOrDefault() ?? type.GetElementType();
-
-                    var methodInfo = GetMethodInfo((Func<int[], int[], bool>)Extensions.SafeEquals);
-
-                    object compareResult = methodInfo.Invoke(result, new object[] { pair.Value, result });
-
-                    if (!(bool)compareResult)
-                    {
-                        throw new Exception("These are not equals");
-                    }
-                }
-                else
-                {
-                    MethodInfo methodInfo = type.GetMethod("Equals", new Type[] { type });
-
-                    object compareResult = methodInfo.Invoke(result, new object[] { pair.Value });
-
-                    if (!(bool)compareResult)
-                    {
-                        throw new Exception("These are not equals");
-                    }
-                }
-            }
-        }
-
-        private static MethodInfo GetMethodInfo(Delegate d)
-        {
-            return d.Method;
         }
 
         public static IEnumerable<int> GetHanoiNumbers()
@@ -2392,11 +1979,11 @@ namespace CasualConsole
 
     public class Person
     {
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
-
         [ExcelIgnore]
         public int Id { get; set; }
+
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
     }
 
     public class ExcelIgnoreAttribute : Attribute

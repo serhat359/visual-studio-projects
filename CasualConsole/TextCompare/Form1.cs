@@ -22,7 +22,7 @@ namespace TextCompare
             File.WriteAllText(txt1Path, richTextBox1.Text);
             File.WriteAllText(txt2Path, richTextBox2.Text);
 
-            Process.Start("tortoisegitmerge", txt1Path + " " + txt2Path);
+            Process.Start("tortoisegitmerge", $"\"{txt1Path}\" \"{txt2Path}\"");
         }
     }
 }

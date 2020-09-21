@@ -1,6 +1,8 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -12,6 +14,8 @@ namespace CasualConsole
 {
     public static class Extensions
     {
+        static JsonSerializer serializer = new JsonSerializer();
+
         public static void Each<T>(this IEnumerable<T> list, Action<T, int> action)
         {
             int i = 0;
@@ -356,6 +360,16 @@ namespace CasualConsole
         public static bool IsGreaterThan<E>(this E first, E second) where E : IComparable<E>
         {
             return first.CompareTo(second) > 0;
+        }
+
+        public static T ParseJson<T>(this Stream stream) {
+            using (var otherstream = stream)
+            using (var sr = new StreamReader(otherstream))
+            using (var jsonTextReader = new JsonTextReader(sr))
+            {
+                T obj = serializer.Deserialize<T>(jsonTextReader);
+                return obj;
+            }
         }
     }
 }

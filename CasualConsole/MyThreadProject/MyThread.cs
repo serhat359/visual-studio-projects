@@ -11,9 +11,9 @@ namespace MyThreadProject
             return MyThread<T>.New(isBackground, action);
         }
 
-        public static MyThread<T> DoInThread<E, T>(bool isBackground, E val, Func<E, T> action)
+        public static MyThread<T> DoInThread<E, T>(bool isBackground, Func<E, T> action, E val)
         {
-            return MyThread<T>.New(isBackground, val, action);
+            return MyThread<T>.New(isBackground, action, val);
         }
 
         public static MyThread<T> DoInThread<T>(Func<T> action)
@@ -21,9 +21,9 @@ namespace MyThreadProject
             return DoInThread(true, action);
         }
 
-        public static MyThread<T> DoInThread<E, T>(E val, Func<E, T> action)
+        public static MyThread<T> DoInThread<E, T>(Func<E, T> action, E val)
         {
-            return DoInThread(true, val, action);
+            return DoInThread(true, action, val);
         }
 
         public static void ParallelForeach<T>(IEnumerable<T> elems, Action<T> action)
@@ -65,10 +65,10 @@ namespace MyThreadProject
 
         public static MyThread<T> New(bool isBackground, Func<T> action)
         {
-            return New(isBackground, 0, x => action());
+            return New(isBackground, x => action(), 0);
         }
 
-        public static MyThread<T> New<E>(bool isBackground, E val, Func<E, T> action)
+        public static MyThread<T> New<E>(bool isBackground, Func<E, T> action, E val)
         {
             var o = new MyThread<T>();
 

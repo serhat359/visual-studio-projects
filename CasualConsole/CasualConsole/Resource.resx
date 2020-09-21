@@ -6687,6 +6687,15 @@ Where can I get some?
 
 There are many variations of passages of Lorem Ipsum available, but the majority have suffered alteration in some form, by injected humour, or randomised words which don't look even slightly believable. If you are going to use a passage of Lorem Ipsum, you need to be sure there isn't anything embarrassing hidden in the middle of text. All the Lorem Ipsum generators on the Internet tend to repeat predefined chunks as necessary, making this the first true generator on the Internet. It uses a dictionary of over 200 Latin words, combined with a handful of model sentence structures, to generate Lorem Ipsum which looks reasonable. The generated Lorem Ipsum is therefore always free from repetition, injected humour, or non-characteristic words etc.</value>
   </data>
+  <data name="SomeJson" xml:space="preserve">
+    <value>{
+	"o": [
+		{ "a": "3" },
+		{ "a": 67 },
+		{ "a": -98 }
+	]
+}</value>
+  </data>
   <data name="SomeTabbedText" xml:space="preserve">
     <value>Windows 10 Pro v.1511 En-us x64 July2016 Pre-Activated-=TEAM OS=	2990	136
 Windows 7 SP1 Ultimate (64 Bit)	1649	99
@@ -6719,7 +6728,7 @@ Stellar Phoenix Windows Data Recovery Pro v7.0.0.0 + Crack	193	2
 ATIVADOR WINDOWS 10 KMS 2017	192	3
 Windows 7 SP1 (RUS-ENG)(x86-x64)-18in1-Activated v4(AIO)-AppzDam	185	4</value>
   </data>
-  <data name="Statement1" xml:space="preserve">
+  <data name="z" xml:space="preserve">
     <value>// comment
 
 DataTable table = ExecuteToTable("Brand_Select", container.ToList());

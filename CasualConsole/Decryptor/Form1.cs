@@ -16,7 +16,7 @@ namespace Decryptor
     {
         private string[] selectedFiles;
         private int bufferSizeBytes = 2 * 1024 * 1024; // 8 Megabytes
-        private int threadCount = 4;
+        private const int threadCount = 4;
 
         public Form1()
         {
@@ -51,8 +51,6 @@ namespace Decryptor
             try
             {
                 decryptButton.Enabled = false;
-
-                Task.Run(() => { return 0; });
 
                 var newThread = Task.Run(() =>
                 {
@@ -100,7 +98,6 @@ namespace Decryptor
                                     var task = Task.Run(() => CoreEncryption.Instance.DecryptInPlace(buffer));
 
                                     tasks[i] = task;
-
                                     readCounts[i] = readCount;
                                 }
 

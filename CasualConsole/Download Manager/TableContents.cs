@@ -74,8 +74,11 @@ namespace Download_Manager
         public string Referer { get; set; }
 
         public long? FileSizeLong { get; set; }
-        public long BytesDownloaded { get; set; }
+        public long BytesDownloadedThisSession { get; set; }
         public long TotalBytes { get; set; }
+        public string TempDownloadPath { get; set; }
+        public string RealDownloadPath { get; set; }
+        public long BytesDownloadedBefore { get; set; }
 
         [JsonIgnore]
         public int? Percentage { get; set; }
@@ -98,7 +101,8 @@ namespace Download_Manager
     {
         Stopped = 0,
         Downloading = 1,
-        Completed = 2
+        Completed = 2,
+        Paused = 3
     }
 
 }
