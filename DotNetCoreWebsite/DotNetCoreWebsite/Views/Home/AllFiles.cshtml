@@ -78,7 +78,15 @@
     </tbody>
 </table>
 
-<button id="downloadSelectedButton" class="btn btn-secondary" style="float:right; visibility: hidden" onclick="downloadSelected()">Download Selected</button>
+<div style="float:right">
+    <div class="btn-group">
+        <button id="getDownloadLinksButton" class="btn btn-secondary" style="float:right; visibility: hidden" onclick="getDownloadLinks()">Get Download Links</button>
+    </div>
+    <div class="btn-group">
+        <button id="downloadSelectedButton" class="btn btn-primary" style="float:right; visibility: hidden" onclick="downloadSelected()">Download Selected</button>
+    </div>
+</div>
+
 <br /><br />
 
 @section Scripts {
@@ -120,23 +128,27 @@
             window.location = "DownloadMultiFile?" + params.join("&");
         }
 
+        function getDownloadLinks() {
+            var linksArray = Array.from(document.querySelectorAll(".downloadCheckBoxInput:checked")).map(x => x.closest("tr").querySelector(".downloadLink a").href);
+            alert(linksArray.join("\n"));
+        }
+
         function setDownloadButtonVisibility() {
             $('#downloadSelectedButton').setVisible($('.downloadCheckBoxInput:checked').length > 0);
+            $('#getDownloadLinksButton').setVisible($('.downloadCheckBoxInput:checked').length > 0);
         }
 
         $(document).ready(function () {
             $('.downloadCheckBoxInput').on("click", function (event) {
                 setDownloadButtonVisibility();
             })
-
-            $('#downloadSelectedButton').setVisible(false);
         });
     </script>
     <script type="text/javascript">
         // Allow table sorting
         $('th').click(function () {
             var table = $(this).parents('table').eq(0)
-            var rows = table.find('tr:gt(0)').toArray().sort(comparer($(this).index()))
+            var rows = table.find('tr:gt(1)').toArray().sort(comparer($(this).index()))
             this.asc = !this.asc
             if (!this.asc) { rows = rows.reverse() }
             for (var i = 0; i < rows.length; i++) { table.append(rows[i]) }
