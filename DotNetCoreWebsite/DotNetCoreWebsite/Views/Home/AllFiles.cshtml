@@ -60,7 +60,7 @@
                     }
                 </td>
                 <td data-sort-value="@fileInfo.FileSize">@fileInfo.FileSizeString</td>
-                <td title="@fileInfo.AgeString">@fileInfo.ModifiedDateString</td>
+                <td class="utcdate" title="@fileInfo.AgeString">@fileInfo.ModifiedDateString</td>
                 <td class="downloadLink">
                     @if (!fileInfo.IsFolder)
                     {
@@ -138,7 +138,36 @@
             $('#getDownloadLinksButton').setVisible($('.downloadCheckBoxInput:checked').length > 0);
         }
 
+        function toLocalDate(utcDateString) {
+            var date = utcDateString.replace(" UTC", "").replace(" ", "T") + ":00.000Z";
+            return formatDate(new Date(date));
+        }
+
+        function formatDate(d) {
+            var month = '' + (d.getMonth() + 1);
+            var day = '' + d.getDate();
+            var year = d.getFullYear();
+
+            var hours = d.getHours();
+            var minutes = d.getMinutes();
+
+            return `${year}-${pad2Left(month)}-${pad2Left(day)} ${pad2Left(hours)}:${pad2Left(minutes)}`;
+        }
+
+        function pad2Left(n) {
+            return n.toString().padStart(2, "0");
+        }
+
+        function convertDatesToLocal() {
+            var allDates = document.querySelectorAll(".utcdate");
+            for (x of allDates) {
+                x.innerHTML = toLocalDate(x.innerHTML);
+            }
+        }
+
         $(document).ready(function () {
+            convertDatesToLocal();
+
             $('.downloadCheckBoxInput').on("click", function (event) {
                 setDownloadButtonVisibility();
             })
