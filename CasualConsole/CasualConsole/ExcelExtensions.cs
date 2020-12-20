@@ -6,6 +6,21 @@ namespace OfficeOpenXml
 {
     public static class ExcelExtensions
     {
+        public static ExcelPackage AddValues<T>(this ExcelPackage excelPackage, string sheetName, IEnumerable<T> data)
+        {
+            var sheet = excelPackage.Workbook.Worksheets.Add(sheetName);
+            var cells = sheet.Cells;
+
+            var row = 1;
+            foreach (var item in data)
+            {
+                cells[row, 1].Value = item;
+                row++;
+            }
+
+            return excelPackage;
+        }
+
         public static ExcelPackage AddSheet<T>(this ExcelPackage excelPackage, string sheetName, IEnumerable<T> data) where T : class
         {
             var sheet = excelPackage.Workbook.Worksheets.Add(sheetName);

@@ -3,7 +3,6 @@ using CasualConsole.MultiReplacer;
 using MyThreadProject;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -33,56 +32,13 @@ namespace CasualConsole
 
         public static void Main(string[] args)
         {
+            Console.OutputEncoding = Encoding.UTF8; // This line is needed to print Unicode characters in bash and other terminals
+
             MainAsync(args).Wait();
-        }
-
-        public static List<Task<int>> GetTasks()
-        {
-            var r = new Random();
-            var list = new List<Task<int>>();
-
-            for (int i = 0; i < 4; i++)
-            {
-                var duration = r.Next(0, 1000);
-                var task = TaskExt.Run(async (x) =>
-                {
-                    await Task.Delay(duration);
-                    return x;
-                }, i);
-                list.Add(task);
-            }
-
-            return list;
         }
 
         public static async Task MainAsync(string[] args)
         {
-            int i = 2;
-            var task = TaskExt.Run(x =>
-            {
-                Console.WriteLine(x.Name);
-            }, new { Name = "serhat" });
-
-            var people = new Person[] {
-                new Person
-                {
-                    Id = 1,
-                    FirstName = "Serhat",
-                    LastName = "Abdulbakioğlu"
-                }
-            };
-
-            var stream = new MemoryStream();
-
-            using (var f = File.OpenWrite(@"D:\OtherDownloads\decrypted_files\sss.xlsx"))
-            {
-                new ExcelPackage(f)
-                    .AddSheet("Sheet1", people.Select(x => new { x.FirstName, x.LastName }))
-                    .Save();
-            }
-
-            stream.Seek(0, SeekOrigin.Begin);
-
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 | SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
             var serializer = new JsonSerializer();
             var client = new HttpClient();
@@ -278,6 +234,11 @@ namespace CasualConsole
         private static E IIFE<T, E>(Func<T, E> func, T val)
         {
             return func(val);
+        }
+
+        private static void IIFE<T>(Action<T> func, T val)
+        {
+            func(val);
         }
 
         private static void MyTestingMethod()

@@ -85,6 +85,14 @@ namespace CasualConsole
                 return customValue;
         }
 
+        public static IEnumerable<T> EmptyIfNull<T>(this IEnumerable<T> list)
+        {
+            if (list != null)
+                return list;
+
+            return new T[] { };
+        }
+
         public static V GetValueOrNew<K, V>(this Dictionary<K, V> dic, K key) where V : new()
         {
             V value;
@@ -286,9 +294,40 @@ namespace CasualConsole
             return contains;
         }
 
-        public static void SortBy<T, E>(this List<T> list, Func<T, E> selector) where E : IComparable<E>
+        public static void SortBy<T, E>(this List<T> list, Func<T, E> selector)
+            where E : IComparable<E>
         {
-            list.Sort(MakeComparer(selector));
+            list.Sort((x, y) => selector(x).CompareTo(selector(y)));
+        }
+
+        public static void SortBy<T, E1, E2>(this List<T> list, Func<T, E1> selector1, Func<T, E2> selector2)
+            where E1 : IComparable<E1>
+            where E2 : IComparable<E2>
+        {
+            list.Sort((x, y) => {
+                var case1 = selector1(x).CompareTo(selector1(y));
+                if (case1 != 0) return case1;
+
+                var case2 = selector2(x).CompareTo(selector2(y));
+                return case2;
+            });
+        }
+
+        public static void SortBy<T, E1, E2, E3>(this List<T> list, Func<T, E1> selector1, Func<T, E2> selector2, Func<T, E3> selector3)
+            where E1 : IComparable<E1>
+            where E2 : IComparable<E2>
+            where E3 : IComparable<E3>
+        {
+            list.Sort((x, y) => {
+                var case1 = selector1(x).CompareTo(selector1(y));
+                if (case1 != 0) return case1;
+
+                var case2 = selector2(x).CompareTo(selector2(y));
+                if (case2 != 0) return case2;
+
+                var case3 = selector3(x).CompareTo(selector3(y));
+                return case3;
+            });
         }
 
         [Obsolete("It is probably a better idea to use Dictionary instead, trust me")]
@@ -362,7 +401,8 @@ namespace CasualConsole
             return first.CompareTo(second) > 0;
         }
 
-        public static T ParseJson<T>(this Stream stream) {
+        public static T ParseJson<T>(this Stream stream)
+        {
             using (var otherstream = stream)
             using (var sr = new StreamReader(otherstream))
             using (var jsonTextReader = new JsonTextReader(sr))
