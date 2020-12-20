@@ -124,7 +124,7 @@ namespace DotNetCoreWebsite.Controllers
             {
                 foreach (var filePath in filePaths)
                 {
-                    var archiveEntry = zip.CreateEntryFromFile(sourceFileName: filePath, entryName: GetShortFileName(filePath));
+                    AddFilesRecursively(zip, "", filePath);
                 }
             }
 
@@ -133,8 +133,30 @@ namespace DotNetCoreWebsite.Controllers
             return File(fileStream, "application/unknown", fileNameHelper.CreateAlternativeFileName(newGuidFileName) + extension);
         }
 
+        public void AddFilesRecursively(ZipArchive zip, string folderHeader, string filePath)
+        {
+            var attr = System.IO.File.GetAttributes(filePath);
+            var isfile = !attr.HasFlag(FileAttributes.Directory);
+
+            if (isfile)
+            {
+                var entryName = folderHeader + GetShortFileName(filePath);
+                zip.CreateEntryFromFile(sourceFileName: filePath, entryName: entryName);
+            }
+            else
+            {
+                var folderName = GetShortFileName(filePath);
+                var entry = zip.CreateEntry(folderHeader + folderName + "/");
+                var filesAndFolders = Directory.EnumerateDirectories(filePath).Concat(Directory.EnumerateFiles(filePath));
+                foreach (var subPath in filesAndFolders)
+                {
+                    AddFilesRecursively(zip, folderHeader + folderName + "/", subPath);
+                }
+            }
+        }
+
         [HttpPost]
-        public IActionResult GetOriginalFileNames([FromBody]string[] names)
+        public IActionResult GetOriginalFileNames([FromBody] string[] names)
         {
             var dic = new Dictionary<string, string>();
 

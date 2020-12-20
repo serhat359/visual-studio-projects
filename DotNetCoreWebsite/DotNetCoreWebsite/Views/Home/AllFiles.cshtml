@@ -62,16 +62,10 @@
                 <td data-sort-value="@fileInfo.FileSize">@fileInfo.FileSizeString</td>
                 <td class="utcdate" title="@fileInfo.AgeString">@fileInfo.ModifiedDateString</td>
                 <td class="downloadLink">
-                    @if (!fileInfo.IsFolder)
-                    {
-                        <a href="DownloadFile?q=@WebUtility.UrlEncode(Model.CurrentPath + fileInfo.Name)"><i class="fa fa-download"></i></a>
-                    }
+                    <a href="@(fileInfo.IsFolder ? "DownloadMultiFile" : "DownloadFile")?q=@WebUtility.UrlEncode(Model.CurrentPath + fileInfo.Name)"><i class="fa fa-download"></i></a>
                 </td>
                 <td class="downloadCheckBox">
-                    @if (!fileInfo.IsFolder)
-                    {
-                        <input type="checkbox" class="downloadCheckBoxInput" />
-                    }
+                    <input type="checkbox" class="downloadCheckBoxInput" />
                 </td>
             </tr>
         }
