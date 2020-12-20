@@ -10,8 +10,10 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Web.Mvc;
 using System.Xml;
 using WebModelFactory;
@@ -183,23 +185,36 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
+        public ActionResult GetAnimeNewsCookie()
+        {
+            object cookieValue = CacheHelper.Get<string>(CacheHelper.MALCookie, () => "", CacheHelper.MALCookieTimeSpan);
+
+            return View(cookieValue);
+        }
+
+        [HttpPost]
+        public ActionResult GetAnimeNewsCookie(string value)
+        {
+            CacheHelper.Set(CacheHelper.MALCookie, value, CacheHelper.MALCookieTimeSpan);
+            object cookieValue = value;
+            return View(cookieValue);
+        }
+
+        [HttpGet]
         public ActionResult FixAnimeNews()
         {
-            string url = "http://www.animenewsnetwork.com/news/rss.xml";
+            string url = "https://www.animenewsnetwork.com/news/rss.xml?ann-edition=us";
 
-            string contents = GetUrlTextData(url)
+            string contents = GetUrlTextData(url, x =>
+            {
+                x.Headers.Add(HttpRequestHeader.Host, "www.animenewsnetwork.com");
+                x.Headers.Add(HttpRequestHeader.Cookie, CacheHelper.Get(CacheHelper.MALCookie, () => "", CacheHelper.MALCookieTimeSpan));
+                x.Headers.Add(HttpRequestHeader.UserAgent, "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:82.0) Gecko/20100101 Firefox/82.0");
+            })
                 .Replace("animenewsnetwork.cc", "animenewsnetwork.com")
                 .Replace("http://", "https://");
 
             return Content(contents, "application/xml; charset=UTF-8", Encoding.UTF8);
-        }
-
-        [HttpGet]
-        public ActionResult FixTomsNews()
-        {
-            string url = "https://www.tomshardware.com/feeds/rss2/news.xml";
-
-            return FixToms(url);
         }
 
         [HttpGet]
@@ -227,7 +242,7 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
-        public ActionResult FixTomsArticlesManual()
+        public async Task<ActionResult> FixTomsArticlesManual()
         {
             Func<ActionResult> initializer = () =>
             {
@@ -241,9 +256,9 @@ namespace SharePointMvc.Controllers
                               "https://www.tomshardware.com/best-picks/",
                              };
 
-                var threads = urls.Select(url => MyThread.DoInThread(true, () => GetRssObjectFromTomsUrlNew(url))).ToList();
+                var threads = urls.Select(url => Task.Run(() => GetRssObjectFromTomsUrlNew(url))).ToList();
 
-                var ss = threads.Select(x => x.Await()).SelectMany(x => x);
+                var ss = threads.Select(x => x.Result).SelectMany(x => x);
 
                 var rssObject = new RssResult(ss.Where(x => !x.Link.Contains("/news/")).OrderByDescending(x => x.PubDate));
 
@@ -305,31 +320,6 @@ namespace SharePointMvc.Controllers
             contents = XmlToString(document);
 
             contents = XmlEncodeForHtml(contents);
-
-            return Content(contents, "application/xml; charset=UTF-8", Encoding.UTF8);
-        }
-
-        [HttpGet]
-        public ActionResult FixNyaaFiltering()
-        {
-            string url = "https://nyaa.si/?page=rss&q=violet+evergarden+vivid+-superior&c=1_2&f=1";
-
-            string contents = GetUrlTextData(url);
-
-            XmlDocument document = new XmlDocument();
-
-            document.LoadXml(contents);
-
-            var items = document.GetElementsByTagName("item");
-
-            List<XmlNode> invalidNodes = items.Cast<XmlNode>().Where(x => !x.GetChildNamed("title").InnerText.Contains("v2")).ToList();
-
-            foreach (var node in invalidNodes)
-            {
-                node.ParentNode.RemoveChild(node);
-            }
-
-            contents = XmlToString(document);
 
             return Content(contents, "application/xml; charset=UTF-8", Encoding.UTF8);
         }
@@ -731,13 +721,13 @@ namespace SharePointMvc.Controllers
 
                 var allLinks = new List<(DateTime date, XmlNode node)>();
 
-                var tasks = links.Select(x => MyThread.DoInThread(false, () => GetUrlTextData(x))).ToArray();
+                var tasks = links.Select(x => Task.Run(() => GetUrlTextData(x))).ToArray();
 
                 foreach (var task in tasks)
                 {
                     try
                     {
-                        var result = task.Await();
+                        var result = task.Result;
                         var xml = new XmlDocument();
                         xml.LoadXml(result);
 
@@ -1025,7 +1015,7 @@ namespace SharePointMvc.Controllers
                 }
                 catch (WebException e)
                 {
-
+                    throw;
                 }
                 catch (Exception e)
                 {

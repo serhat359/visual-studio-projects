@@ -207,6 +207,7 @@
     <None Include="packages.config" />
     <None Include="Properties\PublishProfiles\FolderProfile.pubxml" />
     <Content Include="Views\Home\GetRssLinks.cshtml" />
+    <Content Include="Views\Home\GetAnimeNewsCookie.cshtml" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Business\Business.csproj">
