@@ -54,7 +54,7 @@ namespace DotNetCoreWebsite
                     "text/json",
                 };
             });
-            services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
+            services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -80,7 +80,7 @@ namespace DotNetCoreWebsite
             app.UseStaticFiles();
             app.UseCookiePolicy();
 
-            app.UseMvc((Microsoft.AspNetCore.Routing.IRouteBuilder routes) =>
+            app.UseMvc(routes =>
             {
                 routes.MapRoute(
                     name: "default",
