@@ -70,7 +70,7 @@ namespace DotNetCoreWebsite
                 }
             }
 
-            return "0 seconds";
+            return "0 seconds ago";
         }
 
         public static string NullIfEmpty(this string s)
