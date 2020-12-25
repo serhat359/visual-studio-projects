@@ -10,7 +10,6 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -748,11 +747,18 @@ namespace SharePointMvc.Controllers
                     }
                 }
 
-                allLinks = allLinks.OrderByDescending(x => x.date).ToList();
+                var allNodes = allLinks.OrderByDescending(x => x.date).Select(x => x.node).ToList();
 
-                var rssFinalResult = string.Format(Resource1.RssTemplate, string.Join("", allLinks.Select(x => x.node.OuterXml)));
+                var newXml = new XmlDocument();
+                newXml.LoadXml(Resource1.RssTemplate);
 
-                var contentResult = Content(rssFinalResult, "application/xml");
+                var itemNodesParent = newXml.ChildNodes[0].ChildNodes[0];
+                foreach (var node in allNodes)
+                {
+                    itemNodesParent.AppendChild(newXml.ImportNode(node, deep: true));
+                }
+
+                var contentResult = Content(newXml.Beautify(), "application/xml");
 
                 return contentResult;
             };

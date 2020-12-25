@@ -67,7 +67,7 @@ namespace SharePointMvc {
         ///		&lt;description&gt;RSS Feed for Nyaa&lt;/description&gt;
         ///		&lt;link&gt;https://nyaa.si/&lt;/link&gt;
         ///		&lt;atom:link href=&quot;https://nyaa.si/?page=rss&quot; rel=&quot;self&quot; type=&quot;application/rss+xml&quot; /&gt;
-        ///		{0}
+        ///		
         ///	&lt;/channel&gt;
         ///&lt;/rss&gt;.
         /// </summary>

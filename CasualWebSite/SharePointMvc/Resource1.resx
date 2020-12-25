@@ -124,7 +124,7 @@
 		&lt;description&gt;RSS Feed for Nyaa&lt;/description&gt;
 		&lt;link&gt;https://nyaa.si/&lt;/link&gt;
 		&lt;atom:link href="https://nyaa.si/?page=rss" rel="self" type="application/rss+xml" /&gt;
-		{0}
+		
 	&lt;/channel&gt;
 &lt;/rss&gt;</value>
   </data>
