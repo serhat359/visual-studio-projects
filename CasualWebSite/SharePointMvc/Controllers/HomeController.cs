@@ -241,7 +241,7 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult> FixTomsArticlesManual()
+        public ActionResult FixTomsArticlesManual()
         {
             Func<ActionResult> initializer = () =>
             {
@@ -743,7 +743,7 @@ namespace SharePointMvc.Controllers
                     }
                     catch (Exception e)
                     {
-
+                        throw;
                     }
                 }
 
