@@ -714,13 +714,20 @@ namespace SharePointMvc.Controllers
         [HttpGet]
         public ActionResult GenerateRssResult()
         {
+            var cacheTimespan = TimeSpan.FromMinutes(15);
+
             Func<ContentResult> initializerFunction = () =>
             {
                 var links = MyTorrentRssHelper.Instance(Request.PhysicalApplicationPath).GetLinks().Keys;
 
                 var allLinks = new List<(DateTime date, XmlNode node)>();
 
-                var tasks = links.Select(x => Task.Run(() => GetUrlTextData(x))).ToArray();
+                var tasks = links.Select(url => Task.Run(() =>
+                {
+                    var key = CacheHelper.MyRssKey + ":" + url;
+                    var val = CacheHelper.Get(key, () => GetUrlTextData(url), cacheTimespan);
+                    return val;
+                })).ToArray();
 
                 foreach (var task in tasks)
                 {
@@ -763,7 +770,7 @@ namespace SharePointMvc.Controllers
                 return contentResult;
             };
 
-            return CacheHelper.Get<ContentResult>(CacheHelper.MyRssKey, initializerFunction, TimeSpan.FromMinutes(15));
+            return CacheHelper.Get<ContentResult>(CacheHelper.MyRssKey, initializerFunction, cacheTimespan);
         }
 
         [HttpGet]
@@ -828,15 +835,19 @@ namespace SharePointMvc.Controllers
 
             foreach (XmlNode item in document.GetElementsByTagName("img"))
             {
-                var imgLink = item.Attributes["data-src"].Value.Trim();
-                var fileName = imgLink.Substring(imgLink.LastIndexOf('/') + 1);
-                fileName = Uri.UnescapeDataString(fileName);
-
-                threads.Add((fileName, MyThread.DoInThread(true, () =>
+                var dataSrc = item.Attributes["data-src"];
+                if (dataSrc != null)
                 {
-                    var data = GetUrlTextDataArray(imgLink);
-                    return data;
-                })));
+                    var imgLink = dataSrc.Value.Trim();
+                    var fileName = imgLink.Substring(imgLink.LastIndexOf('/') + 1);
+                    fileName = Uri.UnescapeDataString(fileName);
+
+                    threads.Add((fileName, MyThread.DoInThread(true, () =>
+                    {
+                        var data = GetUrlTextDataArray(imgLink);
+                        return data;
+                    })));
+                }
             }
 
             var archiveStream = new MemoryStream();
@@ -1358,10 +1369,11 @@ namespace SharePointMvc.Controllers
 
                 var ii = sectionPart.IndexOf(">", i);
 
-                if (sectionPart[ii - 1] == '/') continue;
+                var containsSlash = sectionPart[ii - 1] == '/';
 
                 ss.Append(sectionPart.Substring(lastIndex, ii - lastIndex));
-                ss.Append("/");
+                if (!containsSlash)
+                    ss.Append("/");
                 lastIndex = ii;
             }
 
