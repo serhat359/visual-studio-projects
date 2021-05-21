@@ -42,7 +42,7 @@
         </tr>
         @foreach (var fileInfo in Model.FileList)
         {
-            <tr class="default">
+            <tr class="default @(fileInfo.IsFolder ? "xfolder": "xfile")">
                 <td>
                     @if (fileInfo.IsFolder)
                     {
@@ -158,6 +158,49 @@
                 x.innerHTML = toLocalDate(x.innerHTML);
             }
         }
+        
+        function httpcall(url, onsuccess) {
+            var xmlhttp = new XMLHttpRequest();
+
+            xmlhttp.onreadystatechange = function () {
+                if (xmlhttp.readyState == XMLHttpRequest.DONE) {
+                    if (xmlhttp.status == 200) {
+                        var result = xmlhttp.responseText;
+                        try {
+                            onsuccess(result);
+                        }
+                        catch (err) {
+                            alert("error: \n" + err.message);
+                        }
+                    }
+                    else if (xmlhttp.status == 400) {
+                        alert('There was an error 400');
+                    }
+                    else {
+                        alert('something else other than 200 was returned');
+                    }
+                }
+            };
+
+            xmlhttp.open("GET", url, true);
+            
+            xmlhttp.send();
+        }
+
+        function getFolderSizes() {
+            httpcall("/Home/GetFolderSize" + document.location.search, function (dataStr) {
+                var data = JSON.parse(dataStr);
+
+                var rows = document.querySelectorAll("table tbody tr.xfolder");
+                for (var row of rows) {
+                    var tds = row.querySelectorAll("td");
+                    var folderName = tds[1].querySelector("a").innerText;
+                    var sizeInfo = data[folderName];
+                    tds[2].innerText = sizeInfo.fileSizeString;
+                    tds[2].dataset["sortValue"] = sizeInfo.fileSize;
+                }
+            });
+        }
 
         $(document).ready(function () {
             convertDatesToLocal();
@@ -165,6 +208,8 @@
             $('.downloadCheckBoxInput').on("click", function (event) {
                 setDownloadButtonVisibility();
             })
+            
+            getFolderSizes();
         });
     </script>
     <script type="text/javascript">

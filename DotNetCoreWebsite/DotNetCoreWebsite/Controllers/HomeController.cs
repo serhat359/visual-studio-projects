@@ -155,6 +155,19 @@ namespace DotNetCoreWebsite.Controllers
             }
         }
 
+        public IActionResult GetFolderSize(string q = null)
+        {
+            var rootPath = GetSafePath(q);
+
+            var results = Directory.EnumerateDirectories(rootPath).ToDictionary(folder => new DirectoryInfo(folder).Name, folder => {
+                var fileSize = Directory.GetFiles(folder, "*", SearchOption.AllDirectories).Sum(x => new FileInfo(x).Length);
+                var fileSizeString = ((long?)fileSize).ToFileSizeString();
+                return new { fileSize, fileSizeString };
+            });
+            
+            return Json(results);
+        }
+
         [HttpPost]
         public IActionResult GetOriginalFileNames([FromBody] string[] names)
         {
