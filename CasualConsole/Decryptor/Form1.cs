@@ -15,7 +15,7 @@ namespace Decryptor
     public partial class Form1 : Form
     {
         private string[] selectedFiles;
-        private int bufferSizeBytes = 2 * 1024 * 1024; // 8 Megabytes
+        private int bufferSizeBytes = 2 * 1024 * 1024; // 2 Megabytes
         private const int threadCount = 4;
 
         public Form1()
@@ -48,6 +48,8 @@ namespace Decryptor
 
         private void decryptButton_Click(object sender, EventArgs e)
         {
+            decryptButton.Enabled = false;
+
             try
             {
                 decryptButton.Enabled = false;
@@ -123,15 +125,13 @@ namespace Decryptor
                     }
 
                     state.ThreadSafe(x => { x.Text = $"100% completed"; });
+                    decryptButton.Enabled = true;
                 });
             }
             catch (Exception ex)
             {
-                throw;
-            }
-            finally
-            {
                 decryptButton.Enabled = true;
+                throw;
             }
         }
 

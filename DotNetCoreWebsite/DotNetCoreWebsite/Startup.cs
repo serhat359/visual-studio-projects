@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using System.Net;
+using System.Net.Http;
 
 namespace DotNetCoreWebsite
 {
@@ -33,6 +35,14 @@ namespace DotNetCoreWebsite
 
             services.AddSingleton<FileNameHelper>();
             services.AddSingleton<CoreEncryption>((serviceProvider) => new CoreEncryption(Configuration.GetSection("EncryptionKey").Value));
+            services.AddSingleton<HttpClient>((serviceProvider) =>
+            {
+                HttpClientHandler handler = new HttpClientHandler()
+                {
+                    AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
+                };
+                return new HttpClient(handler);
+            });
 
             services.Configure<ForwardedHeadersOptions>(options =>
             {

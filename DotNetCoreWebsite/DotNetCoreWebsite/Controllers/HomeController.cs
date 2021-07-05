@@ -8,6 +8,7 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Net.Http;
 using System.Text.RegularExpressions;
 
 namespace DotNetCoreWebsite.Controllers
@@ -19,12 +20,14 @@ namespace DotNetCoreWebsite.Controllers
         public IConfiguration configuration;
         public FileNameHelper fileNameHelper;
         public CoreEncryption coreEncryption;
+        public HttpClient httpClient;
 
-        public HomeController(IConfiguration configuration, FileNameHelper fileNameHelper, CoreEncryption coreEncryption)
+        public HomeController(IConfiguration configuration, FileNameHelper fileNameHelper, CoreEncryption coreEncryption, HttpClient httpClient)
         {
             this.configuration = configuration;
             this.fileNameHelper = fileNameHelper;
             this.coreEncryption = coreEncryption;
+            this.httpClient = httpClient;
         }
 
         public IActionResult Index()
@@ -159,12 +162,13 @@ namespace DotNetCoreWebsite.Controllers
         {
             var rootPath = GetSafePath(q);
 
-            var results = Directory.EnumerateDirectories(rootPath).ToDictionary(folder => new DirectoryInfo(folder).Name, folder => {
+            var results = Directory.EnumerateDirectories(rootPath).ToDictionary(folder => new DirectoryInfo(folder).Name, folder =>
+            {
                 var fileSize = Directory.GetFiles(folder, "*", SearchOption.AllDirectories).Sum(x => new FileInfo(x).Length);
                 var fileSizeString = ((long?)fileSize).ToFileSizeString();
                 return new { fileSize, fileSizeString };
             });
-            
+
             return Json(results);
         }
 

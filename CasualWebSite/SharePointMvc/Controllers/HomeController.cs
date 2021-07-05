@@ -208,7 +208,7 @@ namespace SharePointMvc.Controllers
             {
                 x.Headers.Add(HttpRequestHeader.Host, "www.animenewsnetwork.com");
                 x.Headers.Add(HttpRequestHeader.Cookie, CacheHelper.Get(CacheHelper.MALCookie, () => "", CacheHelper.MALCookieTimeSpan));
-                x.Headers.Add(HttpRequestHeader.UserAgent, "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:82.0) Gecko/20100101 Firefox/82.0");
+                x.Headers.Add(HttpRequestHeader.UserAgent, "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:87.0) Gecko/20100101 Firefox/87.0");
             })
                 .Replace("animenewsnetwork.cc", "animenewsnetwork.com")
                 .Replace("http://", "https://");
@@ -245,14 +245,13 @@ namespace SharePointMvc.Controllers
         {
             Func<ActionResult> initializer = () =>
             {
-                string[] urls = { "https://www.tomshardware.com/reviews/",
+                string[] urls = { "https://www.tomshardware.com/reviews",
                               "https://www.tomshardware.com/reviews/page/2",
-                              "https://www.tomshardware.com/reference/",
-                              "https://www.tomshardware.com/features/",
-                              "https://www.tomshardware.com/how-to/",
-                              "https://www.tomshardware.com/opinion/",
-                              "https://www.tomshardware.com/round-up/",
-                              "https://www.tomshardware.com/best-picks/",
+                              "https://www.tomshardware.com/reference",
+                              "https://www.tomshardware.com/features",
+                              "https://www.tomshardware.com/how-to",
+                              "https://www.tomshardware.com/round-up",
+                              "https://www.tomshardware.com/best-picks",
                              };
 
                 var threads = urls.Select(url => Task.Run(() => GetRssObjectFromTomsUrlNew(url))).ToList();
@@ -282,7 +281,7 @@ namespace SharePointMvc.Controllers
         [HttpGet]
         public ActionResult FixTomsNewsManualParse()
         {
-            string[] urls = { "https://www.tomshardware.com/news/", "https://www.tomshardware.com/news/page/2" };
+            string[] urls = { "https://www.tomshardware.com/news", "https://www.tomshardware.com/news/page/2" };
 
             var elements = urls.SelectMany(url => GetRssObjectFromTomsUrlNew(url));
 

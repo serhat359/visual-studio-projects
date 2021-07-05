@@ -3,6 +3,7 @@ using CasualConsole.MultiReplacer;
 using MyThreadProject;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -34,6 +35,18 @@ namespace CasualConsole
         {
             Console.OutputEncoding = Encoding.UTF8; // This line is needed to print Unicode characters in bash and other terminals
 
+            var data = new[] {
+                new { ID = 1, Name ="Serhat" },
+                new { ID = 2, Name = "Rio" }
+            };
+
+            var excel = new ExcelPackage();
+            excel.AddSheet("CustomSheet", data);
+
+            using (var f = File.Create(@"C:\Users\Xhertas\Desktop\newfile.xlsx")) {
+                excel.SaveAs(f);
+            }
+            
             MainAsync(args).Wait();
         }
 
@@ -41,10 +54,14 @@ namespace CasualConsole
         {
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 | SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
             var serializer = new JsonSerializer();
-            var client = new HttpClient();
-            var res = await client.GetAsync("https://xkcd.com/2340/info.0.json");
 
-            var obj = (await res.Content.ReadAsStreamAsync()).ParseJson<JToken>();
+            JToken jToken;
+            using (var client = new HttpClient())
+            using (var res = await client.GetAsync("https://xkcd.com/2340/info.0.json"))
+            using (var stream = await res.Content.ReadAsStreamAsync())
+            {
+                jToken = stream.ParseJson<JToken>();
+            }
 
             //BenchmarkStringReplace();
 
@@ -1387,6 +1404,18 @@ namespace CasualConsole
             long endTicks = DateTime.Now.Ticks;
 
             Console.WriteLine("The operation {1} took {0:n} ticks", (endTicks - startTicks), operationName);
+        }
+
+        private static void BenchmarkMillis(string operationName, Action action, int executionCount)
+        {
+            var startTicks = DateTime.Now;
+
+            for (int i = 0; i < executionCount; i++)
+                action();
+
+            var endTicks = DateTime.Now;
+
+            Console.WriteLine("The operation {1} took {0} milliseconds", (endTicks - startTicks).TotalMilliseconds, operationName);
         }
 
         private static void MultiThreadJobQueueTest()

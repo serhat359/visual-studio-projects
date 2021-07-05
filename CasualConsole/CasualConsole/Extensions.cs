@@ -7,6 +7,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Xml;
 
@@ -67,14 +68,6 @@ namespace CasualConsole
 
             minimumValue = minValue;
             return minElem;
-        }
-
-        public static IEnumerable<(T elem, int index)> SelectI<T>(this IEnumerable<T> elements)
-        {
-            int i = 0;
-
-            foreach (var item in elements)
-                yield return (item, i++);
         }
 
         public static T FirstOrCustom<T>(this IEnumerable<T> list, T customValue)
@@ -176,12 +169,7 @@ namespace CasualConsole
                 yield return match.Groups[i];
             }
         }
-
-        public static string NameOf<E>(Expression<Func<E>> expr)
-        {
-            return ((expr.Body as MemberExpression).Member as PropertyInfo).Name;
-        }
-
+        
         public static int DoOrDie(Func<int> action, string errorMessage)
         {
             try
@@ -304,7 +292,8 @@ namespace CasualConsole
             where E1 : IComparable<E1>
             where E2 : IComparable<E2>
         {
-            list.Sort((x, y) => {
+            list.Sort((x, y) =>
+            {
                 var case1 = selector1(x).CompareTo(selector1(y));
                 if (case1 != 0) return case1;
 
@@ -318,7 +307,8 @@ namespace CasualConsole
             where E2 : IComparable<E2>
             where E3 : IComparable<E3>
         {
-            list.Sort((x, y) => {
+            list.Sort((x, y) =>
+            {
                 var case1 = selector1(x).CompareTo(selector1(y));
                 if (case1 != 0) return case1;
 
@@ -410,6 +400,23 @@ namespace CasualConsole
                 T obj = serializer.Deserialize<T>(jsonTextReader);
                 return obj;
             }
+        }
+
+        public static void ParallelForEach<T>(this List<T> list, Action<T> action)
+        {
+            Task[] tasks = new Task[list.Count];
+
+            for (int i = 0; i < list.Count; i++)
+            {
+                T e = list[i];
+                Task t = Task.Run(() =>
+                {
+                    action(e);
+                });
+                tasks[i] = t;
+            }
+
+            Task.WaitAll(tasks);
         }
     }
 }

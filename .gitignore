@@ -32,3 +32,8 @@ bin
 /CasualConsole/packages
 /CasualConsole/PicrossSolver/yapılacak.txt
 /SQLManagementExtension/packages
+/DotNetCoreWebsite/publish
+*.user
+*.pubxml
+*.psess
+*.vsp
