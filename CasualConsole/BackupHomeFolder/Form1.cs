@@ -3,12 +3,15 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Windows.Forms;
+using System.Linq;
 
 namespace BackupHomeFolder
 {
     public partial class Form1 : Form
     {
         FileCopyingThread thread = null;
+
+        private readonly string[] toBeIgnored = { @"\bin\", @"/bin/", @"\obj\", @"/obj/", @"\debug\", @"/debug/", @"\node_modules\", @"/node_modules/" };
 
         public Form1()
         {
@@ -17,6 +20,11 @@ namespace BackupHomeFolder
             AppSetting setting = Settings.Get();
             sourceTextBox.Text = setting.SourceFolder;
             destinationTextBox.Text = setting.DestinationFolder;
+        }
+
+        private bool IsIgnored(string s)
+        {
+            return toBeIgnored.Any(y => s.Contains(y));
         }
 
         private void checkButton_Click(object sender, EventArgs e)
@@ -48,7 +56,7 @@ namespace BackupHomeFolder
                     MyThread<int> actionthread = MyThread.DoInThread(true, () =>
                     {
                         CheckResult checkResult = CheckDifferences(sourceFolder, destinationFolder);
-                        
+
                         checkButton.ThreadSafe(x => x.Enabled = true);
 
                         string dialogtext = string.Format("{0} files and {1} will be copied, {2} files and {3} will be deleted, continue?", checkResult.FileCountToCopy, ByteSize.SizeSuffix(checkResult.BytesToCopy), checkResult.FileCountToDelete, ByteSize.SizeSuffix(checkResult.BytesToDelete));
@@ -123,7 +131,7 @@ namespace BackupHomeFolder
 
                     var destFileInfo = new Delimon.Win32.IO.FileInfo(destFilePath);
 
-                    if (!File.Exists(srcFilePath))
+                    if (IsIgnored(srcFilePath) || !File.Exists(srcFilePath))
                     {
                         fileCountToDelete++;
                         bytesToDelete += destFileInfo.Length;
@@ -143,13 +151,13 @@ namespace BackupHomeFolder
             {
                 List<string> allFiles = DirSearch(Path.Combine(sourceFolder, subfolderName), false);
 
-                foreach (string oldFilePath in allFiles)
+                foreach (string oldFilePath in allFiles.Where(x => !IsIgnored(x)))
                 {
                     string newFilePath = oldFilePath.Replace(sourceFolder, destinationFolder);
 
                     var newFileInfo = new Delimon.Win32.IO.FileInfo(newFilePath);
                     var oldFileInfo = new Delimon.Win32.IO.FileInfo(oldFilePath);
-                    
+
                     if (!newFileInfo.Exists || oldFileInfo.LastWriteTime > newFileInfo.LastWriteTime)
                     {
                         fileCountToCopy++;

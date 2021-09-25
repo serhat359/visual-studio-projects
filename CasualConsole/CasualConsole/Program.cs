@@ -43,10 +43,11 @@ namespace CasualConsole
             var excel = new ExcelPackage();
             excel.AddSheet("CustomSheet", data);
 
-            using (var f = File.Create(@"C:\Users\Xhertas\Desktop\newfile.xlsx")) {
+            using (var f = File.Create(@"C:\Users\Xhertas\Desktop\newfile.xlsx"))
+            {
                 excel.SaveAs(f);
             }
-            
+
             MainAsync(args).Wait();
         }
 
@@ -811,7 +812,7 @@ namespace CasualConsole
             return wholeString.Substring(foundIndex, lastIndex - foundIndex + end.Length);
         }
 
-        public static void SomeMethodWithAttributeParameter([XmlArray]string parameter)
+        public static void SomeMethodWithAttributeParameter([XmlArray] string parameter)
         {
             var props = typeof(Program).GetMethod(nameof(SomeMethodWithAttributeParameter));
 

@@ -631,7 +631,7 @@ namespace MinesweeperSolver
 
         private void MarkBomb(int row, int col, ref bool marked)
         {
-            //if (arr[row, col] == CellType.UNKNOWN)
+            if (arr[row, col] == CellType.UNKNOWN)
             {
                 marked = true;
                 //Console.WriteLine($"MarkBomb {row} {col}");
