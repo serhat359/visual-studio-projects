@@ -1203,6 +1203,9 @@ namespace SharePointMvc.Controllers
             sectionPart = sectionPart.Replace("&ldquo;", "\"");
             sectionPart = sectionPart.Replace("&pound;", "£");
             sectionPart = sectionPart.Replace("&sup2;", "²");
+            sectionPart = sectionPart.Replace("&mdash;", "—");
+            sectionPart = sectionPart.Replace("&plusmn;", "±");
+            sectionPart = sectionPart.Replace("&trade;", "™");
 
             sectionPart = FixIncompleteImgs(sectionPart);
 
