@@ -149,7 +149,6 @@ namespace DotNetCoreWebsite.Controllers
             else
             {
                 var folderName = GetShortFileName(filePath);
-                var entry = zip.CreateEntry(folderHeader + folderName + "/");
                 var filesAndFolders = Directory.EnumerateDirectories(filePath).Concat(Directory.EnumerateFiles(filePath));
                 foreach (var subPath in filesAndFolders)
                 {
@@ -212,7 +211,7 @@ namespace DotNetCoreWebsite.Controllers
             return path;
         }
 
-        private string GetBackFolderPath(string q)
+        private static string GetBackFolderPath(string q)
         {
             string backFolderPath;
             if (string.IsNullOrEmpty(q))
@@ -249,7 +248,7 @@ namespace DotNetCoreWebsite.Controllers
             }
         }
 
-        private string GetShortFileName(string realFileNameFullPath)
+        private static string GetShortFileName(string realFileNameFullPath)
         {
             var slashIndex = realFileNameFullPath.LastIndexOf('/');
             var backSlashIndex = realFileNameFullPath.LastIndexOf('\\');
@@ -260,7 +259,7 @@ namespace DotNetCoreWebsite.Controllers
             return fileName;
         }
 
-        private string SafeCombine(string param1, string param2)
+        private static string SafeCombine(string param1, string param2)
         {
             if (param1 == null) return param2;
             if (param2 == null) return param1;

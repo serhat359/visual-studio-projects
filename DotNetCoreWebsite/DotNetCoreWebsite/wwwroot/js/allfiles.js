@@ -1,6 +1,6 @@
 ﻿var isSet = false;
 
-function checkboxChange() {
+function onMainCheckboxClick() {
     var allCheckBoxes = document.querySelectorAll(".downloadCheckBox input[type=checkbox]");
 
     isSet = !isSet;
@@ -9,9 +9,14 @@ function checkboxChange() {
     }
 
     setDownloadButtonVisibility();
+    onCheckboxClick();
 }
 
-function downloadSelected() {
+function onCheckboxClick() {
+    $('#downloadSelectedButton')[0].href = getDownloadSelectedUrl();
+}
+
+function getDownloadSelectedUrl() {
     var path = new URL(window.location.toString()).searchParams.get("q");
     var fileNames = [];
     var allSelectedCheckBoxes = document.querySelectorAll(".downloadCheckBox input[type=checkbox]:checked");
@@ -32,7 +37,7 @@ function downloadSelected() {
     if (path)
         params.push("path=" + encodeURIComponent(path));
 
-    window.location = "DownloadMultiFile?" + params.join("&");
+    return "DownloadMultiFile?" + params.join("&");
 }
 
 function getDownloadLinks() {
