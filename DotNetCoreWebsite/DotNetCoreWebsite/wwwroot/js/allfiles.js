@@ -42,7 +42,13 @@ function getDownloadSelectedUrl() {
 
 function getDownloadLinks() {
     var linksArray = Array.from(document.querySelectorAll(".downloadCheckBoxInput:checked")).map(x => x.closest("tr").querySelector(".downloadLink a").href);
-    alert(linksArray.join("\n"));
+    var linksJoined = linksArray.join("<br />");
+    document.getElementById("linksModalContent").innerHTML = linksJoined;
+    $("#linksModal").modal({
+        escapeClose: true,
+        clickClose: true,
+        showClose: false
+    });
 }
 
 function setDownloadButtonVisibility() {
@@ -120,12 +126,31 @@ function getFolderSizes() {
     });
 }
 
+function SelectText(elementId) {
+    var doc = document, text = doc.getElementById(elementId), range, selection;
+    if (doc.body.createTextRange) {
+        range = document.body.createTextRange();
+        range.moveToElementText(text);
+        range.select();
+    } else if (window.getSelection) {
+        selection = window.getSelection();
+        range = document.createRange();
+        range.selectNodeContents(text);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+}
+
 $(document).ready(function () {
     convertDatesToLocal();
 
     $('.downloadCheckBoxInput').on("click", function (event) {
         setDownloadButtonVisibility();
     })
+
+    $('#selectAll').click(function () {
+        SelectText('linksModalContent');
+    });
 
     getFolderSizes();
 });
