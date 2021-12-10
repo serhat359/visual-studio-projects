@@ -47,38 +47,43 @@ namespace DotNetCoreWebsite.Controllers
 
             var rootPath = GetSafePath(q);
 
-            var directoryInfos = Directory.EnumerateDirectories(rootPath).Select(x =>
-            {
-                var dInfo = new DirectoryInfo(x);
-                return new FileInfoModel
-                {
-                    Name = dInfo.Name,
-                    IsFolder = true,
-                    FileSize = null,
-                    ModifiedDate = dInfo.LastWriteTimeUtc,
-                    Age = now - dInfo.LastWriteTimeUtc,
-                };
-            });
+            var rootInfo = new DirectoryInfo(rootPath);
+            var rootSystemInfos = rootInfo.GetFileSystemInfos();
 
-            var fileInfos = Directory.EnumerateFiles(rootPath).Select(x =>
+            var fileList = rootSystemInfos.Select(info =>
             {
-                var fInfo = new FileInfo(x);
-                return new FileInfoModel
+                var attr = info.Attributes;
+                if ((attr & FileAttributes.Directory) == FileAttributes.Directory)
                 {
-                    Name = fInfo.Name,
-                    IsFolder = false,
-                    FileSize = fInfo.Length,
-                    ModifiedDate = fInfo.LastWriteTimeUtc,
-                    Age = now - fInfo.LastWriteTimeUtc,
-                };
-            });
-
-            directoryInfos = directoryInfos.OrderByDescending(x => x.ModifiedDate);
-            fileInfos = fileInfos.OrderByDescending(x => x.ModifiedDate);
+                    // IsDirectory
+                    var dInfo = info;
+                    return new FileInfoModel
+                    {
+                        Name = dInfo.Name,
+                        IsFolder = true,
+                        FileSize = null,
+                        ModifiedDate = dInfo.LastWriteTimeUtc,
+                        Age = now - dInfo.LastWriteTimeUtc,
+                    };
+                }
+                else
+                {
+                    // IsFile
+                    var fInfo = (FileInfo)info;
+                    return new FileInfoModel
+                    {
+                        Name = fInfo.Name,
+                        IsFolder = false,
+                        FileSize = fInfo.Length,
+                        ModifiedDate = fInfo.LastWriteTimeUtc,
+                        Age = now - fInfo.LastWriteTimeUtc,
+                    };
+                }
+            }).OrderByDescending(x => x.IsFolder).ThenByDescending(x => x.ModifiedDate).ToList();
 
             return View(new AllFilesModel
             {
-                FileList = directoryInfos.Concat(fileInfos).ToList(),
+                FileList = fileList,
                 BackFolderPath = GetBackFolderPath(q),
                 CurrentPath = q != null ? q + "/" : ""
             });
@@ -161,9 +166,12 @@ namespace DotNetCoreWebsite.Controllers
         {
             var rootPath = GetSafePath(q);
 
-            var results = Directory.EnumerateDirectories(rootPath).ToDictionary(folder => new DirectoryInfo(folder).Name, folder =>
+            var rootInfo = new DirectoryInfo(rootPath);
+            var rootSystemInfos = rootInfo.GetDirectories();
+
+            var results = rootSystemInfos.ToDictionary(folder => folder.Name, folder =>
             {
-                var fileSize = Directory.GetFiles(folder, "*", SearchOption.AllDirectories).Sum(x => new FileInfo(x).Length);
+                var fileSize = folder.GetFiles("*", SearchOption.AllDirectories).Sum(x => x.Length);
                 var fileSizeString = ((long?)fileSize).ToFileSizeString();
                 return new { fileSize, fileSizeString };
             });
