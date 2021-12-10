@@ -1,20 +1,15 @@
 ﻿using System.Net;
 using System.Net.Http;
 using System.Web.Mvc;
-using WebModelFactory;
 
 namespace SharePointMvc.Controllers
 {
-    public class ControllerBase<T> : Controller where T : ModelFactoryBase, new()
+    public class ControllerBase : Controller
     {
-        protected T ModelFactory { get; set; }
-
         public HttpClient Client { get; private set; }
 
         protected ControllerBase()
         {
-            this.ModelFactory = new T();
-
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
 
             HttpClientHandler handler = new HttpClientHandler()

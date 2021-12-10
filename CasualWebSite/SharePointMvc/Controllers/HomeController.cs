@@ -15,13 +15,12 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web.Mvc;
 using System.Xml;
-using WebModelFactory;
 
 namespace SharePointMvc.Controllers
 {
     [HandleError]
     [AllowCORS]
-    public class HomeController : ControllerBase<HomeModelFactory>
+    public class HomeController : ControllerBase
     {
         readonly (string monthName, int monthNumber)[] months = { ("January", 1), ("February", 2), ("March", 3), ("April", 4), ("May", 5), ("June", 6),
             ("July", 7), ("August", 8), ("September", 9), ("October", 10), ("November", 11), ("December", 12) };
@@ -91,11 +90,13 @@ namespace SharePointMvc.Controllers
         [HttpGet]
         public ActionResult Pokemon()
         {
-            PokemonModel model = base.ModelFactory.LoadCasual();
+            //PokemonModel model = base.ModelFactory.LoadCasual();
 
-            model.Query = "order by greatest(attack,spattack)*speed desc";
+            //model.Query = "order by greatest(attack,spattack)*speed desc";
 
-            return View(model);
+            //return View(model);
+
+            return View();
         }
 
         [HttpGet]
@@ -403,6 +404,91 @@ namespace SharePointMvc.Controllers
                     Link = aNode.Attributes["href"].Value,
                     PubDate = DateTime.Parse(secondTdNode.InnerText),
                     Title = aNode.InnerText.Replace("<b>", "").Replace("</b>", "").Replace("\t", "").Replace("\n", ""),
+                };
+            }));
+
+            return this.Xml(rssObject);
+        }
+
+        [HttpGet]
+        public ActionResult MangainnParseXml(string id)
+        {
+            string mangaName = id;
+
+            if (string.IsNullOrWhiteSpace(mangaName))
+                throw new Exception("manganame can't be empty");
+
+            DateTime today = DateTime.Today;
+
+            string url = "http://www.mangainn.net/" + mangaName;
+
+            string contents = GetUrlTextData(url);
+
+            string startTag = "<ul class=\"chapter-list\">";
+            string endTag = "</ul>";
+
+            int indexOfStart = contents.IndexOf(startTag);
+            int indexOfEnd = contents.IndexOf(endTag, indexOfStart);
+
+            string ulPart = contents.Substring(indexOfStart, indexOfEnd - indexOfStart + endTag.Length);
+
+            XmlDocument document = new XmlDocument();
+            document.LoadXml(ulPart);
+
+            RssResult rssObject = new RssResult(document.ChildNodes[0].ChildNodes.Cast<XmlNode>().Select(liNode =>
+            {
+                var aNode = liNode.ChildNodes[0];
+                var span1 = aNode.ChildNodes[0];
+                var span2 = aNode.ChildNodes[1];
+
+                Func<string, int> getDaysSinceRelease = s =>
+                {
+                    try
+                    {
+                        var parts = s.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                        var num = int.Parse(parts[0]);
+
+                        Func<string, int> parseToDays = t =>
+                        {
+                            switch (t)
+                            {
+                                case "Year":
+                                case "Years":
+                                    return 365;
+                                case "Month":
+                                case "Months":
+                                    return 30;
+                                case "Week":
+                                case "Weeks":
+                                    return 7;
+                                case "Day":
+                                case "Days":
+                                    return 1;
+                                default:
+                                    return 0;
+                            }
+                        };
+
+                        int days = parseToDays(parts[1]);
+                        return num * days;
+                    }
+                    catch (Exception e)
+                    {
+                        return 0;
+                    }
+                };
+
+                var chapterName = span1.InnerText;
+                var dateText = span2.InnerText;
+                var daysSinceRelease = getDaysSinceRelease(dateText);
+                var releaseDate = today.AddDays(-daysSinceRelease);
+
+                return new RssResultItem
+                {
+                    Description = "This was parsed from mangainn.net",
+                    Link = aNode.Attributes["href"].Value,
+                    PubDate = releaseDate,
+                    Title = chapterName,
                 };
             }));
 
@@ -769,7 +855,8 @@ namespace SharePointMvc.Controllers
                 return contentResult;
             };
 
-            return CacheHelper.Get<ContentResult>(CacheHelper.MyRssKey, initializerFunction, cacheTimespan);
+            //return CacheHelper.Get<ContentResult>(CacheHelper.MyRssKey, initializerFunction, cacheTimespan);
+            return initializerFunction();
         }
 
         [HttpGet]
@@ -880,9 +967,11 @@ namespace SharePointMvc.Controllers
         [HttpPost]
         public ActionResult Pokemon(PokemonModel request)
         {
-            PokemonModel model = ModelState.IsValid ? base.ModelFactory.LoadCasual(request) : base.ModelFactory.LoadCasual();
+            //PokemonModel model = ModelState.IsValid ? base.ModelFactory.LoadCasual(request) : base.ModelFactory.LoadCasual();
 
-            return View(model);
+            //return View(model);
+
+            return View();
         }
         #endregion
 
@@ -1206,6 +1295,8 @@ namespace SharePointMvc.Controllers
             sectionPart = sectionPart.Replace("&mdash;", "—");
             sectionPart = sectionPart.Replace("&plusmn;", "±");
             sectionPart = sectionPart.Replace("&trade;", "™");
+            sectionPart = sectionPart.Replace("&ouml;", "ö");
+            sectionPart = sectionPart.Replace("&aring;", "å");
 
             sectionPart = FixIncompleteImgs(sectionPart);
 

@@ -7,6 +7,7 @@ namespace SharePointMvc.Helpers
     {
         public const string TomsArticlesKey = nameof(TomsArticlesKey);
         public const string MyRssKey = nameof(MyRssKey);
+        public const string MyTorrentRssKey = nameof(MyTorrentRssKey);
         public const string MALCookie = nameof(MALCookie);
         public static TimeSpan MALCookieTimeSpan = TimeSpan.FromDays(364);
 
