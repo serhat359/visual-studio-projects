@@ -496,6 +496,44 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
+        public ActionResult TalentlessnanaParseXml()
+        {
+            DateTime today = DateTime.Today;
+
+            var url = "https://talentlessnana.com/";
+
+            string contents = GetUrlTextData(url);
+
+            string startTag = "<ul class=\"su-posts su-posts-list-loop\">";
+            string endTag = "</ul>";
+
+            int indexOfStart = contents.IndexOf(startTag);
+            int indexOfEnd = contents.IndexOf(endTag, indexOfStart);
+
+            string ulPart = contents.Substring(indexOfStart, indexOfEnd - indexOfStart + endTag.Length);
+
+            XmlDocument document = new XmlDocument();
+            document.LoadXml(ulPart);
+
+            RssResult rssObject = new RssResult(document.ChildNodes[0].ChildNodes.Cast<XmlNode>().Select(liNode =>
+            {
+                var aNode = liNode.ChildNodes[0];
+
+                var chapterName = aNode.InnerText;
+
+                return new RssResultItem
+                {
+                    Description = "This was parsed from talentlessnana.com",
+                    Link = aNode.Attributes["href"].Value,
+                    PubDate = today,
+                    Title = chapterName,
+                };
+            }));
+
+            return this.Xml(rssObject);
+        }
+
+        [HttpGet]
         public ActionResult Parse1337FailedAttempt(string id, string[] contains)
         {
             id = id.Replace(' ', '+');
