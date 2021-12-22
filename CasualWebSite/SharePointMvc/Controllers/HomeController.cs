@@ -13,6 +13,7 @@ using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Web;
 using System.Web.Mvc;
 using System.Xml;
 
@@ -1316,6 +1317,8 @@ namespace SharePointMvc.Controllers
         {
             string contents = GetUrlTextData(url);
 
+            var htmlEncodedRegex = new Regex(@"&[0-9a-zA-Z]{3,7};");
+
             string startTag = "<section data-next=\"latest\"";
             string endTag = "</section>";
 
@@ -1324,23 +1327,17 @@ namespace SharePointMvc.Controllers
 
             string sectionPart = contents.Substring(indexOfStart, indexOfEnd - indexOfStart + endTag.Length);
             sectionPart = sectionPart.Replace(" itemscope ", "  ");
-            sectionPart = sectionPart.Replace("&rsquo;", "&apos;");
-            sectionPart = sectionPart.Replace("&lsquo;", "&apos;");
-            sectionPart = sectionPart.Replace("&rdquo;", "\"");
-            sectionPart = sectionPart.Replace("&ldquo;", "\"");
-            sectionPart = sectionPart.Replace("&pound;", "£");
-            sectionPart = sectionPart.Replace("&sup2;", "²");
-            sectionPart = sectionPart.Replace("&mdash;", "—");
-            sectionPart = sectionPart.Replace("&plusmn;", "±");
-            sectionPart = sectionPart.Replace("&trade;", "™");
-            sectionPart = sectionPart.Replace("&ouml;", "ö");
-            sectionPart = sectionPart.Replace("&aring;", "å");
-
+            sectionPart = htmlEncodedRegex.Replace(sectionPart, m =>
+            {
+                var unicode = HttpUtility.HtmlDecode(m.Value);
+                return $"&#{Convert.ToInt32(unicode[0])};";
+            });
             sectionPart = FixIncompleteImgs(sectionPart);
-
-            XmlDocument document = new XmlDocument();
             sectionPart = FixTomsHardwareBrokenQuoteXml(sectionPart);
             sectionPart = FixTomsHardwareBrokenXml(sectionPart);
+            sectionPart = FixOnErrorAttribute(sectionPart);
+
+            XmlDocument document = new XmlDocument();
             document.LoadXml(sectionPart);
 
             var divs = document.GetAllNodes().Where(c =>
@@ -1372,6 +1369,24 @@ namespace SharePointMvc.Controllers
             return elements;
         }
 
+        private static string FixOnErrorAttribute(string sectionPart)
+        {
+            int lastIndex = 0;
+            while (true)
+            {
+                int onerrorIndex = sectionPart.IndexOf("onerror", lastIndex);
+                if (onerrorIndex < 0)
+                    break;
+
+                int quoteIndex1 = sectionPart.IndexOf('"', onerrorIndex);
+                int quoteIndex2 = sectionPart.IndexOf('"', quoteIndex1 + 1);
+                sectionPart = sectionPart.Substring(0, quoteIndex1 + 1) + sectionPart.Substring(quoteIndex2);
+                lastIndex = quoteIndex1 + 2;
+            }
+
+            return sectionPart;
+        }
+
         private static string FixTomsHardwareBrokenXml(string sectionPart)
         {
             var ariaText = "aria-label";
@@ -1401,8 +1416,6 @@ namespace SharePointMvc.Controllers
                     i = 0;
                 }
             }
-
-            sectionPart = sectionPart.Replace("&alpha;", "");
 
             ss.Append(sectionPart);
 
