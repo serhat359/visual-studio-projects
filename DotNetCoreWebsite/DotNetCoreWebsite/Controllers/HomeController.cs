@@ -17,10 +17,10 @@ namespace DotNetCoreWebsite.Controllers
     {
         private readonly string extension = ".serhatCustom";
 
-        public IConfiguration configuration;
-        public FileNameHelper fileNameHelper;
-        public CoreEncryption coreEncryption;
-        public HttpClient httpClient;
+        private IConfiguration configuration;
+        private FileNameHelper fileNameHelper;
+        private CoreEncryption coreEncryption;
+        private HttpClient httpClient;
 
         public HomeController(IConfiguration configuration, FileNameHelper fileNameHelper, CoreEncryption coreEncryption, HttpClient httpClient)
         {
@@ -258,9 +258,7 @@ namespace DotNetCoreWebsite.Controllers
 
         private static string GetShortFileName(string realFileNameFullPath)
         {
-            var slashIndex = realFileNameFullPath.LastIndexOf('/');
-            var backSlashIndex = realFileNameFullPath.LastIndexOf('\\');
-            var index = Math.Max(slashIndex, backSlashIndex);
+            var index = realFileNameFullPath.LastIndexOfAny(new char[] { '/', '\\' });
 
             var fileName = index >= 0 ? realFileNameFullPath.Substring(index + 1) : realFileNameFullPath;
 
