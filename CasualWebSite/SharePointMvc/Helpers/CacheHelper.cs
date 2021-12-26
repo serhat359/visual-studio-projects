@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 using System.Web.Caching;
 
 namespace SharePointMvc.Helpers
@@ -24,6 +25,20 @@ namespace SharePointMvc.Helpers
             if (obj == null)
             {
                 var newValue = initializer();
+                Cache.Insert(cacheKey, newValue, null, Cache.NoAbsoluteExpiration, timeSpan);
+                obj = newValue;
+            }
+
+            return obj;
+        }
+
+        public static async Task<T> GetAsync<T>(string cacheKey, Func<Task<T>> initializer, TimeSpan timeSpan)
+        {
+            T obj = (T)Cache[cacheKey];
+
+            if (obj == null)
+            {
+                var newValue = await initializer();
                 Cache.Insert(cacheKey, newValue, null, Cache.NoAbsoluteExpiration, timeSpan);
                 obj = newValue;
             }

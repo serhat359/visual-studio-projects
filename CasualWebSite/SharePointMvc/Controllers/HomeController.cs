@@ -1,5 +1,4 @@
-﻿using Business;
-using Extensions;
+﻿using Extensions;
 using Model.Web;
 using Newtonsoft.Json;
 using SharePointMvc.Helpers;
@@ -10,6 +9,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -29,49 +29,49 @@ namespace SharePointMvc.Controllers
         #region Get Methods
 
         [HttpGet]
-        public ActionResult Index()
+        public async Task<ActionResult> Index()
         {
             return Json(new { message = "this page is empty" }, JsonRequestBehavior.AllowGet);
         }
 
         [HttpGet]
-        public ActionResult SNKEvents()
+        public async Task<ActionResult> SNKEvents()
         {
             string q = "SPイベント";
 
             string channelId = "UCoNJaq5hd0jgAVPFWZ5Ry-A";
 
-            return FilterRssResult(q, channelId);
+            return await FilterRssResult(q, channelId);
         }
 
         [HttpGet]
-        public ActionResult YoutubeBeyblade()
+        public async Task<ActionResult> YoutubeBeyblade()
         {
             string q = "Season 1";
 
             string channelId = "UCUTPOb8or0K-VC1Xp3FcDWg";
 
-            return FilterRssResult(q, channelId);
+            return await FilterRssResult(q, channelId);
         }
 
         [HttpGet]
-        public ActionResult YoutubeMerryChristmas()
+        public async Task<ActionResult> YoutubeMerryChristmas()
         {
             string q = "オーディオドラマ";
 
             string channelId = "UCpRh2xmGtaVhFVuyCB271pw";
 
-            return FilterRssResult(q, channelId);
+            return await FilterRssResult(q, channelId);
         }
 
         [HttpGet]
-        public ActionResult ConvertNyaa(string url)
+        public async Task<ActionResult> ConvertNyaa(string url)
         {
             var contents = GetUrlTextData(url);
 
             XmlDocument document = new XmlDocument();
 
-            document.LoadXml(contents);
+            document.LoadXml(await contents);
 
             var items = document.GetElementsByTagName("item");
 
@@ -89,7 +89,7 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
-        public ActionResult Pokemon()
+        public async Task<ActionResult> Pokemon()
         {
             //PokemonModel model = base.ModelFactory.LoadCasual();
 
@@ -101,7 +101,7 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
-        public ActionResult Download(string path)
+        public async Task<ActionResult> Download(string path)
         {
             string root = @"C:\Users\Xhertas\";
             string fullPath = root + path;
@@ -135,7 +135,7 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
-        public ActionResult DownloadEncrypted(string path)
+        public async Task<ActionResult> DownloadEncrypted(string path)
         {
             try
             {
@@ -186,7 +186,7 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
-        public ActionResult GetAnimeNewsCookie()
+        public async Task<ActionResult> GetAnimeNewsCookie()
         {
             object cookieValue = CacheHelper.Get<string>(CacheHelper.MALCookie, () => "", CacheHelper.MALCookieTimeSpan);
 
@@ -194,7 +194,7 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpPost]
-        public ActionResult GetAnimeNewsCookie(string value)
+        public async Task<ActionResult> GetAnimeNewsCookie(string value)
         {
             CacheHelper.Set(CacheHelper.MALCookie, value, CacheHelper.MALCookieTimeSpan);
             object cookieValue = value;
@@ -202,16 +202,16 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
-        public ActionResult FixAnimeNews()
+        public async Task<ActionResult> FixAnimeNews()
         {
             string url = "https://www.animenewsnetwork.com/news/rss.xml?ann-edition=us";
 
-            string contents = GetUrlTextData(url, x =>
+            string contents = (await GetUrlTextData(url, x =>
             {
-                x.Headers.Add(HttpRequestHeader.Host, "www.animenewsnetwork.com");
-                x.Headers.Add(HttpRequestHeader.Cookie, CacheHelper.Get(CacheHelper.MALCookie, () => "", CacheHelper.MALCookieTimeSpan));
-                x.Headers.Add(HttpRequestHeader.UserAgent, "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:87.0) Gecko/20100101 Firefox/87.0");
-            })
+                x.Headers.Add("Host", "www.animenewsnetwork.com");
+                x.Headers.Add("Cookie", CacheHelper.Get(CacheHelper.MALCookie, () => "", CacheHelper.MALCookieTimeSpan));
+                x.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:87.0) Gecko/20100101 Firefox/87.0");
+            }))
                 .Replace("animenewsnetwork.cc", "animenewsnetwork.com")
                 .Replace("http://", "https://");
 
@@ -219,33 +219,33 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
-        public ActionResult FixTomsNewsAlternative()
+        public async Task<ActionResult> FixTomsNewsAlternative()
         {
             string url = "https://www.tomshardware.com/feeds/rss2/all.xml";
 
-            return FixToms(url, "/news/");
+            return await FixToms(url, "/news/");
         }
 
         [HttpGet]
-        public ActionResult FixTomsArticles()
+        public async Task<ActionResult> FixTomsArticles()
         {
             string url = "https://www.tomshardware.com/feeds/rss2/articles.xml";
 
-            return FixToms(url);
+            return await FixToms(url);
         }
 
         [HttpGet]
-        public ActionResult FixTomsArticlesAlternative()
+        public async Task<ActionResult> FixTomsArticlesAlternative()
         {
             string url = "https://www.tomshardware.com/feeds/rss2/all.xml";
 
-            return FixToms(url, "/reviews/");
+            return await FixToms(url, "/reviews/");
         }
 
         [HttpGet]
-        public ActionResult FixTomsArticlesManual()
+        public async Task<ActionResult> FixTomsArticlesManual()
         {
-            Func<ActionResult> initializer = () =>
+            Func<Task<ActionResult>> initializer = async () =>
             {
                 string[] urls = { "https://www.tomshardware.com/reviews",
                               "https://www.tomshardware.com/reviews/page/2",
@@ -256,48 +256,49 @@ namespace SharePointMvc.Controllers
                               "https://www.tomshardware.com/best-picks",
                              };
 
-                var threads = urls.Select(url => Task.Run(() => GetRssObjectFromTomsUrlNew(url))).ToList();
+                var threads = urls.Select(url => GetRssObjectFromTomsUrlNew(url)).ToList();
 
-                var ss = threads.Select(x => x.Result).SelectMany(x => x);
+                var elements = (await threads.AwaitAllAsync()).SelectMany(x => x);
 
-                var rssObject = new RssResult(ss.Where(x => !x.Link.Contains("/news/")).OrderByDescending(x => x.PubDate));
+                var rssObject = new RssResult(elements.Where(x => !x.Link.Contains("/news/")).OrderByDescending(x => x.PubDate));
 
                 var xmlResult = this.Xml(rssObject);
 
                 return xmlResult;
             };
 
-            var xmlResultResult = CacheHelper.Get<ActionResult>(CacheHelper.TomsArticlesKey, initializer, TimeSpan.FromHours(2));
+            var xmlResultResult = await CacheHelper.GetAsync<ActionResult>(CacheHelper.TomsArticlesKey, initializer, TimeSpan.FromHours(2));
 
             return xmlResultResult;
         }
 
         [HttpGet]
-        public ActionResult FixTomsAll()
+        public async Task<ActionResult> FixTomsAll()
         {
             string url = "https://www.tomshardware.com/feeds/rss2/all.xml";
 
-            return FixToms(url);
+            return await FixToms(url);
         }
 
         [HttpGet]
-        public ActionResult FixTomsNewsManualParse()
+        public async Task<ActionResult> FixTomsNewsManualParse()
         {
             string[] urls = { "https://www.tomshardware.com/news", "https://www.tomshardware.com/news/page/2" };
 
-            var elements = urls.SelectMany(url => GetRssObjectFromTomsUrlNew(url));
+            var threads = urls.Select(url => GetRssObjectFromTomsUrlNew(url)).ToList();
 
+            var elements = (await threads.AwaitAllAsync()).SelectMany(x => x);
             var rssObject = new RssResult(elements.OrderByDescending(c => c.PubDate));
 
             return this.Xml(rssObject);
         }
 
         [HttpGet]
-        public ActionResult FixNyaaFullMetal(int filter)
+        public async Task<ActionResult> FixNyaaFullMetal(int filter)
         {
             string url = "https://nyaa.si/?page=rss&q=full+metal+panic+horrible+720&c=1_2&f=0";
 
-            string contents = GetUrlTextData(url);
+            string contents = await GetUrlTextData(url);
 
             XmlDocument document = new XmlDocument();
 
@@ -325,7 +326,7 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
-        public ActionResult MangadeepParseXml(string id)
+        public async Task<ActionResult> MangadeepParseXml(string id)
         {
             string mangaName = id;
 
@@ -334,7 +335,7 @@ namespace SharePointMvc.Controllers
 
             string url = "http://www.mangadeep.com/" + mangaName;
 
-            string contents = GetUrlTextData(url);
+            string contents = await GetUrlTextData(url);
 
             string startTag = "<ul class=\"lst\">";
             string endTag = "</ul>";
@@ -361,7 +362,7 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
-        public ActionResult MangagoParseXml(string id)
+        public async Task<ActionResult> MangagoParseXml(string id)
         {
             string mangaName = id;
 
@@ -370,15 +371,15 @@ namespace SharePointMvc.Controllers
 
             string url = "http://www.mangago.me/read-manga/" + mangaName;
 
-            string contents = GetUrlTextData(url, client =>
+            string contents = await GetUrlTextData(url, client =>
                 {
-                    client.Headers.Add(HttpRequestHeader.Cookie, "__utma=5576751.1839360451.1493553979.1493715144.1549998116.8; __atuvc=2%7C7; __unam=57d317c-168e3164884-26803dd2-4; __cfduid=d31bdce544f944651c31af6da4d152d511569740230; _mtma=_uc15704533962020.18596782751504148; cf_clearance=ede1830af8b2df75f54b3b7cbaa43a438561c991-1570641185-0-150; PHPSESSID=q61v27jf87jt3mcektbs7ls4v4; __utmd=a4762f3196be64c16ed72b4aad6b34d3");
-                    client.Headers.Add(HttpRequestHeader.Host, "www.mangago.me");
-                    client.Headers.Add(HttpRequestHeader.UserAgent, "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:60.9) Gecko/20100101 Goanna/4.4 Firefox/60.9 PaleMoon/28.7.1");
-                    client.Headers.Add(HttpRequestHeader.Accept, "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-                    client.Headers.Add(HttpRequestHeader.AcceptLanguage, "en,en-US;q=0.8,tr-TR;q=0.5,tr;q=0.3");
-                    client.Headers.Add(HttpRequestHeader.AcceptEncoding, "gzip");
-                    client.Headers.Add(HttpRequestHeader.CacheControl, "max-age=0");
+                    client.Headers.Add("Cookie", "__utma=5576751.1839360451.1493553979.1493715144.1549998116.8; __atuvc=2%7C7; __unam=57d317c-168e3164884-26803dd2-4; __cfduid=d31bdce544f944651c31af6da4d152d511569740230; _mtma=_uc15704533962020.18596782751504148; cf_clearance=ede1830af8b2df75f54b3b7cbaa43a438561c991-1570641185-0-150; PHPSESSID=q61v27jf87jt3mcektbs7ls4v4; __utmd=a4762f3196be64c16ed72b4aad6b34d3");
+                    client.Headers.Add("Host", "www.mangago.me");
+                    client.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:60.9) Gecko/20100101 Goanna/4.4 Firefox/60.9 PaleMoon/28.7.1");
+                    client.Headers.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+                    client.Headers.Add("Accept-Language", "en,en-US;q=0.8,tr-TR;q=0.5,tr;q=0.3");
+                    client.Headers.Add("Accept-Encoding", "gzip");
+                    client.Headers.Add("Cache-Control", "max-age=0");
                 }
             );
 
@@ -412,7 +413,7 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
-        public ActionResult MangainnParseXml(string id)
+        public async Task<ActionResult> MangainnParseXml(string id)
         {
             string mangaName = id;
 
@@ -423,7 +424,7 @@ namespace SharePointMvc.Controllers
 
             string url = "http://www.mangainn.net/" + mangaName;
 
-            string contents = GetUrlTextData(url);
+            string contents = await GetUrlTextData(url);
 
             string startTag = "<ul class=\"chapter-list\">";
             string endTag = "</ul>";
@@ -497,13 +498,13 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
-        public ActionResult TalentlessnanaParseXml()
+        public async Task<ActionResult> TalentlessnanaParseXml()
         {
             DateTime today = DateTime.Today;
 
             var url = "https://talentlessnana.com/";
 
-            string contents = GetUrlTextData(url);
+            string contents = await GetUrlTextData(url);
 
             string startTag = "<ul class=\"su-posts su-posts-list-loop\">";
             string endTag = "</ul>";
@@ -535,12 +536,12 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
-        public ActionResult Parse1337FailedAttempt(string id, string[] contains)
+        public async Task<ActionResult> Parse1337FailedAttempt(string id, string[] contains)
         {
             id = id.Replace(' ', '+');
             var url = $"https://1337x.to/search/{id}/1/";
 
-            string contents = GetUrlTextData(url);
+            string contents = await GetUrlTextData(url);
 
             string startTag = "<table class=\"table-list table table-responsive table-striped\">";
             string endTag = "</table>";
@@ -631,12 +632,12 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
-        public ActionResult Get1337Torrent(string link)
+        public async Task<ActionResult> Get1337Torrent(string link)
         {
             var linkBase = "https://1337x.to";
             link = linkBase + link;
 
-            string contents = GetUrlTextData(link);
+            string contents = await GetUrlTextData(link);
 
             var itorrentsIndex = contents.IndexOf("ITORRENTS MIRROR");
             var indexOfStart = contents.LastIndexOf("<a", itorrentsIndex);
@@ -650,22 +651,22 @@ namespace SharePointMvc.Controllers
             var torrentLink = document.ChildNodes[0].Attributes["href"].Value;
             torrentLink = torrentLink.Replace("http://", "https://");
 
-            var torrentContent = GetUrlTextDataArray(torrentLink);
+            var torrentContent = await GetUrlTextDataArray(torrentLink);
             var torrentFileName = torrentLink.Substring(torrentLink.LastIndexOf("/"));
 
             return TorrentFile(torrentContent, torrentFileName);
         }
 
         [HttpGet]
-        public ActionResult DownloadNyaa(string link)
+        public async Task<ActionResult> DownloadNyaa(string link)
         {
-            var data = GetUrlTextDataArray(link);
+            var data = await GetUrlTextDataArray(link);
 
             return File(data, "application/x-bittorrent");
         }
 
         [HttpGet]
-        public ActionResult LHScanParse(string id)
+        public async Task<ActionResult> LHScanParse(string id)
         {
             string mangaName = id;
 
@@ -675,7 +676,7 @@ namespace SharePointMvc.Controllers
             string url = $"https://lhscan.net/{mangaName}.html";
             string baseLink = "https://lhscan.net/";
 
-            string contents = GetUrlTextData(url);
+            string contents = await GetUrlTextData(url);
 
             string startTag = "<table class=\"table table-hover\">";
             string endTag = "</table>";
@@ -711,7 +712,7 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
-        public ActionResult MangaTownParse(string id)
+        public async Task<ActionResult> MangaTownParse(string id)
         {
             string mangaName = id;
 
@@ -721,7 +722,7 @@ namespace SharePointMvc.Controllers
             string url = $"https://m.mangatown.com/manga/{mangaName}/";
             string baseLink = "https://m.mangatown.com";
 
-            string contents = GetUrlTextData(url);
+            string contents = await GetUrlTextData(url);
 
             string startTag = "<ul class=\"detail-ch-list\">";
             string endTag = "</ul>";
@@ -765,11 +766,11 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
-        public ActionResult MankinTrad()
+        public async Task<ActionResult> MankinTrad()
         {
             string url = $"http://mankin-trad.net/feed/";
 
-            string contents = GetUrlTextData(url);
+            string contents = await GetUrlTextData(url);
             contents = contents.Replace("&-", "&amp;-");
 
             contents = FixMankinTradImgs(contents);
@@ -780,13 +781,13 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
-        public ActionResult GetOmoriResults()
+        public async Task<ActionResult> GetOmoriResults()
         {
             var url = "https://www.borderless-house.com/jp/sharehouse/omori/";
 
             string baseLink = "https://www.borderless-house.com";
 
-            string contents = GetUrlTextData(url);
+            string contents = await GetUrlTextData(url);
 
             string divStart = "<div id=\"panel-4\"";
 
@@ -836,11 +837,11 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
-        public ActionResult GenerateRssResult()
+        public async Task<ActionResult> GenerateRssResult()
         {
             var cacheTimespan = TimeSpan.FromMinutes(15);
 
-            Func<ContentResult> initializerFunction = () =>
+            Func<Task<ContentResult>> initializerFunction = async () =>
             {
                 var links = MyTorrentRssHelper.Instance(Request.PhysicalApplicationPath).GetLinks().Keys;
 
@@ -857,7 +858,7 @@ namespace SharePointMvc.Controllers
                 {
                     try
                     {
-                        var result = task.Result;
+                        var result = await task;
                         var xml = new XmlDocument();
                         xml.LoadXml(result);
 
@@ -895,11 +896,11 @@ namespace SharePointMvc.Controllers
             };
 
             //return CacheHelper.Get<ContentResult>(CacheHelper.MyRssKey, initializerFunction, cacheTimespan);
-            return initializerFunction();
+            return await initializerFunction();
         }
 
         [HttpGet]
-        public ActionResult GetRssLinks()
+        public async Task<ActionResult> GetRssLinks()
         {
             var links = MyTorrentRssHelper.Instance(Request.PhysicalApplicationPath).GetLinks();
 
@@ -907,7 +908,7 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpPost]
-        public ActionResult AddRssLink(string link, string name)
+        public async Task<ActionResult> AddRssLink(string link, string name)
         {
             MyTorrentRssHelper.Instance(Request.PhysicalApplicationPath).AddLink(link: link, name: name);
             CacheHelper.Delete(CacheHelper.MyRssKey);
@@ -916,7 +917,7 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
-        public ActionResult DeleteRssLink(string link)
+        public async Task<ActionResult> DeleteRssLink(string link)
         {
             MyTorrentRssHelper.Instance(Request.PhysicalApplicationPath).RemoveLink(link);
             CacheHelper.Delete(CacheHelper.MyRssKey);
@@ -925,21 +926,32 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
-        public ActionResult BypassCors(string q)
+        public async Task<ActionResult> BypassCors(string link)
         {
-            if (string.IsNullOrEmpty(q)) throw new ArgumentNullException(nameof(q));
+            if (string.IsNullOrEmpty(link)) throw new ArgumentNullException(nameof(link));
 
-            using (MyWebClient client = new MyWebClient())
+            var domainBeginningIndex = link.IndexOf("://", 0) + 3;
+            var domainEndIndex = link.IndexOf("/", domainBeginningIndex);
+            var domain = link.Substring(0, domainEndIndex);
+
+            using (var request = new HttpRequestMessage(HttpMethod.Get, link))
             {
-                var res = client.GetResponse(q);
-                return File(res.GetResponseStream(), res.ContentType);
+                request.Headers.Add("Referer", domain);
+
+                using (var response = await Client.SendAsync(request))
+                using (var content = response.Content)
+                {
+                    string contentType = content.Headers.GetValues("Content-Type").FirstOrDefault();
+                    var responseStream = await content.ReadAsStreamAsync();
+                    return File(responseStream.CreateCopy(), contentType);
+                }
             }
         }
 
         [HttpGet]
-        public ActionResult DownloadMankinTrad(string link, string downloadName)
+        public async Task<ActionResult> DownloadMankinTrad(string link, string downloadName)
         {
-            var contents = GetUrlTextData(link);
+            var contents = await GetUrlTextData(link);
 
             int indexOfDivStart = 0;
 
@@ -956,7 +968,7 @@ namespace SharePointMvc.Controllers
             XmlDocument document = new XmlDocument();
             document.LoadXml(body);
 
-            var threads = new List<(string fileName, MyThread<byte[]> thread)>();
+            var threads = new List<(string fileName, Task<byte[]> thread)>();
 
             foreach (XmlNode item in document.GetElementsByTagName("img"))
             {
@@ -967,7 +979,7 @@ namespace SharePointMvc.Controllers
                     var fileName = imgLink.Substring(imgLink.LastIndexOf('/') + 1);
                     fileName = Uri.UnescapeDataString(fileName);
 
-                    threads.Add((fileName, MyThread.DoInThread(true, () =>
+                    threads.Add((fileName, Task.Run(() =>
                     {
                         var data = GetUrlTextDataArray(imgLink);
                         return data;
@@ -981,7 +993,7 @@ namespace SharePointMvc.Controllers
             {
                 foreach (var thread in threads)
                 {
-                    var data = thread.thread.Await();
+                    var data = await thread.thread;
 
                     var entry = zip.CreateEntry(thread.fileName);
                     using (var stream = entry.Open())
@@ -1004,7 +1016,7 @@ namespace SharePointMvc.Controllers
 
         #region Post Methods
         [HttpPost]
-        public ActionResult Pokemon(PokemonModel request)
+        public async Task<ActionResult> Pokemon(PokemonModel request)
         {
             //PokemonModel model = ModelState.IsValid ? base.ModelFactory.LoadCasual(request) : base.ModelFactory.LoadCasual();
 
@@ -1016,9 +1028,9 @@ namespace SharePointMvc.Controllers
 
         #region Private Methods
 
-        private ActionResult FilterRssResult(string q, string channelId)
+        private async Task<ActionResult> FilterRssResult(string q, string channelId)
         {
-            string jsonResult = GetJsonSearchResult(q, channelId);
+            string jsonResult = await GetJsonSearchResult(q, channelId);
 
             YoutubeSearchResult youtubeSearchResult = JsonConvert.DeserializeObject<YoutubeSearchResult>(jsonResult);
 
@@ -1035,9 +1047,9 @@ namespace SharePointMvc.Controllers
             return this.Xml(rssObject);
         }
 
-        private ActionResult FixToms(string url, string linkContains = null)
+        private async Task<ActionResult> FixToms(string url, string linkContains = null)
         {
-            string contents = GetUrlTextData(url);
+            string contents = await GetUrlTextData(url);
 
             contents = contents.Replace(".co.uk", ".com");
 
@@ -1102,7 +1114,7 @@ namespace SharePointMvc.Controllers
             return Content(contents, "application/xml; charset=UTF-8", Encoding.UTF8);
         }
 
-        private static string GetJsonSearchResult(string q, string channelId)
+        private async Task<string> GetJsonSearchResult(string q, string channelId)
         {
             Dictionary<string, string> parameters = new Dictionary<string, string>();
             parameters.Add("order", "date");
@@ -1116,45 +1128,41 @@ namespace SharePointMvc.Controllers
 
             string wholeUrl = string.Format("{0}?{1}", baseurl, string.Join("&", parameters.Select(pair => pair.Key + "=" + pair.Value)));
 
-            string jsonResult = GetUrlTextData(wholeUrl);
+            string jsonResult = await GetUrlTextData(wholeUrl);
             return jsonResult;
         }
 
-        private static byte[] GetUrlTextDataArray(string url)
+        private async Task<byte[]> GetUrlTextDataArray(string url)
         {
-            byte[] s;
-
             try
             {
-                using (MyWebClient client = new MyWebClient())
+                using (var response = await Client.GetAsync(url))
+                using (var content = response.Content)
                 {
-                    s = client.DownloadData(url);
+                    return await content.ReadAsByteArrayAsync();
                 }
             }
             catch (Exception e)
             {
                 throw;
             }
-
-            return s;
         }
 
-        private static string GetUrlTextData(string url, Action<WebClient> extraAction = null)
+        private async Task<string> GetUrlTextData(string url, Action<HttpRequestMessage> extraAction = null)
         {
-            string s;
-
             while (true)
             {
                 try
                 {
-                    using (MyWebClient client = new MyWebClient())
+                    using (var requestMessage = new HttpRequestMessage(HttpMethod.Get, url))
                     {
-                        client.Encoding = Encoding.UTF8;
+                        extraAction?.Invoke(requestMessage);
 
-                        extraAction?.Invoke(client);
-
-                        s = client.DownloadString(url);
-                        break;
+                        using (var response = await Client.SendAsync(requestMessage))
+                        using (var content = response.Content)
+                        {
+                            return await content.ReadAsStringAsync();
+                        }
                     }
                 }
                 catch (WebException e)
@@ -1166,8 +1174,6 @@ namespace SharePointMvc.Controllers
                     throw;
                 }
             }
-
-            return s;
         }
 
         private static string XmlEncodeForHtml(string str)
@@ -1313,9 +1319,9 @@ namespace SharePointMvc.Controllers
             }
         }
 
-        private static IEnumerable<RssResultItem> GetRssObjectFromTomsUrlNew(string url)
+        private async Task<IEnumerable<RssResultItem>> GetRssObjectFromTomsUrlNew(string url)
         {
-            string contents = GetUrlTextData(url);
+            string contents = await GetUrlTextData(url);
 
             var htmlEncodedRegex = new Regex(@"&[0-9a-zA-Z]{3,7};");
 
@@ -1556,21 +1562,5 @@ namespace SharePointMvc.Controllers
         }
 
         #endregion
-    }
-
-    public class MyWebClient : WebClient
-    {
-        protected override WebRequest GetWebRequest(Uri address)
-        {
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
-            HttpWebRequest request = base.GetWebRequest(address) as HttpWebRequest;
-            request.AutomaticDecompression = DecompressionMethods.GZip;
-            return request;
-        }
-
-        public WebResponse GetResponse(string uri)
-        {
-            return GetWebResponse(GetWebRequest(new Uri(uri)));
-        }
     }
 }
