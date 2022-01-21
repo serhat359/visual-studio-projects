@@ -25,6 +25,10 @@ namespace SharePointMvc.Helpers
             if (obj == null)
             {
                 var newValue = initializer();
+                if (IsTaskType(newValue?.GetType()))
+                {
+                    throw new Exception($"Cannot insert task type into the cache, please use {nameof(GetAsync)} method instead");
+                }
                 Cache.Insert(cacheKey, newValue, null, Cache.NoAbsoluteExpiration, timeSpan);
                 obj = newValue;
             }
@@ -54,6 +58,17 @@ namespace SharePointMvc.Helpers
         public static void Delete(string cacheKey)
         {
             Cache.Remove(cacheKey);
+        }
+
+        private static bool IsTaskType(Type t)
+        {
+            if (t == null)
+                return false;
+            if (t == typeof(Task))
+                return true;
+            if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(Task<>))
+                return true;
+            return false;
         }
     }
 }

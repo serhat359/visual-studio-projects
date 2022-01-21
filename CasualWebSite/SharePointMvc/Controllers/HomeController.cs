@@ -847,10 +847,10 @@ namespace SharePointMvc.Controllers
 
                 var allLinks = new List<(DateTime date, XmlNode node)>();
 
-                var tasks = links.Select(url => Task.Run(() =>
+                var tasks = links.Select(url => Task.Run(async () =>
                 {
                     var key = CacheHelper.MyRssKey + ":" + url;
-                    var val = CacheHelper.Get(key, () => GetUrlTextData(url), cacheTimespan);
+                    var val = await CacheHelper.GetAsync(key, () => GetUrlTextData(url, throwException: true), cacheTimespan);
                     return val;
                 })).ToArray();
 
@@ -1148,7 +1148,7 @@ namespace SharePointMvc.Controllers
             }
         }
 
-        private async Task<string> GetUrlTextData(string url, Action<HttpRequestMessage> extraAction = null)
+        private async Task<string> GetUrlTextData(string url, Action<HttpRequestMessage> extraAction = null, bool throwException = false)
         {
             while (true)
             {
@@ -1159,9 +1159,14 @@ namespace SharePointMvc.Controllers
                         extraAction?.Invoke(requestMessage);
 
                         using (var response = await Client.SendAsync(requestMessage))
-                        using (var content = response.Content)
                         {
-                            return await content.ReadAsStringAsync();
+                            if (throwException && !response.IsSuccessStatusCode)
+                                throw new Exception($"Error status code: {(int)response.StatusCode}");
+
+                            using (var content = response.Content)
+                            {
+                                return await content.ReadAsStringAsync();
+                            }
                         }
                     }
                 }
