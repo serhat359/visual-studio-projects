@@ -2,13 +2,12 @@
 using CasualConsole.MultiReplacer;
 using MyThreadProject;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -29,54 +28,30 @@ namespace CasualConsole
 {
     public class Program
     {
-        static MyWebClient client = new MyWebClient();
+        static HttpClient client = new HttpClient();
 
         public static void Main(string[] args)
         {
-            Console.OutputEncoding = Encoding.UTF8; // This line is needed to print Unicode characters in bash and other terminals
-
-            var data = new[] {
-                new { ID = 1, Name ="Serhat" },
-                new { ID = 2, Name = "Rio" }
-            };
-
-            var excel = new ExcelPackage();
-            excel.AddSheet("CustomSheet", data);
-
-            using (var f = File.Create(@"C:\Users\Xhertas\Desktop\newfile.xlsx"))
-            {
-                excel.SaveAs(f);
-            }
-
-            MainAsync(args).Wait();
-        }
-
-        public static async Task MainAsync(string[] args)
-        {
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 | SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
-            var serializer = new JsonSerializer();
 
-            JToken jToken;
-            using (var client = new HttpClient())
-            using (var res = await client.GetAsync("https://xkcd.com/2340/info.0.json"))
-            using (var stream = await res.Content.ReadAsStreamAsync())
-            {
-                jToken = stream.ParseJson<JToken>();
-            }
+            Interpreter.Test();
+
+            //StartInterpreterConsole();
+
+            var code = File.ReadAllText(@"C:\Users\Xhertas\Desktop\program.txt");
+            var result = new Interpreter().InterpretCode(code);
+
+            Console.ReadLine();
+
+            //FixAndroidPhotos();
+
+            //await RemoveDuplicatePhotos();
 
             //BenchmarkStringReplace();
 
             //BenchmarkBase64();
 
             //TestChannelWithThreads();
-
-            var list = new List<int>();
-
-            var tasks = Enumerable.Range(0, 5).Select(x => { return GetNumber(list, x); }).ToArray();
-
-            Task.WaitAll(tasks);
-
-            Thread.Sleep(1000);
 
             //MyTestingMethod();
 
@@ -153,6 +128,191 @@ namespace CasualConsole
             Console.ReadKey();
         }
 
+        private static void StartInterpreterConsole()
+        {
+            Console.WriteLine("Welcome to Serhat's Interpreter!");
+            var consoleInterpreter = new Interpreter();
+            while (true)
+            {
+                Console.Write("$: ");
+                string line = Console.ReadLine();
+                try
+                {
+                    var val = consoleInterpreter.InterpretCode(line);
+                    Console.WriteLine(val);
+                }
+                catch (Exception e)
+                {
+                    Console.Error.WriteLine(e);
+                }
+            }
+        }
+
+        private static void FixAndroidPhotos()
+        {
+            var folderPath = @"C:\Users\Xhertas\Desktop\new prepared photos";
+            var files = Directory.GetFiles(folderPath);
+
+            var today = DateTime.Today;
+
+            var correctJPGPath = folderPath + "\\" + "20180201_153730.jpg";
+
+            Image correctImage = new Bitmap(correctJPGPath);
+            PropertyItem[] correctPropItems = correctImage.PropertyItems;
+            var correctDataTakenProperty1 = correctPropItems.Where(a => a.Id.ToString("x") == "9004").FirstOrDefault();
+            var correctDataTakenProperty2 = correctPropItems.Where(a => a.Id.ToString("x") == "9003").FirstOrDefault();
+
+            foreach (var path in files.Where(x => x.Contains("line") && x.Substring(x.LastIndexOf('.')) == ".jpg").OrderBy(x => x))
+            {
+                FixImageFile(path, correctDataTakenProperty1, correctDataTakenProperty2);
+            }
+
+            // the real code starts here
+            var fileTypes = files.Select(x => x.Substring(x.LastIndexOf('.'))).Distinct().ToList();
+
+            foreach (var path in files.Where(x => x.Substring(x.LastIndexOf('.')) == ".jpg"))
+            {
+                var createDate = File.GetCreationTime(path);
+                var modifyDate = File.GetLastWriteTime(path);
+
+                var minDate = createDate < modifyDate ? createDate : modifyDate;
+
+                if (createDate != modifyDate)
+                {
+                    if (modifyDate > today)
+                    {
+                        File.SetLastWriteTime(path, minDate);
+                    }
+                    else
+                    {
+                        throw new Exception();
+                    }
+                }
+            }
+
+            foreach (var path in files)
+            {
+                //var createTime = File.GetCreationTime(path);
+                //var modifiedTime = File.GetLastWriteTime(path);
+                //File.SetCreationTime(path, File.GetLastWriteTime(path));
+
+                var i = path.LastIndexOf('\\');
+                var folder = path.Substring(0, i);
+                var file = path.Substring(i + 1);
+                if (file.StartsWith("IMG-") || file.StartsWith("VID-"))
+                {
+                    file = file.Substring(4);
+                    var newPath = folder + "\\" + file;
+                    File.Move(path, newPath);
+                }
+            }
+        }
+
+        private static void FixImageFile(string wrongJPGPath, PropertyItem correctDataTakenProperty1, PropertyItem correctDataTakenProperty2)
+        {
+            Image wrongImage = new Bitmap(wrongJPGPath);
+            PropertyItem[] propItems = wrongImage.PropertyItems;
+            Encoding _Encoding = Encoding.UTF8;
+            var DataTakenProperty1 = propItems.Where(a => a.Id.ToString("x") == "9004").FirstOrDefault();
+            var DataTakenProperty2 = propItems.Where(a => a.Id.ToString("x") == "9003").FirstOrDefault();
+            if (DataTakenProperty1 == null || DataTakenProperty2 == null)
+            {
+                DataTakenProperty1 = correctDataTakenProperty1;
+                DataTakenProperty2 = correctDataTakenProperty2;
+
+                var createDate = File.GetCreationTime(wrongJPGPath);
+                var modifyDate = File.GetLastWriteTime(wrongJPGPath);
+                var originalDate = createDate < modifyDate ? createDate : modifyDate;
+                DataTakenProperty1.Value = _Encoding.GetBytes(originalDate.ToString("yyyy:MM:dd HH:mm:ss") + '\0');
+                DataTakenProperty2.Value = _Encoding.GetBytes(originalDate.ToString("yyyy:MM:dd HH:mm:ss") + '\0');
+                wrongImage.SetPropertyItem(DataTakenProperty1);
+                wrongImage.SetPropertyItem(DataTakenProperty2);
+                var newWrongPath = wrongJPGPath + "_2";
+                wrongImage.Save(newWrongPath);
+                wrongImage.Dispose();
+                File.SetCreationTime(newWrongPath, originalDate);
+                File.SetLastWriteTime(newWrongPath, originalDate);
+                File.Delete(wrongJPGPath);
+                File.Move(newWrongPath, wrongJPGPath);
+            }
+        }
+
+        private static async Task RemoveDuplicatePhotos()
+        {
+            Func<byte[], string> bytesToString = hashBytes =>
+            {
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < hashBytes.Length; i++)
+                {
+                    sb.Append(hashBytes[i].ToString("X2"));
+                }
+                return sb.ToString();
+            };
+
+            using (MD5 md5_1 = MD5.Create())
+            using (MD5 md5_2 = MD5.Create())
+            {
+                var oldFilesMapTask = Task.Run(() =>
+                {
+                    var oldPaths = new[] {
+                        @"C:\Users\Xhertas\Desktop\phone images\all media for xz",
+                        @"C:\Users\Xhertas\Desktop\phone images\extra found from older folder, need to copy to phone"
+                    };
+
+                    var oldFiles = oldPaths.SelectMany(oldPath =>
+                    {
+                        return Directory.GetFiles(oldPath, "*.*", SearchOption.AllDirectories);
+                    }).ToList();
+
+                    var maplistTuple = oldFiles.Select(x => (hash: bytesToString(md5_1.ComputeHash(File.ReadAllBytes(x))), filePath: x)).ToList();
+
+                    var duplicates = maplistTuple.GroupBy(x => x.hash).Where(x => x.Count() > 1).ToList();
+                    if (duplicates.Count > 0)
+                    {
+                        throw new Exception();
+                    }
+
+                    return maplistTuple.ToDictionary(x => x.hash, x => x.filePath);
+                });
+
+                var newFilesMapTask = Task.Run(() =>
+                {
+                    var newPaths = new[] {
+                        @"C:\Users\Xhertas\Desktop\new android data\new photos",
+                        @"C:\Users\Xhertas\Desktop\new android data\other pictures",
+                        @"C:\Users\Xhertas\Desktop\new android data\whatsapp\images"
+                    };
+
+                    var newFiles = newPaths.SelectMany(newPath =>
+                    {
+                        return Directory.GetFiles(newPath, "*.*", SearchOption.AllDirectories);
+                    }).ToList();
+
+                    var maplistTuple = newFiles.Select(x => (hash: bytesToString(md5_2.ComputeHash(File.ReadAllBytes(x))), filePath: x)).ToList();
+
+                    var duplicates = maplistTuple.GroupBy(x => x.hash).Where(x => x.Count() > 1).ToList();
+                    if (duplicates.Count > 0)
+                    {
+                        throw new Exception();
+                    }
+
+                    return maplistTuple.ToDictionary(x => x.hash, x => x.filePath);
+                });
+
+                var oldFilesMap = await oldFilesMapTask;
+                var newFilesMap = await newFilesMapTask;
+
+                var duplicateFiles = newFilesMap.Where(oldPair => oldFilesMap.ContainsKey(oldPair.Key)).Select(x => x.Value).ToList();
+
+                Console.WriteLine($"About to delete {duplicateFiles.Count} files");
+
+                foreach (var file in duplicateFiles)
+                {
+                    File.Delete(file);
+                }
+            }
+        }
+
         private static void BenchmarkBase64()
         {
             var bytes = Encoding.UTF8.GetBytes("serhat abdulbakioğlu serhat abdulbakioğlu serhat abdulbakioğlu serhat abdulbakioğlu");
@@ -224,15 +384,6 @@ namespace CasualConsole
                 Benchmark("OtherCustomReplacer", () => replacer4.Replace(text, dic), count);
                 Console.WriteLine();
             }
-        }
-
-        private static async Task GetNumber(List<int> list, int number)
-        {
-            await Task.Delay(new Random().Next(0, 1000));
-
-            list.Add(number);
-
-            return;
         }
 
         private static void TestChannelWithThreads()
@@ -464,7 +615,7 @@ namespace CasualConsole
             }
         }
 
-        private static void FilterMoreAndMore()
+        private static async Task FilterMoreAndMore()
         {
             const string filteredPath = @"C:\Users\Xhertas\Desktop\filteredLinks.txt";
             var filteredLinks = JsonConvert.DeserializeObject<List<Link>>(File.ReadAllText(filteredPath));
@@ -483,7 +634,7 @@ namespace CasualConsole
 
                 if (i % 10 == 0) write();
 
-                string content = client.DownloadString(link.Url);
+                string content = await client.DownloadStringAsync(link.Url);
 
                 var part = GetPart(content, 0, "td class=\"nfo\" data-spec=\"os\"", " </td>");
                 var index = part.IndexOf('>');
@@ -584,7 +735,7 @@ namespace CasualConsole
             File.WriteAllText(@"C:\Users\Xhertas\Desktop\filteredLinks.txt", JsonConvert.SerializeObject(otherLinks));
         }
 
-        private static void SetScreenSize(string path, List<Link> allLinks)
+        private static async Task SetScreenSize(string path, List<Link> allLinks)
         {
             IEnumerable<Link> willBeCheckedLinks = allLinks.Where(x => x.IsSuccess && x.ScreenSize == null);
             int notCheckCount = willBeCheckedLinks.Count();
@@ -602,7 +753,7 @@ namespace CasualConsole
 
                 if (i % 10 == 0) write();
 
-                string content = client.DownloadString(link.Url);
+                string content = await client.DownloadStringAsync(link.Url);
 
                 var part = GetPart(content, 0, "<span data-spec=\"displaysize", "</span>");
                 var index = part.IndexOf('>');
@@ -618,7 +769,7 @@ namespace CasualConsole
             }
         }
 
-        private static void SetResolutions(string path, List<Link> allLinks)
+        private static async Task SetResolutions(string path, List<Link> allLinks)
         {
             int notCheckCount = allLinks.Where(x => !x.IsChecked).Count();
 
@@ -635,7 +786,7 @@ namespace CasualConsole
 
                 if (i % 10 == 0) write();
 
-                string content = client.DownloadString(link.Url);
+                string content = await client.DownloadStringAsync(link.Url);
 
                 if (!content.Contains("Android"))
                 {
@@ -704,7 +855,7 @@ namespace CasualConsole
             return a == 0 ? b : a;
         }
 
-        private static void CreateFileLinks()
+        private static async Task CreateFileLinks()
         {
             var baseLinks = Resource.GsmArenaLinks.Split(new string[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
             List<PhoneMaker> makers = new List<PhoneMaker>();
@@ -712,7 +863,7 @@ namespace CasualConsole
             int i = 0;
             foreach (var maker in baseLinks)
             {
-                var allLinks = GetAllLinksFromBase(maker);
+                var allLinks = await GetAllLinksFromBase(maker);
                 makers.Add(new PhoneMaker
                 {
                     Maker = ++i,
@@ -723,10 +874,9 @@ namespace CasualConsole
             }
         }
 
-        public static List<string> GetAllLinksFromBase(string baseLink)
+        public static async Task<List<string>> GetAllLinksFromBase(string baseLink)
         {
-            client.Encoding = Encoding.UTF8;
-            string s = client.DownloadString(baseLink);
+            string s = await client.DownloadStringAsync(baseLink);
 
             var part = GetPart(s, 0, "<div class=\"nav-pages\"", "</div>");
             int pageCount;
@@ -754,8 +904,7 @@ namespace CasualConsole
             var phoneLinks = GetPhoneLinksFromContent(s);
             foreach (var link in allPageLinks.Skip(1))
             {
-                client.Encoding = Encoding.UTF8;
-                string otherPageContent = client.DownloadString(link);
+                string otherPageContent = await client.DownloadStringAsync(link);
                 var otherPhoneLinks = GetPhoneLinksFromContent(otherPageContent);
                 foreach (var phoneLink in otherPhoneLinks)
                 {
@@ -1968,15 +2117,6 @@ namespace CasualConsole
         }
     }
 
-    public class Person
-    {
-        [ExcelIgnore]
-        public int Id { get; set; }
-
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
-    }
-
     public class ExcelIgnoreAttribute : Attribute
     {
     }
@@ -2084,16 +2224,5 @@ namespace CasualConsole
     {
         public string[] Included { get; set; }
         public string[] Excluded { get; set; }
-    }
-
-    public class MyWebClient : WebClient
-    {
-        protected override WebRequest GetWebRequest(Uri address)
-        {
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
-            HttpWebRequest request = base.GetWebRequest(address) as HttpWebRequest;
-            request.AutomaticDecompression = DecompressionMethods.GZip;
-            return request;
-        }
     }
 }

@@ -10,7 +10,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>CasualConsole</RootNamespace>
     <AssemblyName>CasualConsole</AssemblyName>
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <TargetFrameworkProfile>
     </TargetFrameworkProfile>
     <FileAlignment>512</FileAlignment>
@@ -91,6 +91,7 @@
     <Compile Include="ExpressionCodes.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="HeroesV.cs" />
+    <Compile Include="Interpreter.cs" />
     <Compile Include="Intersection.cs" />
     <Compile Include="JsonTest.cs" />
     <Compile Include="LaytonBridgePuzzle.cs" />

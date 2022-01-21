@@ -1,11 +1,9 @@
 ﻿using Newtonsoft.Json;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Linq.Expressions;
-using System.Reflection;
+using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -169,7 +167,7 @@ namespace CasualConsole
                 yield return match.Groups[i];
             }
         }
-        
+
         public static int DoOrDie(Func<int> action, string errorMessage)
         {
             try
@@ -417,6 +415,26 @@ namespace CasualConsole
             }
 
             Task.WaitAll(tasks);
+        }
+
+        public static async Task<string> DownloadStringAsync(this HttpClient client, string url)
+        {
+            using (var response = await client.GetAsync(url))
+            {
+                return await response.Content.ReadAsStringAsync();
+            }
+        }
+
+        public static Dictionary<TKey, TElement> ToDictionarySafe<TSource, TKey, TElement>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector, Func<TSource, TElement> elementSelector)
+        {
+            var map = new Dictionary<TKey, TElement>();
+            foreach (var item in source)
+            {
+                var key = keySelector(item);
+                var value = elementSelector(item);
+                map[key] = value;
+            }
+            return map;
         }
     }
 }

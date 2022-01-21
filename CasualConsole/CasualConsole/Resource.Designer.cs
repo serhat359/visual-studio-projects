@@ -19,7 +19,7 @@ namespace CasualConsole {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "15.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "16.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     public class Resource {
@@ -81,7 +81,7 @@ namespace CasualConsole {
         ///		&lt;/item&gt;
         ///		&lt;item&gt;
         ///			&lt;title&gt;Episode 74 - Right In The Feels&lt;/title&gt;
-        ///			&lt;link&gt;https [rest of string was truncated]&quot;;.
+        ///			&lt;link&gt;https://www.yout [rest of string was truncated]&quot;;.
         /// </summary>
         public static string ErrorContainingXml {
             get {
@@ -101,7 +101,7 @@ namespace CasualConsole {
         ///https://www.gsmarena.com/at&amp;t-phones-57.php
         ///https://www.gsmarena.com/benefon-phones-15.php
         ///https://www.gsmarena.com/benq-phones-31.php
-        ///http [rest of string was truncated]&quot;;.
+        ///https://www.gsm [rest of string was truncated]&quot;;.
         /// </summary>
         public static string GsmArenaLinks {
             get {
@@ -165,7 +165,7 @@ namespace CasualConsole {
         ///[&quot;卩&quot;,2,[29]],
         ///[&quot;厂&quot;,2,[30]],
         ///[&quot;厶&quot;,2,[31]],
-        ///[&quot;又&quot;,2,[32 [rest of string was truncated]&quot;;.
+        ///[&quot;又&quot;,2,[32]] [rest of string was truncated]&quot;;.
         /// </summary>
         public static string RadicalsKanji {
             get {
@@ -185,7 +185,7 @@ namespace CasualConsole {
         /// <summary>
         ///   Looks up a localized string similar to What is Lorem Ipsum?
         ///
-        ///Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry&apos;s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently wi [rest of string was truncated]&quot;;.
+        ///Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry&apos;s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with [rest of string was truncated]&quot;;.
         /// </summary>
         public static string SomeBigText {
             get {
