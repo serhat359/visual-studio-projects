@@ -9,7 +9,7 @@ namespace CasualConsole
     {
         private static readonly HashSet<char> onlyChars = new HashSet<char>()
         {
-            '(', ')', ',', ';', '='
+            '(', ')', ',', ';', '=', '+'
         };
         private static readonly HashSet<string> constantDefinedFunctions = new HashSet<string>()
         {
@@ -46,12 +46,25 @@ namespace CasualConsole
                 ("/* this is another comment */ var   comment2   =   5", 5),
                 ("returnValue(2)", 2),
                 ("returnValue(5, 6)", 5),
+                ("returnValue(7 + 2)", 9),
                 ("returnValue((5), 6)", 5),
                 ("returnValue(5, (6))", 5),
                 ("returnValue(\"hello\")", "hello"),
                 ("returnValue('hello')", "hello"),
                 ("returnValue(returnValue(2))", 2),
                 ("returnValue(returnValue(returnValue(2)))", 2),
+                ("2 + 3", 5),
+                ("1 + 2", 3),
+                ("1 + 2 + 3", 6),
+                ("(1 + 2) + 3", 6),
+                ("1 + (2 + 3)", 6),
+                ("returnValue(2) + returnValue(3)", 5),
+                ("returnValue(2) + 3", 5),
+                ("returnValue(2) + (3)", 5),
+                ("returnValue(2, 3) + (7)", 9),
+                ("returnValue(2+1) + (7)", 10),
+                ("2 + returnValue(3)", 5),
+                ("(2) + returnValue(3)", 5),
             };
 
             var interpreter = new Interpreter();
@@ -101,7 +114,7 @@ namespace CasualConsole
                 }
 
                 var expression = new StringRange(tokens, 3, tokens.Count);
-                var value = GetValueFromExpression(expression);
+                var value = GetValueFromExpression(expression, true);
                 variables.Add(variableName, value);
                 return value;
             }
@@ -112,13 +125,13 @@ namespace CasualConsole
                 // Assignment to existing variable
                 var variableName = tokens[0];
                 var expression = new StringRange(tokens, 2, tokens.Count);
-                var value = GetValueFromExpression(expression);
+                var value = GetValueFromExpression(expression, true);
                 variables[variableName] = value;
                 return value;
             }
             else
             {
-                return GetValueFromExpression(tokens);
+                return GetValueFromExpression(tokens, true);
             }
         }
 
@@ -146,44 +159,77 @@ namespace CasualConsole
             return arguments[0];
         }
 
-        private CustomValue GetValueFromExpression(IReadOnlyList<string> expressionTokens)
+        private CustomValue Add(IEnumerable<CustomValue> values)
+        {
+            if (values.Any(x => x.type != ValueType.Number))
+                throw new ArgumentException();
+
+            int total = 0;
+            foreach (var value in values)
+            {
+                total += (int)value.value;
+            }
+            return CustomValue.FromNumber(total);
+        }
+
+        private CustomValue GetValueFromExpression(IReadOnlyList<string> expressionTokens, bool mayContainPlus)
         {
             if (expressionTokens.Count == 1)
             {
                 var token = expressionTokens[0];
-                if (IsVariableName(token))
+                return GetValueFromSingleToken(token);
+            }
+
+            if (mayContainPlus)
+            {
+                var plusExpressions = expressionTokens.SplitBy("+").ToList();
+                if (plusExpressions.Count > 1)
                 {
-                    if (variables.TryGetValue(token, out var value))
-                    {
-                        return value;
-                    }
-                    else
-                        throw new Exception($"variable not defined: {token}");
-                }
-                else if (IsNumber(token))
-                {
-                    return CustomValue.FromNumber(token);
-                }
-                else if (IsStaticString(token))
-                {
-                    return CustomValue.FromString(token);
+                    var expressionValues = plusExpressions.Select(x => GetValueFromExpression(x, false));
+                    return Add(expressionValues);
                 }
                 else
-                    throw new Exception();
+                {
+                    return GetValueFromExpression(plusExpressions[0], false);
+                }
+            }
+
+            if (expressionTokens[0] == "(" && expressionTokens[expressionTokens.Count - 1] == ")")
+            {
+                var newExpression = new StringRange(expressionTokens, 1, expressionTokens.Count - 1);
+                return GetValueFromExpression(newExpression, true);
             }
             else if (IsVariableName(expressionTokens[0]) && expressionTokens[1] == "(")
             {
                 var functionName = expressionTokens[0];
                 var allExpression = new StringRange(expressionTokens, 2, expressionTokens.IndexOfParenthesesEnd(2));
-                var expressions = allExpression.SplitByCommas();
-                var arguments = expressions.Select(expression => GetValueFromExpression(expression)).ToArray();
+                var expressions = allExpression.SplitBy(",");
+                var arguments = expressions.Select(expression => GetValueFromExpression(expression, true)).ToArray();
                 var returnValue = CallFunction(functionName, arguments);
                 return returnValue;
             }
-            else if (expressionTokens[0] == "(" && expressionTokens[expressionTokens.Count - 1] == ")")
+            else
+                throw new Exception();
+        }
+
+        private CustomValue GetValueFromSingleToken(string token)
+        {
+            if (IsVariableName(token))
             {
-                var newExpression = new StringRange(expressionTokens, 1, expressionTokens.Count - 1);
-                return GetValueFromExpression(newExpression);
+                if (variables.TryGetValue(token, out var value))
+                {
+                    return value;
+                }
+                else
+                    throw new Exception($"variable not defined: {token}");
+            }
+            else if (IsNumber(token))
+            {
+                return CustomValue.FromNumber(token);
+            }
+            else if (IsStaticString(token))
+            {
+                return CustomValue.FromString(token);
             }
             else
                 throw new Exception();
@@ -290,12 +336,20 @@ namespace CasualConsole
 
     static class InterpreterExtensions
     {
-        public static IEnumerable<List<string>> SplitByCommas(this IEnumerable<string> tokens)
+        public static IEnumerable<List<string>> SplitBy(this IEnumerable<string> tokens, string separator)
         {
             var list = new List<string>();
-            foreach (var token in tokens)
+            var parenthesesCount = 0;
+
+            var tokensEnumerator = tokens.GetEnumerator();
+            while (tokensEnumerator.MoveNext())
             {
-                if (token == ",")
+                var token = tokensEnumerator.Current;
+
+                if (token == "(") parenthesesCount++;
+                if (token == ")") parenthesesCount--;
+
+                if (token == separator && parenthesesCount == 0)
                 {
                     yield return list;
                     list = new List<string>();
@@ -374,6 +428,11 @@ namespace CasualConsole
         public static CustomValue FromNumber(string s)
         {
             return new CustomValue(int.Parse(s), ValueType.Number);
+        }
+
+        public static CustomValue FromNumber(int s)
+        {
+            return new CustomValue(s, ValueType.Number);
         }
 
         public static CustomValue FromString(string s)
