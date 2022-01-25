@@ -20,7 +20,7 @@ namespace CasualConsole
 
         public object InterpretCode(string code)
         {
-            var tokens = GetTokens(code).ToArray();
+            var tokens = GetTokens(code).ToList();
 
             return InterpretTokens(tokens).value;
         }
@@ -62,12 +62,12 @@ namespace CasualConsole
             Console.ForegroundColor = oldColor;
         }
 
-        private CustomValue InterpretTokens(string[] tokenSource)
+        private CustomValue InterpretTokens(IReadOnlyList<string> tokenSource)
         {
             var statements = tokenSource.GetStatements();
             foreach (var statement in statements)
             {
-                bool isLastStatement = statement.end == tokenSource.Length;
+                bool isLastStatement = statement.end == tokenSource.Count;
                 var value = InterpretExpression(statement);
                 if (isLastStatement)
                 {
@@ -307,10 +307,10 @@ namespace CasualConsole
             yield return list;
         }
 
-        public static IEnumerable<StringRange> GetStatements(this string[] tokens)
+        public static IEnumerable<StringRange> GetStatements(this IReadOnlyList<string> tokens)
         {
             int index = 0;
-            for (int i = 0; i < tokens.Length; i++)
+            for (int i = 0; i < tokens.Count; i++)
             {
                 if (tokens[i] == ";")
                 {
@@ -319,7 +319,7 @@ namespace CasualConsole
                     index = i;
                 }
             }
-            yield return new StringRange(tokens, index, tokens.Length);
+            yield return new StringRange(tokens, index, tokens.Count);
         }
     }
 
