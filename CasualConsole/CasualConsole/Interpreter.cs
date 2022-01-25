@@ -55,6 +55,11 @@ namespace CasualConsole
                     throw new Exception();
                 }
             }
+
+            var oldColor = Console.ForegroundColor;
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("All Interpreter tests have passed!");
+            Console.ForegroundColor = oldColor;
         }
 
         private CustomValue InterpretTokens(string[] tokenSource)
@@ -86,7 +91,8 @@ namespace CasualConsole
                 {
                     throw new Exception();
                 }
-                var expression = tokens.Skip(3).GetEnumerator().GetTokensUntilSemicolon().ToArray();
+
+                var expression = new StringRange(tokens, 3, tokens.Count);
                 var value = GetValueFromExpression(expression);
                 variables.Add(variableName, value);
                 return value;
@@ -97,7 +103,7 @@ namespace CasualConsole
             {
                 // Assignment to existing variable
                 var variableName = tokens[0];
-                var expression = tokens.Skip(2).GetEnumerator().GetTokensUntilSemicolon().ToArray();
+                var expression = new StringRange(tokens, 2, tokens.Count);
                 var value = GetValueFromExpression(expression);
                 variables[variableName] = value;
                 return value;
@@ -269,20 +275,6 @@ namespace CasualConsole
 
     static class InterpreterExtensions
     {
-        public static IEnumerable<string> GetTokensUntilSemicolon(this IEnumerator<string> tokenSource)
-        {
-            while (tokenSource.MoveNext())
-            {
-                var token = tokenSource.Current;
-                if (token != ";")
-                {
-                    yield return token;
-                    continue;
-                }
-                break;
-            }
-        }
-
         public static IEnumerable<string> GetTokensUntilParantheses(this IEnumerator<string> tokenSource)
         {
             while (tokenSource.MoveNext())
