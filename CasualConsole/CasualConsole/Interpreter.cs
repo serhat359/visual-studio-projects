@@ -44,6 +44,14 @@ namespace CasualConsole
                 ("var _ = 6; _", 6),
                 ("// this is a comment \n var comment = 5", 5),
                 ("/* this is another comment */ var   comment2   =   5", 5),
+                ("returnValue(2)", 2),
+                ("returnValue(5, 6)", 5),
+                ("returnValue((5), 6)", 5),
+                ("returnValue(5, (6))", 5),
+                ("returnValue(\"hello\")", "hello"),
+                ("returnValue('hello')", "hello"),
+                ("returnValue(returnValue(2))", 2),
+                ("returnValue(returnValue(returnValue(2)))", 2),
             };
 
             var interpreter = new Interpreter();
@@ -120,6 +128,8 @@ namespace CasualConsole
             {
                 case "print":
                     return HandlePrint(arguments);
+                case "returnValue":
+                    return HandleReturnValue(arguments);
                 default:
                     throw new Exception();
             }
@@ -129,6 +139,11 @@ namespace CasualConsole
         {
             Console.WriteLine(arguments[0].value);
             return CustomValue.Null;
+        }
+
+        private CustomValue HandleReturnValue(CustomValue[] arguments)
+        {
+            return arguments[0];
         }
 
         private CustomValue GetValueFromExpression(IReadOnlyList<string> expressionTokens)
@@ -159,7 +174,7 @@ namespace CasualConsole
             else if (IsVariableName(expressionTokens[0]) && expressionTokens[1] == "(")
             {
                 var functionName = expressionTokens[0];
-                var allExpression = new StringRange(expressionTokens, 2, expressionTokens.IndexOf(")", 2));
+                var allExpression = new StringRange(expressionTokens, 2, expressionTokens.IndexOfParenthesesEnd(2));
                 var expressions = allExpression.SplitByCommas();
                 var arguments = expressions.Select(expression => GetValueFromExpression(expression)).ToArray();
                 var returnValue = CallFunction(functionName, arguments);
@@ -315,6 +330,29 @@ namespace CasualConsole
                 T currentElement = source[i];
                 if (currentElement.Equals(element))
                     return i;
+            }
+            return -1;
+        }
+
+        public static int IndexOfParenthesesEnd(this IReadOnlyList<string> source, int startIndex)
+        {
+            int count = 0;
+            for (int i = startIndex; i < source.Count; i++)
+            {
+                string currentElement = source[i];
+                if (currentElement == ")")
+                {
+                    if (count == 0)
+                        return i;
+
+                    count--;
+                    if (count < 0)
+                        throw new Exception();
+                }
+                else if (currentElement == "(")
+                {
+                    count++;
+                }
             }
             return -1;
         }
