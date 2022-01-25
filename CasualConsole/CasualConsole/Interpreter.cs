@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using StringRange = CasualConsole.CustomRange<string>;
 
 namespace CasualConsole
 {
@@ -9,8 +10,10 @@ namespace CasualConsole
     {
         private static readonly HashSet<char> onlyChars = new HashSet<char>()
         {
-            '(', ')', ',', ';', '=', '+'
+            '(', ')', ',', ';', '=', '+', '-'
         };
+        private static readonly HashSet<string> commaSet = new HashSet<string>() { "," };
+        private static readonly HashSet<string> plusMinusSet = new HashSet<string>() { "+", "-" };
         private static readonly HashSet<string> constantDefinedFunctions = new HashSet<string>()
         {
             "print"
@@ -32,6 +35,7 @@ namespace CasualConsole
             var testCases = new List<(string code, object value)>()
             {
                 ("2", 2),
+                ("-2", -2),
                 ("(2)", 2),
                 ("((2))", 2),
                 ("\"Hello world\"", "Hello world"),
@@ -41,12 +45,14 @@ namespace CasualConsole
                 ("var b = 3", 3),
                 ("b = 5", 5),
                 ("b = (7)", 7),
+                ("var c = (7) + 2 - 1", 8),
                 ("var _ = 6; _", 6),
                 ("// this is a comment \n var comment = 5", 5),
                 ("/* this is another comment */ var   comment2   =   5", 5),
                 ("returnValue(2)", 2),
                 ("returnValue(5, 6)", 5),
                 ("returnValue(7 + 2)", 9),
+                ("returnValue(7 - 2)", 5),
                 ("returnValue((5), 6)", 5),
                 ("returnValue(5, (6))", 5),
                 ("returnValue(\"hello\")", "hello"),
@@ -56,15 +62,31 @@ namespace CasualConsole
                 ("2 + 3", 5),
                 ("1 + 2", 3),
                 ("1 + 2 + 3", 6),
+                ("1 - 2 + 3", 2),
+                ("1 + 2 - 3", 0),
                 ("(1 + 2) + 3", 6),
+                ("(1 - 2) - 3", -4),
                 ("1 + (2 + 3)", 6),
+                ("1 + (2 - 3)", 0),
+                ("1 - (2 + 5)", -6),
                 ("returnValue(2) + returnValue(3)", 5),
                 ("returnValue(2) + 3", 5),
                 ("returnValue(2) + (3)", 5),
                 ("returnValue(2, 3) + (7)", 9),
                 ("returnValue(2+1) + (7)", 10),
+                ("returnValue(-2) + (7)", 5),
+                ("(-2) + (7)", 5),
+                ("-2 + (7)", 5),
                 ("2 + returnValue(3)", 5),
                 ("(2) + returnValue(3)", 5),
+                ("'hello' + 'world'", "helloworld"),
+                ("'2' + '3'", "23"),
+                ("\"2\" + \"3\"", "23"),
+                ("\"2\" + '3'", "23"),
+                ("'2' + \"3\"", "23"),
+                ("2 + '3'", "23"),
+                ("'2' + 3", "23"),
+                ("2 + 3", 5),
             };
 
             var interpreter = new Interpreter();
@@ -159,20 +181,50 @@ namespace CasualConsole
             return arguments[0];
         }
 
-        private CustomValue Add(IEnumerable<CustomValue> values)
+        private CustomValue AddOrSubtract(IEnumerable<(CustomValue value, bool isNegative)> values)
         {
-            if (values.Any(x => x.type != ValueType.Number))
-                throw new ArgumentException();
-
-            int total = 0;
+            bool hasMinus = false;
+            bool hasString = false;
             foreach (var value in values)
             {
-                total += (int)value.value;
+                var valueType = value.value.type;
+                if (valueType != ValueType.Number && valueType != ValueType.String)
+                    throw new ArgumentException();
+
+                if (value.isNegative)
+                    hasMinus = true;
+                if (valueType == ValueType.String)
+                    hasString = true;
             }
-            return CustomValue.FromNumber(total);
+
+            if (hasMinus && hasString)
+                throw new Exception();
+
+            if (!hasString)
+            {
+                int total = 0;
+                foreach (var value in values)
+                {
+                    if (value.isNegative)
+                        total -= (int)value.value.value;
+                    else
+                        total += (int)value.value.value;
+                }
+                return CustomValue.FromNumber(total);
+            }
+            else
+            {
+                // String concat
+                var sb = new StringBuilder();
+                foreach (var value in values)
+                {
+                    sb.Append(value.value.value.ToString());
+                }
+                return CustomValue.FromParsedString(sb.ToString());
+            }
         }
 
-        private CustomValue GetValueFromExpression(IReadOnlyList<string> expressionTokens, bool mayContainPlus)
+        private CustomValue GetValueFromExpression(IReadOnlyList<string> expressionTokens, bool mayContainPlusMinus)
         {
             if (expressionTokens.Count == 1)
             {
@@ -180,17 +232,19 @@ namespace CasualConsole
                 return GetValueFromSingleToken(token);
             }
 
-            if (mayContainPlus)
+            if (mayContainPlusMinus)
             {
-                var plusExpressions = expressionTokens.SplitBy("+").ToList();
+                CustomRange<(List<string> list, bool isNegative)> plusExpressions = CustomRange.From(expressionTokens.SplitBy(plusMinusSet).ToList());
                 if (plusExpressions.Count > 1)
                 {
-                    var expressionValues = plusExpressions.Select(x => GetValueFromExpression(x, false));
-                    return Add(expressionValues);
+                    if (plusExpressions[0].list.Count == 0)
+                        plusExpressions = plusExpressions.SkipSlice(1);
+                    var expressionValues = plusExpressions.SelectFast(x => (value: GetValueFromExpression(x.list, false), x.isNegative));
+                    return AddOrSubtract(expressionValues);
                 }
                 else
                 {
-                    return GetValueFromExpression(plusExpressions[0], false);
+                    return GetValueFromExpression(plusExpressions[0].list, false);
                 }
             }
 
@@ -203,8 +257,8 @@ namespace CasualConsole
             {
                 var functionName = expressionTokens[0];
                 var allExpression = new StringRange(expressionTokens, 2, expressionTokens.IndexOfParenthesesEnd(2));
-                var expressions = allExpression.SplitBy(",");
-                var arguments = expressions.Select(expression => GetValueFromExpression(expression, true)).ToArray();
+                var expressions = allExpression.SplitBy(commaSet);
+                var arguments = expressions.Select(expression => GetValueFromExpression(expression.list, true)).ToArray();
                 var returnValue = CallFunction(functionName, arguments);
                 return returnValue;
             }
@@ -336,22 +390,21 @@ namespace CasualConsole
 
     static class InterpreterExtensions
     {
-        public static IEnumerable<List<string>> SplitBy(this IEnumerable<string> tokens, string separator)
+        public static IEnumerable<(List<string> list, bool isNegative)> SplitBy(this IEnumerable<string> tokens, HashSet<string> separator)
         {
             var list = new List<string>();
             var parenthesesCount = 0;
+            bool isNegative = false;
 
-            var tokensEnumerator = tokens.GetEnumerator();
-            while (tokensEnumerator.MoveNext())
+            foreach (var token in tokens)
             {
-                var token = tokensEnumerator.Current;
-
                 if (token == "(") parenthesesCount++;
-                if (token == ")") parenthesesCount--;
+                else if (token == ")") parenthesesCount--;
 
-                if (token == separator && parenthesesCount == 0)
+                if (parenthesesCount == 0 && separator.Contains(token))
                 {
-                    yield return list;
+                    yield return (list, isNegative);
+                    isNegative = token == "-";
                     list = new List<string>();
                 }
                 else
@@ -359,7 +412,7 @@ namespace CasualConsole
                     list.Add(token);
                 }
             }
-            yield return list;
+            yield return (list, isNegative);
         }
 
         public static IEnumerable<StringRange> GetStatements(this IReadOnlyList<string> tokens)
@@ -409,6 +462,16 @@ namespace CasualConsole
                 }
             }
             return -1;
+        }
+
+        public static IReadOnlyList<E> SelectFast<T, E>(this IReadOnlyList<T> source, Func<T, E> converter)
+        {
+            var newArr = new E[source.Count];
+            for (int i = 0; i < source.Count; i++)
+            {
+                newArr[i] = converter(source[i]);
+            }
+            return newArr;
         }
     }
 
@@ -469,6 +532,11 @@ namespace CasualConsole
             return new CustomValue(sb.ToString(), ValueType.String);
         }
 
+        public static CustomValue FromParsedString(string s)
+        {
+            return new CustomValue(s, ValueType.String);
+        }
+
         internal static void Test()
         {
             var stringTestCases = new List<(string token, string value)>()
@@ -498,24 +566,24 @@ namespace CasualConsole
         String,
     }
 
-    class StringRange : IReadOnlyList<string>
+    class CustomRange<T> : IReadOnlyList<T>
     {
-        public readonly IReadOnlyList<string> array;
+        public readonly IReadOnlyList<T> array;
         public readonly int start;
         public readonly int end;
 
-        public StringRange(IReadOnlyList<string> array, int start, int end)
+        public CustomRange(IReadOnlyList<T> array, int start, int end)
         {
             this.array = array;
             this.start = start;
             this.end = end;
         }
 
-        public string this[int index] => array[start + index];
+        public T this[int index] => array[start + index];
 
         public int Count => end - start;
 
-        public IEnumerator<string> GetEnumerator()
+        public IEnumerator<T> GetEnumerator()
         {
             for (int i = start; i < end; i++)
             {
@@ -526,6 +594,19 @@ namespace CasualConsole
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
+        }
+
+        public CustomRange<T> SkipSlice(int skipCount)
+        {
+            return new CustomRange<T>(this, skipCount, this.Count);
+        }
+    }
+
+    class CustomRange
+    {
+        public static CustomRange<T> From<T>(IReadOnlyList<T> list)
+        {
+            return new CustomRange<T>(list, 0, list.Count);
         }
     }
 }
