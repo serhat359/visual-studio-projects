@@ -159,7 +159,7 @@ namespace CasualConsole
             else if (IsVariableName(expressionTokens[0]) && expressionTokens[1] == "(")
             {
                 var functionName = expressionTokens[0];
-                var allExpression = expressionTokens.Skip(2).GetEnumerator().GetTokensUntilParantheses().ToArray();
+                var allExpression = new StringRange(expressionTokens, 2, expressionTokens.IndexOf(")", 2));
                 var expressions = allExpression.SplitByCommas();
                 var arguments = expressions.Select(expression => GetValueFromExpression(expression)).ToArray();
                 var returnValue = CallFunction(functionName, arguments);
@@ -275,20 +275,6 @@ namespace CasualConsole
 
     static class InterpreterExtensions
     {
-        public static IEnumerable<string> GetTokensUntilParantheses(this IEnumerator<string> tokenSource)
-        {
-            while (tokenSource.MoveNext())
-            {
-                var token = tokenSource.Current;
-                if (token != ")")
-                {
-                    yield return token;
-                    continue;
-                }
-                break;
-            }
-        }
-
         public static IEnumerable<List<string>> SplitByCommas(this IEnumerable<string> tokens)
         {
             var list = new List<string>();
@@ -320,6 +306,17 @@ namespace CasualConsole
                 }
             }
             yield return new StringRange(tokens, index, tokens.Count);
+        }
+
+        public static int IndexOf<T>(this IReadOnlyList<T> source, T element, int startIndex) where T : IEquatable<T>
+        {
+            for (int i = startIndex; i < source.Count; i++)
+            {
+                T currentElement = source[i];
+                if (currentElement.Equals(element))
+                    return i;
+            }
+            return -1;
         }
     }
 
