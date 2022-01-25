@@ -32,11 +32,15 @@ namespace CasualConsole
             var testCases = new List<(string code, object value)>()
             {
                 ("2", 2),
+                ("(2)", 2),
+                ("((2))", 2),
                 ("\"Hello world\"", "Hello world"),
                 ("'Hello world'", "Hello world"),
+                ("('Hello world')", "Hello world"),
                 ("var a = 2; a", 2),
                 ("var b = 3", 3),
                 ("b = 5", 5),
+                ("b = (7)", 7),
                 ("var _ = 6; _", 6),
                 ("// this is a comment \n var comment = 5", 5),
                 ("/* this is another comment */ var   comment2   =   5", 5),
@@ -146,7 +150,7 @@ namespace CasualConsole
                 else
                     throw new Exception();
             }
-            else if (expressionTokens[1] == "(")
+            else if (IsVariableName(expressionTokens[0]) && expressionTokens[1] == "(")
             {
                 var functionName = expressionTokens[0];
                 var allExpression = expressionTokens.Skip(2).GetEnumerator().GetTokensUntilParantheses().ToArray();
@@ -154,6 +158,11 @@ namespace CasualConsole
                 var arguments = expressions.Select(expression => GetValueFromExpression(expression)).ToArray();
                 var returnValue = CallFunction(functionName, arguments);
                 return returnValue;
+            }
+            else if (expressionTokens[0] == "(" && expressionTokens[expressionTokens.Count - 1] == ")")
+            {
+                var newExpression = new StringRange(expressionTokens, 1, expressionTokens.Count - 1);
+                return GetValueFromExpression(newExpression);
             }
             else
                 throw new Exception();
@@ -405,11 +414,11 @@ namespace CasualConsole
 
     class StringRange : IReadOnlyList<string>
     {
-        public readonly string[] array;
+        public readonly IReadOnlyList<string> array;
         public readonly int start;
         public readonly int end;
 
-        public StringRange(string[] array, int start, int end)
+        public StringRange(IReadOnlyList<string> array, int start, int end)
         {
             this.array = array;
             this.start = start;
