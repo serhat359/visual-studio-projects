@@ -54,6 +54,11 @@ namespace CasualConsole
                 ("b = (7)", 7),
                 ("var c = (7) + 2 - 1", 8),
                 ("var _ = 6; _", 6),
+                ("var _a = 7; _a", 7),
+                ("var a_ = 8; a_", 8),
+                ("var __ = 9; __", 9),
+                ("var _a_ = 10; _a_", 10),
+                ("var _aa_ = 11; _aa_", 11),
                 ("// this is a comment \n var comment = 5", 5),
                 ("/* this is another comment */ var   comment2   =   5", 5),
                 ("returnValue(2)", 2),
@@ -395,7 +400,7 @@ namespace CasualConsole
                 {
                     int start = i;
                     i++;
-                    while (i < content.Length && (char.IsLetterOrDigit(content[i]) || c == content[i]))
+                    while (i < content.Length && (char.IsLetterOrDigit(content[i]) || '_' == content[i]))
                         i++;
 
                     string token = content.Substring(start, i - start);
