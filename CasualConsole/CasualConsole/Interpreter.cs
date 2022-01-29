@@ -45,6 +45,8 @@ namespace CasualConsole
                 ("-(+2)", -2),
                 ("((2))", 2),
                 ("-(-(2))", 2),
+                ("true", true),
+                ("false", false),
                 ("\"Hello world\"", "Hello world"),
                 ("'Hello world'", "Hello world"),
                 ("('Hello world')", "Hello world"),
@@ -60,6 +62,8 @@ namespace CasualConsole
                 ("var __ = 9; __", 9),
                 ("var _a_ = 10; _a_", 10),
                 ("var _aa_ = 11; _aa_", 11),
+                ("var bbb = true", true),
+                ("var bbbf = false", false),
                 ("// this is a comment \n var comment = 5", 5),
                 ("/* this is another comment */ var   comment2   =   5", 5),
                 ("returnValue(2)", 2),
@@ -294,7 +298,13 @@ namespace CasualConsole
 
         internal CustomValue GetValueFromSingleToken(string token)
         {
-            if (IsVariableName(token))
+            if (token == "true")
+                return CustomValue.True;
+            else if (token == "false")
+                return CustomValue.False;
+            else if (token == "null")
+                return CustomValue.Null;
+            else if (IsVariableName(token))
             {
                 if (variables.TryGetValue(token, out var value))
                 {
@@ -591,6 +601,8 @@ namespace CasualConsole
         public ValueType type;
 
         public static readonly CustomValue Null = new CustomValue(null, ValueType.Null);
+        public static readonly CustomValue True = new CustomValue(true, ValueType.Bool);
+        public static readonly CustomValue False = new CustomValue(false, ValueType.Bool);
 
         public CustomValue(object value, ValueType type)
         {
@@ -674,6 +686,7 @@ namespace CasualConsole
         Null,
         Number,
         String,
+        Bool,
     }
 
     enum Operator
