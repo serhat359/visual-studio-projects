@@ -10,10 +10,11 @@ namespace CasualConsole
     {
         private static readonly HashSet<char> onlyChars = new HashSet<char>()
         {
-            '(', ')', ',', ';', '=', '+', '-', '*', '/'
+            '(', ')', ',', ';', '+', '-', '*', '/'
         };
         private static readonly HashSet<string> commaSet = new HashSet<string>() { "," };
         public static readonly HashSet<string> plusMinusSet = new HashSet<string>() { "+", "-" };
+        public static readonly HashSet<string> equalsSet = new HashSet<string>() { "==", "!=" };
         public static readonly HashSet<string> asteriskSlashSet = new HashSet<string>() { "*", "/" };
         private static readonly HashSet<string> constantDefinedFunctions = new HashSet<string>()
         {
@@ -121,6 +122,21 @@ namespace CasualConsole
                 ("5 * 2 + 2", 12),
                 ("5 + 2 * 2", 9),
                 ("(5 + 2) * 2", 14),
+                ("2==2", true),
+                ("2==3", false),
+                ("returnValue(2) == 2", true),
+                ("2+3 == 3+2", true),
+                ("2 != null", true),
+                ("2!=2", false),
+                ("2!=3", true),
+                ("returnValue(2) != 2", false),
+                ("2+2 != 3+2", true),
+                ("2 != null", true),
+                ("null == null", true),
+                ("null != null", false),
+                ("true == true == true", true),
+                ("true == false == false", true),
+                ("true == (false == false)", true),
             };
 
             var interpreter = new Interpreter();
@@ -213,6 +229,27 @@ namespace CasualConsole
         private CustomValue HandleReturnValue(CustomValue[] arguments)
         {
             return arguments[0];
+        }
+
+        private CustomValue CheckEqualsOrNot(List<(Operator operatorType, ExpressionTree tree)> trees)
+        {
+            if (trees[0].operatorType != Operator.None) throw new Exception();
+
+            var values = trees.SelectFast(x => (x.operatorType, value: EvaluateTree(x.tree)));
+
+            var lastValue = values[0].value;
+            for (int i = 1; i < values.Count; i++)
+            {
+                var value = values[i];
+                bool result;
+                if (value.operatorType == Operator.CheckEquals)
+                    result = object.Equals(lastValue.value, value.value.value);
+                else
+                    result = !object.Equals(lastValue.value, value.value.value);
+                lastValue = result ? CustomValue.True : CustomValue.False;
+            }
+
+            return lastValue;
         }
 
         private CustomValue MultiplyOrDivide(IReadOnlyList<(Operator operatorType, ExpressionTree tree)> trees)
@@ -380,6 +417,10 @@ namespace CasualConsole
             {
                 return MultiplyOrDivide(expressions);
             }
+            if (operatorType == Operator.CheckEquals || operatorType == Operator.CheckNotEquals)
+            {
+                return CheckEqualsOrNot(expressions);
+            }
             throw new Exception();
         }
 
@@ -458,6 +499,24 @@ namespace CasualConsole
                 {
                     i++;
                     yield return c.ToString();
+                }
+                else if (c == '=')
+                {
+                    if (content[i + 1] == '=')
+                    {
+                        i += 2;
+                        yield return "==";
+                    }
+                    else
+                    {
+                        i++;
+                        yield return "=";
+                    }
+                }
+                else if (c == '!' && content[i + 1] == '=')
+                {
+                    i += 2;
+                    yield return "!=";
                 }
                 else if (c == '"' || c == '\'')
                 {
@@ -696,6 +755,8 @@ namespace CasualConsole
         Minus,
         Multiply,
         Divide,
+        CheckEquals,
+        CheckNotEquals,
     }
 
     class CustomRange<T> : IReadOnlyList<T>
@@ -758,6 +819,28 @@ namespace CasualConsole
         }
 
         public static ExpressionTree New(IReadOnlyList<string> expressionTokens)
+        {
+            if (expressionTokens.Count == 1)
+                return New(expressionTokens[0]);
+
+            var tree = new ExpressionTree();
+
+            var equalsSplit = expressionTokens.SplitBy(Interpreter.equalsSet);
+            foreach (var splitExpression in equalsSplit)
+            {
+                Operator operatorType = Operator.None;
+                if (splitExpression.operatorToken == "==")
+                    operatorType = Operator.CheckEquals;
+                else if (splitExpression.operatorToken == "!=")
+                    operatorType = Operator.CheckNotEquals;
+
+                var subTree = ExpressionTree.NewNoEquals(splitExpression.list);
+                tree.expressions.Value.Add((operatorType, subTree));
+            }
+            return tree;
+        }
+
+        public static ExpressionTree NewNoEquals(IReadOnlyList<string> expressionTokens)
         {
             if (expressionTokens.Count == 1)
                 return New(expressionTokens[0]);
