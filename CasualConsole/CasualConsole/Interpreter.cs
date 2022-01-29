@@ -483,29 +483,26 @@ namespace CasualConsole
 
     static class InterpreterExtensions
     {
-        public static IEnumerable<(List<string> list, string operatorToken)> SplitBy(this IEnumerable<string> tokens, HashSet<string> separator)
+        public static IEnumerable<(IReadOnlyList<string> list, string operatorToken)> SplitBy(this IReadOnlyList<string> tokens, HashSet<string> separator)
         {
-            var list = new List<string>();
+            var index = 0;
             var parenthesesCount = 0;
             string operatorToken = null;
 
-            foreach (var token in tokens)
+            for (int i = 0; i < tokens.Count; i++)
             {
+                var token = tokens[i];
                 if (token == "(") parenthesesCount++;
                 else if (token == ")") parenthesesCount--;
 
                 if (parenthesesCount == 0 && separator.Contains(token))
                 {
-                    yield return (list, operatorToken);
+                    yield return (new StringRange(tokens, index, i), operatorToken);
                     operatorToken = token;
-                    list = new List<string>();
-                }
-                else
-                {
-                    list.Add(token);
+                    index = i + 1;
                 }
             }
-            yield return (list, operatorToken);
+            yield return (new StringRange(tokens, index, tokens.Count), operatorToken);
         }
 
         public static IEnumerable<StringRange> GetStatements(this IReadOnlyList<string> tokens)
