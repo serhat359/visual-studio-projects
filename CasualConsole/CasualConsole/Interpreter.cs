@@ -13,7 +13,7 @@ namespace CasualConsole
             '(', ')', ',', ';', '=', '+', '-'
         };
         private static readonly HashSet<string> commaSet = new HashSet<string>() { "," };
-        private static readonly HashSet<string> plusMinusSet = new HashSet<string>() { "+", "-" };
+        public static readonly HashSet<string> plusMinusSet = new HashSet<string>() { "+", "-" };
         private static readonly HashSet<string> constantDefinedFunctions = new HashSet<string>()
         {
             "print"
@@ -31,13 +31,19 @@ namespace CasualConsole
         public static void Test()
         {
             CustomValue.Test();
+            ExpressionTree.Test();
 
             var testCases = new List<(string code, object value)>()
             {
                 ("2", 2),
                 ("-2", -2),
                 ("(2)", 2),
+                ("-(2)", -2),
+                ("-(-2)", 2),
+                ("+(-2)", -2),
+                ("-(+2)", -2),
                 ("((2))", 2),
+                ("-(-(2))", 2),
                 ("\"Hello world\"", "Hello world"),
                 ("'Hello world'", "Hello world"),
                 ("('Hello world')", "Hello world"),
@@ -69,6 +75,10 @@ namespace CasualConsole
                 ("1 + (2 + 3)", 6),
                 ("1 + (2 - 3)", 0),
                 ("1 - (2 + 5)", -6),
+                ("'' + 2 + 3", "23"),
+                ("2 + 3 + ''", "23"),
+                ("'' + (2 + 3)", "5"),
+                ("(2 + 3) + ''", "5"),
                 ("returnValue(2) + returnValue(3)", 5),
                 ("returnValue(2) + 3", 5),
                 ("returnValue(2) + (3)", 5),
@@ -136,7 +146,7 @@ namespace CasualConsole
                 }
 
                 var expression = new StringRange(tokens, 3, tokens.Count);
-                var value = GetValueFromExpression(expression, true);
+                var value = GetValueFromExpression(expression);
                 variables.Add(variableName, value);
                 return value;
             }
@@ -147,13 +157,13 @@ namespace CasualConsole
                 // Assignment to existing variable
                 var variableName = tokens[0];
                 var expression = new StringRange(tokens, 2, tokens.Count);
-                var value = GetValueFromExpression(expression, true);
+                var value = GetValueFromExpression(expression);
                 variables[variableName] = value;
                 return value;
             }
             else
             {
-                return GetValueFromExpression(tokens, true);
+                return GetValueFromExpression(tokens);
             }
         }
 
@@ -181,17 +191,25 @@ namespace CasualConsole
             return arguments[0];
         }
 
-        private CustomValue AddOrSubtract(IEnumerable<(CustomValue value, bool isNegative)> values)
+        private CustomValue AddOrSubtract(IReadOnlyList<(Operator operatorType, ExpressionTree tree)> trees)
         {
             bool hasMinus = false;
             bool hasString = false;
+
+            if (trees[0].tree.tokens == null && trees[0].tree.expressions.Value.Count == 0)
+            {
+                trees = CustomRange.From(trees).SkipSlice(1);
+            }
+
+            var values = trees.SelectFast(x => (x.operatorType, value: EvaluateTree(x.tree)));
+
             foreach (var value in values)
             {
                 var valueType = value.value.type;
                 if (valueType != ValueType.Number && valueType != ValueType.String)
                     throw new ArgumentException();
 
-                if (value.isNegative)
+                if (value.operatorType == Operator.Minus)
                     hasMinus = true;
                 if (valueType == ValueType.String)
                     hasString = true;
@@ -205,7 +223,7 @@ namespace CasualConsole
                 int total = 0;
                 foreach (var value in values)
                 {
-                    if (value.isNegative)
+                    if (value.operatorType == Operator.Minus)
                         total -= (int)value.value.value;
                     else
                         total += (int)value.value.value;
@@ -224,7 +242,7 @@ namespace CasualConsole
             }
         }
 
-        private CustomValue GetValueFromExpression(IReadOnlyList<string> expressionTokens, bool mayContainPlusMinus)
+        private CustomValue GetValueFromExpression(IReadOnlyList<string> expressionTokens)
         {
             if (expressionTokens.Count == 1)
             {
@@ -232,41 +250,11 @@ namespace CasualConsole
                 return GetValueFromSingleToken(token);
             }
 
-            if (mayContainPlusMinus)
-            {
-                CustomRange<(List<string> list, bool isNegative)> plusExpressions = CustomRange.From(expressionTokens.SplitBy(plusMinusSet).ToList());
-                if (plusExpressions.Count > 1)
-                {
-                    if (plusExpressions[0].list.Count == 0)
-                        plusExpressions = plusExpressions.SkipSlice(1);
-                    var expressionValues = plusExpressions.SelectFast(x => (value: GetValueFromExpression(x.list, false), x.isNegative));
-                    return AddOrSubtract(expressionValues);
-                }
-                else
-                {
-                    return GetValueFromExpression(plusExpressions[0].list, false);
-                }
-            }
-
-            if (expressionTokens[0] == "(" && expressionTokens[expressionTokens.Count - 1] == ")")
-            {
-                var newExpression = new StringRange(expressionTokens, 1, expressionTokens.Count - 1);
-                return GetValueFromExpression(newExpression, true);
-            }
-            else if (IsVariableName(expressionTokens[0]) && expressionTokens[1] == "(")
-            {
-                var functionName = expressionTokens[0];
-                var allExpression = new StringRange(expressionTokens, 2, expressionTokens.IndexOfParenthesesEnd(2));
-                var expressions = allExpression.SplitBy(commaSet);
-                var arguments = expressions.Select(expression => GetValueFromExpression(expression.list, true)).ToArray();
-                var returnValue = CallFunction(functionName, arguments);
-                return returnValue;
-            }
-            else
-                throw new Exception();
+            var expressionTree = ExpressionTree.New(expressionTokens);
+            return EvaluateTree(expressionTree);
         }
 
-        private CustomValue GetValueFromSingleToken(string token)
+        internal CustomValue GetValueFromSingleToken(string token)
         {
             if (IsVariableName(token))
             {
@@ -287,6 +275,60 @@ namespace CasualConsole
             }
             else
                 throw new Exception();
+        }
+
+        internal CustomValue GetValueFromMultipleTokens(IReadOnlyList<string> expressionTokens)
+        {
+            if (expressionTokens.Count == 1)
+                return GetValueFromSingleToken(expressionTokens[0]);
+
+            if (IsVariableName(expressionTokens[0]) && expressionTokens[1] == "(")
+            {
+                var functionName = expressionTokens[0];
+                var allExpression = new StringRange(expressionTokens, 2, expressionTokens.IndexOfParenthesesEnd(2));
+                var expressions = allExpression.SplitBy(commaSet);
+                var arguments = expressions.Select(expression => GetValueFromExpression(expression.list)).ToArray();
+                var returnValue = CallFunction(functionName, arguments);
+                return returnValue;
+            }
+
+            throw new Exception();
+        }
+
+        internal CustomValue EvaluateTree(ExpressionTree tree)
+        {
+            if (tree.tokens != null)
+            {
+                return GetValueFromMultipleTokens(tree.tokens);
+            }
+
+            var expressions = tree.expressions.Value;
+
+            if (expressions.Count == 1)
+            {
+                var operation = expressions[0].operatorType;
+                var subTree = expressions[0].tree;
+                var subValue = EvaluateTree(subTree);
+                if (operation == Operator.None)
+                    return subValue;
+                if (subValue.type == ValueType.Number && (operation == Operator.Minus || operation == Operator.Plus))
+                {
+                    if (operation == Operator.Plus)
+                        return subValue;
+                    else if (operation == Operator.Minus)
+                        return CustomValue.FromNumber(-1 * (int)subValue.value);
+                    else
+                        throw new Exception();
+                }
+                throw new Exception();
+            }
+
+            Operator operatorType = expressions[1].operatorType;
+            if (operatorType == Operator.Plus || operatorType == Operator.Minus)
+            {
+                return AddOrSubtract(expressions);
+            }
+            throw new Exception();
         }
 
         private bool IsVariableName(string token)
@@ -390,11 +432,11 @@ namespace CasualConsole
 
     static class InterpreterExtensions
     {
-        public static IEnumerable<(List<string> list, bool isNegative)> SplitBy(this IEnumerable<string> tokens, HashSet<string> separator)
+        public static IEnumerable<(List<string> list, string operatorToken)> SplitBy(this IEnumerable<string> tokens, HashSet<string> separator)
         {
             var list = new List<string>();
             var parenthesesCount = 0;
-            bool isNegative = false;
+            string operatorToken = null;
 
             foreach (var token in tokens)
             {
@@ -403,8 +445,8 @@ namespace CasualConsole
 
                 if (parenthesesCount == 0 && separator.Contains(token))
                 {
-                    yield return (list, isNegative);
-                    isNegative = token == "-";
+                    yield return (list, operatorToken);
+                    operatorToken = token;
                     list = new List<string>();
                 }
                 else
@@ -412,7 +454,7 @@ namespace CasualConsole
                     list.Add(token);
                 }
             }
-            yield return (list, isNegative);
+            yield return (list, operatorToken);
         }
 
         public static IEnumerable<StringRange> GetStatements(this IReadOnlyList<string> tokens)
@@ -566,6 +608,13 @@ namespace CasualConsole
         String,
     }
 
+    enum Operator
+    {
+        None,
+        Plus,
+        Minus
+    }
+
     class CustomRange<T> : IReadOnlyList<T>
     {
         public readonly IReadOnlyList<T> array;
@@ -600,6 +649,11 @@ namespace CasualConsole
         {
             return new CustomRange<T>(this, skipCount, this.Count);
         }
+
+        public CustomRange<T> StripSides()
+        {
+            return new CustomRange<T>(this, 1, this.Count - 1);
+        }
     }
 
     class CustomRange
@@ -607,6 +661,77 @@ namespace CasualConsole
         public static CustomRange<T> From<T>(IReadOnlyList<T> list)
         {
             return new CustomRange<T>(list, 0, list.Count);
+        }
+    }
+
+    class ExpressionTree
+    {
+        public Lazy<List<(Operator operatorType, ExpressionTree tree)>> expressions = new Lazy<List<(Operator, ExpressionTree)>>();
+        public IReadOnlyList<string> tokens;
+
+        private ExpressionTree()
+        {
+
+        }
+
+        public static ExpressionTree New(IReadOnlyList<string> expressionTokens)
+        {
+            if (expressionTokens.Count == 1)
+                return New(expressionTokens[0]);
+
+            var tree = new ExpressionTree();
+
+            var mainSplitExpressions = expressionTokens.SplitBy(Interpreter.plusMinusSet);
+            foreach (var splitExpression in mainSplitExpressions)
+            {
+                if (splitExpression.list.Count == 0)
+                    continue;
+
+                Operator operatorType = Operator.None;
+                if (splitExpression.operatorToken == "+")
+                    operatorType = Operator.Plus;
+                else if (splitExpression.operatorToken == "-")
+                    operatorType = Operator.Minus;
+
+                var subTree = splitExpression.list[0] == "(" ? ExpressionTree.New(CustomRange.From(splitExpression.list).StripSides()) : ExpressionTree.NewStripped(splitExpression.list);
+                tree.expressions.Value.Add((operatorType, subTree));
+            }
+            return tree;
+        }
+
+        private static ExpressionTree NewStripped(IReadOnlyList<string> expressionTokens)
+        {
+            var tree = new ExpressionTree();
+            tree.tokens = expressionTokens;
+            return tree;
+        }
+
+        private static ExpressionTree New(string singleToken)
+        {
+            var tree = new ExpressionTree();
+            tree.tokens = new[] { singleToken };
+            return tree;
+        }
+
+        internal static void Test()
+        {
+            var testCases = new List<(string[] tokens, object value)>()
+            {
+                (new []{ "2" }, 2),
+                (new []{ "(", "4", ")" }, 4),
+                (new []{ "2", "+", "3" }, 5),
+            };
+
+            var interpreter = new Interpreter();
+            foreach (var testCase in testCases)
+            {
+                var tree = ExpressionTree.New(testCase.tokens);
+                var result = interpreter.EvaluateTree(tree);
+                if (!object.Equals(result.value, testCase.value))
+                {
+                    throw new Exception();
+                }
+            }
         }
     }
 }
