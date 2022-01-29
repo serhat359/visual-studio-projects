@@ -16,6 +16,7 @@ namespace CasualConsole
         public static readonly HashSet<string> plusMinusSet = new HashSet<string>() { "+", "-" };
         public static readonly HashSet<string> equalsSet = new HashSet<string>() { "==", "!=" };
         public static readonly HashSet<string> asteriskSlashSet = new HashSet<string>() { "*", "/" };
+        public static readonly HashSet<string> notSet = new HashSet<string>() { "!" };
         private static readonly HashSet<string> constantDefinedFunctions = new HashSet<string>()
         {
             "print"
@@ -48,6 +49,10 @@ namespace CasualConsole
                 ("-(-(2))", 2),
                 ("true", true),
                 ("false", false),
+                ("!true", false),
+                ("!false", true),
+                ("!(true)", false),
+                ("!(false)", true),
                 ("\"Hello world\"", "Hello world"),
                 ("'Hello world'", "Hello world"),
                 ("('Hello world')", "Hello world"),
@@ -65,6 +70,7 @@ namespace CasualConsole
                 ("var _aa_ = 11; _aa_", 11),
                 ("var bbb = true", true),
                 ("var bbbf = false", false),
+                ("var bool2 = false; !bool2", true),
                 ("// this is a comment \n var comment = 5", 5),
                 ("/* this is another comment */ var   comment2   =   5", 5),
                 ("returnValue(2)", 2),
@@ -132,11 +138,14 @@ namespace CasualConsole
                 ("returnValue(2) != 2", false),
                 ("2+2 != 3+2", true),
                 ("2 != null", true),
+                ("(2 == 2)", true),
+                ("!(2 == 2)", false),
                 ("null == null", true),
                 ("null != null", false),
                 ("true == true == true", true),
                 ("true == false == false", true),
                 ("true == (false == false)", true),
+                ("!true == !true", true),
             };
 
             var interpreter = new Interpreter();
@@ -405,6 +414,11 @@ namespace CasualConsole
                     else
                         throw new Exception();
                 }
+                else if (operation == Operator.Not)
+                {
+                    bool res = (bool)subValue.value;
+                    return res ? CustomValue.False : CustomValue.True;
+                }
                 throw new Exception();
             }
 
@@ -513,10 +527,18 @@ namespace CasualConsole
                         yield return "=";
                     }
                 }
-                else if (c == '!' && content[i + 1] == '=')
+                else if (c == '!')
                 {
-                    i += 2;
-                    yield return "!=";
+                    if (content[i + 1] == '=')
+                    {
+                        i += 2;
+                        yield return "!=";
+                    }
+                    else
+                    {
+                        i++;
+                        yield return "!";
+                    }
                 }
                 else if (c == '"' || c == '\'')
                 {
@@ -757,6 +779,7 @@ namespace CasualConsole
         Divide,
         CheckEquals,
         CheckNotEquals,
+        Not,
     }
 
     class CustomRange<T> : IReadOnlyList<T>
@@ -825,8 +848,8 @@ namespace CasualConsole
 
             var tree = new ExpressionTree();
 
-            var equalsSplit = expressionTokens.SplitBy(Interpreter.equalsSet);
-            foreach (var splitExpression in equalsSplit)
+            var split = expressionTokens.SplitBy(Interpreter.equalsSet);
+            foreach (var splitExpression in split)
             {
                 Operator operatorType = Operator.None;
                 if (splitExpression.operatorToken == "==")
@@ -847,8 +870,8 @@ namespace CasualConsole
 
             var tree = new ExpressionTree();
 
-            var plusMinusSplit = expressionTokens.SplitBy(Interpreter.plusMinusSet);
-            foreach (var splitExpression in plusMinusSplit)
+            var split = expressionTokens.SplitBy(Interpreter.plusMinusSet);
+            foreach (var splitExpression in split)
             {
                 if (splitExpression.list.Count == 0)
                     continue;
@@ -872,8 +895,8 @@ namespace CasualConsole
 
             var tree = new ExpressionTree();
 
-            var asteriskSlashSplit = expressionTokens.SplitBy(Interpreter.asteriskSlashSet);
-            foreach (var splitExpression in asteriskSlashSplit)
+            var split = expressionTokens.SplitBy(Interpreter.asteriskSlashSet);
+            foreach (var splitExpression in split)
             {
                 Operator operatorType = Operator.None;
                 if (splitExpression.operatorToken == "*")
@@ -887,8 +910,31 @@ namespace CasualConsole
             return tree;
         }
 
-        // Can still contain parentheses
         public static ExpressionTree NewNoAsterisk(IReadOnlyList<string> expressionTokens)
+        {
+            if (expressionTokens.Count == 1)
+                return New(expressionTokens[0]);
+
+            var tree = new ExpressionTree();
+
+            var split = expressionTokens.SplitBy(Interpreter.notSet);
+            foreach (var splitExpression in split)
+            {
+                if (splitExpression.list.Count == 0)
+                    continue;
+
+                Operator operatorType = Operator.None;
+                if (splitExpression.operatorToken == "!")
+                    operatorType = Operator.Not;
+
+                var subTree = ExpressionTree.NewNoNot(splitExpression.list);
+                tree.expressions.Value.Add((operatorType, subTree));
+            }
+            return tree;
+        }
+
+        // Can still contain parentheses
+        public static ExpressionTree NewNoNot(IReadOnlyList<string> expressionTokens)
         {
             if (expressionTokens.Count == 1)
                 return New(expressionTokens[0]);
