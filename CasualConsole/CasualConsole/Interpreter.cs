@@ -10,10 +10,11 @@ namespace CasualConsole
     {
         private static readonly HashSet<char> onlyChars = new HashSet<char>()
         {
-            '(', ')', ',', ';', '=', '+', '-'
+            '(', ')', ',', ';', '=', '+', '-', '*', '/'
         };
         private static readonly HashSet<string> commaSet = new HashSet<string>() { "," };
         public static readonly HashSet<string> plusMinusSet = new HashSet<string>() { "+", "-" };
+        public static readonly HashSet<string> asteriskSlashSet = new HashSet<string>() { "*", "/" };
         private static readonly HashSet<string> constantDefinedFunctions = new HashSet<string>()
         {
             "print"
@@ -97,13 +98,26 @@ namespace CasualConsole
                 ("2 + '3'", "23"),
                 ("'2' + 3", "23"),
                 ("2 + 3", 5),
+                ("2.0 + 3", 5),
+                ("2.0 + 3.0", 5),
+                ("2.0 - 3.0", -1),
+                ("2.5 + 3.5", 6),
+                ("2 * 5", 10),
+                ("5 * 2", 10),
+                ("5 / 2", 2.5),
+                ("5 / 2 / 2", 1.25),
+                ("5 / 2 * 2", 5),
+                ("5 * 2 / 2", 5),
+                ("5 * 2 + 2", 12),
+                ("5 + 2 * 2", 9),
+                ("(5 + 2) * 2", 14),
             };
 
             var interpreter = new Interpreter();
             foreach (var testCase in testCases)
             {
                 var result = interpreter.InterpretCode(testCase.code);
-                if (!object.Equals(result, testCase.value))
+                if (!InterpreterExtensions.Equals(result, testCase.value))
                 {
                     throw new Exception();
                 }
@@ -191,15 +205,33 @@ namespace CasualConsole
             return arguments[0];
         }
 
+        private CustomValue MultiplyOrDivide(IReadOnlyList<(Operator operatorType, ExpressionTree tree)> trees)
+        {
+            if (trees[0].operatorType != Operator.None) throw new Exception();
+
+            var values = trees.SelectFast(x => (x.operatorType, value: EvaluateTree(x.tree)));
+
+            double total = 0;
+            for (int i = 0; i < values.Count; i++)
+            {
+                var value = values[i];
+                if (i == 0 && value.operatorType == Operator.None)
+                    total = (double)value.value.value;
+                else if (value.operatorType == Operator.Multiply)
+                    total *= (double)value.value.value;
+                else if (value.operatorType == Operator.Divide)
+                    total /= (double)value.value.value;
+                else
+                    throw new Exception();
+            }
+
+            return CustomValue.FromNumber(total);
+        }
+
         private CustomValue AddOrSubtract(IReadOnlyList<(Operator operatorType, ExpressionTree tree)> trees)
         {
             bool hasMinus = false;
             bool hasString = false;
-
-            if (trees[0].tree.tokens == null && trees[0].tree.expressions.Value.Count == 0)
-            {
-                trees = CustomRange.From(trees).SkipSlice(1);
-            }
 
             var values = trees.SelectFast(x => (x.operatorType, value: EvaluateTree(x.tree)));
 
@@ -220,13 +252,13 @@ namespace CasualConsole
 
             if (!hasString)
             {
-                int total = 0;
+                double total = 0;
                 foreach (var value in values)
                 {
                     if (value.operatorType == Operator.Minus)
-                        total -= (int)value.value.value;
+                        total -= (double)value.value.value;
                     else
-                        total += (int)value.value.value;
+                        total += (double)value.value.value;
                 }
                 return CustomValue.FromNumber(total);
             }
@@ -316,7 +348,7 @@ namespace CasualConsole
                     if (operation == Operator.Plus)
                         return subValue;
                     else if (operation == Operator.Minus)
-                        return CustomValue.FromNumber(-1 * (int)subValue.value);
+                        return CustomValue.FromNumber(-1 * (double)subValue.value);
                     else
                         throw new Exception();
                 }
@@ -327,6 +359,10 @@ namespace CasualConsole
             if (operatorType == Operator.Plus || operatorType == Operator.Minus)
             {
                 return AddOrSubtract(expressions);
+            }
+            if (operatorType == Operator.Multiply || operatorType == Operator.Divide)
+            {
+                return MultiplyOrDivide(expressions);
             }
             throw new Exception();
         }
@@ -355,7 +391,7 @@ namespace CasualConsole
             for (; i < content.Length;)
             {
                 char c = content[i];
-                if (char.IsLetterOrDigit(c) || c == '_')
+                if (char.IsLetter(c) || c == '_')
                 {
                     int start = i;
                     i++;
@@ -364,6 +400,43 @@ namespace CasualConsole
 
                     string token = content.Substring(start, i - start);
                     yield return token;
+                }
+                else if (char.IsDigit(c))
+                {
+                    int start = i;
+                    i++;
+                    while (i < content.Length && (char.IsDigit(content[i]) || content[i] == '.'))
+                        i++;
+
+                    string token = content.Substring(start, i - start);
+                    yield return token;
+                }
+                else if (c == '/' && i + 1 < content.Length && (content[i + 1] == '/' || content[i + 1] == '*'))
+                {
+                    // Handle comment
+                    i++;
+                    char c2 = content[i];
+                    if (c2 == '/')
+                    {
+                        i++;
+                        while (content[i] != '\n')
+                            i++;
+                    }
+                    else if (c2 == '*')
+                    {
+                        i++;
+                        while (true)
+                        {
+                            if (content[i] == '*' && content[i + 1] == '/')
+                                break;
+                            i++;
+                        }
+                        i += 2;
+                    }
+                    else
+                    {
+                        throw new Exception();
+                    }
                 }
                 else if (onlyChars.Contains(c))
                 {
@@ -394,33 +467,6 @@ namespace CasualConsole
                     i++;
                     while (i < content.Length && char.IsWhiteSpace(content[i]))
                         i++;
-                }
-                else if (c == '/')
-                {
-                    // Handle comment
-                    i++;
-                    char c2 = content[i];
-                    if (c2 == '/')
-                    {
-                        i++;
-                        while (content[i] != '\n')
-                            i++;
-                    }
-                    else if (c2 == '*')
-                    {
-                        i++;
-                        while (true)
-                        {
-                            if (content[i] == '*' && content[i + 1] == '/')
-                                break;
-                            i++;
-                        }
-                        i += 2;
-                    }
-                    else
-                    {
-                        throw new Exception();
-                    }
                 }
                 else
                 {
@@ -515,6 +561,25 @@ namespace CasualConsole
             }
             return newArr;
         }
+
+        public static bool Equals(object result, object expected)
+        {
+            Type resultType = result.GetType();
+            Type expectedType = expected.GetType();
+
+            if (resultType == typeof(int) && expectedType == typeof(double))
+            {
+                return object.Equals((double)(int)result, expected);
+            }
+            else if (resultType == typeof(double) && expectedType == typeof(int))
+            {
+                return object.Equals(result, (double)(int)expected);
+            }
+            else
+            {
+                return object.Equals(result, expected);
+            }
+        }
     }
 
     struct CustomValue
@@ -532,10 +597,10 @@ namespace CasualConsole
 
         public static CustomValue FromNumber(string s)
         {
-            return new CustomValue(int.Parse(s), ValueType.Number);
+            return new CustomValue(double.Parse(s), ValueType.Number);
         }
 
-        public static CustomValue FromNumber(int s)
+        public static CustomValue FromNumber(double s)
         {
             return new CustomValue(s, ValueType.Number);
         }
@@ -612,7 +677,9 @@ namespace CasualConsole
     {
         None,
         Plus,
-        Minus
+        Minus,
+        Multiply,
+        Divide,
     }
 
     class CustomRange<T> : IReadOnlyList<T>
@@ -681,8 +748,8 @@ namespace CasualConsole
 
             var tree = new ExpressionTree();
 
-            var mainSplitExpressions = expressionTokens.SplitBy(Interpreter.plusMinusSet);
-            foreach (var splitExpression in mainSplitExpressions)
+            var plusMinusSplit = expressionTokens.SplitBy(Interpreter.plusMinusSet);
+            foreach (var splitExpression in plusMinusSplit)
             {
                 if (splitExpression.list.Count == 0)
                     continue;
@@ -693,12 +760,47 @@ namespace CasualConsole
                 else if (splitExpression.operatorToken == "-")
                     operatorType = Operator.Minus;
 
-                var subTree = splitExpression.list[0] == "(" ? ExpressionTree.New(CustomRange.From(splitExpression.list).StripSides()) : ExpressionTree.NewStripped(splitExpression.list);
+                var subTree = ExpressionTree.NewNoPlus(splitExpression.list);
                 tree.expressions.Value.Add((operatorType, subTree));
             }
             return tree;
         }
 
+        public static ExpressionTree NewNoPlus(IReadOnlyList<string> expressionTokens)
+        {
+            if (expressionTokens.Count == 1)
+                return New(expressionTokens[0]);
+
+            var tree = new ExpressionTree();
+
+            var asteriskSlashSplit = expressionTokens.SplitBy(Interpreter.asteriskSlashSet);
+            foreach (var splitExpression in asteriskSlashSplit)
+            {
+                Operator operatorType = Operator.None;
+                if (splitExpression.operatorToken == "*")
+                    operatorType = Operator.Multiply;
+                else if (splitExpression.operatorToken == "/")
+                    operatorType = Operator.Divide;
+
+                var subTree = ExpressionTree.NewNoAsterisk(splitExpression.list);
+                tree.expressions.Value.Add((operatorType, subTree));
+            }
+            return tree;
+        }
+
+        // Can still contain parentheses
+        public static ExpressionTree NewNoAsterisk(IReadOnlyList<string> expressionTokens)
+        {
+            if (expressionTokens.Count == 1)
+                return New(expressionTokens[0]);
+
+            if (expressionTokens[0] == "(")
+                return ExpressionTree.New(CustomRange.From(expressionTokens).StripSides());
+            else
+                return ExpressionTree.NewStripped(expressionTokens);
+        }
+
+        // Should not contain parentheses
         private static ExpressionTree NewStripped(IReadOnlyList<string> expressionTokens)
         {
             var tree = new ExpressionTree();
@@ -727,7 +829,7 @@ namespace CasualConsole
             {
                 var tree = ExpressionTree.New(testCase.tokens);
                 var result = interpreter.EvaluateTree(tree);
-                if (!object.Equals(result.value, testCase.value))
+                if (!InterpreterExtensions.Equals(result.value, testCase.value))
                 {
                     throw new Exception();
                 }
