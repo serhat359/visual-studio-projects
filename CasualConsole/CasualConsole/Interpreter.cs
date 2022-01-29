@@ -49,6 +49,7 @@ namespace CasualConsole
                 ("'Hello world'", "Hello world"),
                 ("('Hello world')", "Hello world"),
                 ("var a = 2; a", 2),
+                ("var a2 = 2; var b2 = a2 = 5; b2", 5),
                 ("var b = 3", 3),
                 ("b = 5", 5),
                 ("b = (7)", 7),
@@ -165,7 +166,7 @@ namespace CasualConsole
                 }
 
                 var expression = new StringRange(tokens, 3, tokens.Count);
-                var value = GetValueFromExpression(expression);
+                var value = InterpretExpression(expression);
                 variables.Add(variableName, value);
                 return value;
             }
@@ -176,7 +177,7 @@ namespace CasualConsole
                 // Assignment to existing variable
                 var variableName = tokens[0];
                 var expression = new StringRange(tokens, 2, tokens.Count);
-                var value = GetValueFromExpression(expression);
+                var value = InterpretExpression(expression);
                 variables[variableName] = value;
                 return value;
             }
