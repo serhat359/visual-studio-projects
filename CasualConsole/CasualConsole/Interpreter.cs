@@ -10,17 +10,18 @@ namespace CasualConsole
     {
         private static readonly HashSet<char> onlyChars = new HashSet<char>()
         {
-            '(', ')', ',', ';', '+', '-', '*', '/'
+            '(', ')', ',', ';'
         };
+        private static readonly HashSet<char> multiChars = new HashSet<char>()
+        {
+            '+', '-', '*', '/', '='
+        };
+        private static readonly HashSet<string> assignmentSet = new HashSet<string>() { "=", "+=", "-=", "*=", "/=" };
         private static readonly HashSet<string> commaSet = new HashSet<string>() { "," };
         public static readonly HashSet<string> plusMinusSet = new HashSet<string>() { "+", "-" };
         public static readonly HashSet<string> equalsSet = new HashSet<string>() { "==", "!=" };
         public static readonly HashSet<string> asteriskSlashSet = new HashSet<string>() { "*", "/" };
         public static readonly HashSet<string> notSet = new HashSet<string>() { "!" };
-        private static readonly HashSet<string> constantDefinedFunctions = new HashSet<string>()
-        {
-            "print"
-        };
 
         private Dictionary<string, CustomValue> variables = new Dictionary<string, CustomValue>();
 
@@ -146,6 +147,13 @@ namespace CasualConsole
                 ("true == false == false", true),
                 ("true == (false == false)", true),
                 ("!true == !true", true),
+                ("var f = 1; f += 2", 3),
+                ("var g = 1; g -= 2", -1),
+                ("var h = 3; h *= 4", 12),
+                ("var i = 4.5; i /= 2", 2.25),
+                ("var j = 'hello'; j += 2", "hello2"),
+                ("var k = 'hello'; k += 2 + 3", "hello5"),
+                ("var l = 'hello'; l += ' '; l += 'world'", "hello world"),
             };
 
             var interpreter = new Interpreter();
@@ -200,14 +208,52 @@ namespace CasualConsole
                 return value;
             }
 
-            bool isAssignment = tokens.Count > 1 && tokens[1] == "=";
+            bool isAssignment = tokens.Count > 1 && assignmentSet.Contains(tokens[1]);
             if (isAssignment)
             {
                 // Assignment to existing variable
                 var variableName = tokens[0];
+                var assignmentToken = tokens[1];
                 var expression = new StringRange(tokens, 2, tokens.Count);
                 var value = InterpretExpression(expression);
-                variables[variableName] = value;
+
+                switch (assignmentToken)
+                {
+                    case "=":
+                        variables[variableName] = value;
+                        break;
+                    case "+=":
+                        {
+                            var existingValue = variables[variableName];
+                            value = AddOrSubtract(new[] { (Operator.None, ExpressionTree.New(existingValue)), (Operator.Plus, ExpressionTree.New(value)) });
+                            variables[variableName] = value;
+                        }
+                        break;
+                    case "-=":
+                        {
+                            var existingValue = variables[variableName];
+                            value = AddOrSubtract(new[] { (Operator.None, ExpressionTree.New(existingValue)), (Operator.Minus, ExpressionTree.New(value)) });
+                            variables[variableName] = value;
+                        }
+                        break;
+                    case "*=":
+                        {
+                            var existingValue = variables[variableName];
+                            value = MultiplyOrDivide(new[] { (Operator.None, ExpressionTree.New(existingValue)), (Operator.Multiply, ExpressionTree.New(value)) });
+                            variables[variableName] = value;
+                        }
+                        break;
+                    case "/=":
+                        {
+                            var existingValue = variables[variableName];
+                            value = MultiplyOrDivide(new[] { (Operator.None, ExpressionTree.New(existingValue)), (Operator.Divide, ExpressionTree.New(value)) });
+                            variables[variableName] = value;
+                        }
+                        break;
+                    default:
+                        throw new Exception();
+                }
+
                 return value;
             }
             else
@@ -391,6 +437,10 @@ namespace CasualConsole
 
         internal CustomValue EvaluateTree(ExpressionTree tree)
         {
+            if (tree.customValue != null)
+            {
+                return tree.customValue.Value;
+            }
             if (tree.tokens != null)
             {
                 return GetValueFromMultipleTokens(tree.tokens);
@@ -508,6 +558,15 @@ namespace CasualConsole
                     {
                         throw new Exception();
                     }
+                }
+                else if (multiChars.Contains(c))
+                {
+                    int start = i;
+                    i++;
+                    while (multiChars.Contains(content[i]))
+                        i++;
+                    string token = content.Substring(start, i - start);
+                    yield return token;
                 }
                 else if (onlyChars.Contains(c))
                 {
@@ -835,6 +894,7 @@ namespace CasualConsole
     {
         public Lazy<List<(Operator operatorType, ExpressionTree tree)>> expressions = new Lazy<List<(Operator, ExpressionTree)>>();
         public IReadOnlyList<string> tokens;
+        public CustomValue? customValue;
 
         private ExpressionTree()
         {
@@ -957,6 +1017,13 @@ namespace CasualConsole
         {
             var tree = new ExpressionTree();
             tree.tokens = new[] { singleToken };
+            return tree;
+        }
+
+        public static ExpressionTree New(CustomValue value)
+        {
+            var tree = new ExpressionTree();
+            tree.customValue = value;
             return tree;
         }
 
