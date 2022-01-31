@@ -35,7 +35,7 @@ namespace CasualConsole
         public static void Test()
         {
             CustomValue.Test();
-            ExpressionTree.Test();
+            ExpressionTreeMethods.Test();
 
             var testCases = new List<(string code, object value)>()
             {
@@ -225,28 +225,28 @@ namespace CasualConsole
                     case "+=":
                         {
                             var existingValue = variables[variableName];
-                            value = AddOrSubtract(new[] { (Operator.None, ExpressionTree.New(existingValue)), (Operator.Plus, ExpressionTree.New(value)) });
+                            value = AddOrSubtract(new (Operator, ExpressionTree)[] { (Operator.None, new ExpressionTreeCustomValue(existingValue)), (Operator.Plus, new ExpressionTreeCustomValue(value)) });
                             variables[variableName] = value;
                         }
                         break;
                     case "-=":
                         {
                             var existingValue = variables[variableName];
-                            value = AddOrSubtract(new[] { (Operator.None, ExpressionTree.New(existingValue)), (Operator.Minus, ExpressionTree.New(value)) });
+                            value = AddOrSubtract(new (Operator, ExpressionTree)[] { (Operator.None, new ExpressionTreeCustomValue(existingValue)), (Operator.Minus, new ExpressionTreeCustomValue(value)) });
                             variables[variableName] = value;
                         }
                         break;
                     case "*=":
                         {
                             var existingValue = variables[variableName];
-                            value = MultiplyOrDivide(new[] { (Operator.None, ExpressionTree.New(existingValue)), (Operator.Multiply, ExpressionTree.New(value)) });
+                            value = MultiplyOrDivide(new (Operator, ExpressionTree)[] { (Operator.None, new ExpressionTreeCustomValue(existingValue)), (Operator.Multiply, new ExpressionTreeCustomValue(value)) });
                             variables[variableName] = value;
                         }
                         break;
                     case "/=":
                         {
                             var existingValue = variables[variableName];
-                            value = MultiplyOrDivide(new[] { (Operator.None, ExpressionTree.New(existingValue)), (Operator.Divide, ExpressionTree.New(value)) });
+                            value = MultiplyOrDivide(new (Operator, ExpressionTree)[] { (Operator.None, new ExpressionTreeCustomValue(existingValue)), (Operator.Divide, new ExpressionTreeCustomValue(value)) });
                             variables[variableName] = value;
                         }
                         break;
@@ -384,7 +384,7 @@ namespace CasualConsole
                 return GetValueFromSingleToken(token);
             }
 
-            var expressionTree = ExpressionTree.New(expressionTokens);
+            var expressionTree = ExpressionTreeMethods.New(expressionTokens);
             return EvaluateTree(expressionTree);
         }
 
@@ -435,19 +435,8 @@ namespace CasualConsole
             throw new Exception();
         }
 
-        internal CustomValue EvaluateTree(ExpressionTree tree)
+        internal CustomValue EvaluateTreeExpressions(List<(Operator operatorType, ExpressionTree tree)> expressions)
         {
-            if (tree.customValue != null)
-            {
-                return tree.customValue.Value;
-            }
-            if (tree.tokens != null)
-            {
-                return GetValueFromMultipleTokens(tree.tokens);
-            }
-
-            var expressions = tree.expressions.Value;
-
             if (expressions.Count == 1)
             {
                 var operation = expressions[0].operatorType;
@@ -486,6 +475,11 @@ namespace CasualConsole
                 return CheckEqualsOrNot(expressions);
             }
             throw new Exception();
+        }
+
+        internal CustomValue EvaluateTree(ExpressionTree tree)
+        {
+            return tree.Evaluate(this);
         }
 
         private bool IsVariableName(string token)
@@ -890,23 +884,19 @@ namespace CasualConsole
         }
     }
 
-    class ExpressionTree
+    interface ExpressionTree
     {
-        public Lazy<List<(Operator operatorType, ExpressionTree tree)>> expressions = new Lazy<List<(Operator, ExpressionTree)>>();
-        public IReadOnlyList<string> tokens;
-        public CustomValue? customValue;
+        CustomValue Evaluate(Interpreter interpreter);
+    }
 
-        private ExpressionTree()
-        {
-
-        }
-
+    static class ExpressionTreeMethods
+    {
         public static ExpressionTree New(IReadOnlyList<string> expressionTokens)
         {
             if (expressionTokens.Count == 1)
                 return New(expressionTokens[0]);
 
-            var tree = new ExpressionTree();
+            var tree = new ExpressionTreeList();
 
             var split = expressionTokens.SplitBy(Interpreter.equalsSet);
             foreach (var splitExpression in split)
@@ -917,7 +907,7 @@ namespace CasualConsole
                 else if (splitExpression.operatorToken == "!=")
                     operatorType = Operator.CheckNotEquals;
 
-                var subTree = ExpressionTree.NewNoEquals(splitExpression.list);
+                var subTree = ExpressionTreeMethods.NewNoEquals(splitExpression.list);
                 tree.expressions.Value.Add((operatorType, subTree));
             }
             return tree;
@@ -928,7 +918,7 @@ namespace CasualConsole
             if (expressionTokens.Count == 1)
                 return New(expressionTokens[0]);
 
-            var tree = new ExpressionTree();
+            var tree = new ExpressionTreeList();
 
             var split = expressionTokens.SplitBy(Interpreter.plusMinusSet);
             foreach (var splitExpression in split)
@@ -942,7 +932,7 @@ namespace CasualConsole
                 else if (splitExpression.operatorToken == "-")
                     operatorType = Operator.Minus;
 
-                var subTree = ExpressionTree.NewNoPlus(splitExpression.list);
+                var subTree = ExpressionTreeMethods.NewNoPlus(splitExpression.list);
                 tree.expressions.Value.Add((operatorType, subTree));
             }
             return tree;
@@ -953,7 +943,7 @@ namespace CasualConsole
             if (expressionTokens.Count == 1)
                 return New(expressionTokens[0]);
 
-            var tree = new ExpressionTree();
+            var tree = new ExpressionTreeList();
 
             var split = expressionTokens.SplitBy(Interpreter.asteriskSlashSet);
             foreach (var splitExpression in split)
@@ -964,7 +954,7 @@ namespace CasualConsole
                 else if (splitExpression.operatorToken == "/")
                     operatorType = Operator.Divide;
 
-                var subTree = ExpressionTree.NewNoAsterisk(splitExpression.list);
+                var subTree = ExpressionTreeMethods.NewNoAsterisk(splitExpression.list);
                 tree.expressions.Value.Add((operatorType, subTree));
             }
             return tree;
@@ -975,7 +965,7 @@ namespace CasualConsole
             if (expressionTokens.Count == 1)
                 return New(expressionTokens[0]);
 
-            var tree = new ExpressionTree();
+            var tree = new ExpressionTreeList();
 
             var split = expressionTokens.SplitBy(Interpreter.notSet);
             foreach (var splitExpression in split)
@@ -987,7 +977,7 @@ namespace CasualConsole
                 if (splitExpression.operatorToken == "!")
                     operatorType = Operator.Not;
 
-                var subTree = ExpressionTree.NewNoNot(splitExpression.list);
+                var subTree = ExpressionTreeMethods.NewNoNot(splitExpression.list);
                 tree.expressions.Value.Add((operatorType, subTree));
             }
             return tree;
@@ -1000,30 +990,27 @@ namespace CasualConsole
                 return New(expressionTokens[0]);
 
             if (expressionTokens[0] == "(")
-                return ExpressionTree.New(CustomRange.From(expressionTokens).StripSides());
+                return ExpressionTreeMethods.New(CustomRange.From(expressionTokens).StripSides());
             else
-                return ExpressionTree.NewStripped(expressionTokens);
+                return ExpressionTreeMethods.NewStripped(expressionTokens);
         }
 
         // Should not contain parentheses
         private static ExpressionTree NewStripped(IReadOnlyList<string> expressionTokens)
         {
-            var tree = new ExpressionTree();
-            tree.tokens = expressionTokens;
+            var tree = new ExpressionTreeTokens(expressionTokens);
             return tree;
         }
 
         private static ExpressionTree New(string singleToken)
         {
-            var tree = new ExpressionTree();
-            tree.tokens = new[] { singleToken };
+            var tree = new ExpressionTreeToken(singleToken);
             return tree;
         }
 
-        public static ExpressionTree New(CustomValue value)
+        static ExpressionTree New(CustomValue value)
         {
-            var tree = new ExpressionTree();
-            tree.customValue = value;
+            var tree = new ExpressionTreeCustomValue(value);
             return tree;
         }
 
@@ -1039,13 +1026,65 @@ namespace CasualConsole
             var interpreter = new Interpreter();
             foreach (var testCase in testCases)
             {
-                var tree = ExpressionTree.New(testCase.tokens);
+                var tree = ExpressionTreeMethods.New(testCase.tokens);
                 var result = interpreter.EvaluateTree(tree);
                 if (!InterpreterExtensions.Equals(result.value, testCase.value))
                 {
                     throw new Exception();
                 }
             }
+        }
+    }
+
+    class ExpressionTreeList : ExpressionTree
+    {
+        public Lazy<List<(Operator operatorType, ExpressionTree tree)>> expressions = new Lazy<List<(Operator, ExpressionTree)>>();
+
+        public CustomValue Evaluate(Interpreter interpreter)
+        {
+            return interpreter.EvaluateTreeExpressions(expressions.Value);
+        }
+    }
+    class ExpressionTreeTokens : ExpressionTree
+    {
+        IReadOnlyList<string> tokens;
+
+        public ExpressionTreeTokens(IReadOnlyList<string> tokens)
+        {
+            this.tokens = tokens;
+        }
+
+        public CustomValue Evaluate(Interpreter interpreter)
+        {
+            return interpreter.GetValueFromMultipleTokens(tokens);
+        }
+    }
+    class ExpressionTreeToken : ExpressionTree
+    {
+        string token;
+
+        public ExpressionTreeToken(string token)
+        {
+            this.token = token;
+        }
+
+        public CustomValue Evaluate(Interpreter interpreter)
+        {
+            return interpreter.GetValueFromSingleToken(token);
+        }
+    }
+    class ExpressionTreeCustomValue : ExpressionTree
+    {
+        CustomValue customValue;
+
+        public ExpressionTreeCustomValue(CustomValue customValue)
+        {
+            this.customValue = customValue;
+        }
+
+        public CustomValue Evaluate(Interpreter interpreter)
+        {
+            return customValue;
         }
     }
 }
