@@ -175,6 +175,8 @@ namespace CasualConsole
                 ("var op21 = 2; var op22 = false ? 5 : op21 = 3; op21", 3), // Checking optimization
                 ("{ var scope1 = null; }", null),
                 ("var scope2 = 2; { scope2 = 3; } scope2", 3),
+                ("var scopeif1 = 5; if(true){ scopeif1 = 8; } scopeif1", 8),
+                ("var scopeif2 = 5; if(false){ scopeif2 = 8; } scopeif2", 5),
             };
 
             var interpreter = new Interpreter();
@@ -1254,6 +1256,10 @@ namespace CasualConsole
                 if (tokens[tokens.Count - 1] != "}") throw new Exception();
                 return new BlockStatement(tokens);
             }
+            else if (tokens[0] == "if")
+            {
+                return new IfStatement(tokens);
+            }
             else
                 return new LineStatement(tokens);
         }
@@ -1321,6 +1327,57 @@ namespace CasualConsole
                 statement.Evaluate(interpreter);
             }
             return CustomValue.Null;
+        }
+    }
+    class IfStatement : Statement
+    {
+        ExpressionTree conditionExpression;
+        Statement statementOfIf;
+        Lazy<List<(ExpressionTree condition, Statement statement)>> elseIfStatements = new Lazy<List<(ExpressionTree, Statement)>>(() => new List<(ExpressionTree, Statement)>());
+        Statement elseStatement;
+
+        public IfStatement(IReadOnlyList<string> tokens)
+        {
+            if (tokens[1] != "(")
+                throw new Exception();
+            var conditionStartIndex = 2;
+            var endOfParentheses = tokens.IndexOfParenthesesEnd(conditionStartIndex);
+            if (endOfParentheses < 0)
+                throw new Exception();
+            var conditionTokens = new StringRange(tokens, conditionStartIndex, endOfParentheses);
+            conditionExpression = ExpressionTreeMethods.New(conditionTokens);
+
+            var statementTokens = new StringRange(tokens, endOfParentheses + 1, tokens.Count);
+            statementOfIf = StatementMethods.New(statementTokens);
+        }
+
+        public CustomValue Evaluate(Interpreter interpreter)
+        {
+            var returnValue = CustomValue.Null;
+
+            var conditionValue = conditionExpression.Evaluate(interpreter);
+            if (conditionValue.IsTruthy())
+            {
+                statementOfIf.Evaluate(interpreter);
+                return returnValue;
+            }
+
+            foreach (var elseIfStatement in elseIfStatements.Value)
+            {
+                var elseIfCondition = elseIfStatement.condition.Evaluate(interpreter);
+                if (elseIfCondition.IsTruthy())
+                {
+                    elseIfStatement.statement.Evaluate(interpreter);
+                    return returnValue;
+                }
+            }
+
+            if (elseStatement != null)
+            {
+                elseStatement.Evaluate(interpreter);
+            }
+
+            return returnValue;
         }
     }
 }
