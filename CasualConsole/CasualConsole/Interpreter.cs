@@ -177,6 +177,9 @@ namespace CasualConsole
                 ("var scope2 = 2; { scope2 = 3; } scope2", 3),
                 ("var scopeif1 = 5; if(true){ scopeif1 = 8; } scopeif1", 8),
                 ("var scopeif2 = 5; if(false){ scopeif2 = 8; } scopeif2", 5),
+                ("var scopeif3 = 5; if(true) scopeif3 = 8; scopeif3", 8),
+                ("var scopeif4 = 5; if(true) if(true) scopeif4 = 8; scopeif4", 8),
+                ("var scopeif5 = 5; if(true) if(true) { scopeif5 += 1; scopeif5 += 1; } scopeif5", 7),
             };
 
             var interpreter = new Interpreter();
