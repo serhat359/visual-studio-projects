@@ -54,13 +54,14 @@ namespace CasualConsole
                 ("\"Hello world\"", "Hello world"),
                 ("'Hello world'", "Hello world"),
                 ("('Hello world')", "Hello world"),
+                ("var aaa = 2", null),
                 ("var aa = 2;", null),
                 ("var a = 2; a", 2),
                 ("var a2 = 2; var b2 = a2 = 5; b2", 5),
-                ("var b = 3", 3),
+                ("var b = 3; b", 3),
                 ("b = 5", 5),
                 ("b = (7)", 7),
-                ("var c = (7) + 2 - 1", 8),
+                ("var c = (7) + 2 - 1; c", 8),
                 ("var _ = 6; _", 6),
                 ("var _a = 7; _a", 7),
                 ("var a_ = 8; a_", 8),
@@ -70,11 +71,11 @@ namespace CasualConsole
                 ("var _2a_ = 12; _2a_", 12),
                 ("var _b2 = 13; _b2", 13),
                 ("var b345 = 14; b345", 14),
-                ("var bbb = true", true),
-                ("var bbbf = false", false),
+                ("var bbb = true; bbb", true),
+                ("var bbbf = false; bbbf", false),
                 ("var bool2 = false; !bool2", true),
-                ("// this is a comment \n var comment = 5", 5),
-                ("/* this is another comment */ var   comment2   =   5", 5),
+                ("// this is a comment \n var comment = 5; comment", 5),
+                ("/* this is another comment */ var   comment2   =   6; comment2", 6),
                 ("returnValue(2)", 2),
                 ("returnValue(5, 6)", 5),
                 ("returnValue(7 + 2)", 9),
@@ -215,7 +216,7 @@ namespace CasualConsole
                 // Assignment to new variable
                 var assignmentTree = ExpressionTreeMethods.NewAssignmentExpressionTree(new StringRange(tokens, 1, tokens.Count), hasVar: true);
                 var value = assignmentTree.Evaluate(this);
-                return value;
+                return CustomValue.Null;
             }
 
             return GetValueFromExpression(tokens);
