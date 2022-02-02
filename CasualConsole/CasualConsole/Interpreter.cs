@@ -971,11 +971,6 @@ namespace CasualConsole
         {
             return GetEnumerator();
         }
-
-        public CustomRange<T> StripSides()
-        {
-            return new CustomRange<T>(this, 1, this.Count - 1);
-        }
     }
 
     class CustomRange
@@ -1127,7 +1122,7 @@ namespace CasualConsole
                 return New(expressionTokens[0]);
 
             if (expressionTokens[0] == "(")
-                return ExpressionTreeMethods.New(CustomRange.From(expressionTokens).StripSides());
+                return ExpressionTreeMethods.New(new StringRange(expressionTokens, 1, expressionTokens.Count - 1));
             else
                 return ExpressionTreeMethods.NewStripped(expressionTokens);
         }
