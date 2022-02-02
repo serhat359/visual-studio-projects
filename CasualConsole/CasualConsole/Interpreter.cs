@@ -181,6 +181,7 @@ namespace CasualConsole
                 ("var scopeif4 = 5; if(true) if(true) scopeif4 = 8; scopeif4", 8),
                 ("var scopeif5 = 5; if(true) if(true) { scopeif5 += 1; scopeif5 += 1; } scopeif5", 7),
                 ("var scopeifelse1 = 6; if(false){ scopeifelse1 = 7; } else { scopeifelse1 = 8; }  scopeifelse1", 8),
+                ("var elseif1 = 1; if(false) elseif1 = 10; else if (false) elseif1 = 11; else if (true) elseif1 = 12; else elseif1 = 13; elseif1", 12),
             };
 
             var interpreter = new Interpreter();
@@ -1322,7 +1323,10 @@ namespace CasualConsole
             }
             else if (tokens[0] == "else")
             {
-                return new ElseStatement(tokens);
+                if (tokens[1] == "if")
+                    return new ElseIfStatement(tokens);
+                else
+                    return new ElseStatement(tokens);
             }
             else
                 return new LineStatement(tokens);
@@ -1435,7 +1439,8 @@ namespace CasualConsole
 
         internal void AddElseIf(Statement statementAfterIf)
         {
-            throw new NotImplementedException();
+            var elseIf = (ElseIfStatement)statementAfterIf;
+            elseIfStatements.Value.Add((elseIf.condition, elseIf.statement));
         }
 
         internal void SetElse(Statement statementAfterIf)
@@ -1472,6 +1477,37 @@ namespace CasualConsole
             }
 
             return returnValue;
+        }
+    }
+    class ElseIfStatement : Statement
+    {
+        internal ExpressionTree condition;
+        internal Statement statement;
+
+        public ElseIfStatement(IReadOnlyList<string> tokens)
+        {
+            if (tokens[2] != "(")
+                throw new Exception();
+            var conditionStartIndex = 3;
+            var endOfParentheses = tokens.IndexOfParenthesesEnd(conditionStartIndex);
+            if (endOfParentheses < 0)
+                throw new Exception();
+            var conditionTokens = new StringRange(tokens, conditionStartIndex, endOfParentheses);
+            condition = ExpressionTreeMethods.New(conditionTokens);
+
+            var statementTokens = new StringRange(tokens, endOfParentheses + 1, tokens.Count);
+            statement = StatementMethods.New(statementTokens);
+        }
+
+        public bool IsIfStatement => false;
+
+        public bool IsElseIfStatement => true;
+
+        public bool IsElseStatement => false;
+
+        public CustomValue Evaluate(Interpreter interpreter)
+        {
+            return statement.Evaluate(interpreter);
         }
     }
     class ElseStatement : Statement
