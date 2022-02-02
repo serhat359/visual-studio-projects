@@ -8,7 +8,7 @@ namespace CasualConsole
 {
     public class Interpreter
     {
-        internal static readonly HashSet<char> onlyChars = new HashSet<char>() { '(', ')', ',', ';' };
+        internal static readonly HashSet<char> onlyChars = new HashSet<char>() { '(', ')', ',', ';', '{', '}' };
         internal static readonly HashSet<char> multiChars = new HashSet<char>() { '+', '-', '*', '/', '=', '?', ':' };
         internal static readonly HashSet<string> assignmentSet = new HashSet<string>() { "=", "+=", "-=", "*=", "/=" };
         internal static readonly HashSet<string> commaSet = new HashSet<string>() { "," };
@@ -173,6 +173,8 @@ namespace CasualConsole
                 ("'foo' ? 2 : 5", 2),
                 ("var op11 = 2; var op12 = true ? 5 : op11 = 3; op11", 2), // Checking optimization
                 ("var op21 = 2; var op22 = false ? 5 : op21 = 3; op21", 3), // Checking optimization
+                ("{ var scope1 = null; }", null),
+                ("var scope2 = 2; { scope2 = 3; } scope2", 3),
             };
 
             var interpreter = new Interpreter();
@@ -193,10 +195,11 @@ namespace CasualConsole
 
         private CustomValue InterpretTokens(IReadOnlyList<string> tokenSource)
         {
-            var statements = tokenSource.GetStatements();
-            foreach (var statement in statements)
+            var statementRanges = tokenSource.GetStatementRanges();
+            foreach (var statementRange in statementRanges)
             {
-                bool isLastStatement = statement.end == tokenSource.Count;
+                bool isLastStatement = statementRange.end == tokenSource.Count;
+                var statement = StatementMethods.New(statementRange);
                 var value = GetValueFromStatement(statement);
                 if (isLastStatement)
                 {
@@ -206,20 +209,9 @@ namespace CasualConsole
             return CustomValue.Null;
         }
 
-        private CustomValue GetValueFromStatement(IReadOnlyList<string> tokens)
+        private CustomValue GetValueFromStatement(Statement statement)
         {
-            if (tokens.Count == 0) return CustomValue.Null;
-
-            var firstToken = tokens[0];
-            if (firstToken == "var")
-            {
-                // Assignment to new variable
-                var assignmentTree = ExpressionTreeMethods.NewAssignmentExpressionTree(new StringRange(tokens, 1, tokens.Count), hasVar: true);
-                var value = assignmentTree.Evaluate(this);
-                return CustomValue.Null;
-            }
-
-            return GetValueFromExpression(tokens);
+            return statement.Evaluate(this);
         }
 
         private CustomValue CallFunction(string functionName, CustomValue[] arguments)
@@ -355,7 +347,7 @@ namespace CasualConsole
             }
         }
 
-        private CustomValue GetValueFromExpression(IReadOnlyList<string> expressionTokens)
+        internal CustomValue GetValueFromExpression(IReadOnlyList<string> expressionTokens)
         {
             if (expressionTokens.Count == 0)
                 throw new Exception();
@@ -662,7 +654,7 @@ namespace CasualConsole
             yield return (new StringRange(tokens, index, tokens.Count), operatorToken);
         }
 
-        public static IEnumerable<StringRange> GetStatements(this IReadOnlyList<string> tokens)
+        public static IEnumerable<StringRange> GetStatementRanges(this IReadOnlyList<string> tokens)
         {
             int index = 0;
             for (int i = 0; i < tokens.Count; i++)
@@ -670,11 +662,32 @@ namespace CasualConsole
                 if (tokens[i] == ";")
                 {
                     yield return new StringRange(tokens, index, i);
+                    index = i + 1;
+                }
+                else if (tokens[i] == "{")
+                {
                     i++;
+                    int braceCount = 1;
+                    while (true)
+                    {
+                        if (tokens[i] == "{") braceCount++;
+                        else if (tokens[i] == "}") braceCount--;
+
+                        if (braceCount == 0)
+                            break;
+
+                        i++;
+                    }
+                    i++;
+                    yield return new StringRange(tokens, index, i);
                     index = i;
                 }
             }
-            yield return new StringRange(tokens, index, tokens.Count);
+
+            if (tokens.Count - index > 0)
+                yield return new StringRange(tokens, index, tokens.Count);
+            else
+                yield break;
         }
 
         public static int IndexOf<T>(this IReadOnlyList<T> source, T element, int startIndex) where T : IEquatable<T>
@@ -1225,6 +1238,89 @@ namespace CasualConsole
         public CustomValue Evaluate(Interpreter interpreter)
         {
             return customValue;
+        }
+    }
+
+    interface Statement
+    {
+        CustomValue Evaluate(Interpreter interpreter);
+    }
+    static class StatementMethods
+    {
+        public static Statement New(IReadOnlyList<string> tokens)
+        {
+            if (tokens[0] == "{")
+            {
+                if (tokens[tokens.Count - 1] != "}") throw new Exception();
+                return new BlockStatement(tokens);
+            }
+            else
+                return new LineStatement(tokens);
+        }
+        static Statement NewLineStatement(IReadOnlyList<string> tokens)
+        {
+            return new LineStatement(tokens);
+        }
+        static Statement NewBlockStatement(IReadOnlyList<string> tokens)
+        {
+            return new BlockStatement(tokens);
+        }
+    }
+    class LineStatement : Statement
+    {
+        IReadOnlyList<string> tokens;
+        bool hasSemiColon;
+
+        public LineStatement(IReadOnlyList<string> tokens)
+        {
+            if (tokens[tokens.Count - 1] == ";")
+            {
+                hasSemiColon = true;
+                tokens = new StringRange(tokens, 0, tokens.Count - 1);
+            }
+
+            this.tokens = tokens;
+        }
+
+        public CustomValue Evaluate(Interpreter interpreter)
+        {
+            if (tokens.Count == 0) return CustomValue.Null;
+
+            var firstToken = tokens[0];
+            if (firstToken == "var")
+            {
+                // Assignment to new variable
+                var assignmentTree = ExpressionTreeMethods.NewAssignmentExpressionTree(new StringRange(tokens, 1, tokens.Count), hasVar: true);
+                var value = assignmentTree.Evaluate(interpreter);
+                return CustomValue.Null;
+            }
+
+            CustomValue expressionValue = interpreter.GetValueFromExpression(tokens);
+            if (hasSemiColon)
+                return CustomValue.Null;
+            return expressionValue;
+        }
+    }
+    class BlockStatement : Statement
+    {
+        List<Statement> statements;
+
+        public BlockStatement(IReadOnlyList<string> tokens)
+        {
+            if (tokens[0] != "{")
+                throw new Exception();
+            tokens = new StringRange(tokens, 1, tokens.Count - 1);
+            var statementRanges = tokens.GetStatementRanges();
+            statements = statementRanges.Select(range => StatementMethods.New(range)).ToList();
+        }
+
+        public CustomValue Evaluate(Interpreter interpreter)
+        {
+            foreach (var statement in statements)
+            {
+                statement.Evaluate(interpreter);
+            }
+            return CustomValue.Null;
         }
     }
 }
