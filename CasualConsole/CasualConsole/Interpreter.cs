@@ -163,6 +163,8 @@ namespace CasualConsole
                 ("true ? true ? 2 : 3 : 5", 2),
                 ("returnValue(true) ? true ? 2 : 3 : 5", 2),
                 ("true ? (true ? 2 : 3) : 5", 2),
+                ("1 ? 1 ? 1 ? 1 : 1 : 1 : 1", 1),
+                ("1 ? 1 : 1 ? 1 : 1 ? 1 : 1", 1),
                 ("1 ? 2 : 5", 2),
                 ("0 ? 2 : 5", 5),
                 ("null ? 2 : 5", 5),
