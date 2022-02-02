@@ -180,6 +180,7 @@ namespace CasualConsole
                 ("var scopeif3 = 5; if(true) scopeif3 = 8; scopeif3", 8),
                 ("var scopeif4 = 5; if(true) if(true) scopeif4 = 8; scopeif4", 8),
                 ("var scopeif5 = 5; if(true) if(true) { scopeif5 += 1; scopeif5 += 1; } scopeif5", 7),
+                ("var scopeifelse1 = 6; if(false){ scopeifelse1 = 7; } else { scopeifelse1 = 8; }  scopeifelse1", 8),
             };
 
             var interpreter = new Interpreter();
@@ -201,16 +202,69 @@ namespace CasualConsole
         private CustomValue InterpretTokens(IReadOnlyList<string> tokenSource)
         {
             var statementRanges = tokenSource.GetStatementRanges();
-            foreach (var statementRange in statementRanges)
+            var statementRangesEnumerator = statementRanges.GetEnumerator();
+
+            while (statementRangesEnumerator.MoveNext())
             {
-                bool isLastStatement = statementRange.end == tokenSource.Count;
+                var statementRange = statementRangesEnumerator.Current;
                 var statement = StatementMethods.New(statementRange);
-                var value = GetValueFromStatement(statement);
-                if (isLastStatement)
+
+                if (statement.IsElseIfStatement || statement.IsElseStatement)
+                    throw new Exception();
+
+                if (statement.IsIfStatement)
                 {
-                    return value;
+                    StringRange nonIfElseStatementRange = null;
+                    Statement nonIfElseStatement = null;
+
+                    var ifStatement = (IfStatement)statement;
+
+                    while (statementRangesEnumerator.MoveNext())
+                    {
+                        var statementRangeAfterIf = statementRangesEnumerator.Current;
+                        var statementAfterIf = StatementMethods.New(statementRangeAfterIf);
+                        if (statementAfterIf.IsElseIfStatement)
+                        {
+                            ifStatement.AddElseIf(statementAfterIf);
+                        }
+                        else if (statementAfterIf.IsElseStatement)
+                        {
+                            ifStatement.SetElse(statementAfterIf);
+                            break;
+                        }
+                        else
+                        {
+                            nonIfElseStatement = statementAfterIf;
+                            nonIfElseStatementRange = statementRangeAfterIf;
+                            break;
+                        }
+                    }
+
+                    var value = GetValueFromStatement(ifStatement);
+                    if (statementRange.end == tokenSource.Count)
+                    {
+                        return value;
+                    }
+
+                    if (nonIfElseStatement != null)
+                    {
+                        value = GetValueFromStatement(nonIfElseStatement);
+                        if (nonIfElseStatementRange.end == tokenSource.Count)
+                        {
+                            return value;
+                        }
+                    }
+                }
+                else
+                {
+                    var value = GetValueFromStatement(statement);
+                    if (statementRange.end == tokenSource.Count)
+                    {
+                        return value;
+                    }
                 }
             }
+
             return CustomValue.Null;
         }
 
@@ -1249,6 +1303,9 @@ namespace CasualConsole
     interface Statement
     {
         CustomValue Evaluate(Interpreter interpreter);
+        bool IsIfStatement { get; }
+        bool IsElseIfStatement { get; }
+        bool IsElseStatement { get; }
     }
     static class StatementMethods
     {
@@ -1262,6 +1319,10 @@ namespace CasualConsole
             else if (tokens[0] == "if")
             {
                 return new IfStatement(tokens);
+            }
+            else if (tokens[0] == "else")
+            {
+                return new ElseStatement(tokens);
             }
             else
                 return new LineStatement(tokens);
@@ -1290,6 +1351,12 @@ namespace CasualConsole
 
             this.tokens = tokens;
         }
+
+        public bool IsIfStatement => false;
+
+        public bool IsElseIfStatement => false;
+
+        public bool IsElseStatement => false;
 
         public CustomValue Evaluate(Interpreter interpreter)
         {
@@ -1323,6 +1390,12 @@ namespace CasualConsole
             statements = statementRanges.Select(range => StatementMethods.New(range)).ToList();
         }
 
+        public bool IsIfStatement => false;
+
+        public bool IsElseIfStatement => false;
+
+        public bool IsElseStatement => false;
+
         public CustomValue Evaluate(Interpreter interpreter)
         {
             foreach (var statement in statements)
@@ -1336,7 +1409,7 @@ namespace CasualConsole
     {
         ExpressionTree conditionExpression;
         Statement statementOfIf;
-        Lazy<List<(ExpressionTree condition, Statement statement)>> elseIfStatements = new Lazy<List<(ExpressionTree, Statement)>>(() => new List<(ExpressionTree, Statement)>());
+        internal Lazy<List<(ExpressionTree condition, Statement statement)>> elseIfStatements = new Lazy<List<(ExpressionTree, Statement)>>(() => new List<(ExpressionTree, Statement)>());
         Statement elseStatement;
 
         public IfStatement(IReadOnlyList<string> tokens)
@@ -1352,6 +1425,24 @@ namespace CasualConsole
 
             var statementTokens = new StringRange(tokens, endOfParentheses + 1, tokens.Count);
             statementOfIf = StatementMethods.New(statementTokens);
+        }
+
+        public bool IsIfStatement => true;
+
+        public bool IsElseIfStatement => false;
+
+        public bool IsElseStatement => false;
+
+        internal void AddElseIf(Statement statementAfterIf)
+        {
+            throw new NotImplementedException();
+        }
+
+        internal void SetElse(Statement statementAfterIf)
+        {
+            if (elseStatement != null)
+                throw new Exception();
+            elseStatement = statementAfterIf;
         }
 
         public CustomValue Evaluate(Interpreter interpreter)
@@ -1381,6 +1472,28 @@ namespace CasualConsole
             }
 
             return returnValue;
+        }
+    }
+    class ElseStatement : Statement
+    {
+        Statement statement;
+
+        public ElseStatement(IReadOnlyList<string> tokens)
+        {
+            if (tokens[0] != "else")
+                throw new Exception();
+            statement = StatementMethods.New(new StringRange(tokens, 1, tokens.Count));
+        }
+
+        public bool IsIfStatement => false;
+
+        public bool IsElseIfStatement => false;
+
+        public bool IsElseStatement => true;
+
+        public CustomValue Evaluate(Interpreter interpreter)
+        {
+            return statement.Evaluate(interpreter);
         }
     }
 }
