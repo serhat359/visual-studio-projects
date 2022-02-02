@@ -8,14 +8,8 @@ namespace CasualConsole
 {
     public class Interpreter
     {
-        private static readonly HashSet<char> onlyChars = new HashSet<char>()
-        {
-            '(', ')', ',', ';'
-        };
-        private static readonly HashSet<char> multiChars = new HashSet<char>()
-        {
-            '+', '-', '*', '/', '='
-        };
+        private static readonly HashSet<char> onlyChars = new HashSet<char>() { '(', ')', ',', ';' };
+        private static readonly HashSet<char> multiChars = new HashSet<char>() { '+', '-', '*', '/', '=' };
         private static readonly HashSet<string> assignmentSet = new HashSet<string>() { "=", "+=", "-=", "*=", "/=" };
         private static readonly HashSet<string> commaSet = new HashSet<string>() { "," };
         public static readonly HashSet<string> plusMinusSet = new HashSet<string>() { "+", "-" };
