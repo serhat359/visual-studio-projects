@@ -192,6 +192,7 @@ namespace CasualConsole
                 ("var elseif3 = 1; if(true) if(false) elseif3 = 5; else elseif3 = 7; elseif3", 7),
                 ("var elseif4 = 1; if(true) if(true) if(false) elseif4 = 2; else if (false) elseif4 = 3; else if (true) elseif4 = 4; else elseif4 = 5; elseif4",4),
                 ("var elseif5 = 1; if(true) if(false) { if(false) elseif5 = 2; } else if (false) elseif5 = 3; else if (true) elseif5 = 4; else elseif5 = 5; elseif5", 4),
+                ("var while1 = 1; while(while1 < 5) while1 += 1; while1", 5),
             };
 
             var interpreter = new Interpreter();
@@ -1384,6 +1385,10 @@ namespace CasualConsole
                 if (tokens[tokens.Count - 1] != "}") throw new Exception();
                 return new BlockStatement(tokens);
             }
+            else if (tokens[0] == "while")
+            {
+                return new WhileStatement(tokens);
+            }
             else if (tokens[0] == "if")
             {
                 return new IfStatement(tokens);
@@ -1405,6 +1410,19 @@ namespace CasualConsole
         static Statement NewBlockStatement(IReadOnlyList<string> tokens)
         {
             return new BlockStatement(tokens);
+        }
+        internal static (ExpressionTree, Statement) GetConditionAndBody(IReadOnlyList<string> tokens, int conditionStartIndex)
+        {
+            var endOfParentheses = tokens.IndexOfParenthesesEnd(conditionStartIndex);
+            if (endOfParentheses < 0)
+                throw new Exception();
+            var conditionTokens = new StringRange(tokens, conditionStartIndex, endOfParentheses);
+            var conditionExpression = ExpressionTreeMethods.New(conditionTokens);
+
+            var statementTokens = new StringRange(tokens, endOfParentheses + 1, tokens.Count);
+            var statement = StatementMethods.New(statementTokens);
+
+            return (conditionExpression, statement);
         }
     }
     class LineStatement : Statement
@@ -1476,6 +1494,43 @@ namespace CasualConsole
             return CustomValue.Null;
         }
     }
+    class WhileStatement : Statement
+    {
+        ExpressionTree conditionExpression;
+        Statement statement;
+
+        public WhileStatement(IReadOnlyList<string> tokens)
+        {
+            if (tokens[1] != "(")
+                throw new Exception();
+            var conditionStartIndex = 2;
+            var (expression, statement) = StatementMethods.GetConditionAndBody(tokens, conditionStartIndex);
+            this.conditionExpression = expression;
+            this.statement = statement;
+        }
+
+        public bool IsIfStatement => false;
+
+        public bool IsElseIfStatement => false;
+
+        public bool IsElseStatement => false;
+
+        public CustomValue Evaluate(Interpreter interpreter)
+        {
+            var returnValue = CustomValue.Null;
+
+            while (true)
+            {
+                var conditionValue = conditionExpression.Evaluate(interpreter);
+                if (!conditionValue.IsTruthy())
+                    break;
+
+                statement.Evaluate(interpreter);
+            }
+
+            return returnValue;
+        }
+    }
     class IfStatement : Statement
     {
         ExpressionTree conditionExpression;
@@ -1488,14 +1543,9 @@ namespace CasualConsole
             if (tokens[1] != "(")
                 throw new Exception();
             var conditionStartIndex = 2;
-            var endOfParentheses = tokens.IndexOfParenthesesEnd(conditionStartIndex);
-            if (endOfParentheses < 0)
-                throw new Exception();
-            var conditionTokens = new StringRange(tokens, conditionStartIndex, endOfParentheses);
-            conditionExpression = ExpressionTreeMethods.New(conditionTokens);
-
-            var statementTokens = new StringRange(tokens, endOfParentheses + 1, tokens.Count);
-            statementOfIf = StatementMethods.New(statementTokens);
+            var (expression, statement) = StatementMethods.GetConditionAndBody(tokens, conditionStartIndex);
+            this.conditionExpression = expression;
+            this.statementOfIf = statement;
         }
 
         public bool IsIfStatement => true;
@@ -1556,14 +1606,9 @@ namespace CasualConsole
             if (tokens[2] != "(")
                 throw new Exception();
             var conditionStartIndex = 3;
-            var endOfParentheses = tokens.IndexOfParenthesesEnd(conditionStartIndex);
-            if (endOfParentheses < 0)
-                throw new Exception();
-            var conditionTokens = new StringRange(tokens, conditionStartIndex, endOfParentheses);
-            condition = ExpressionTreeMethods.New(conditionTokens);
-
-            var statementTokens = new StringRange(tokens, endOfParentheses + 1, tokens.Count);
-            statement = StatementMethods.New(statementTokens);
+            var (condition, statement) = StatementMethods.GetConditionAndBody(tokens, conditionStartIndex);
+            this.condition = condition;
+            this.statement = statement;
         }
 
         public bool IsIfStatement => false;
