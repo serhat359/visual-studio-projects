@@ -9,11 +9,12 @@ namespace CasualConsole
     public class Interpreter
     {
         private static readonly HashSet<char> onlyChars = new HashSet<char>() { '(', ')', ',', ';' };
-        private static readonly HashSet<char> multiChars = new HashSet<char>() { '+', '-', '*', '/', '=' };
+        private static readonly HashSet<char> multiChars = new HashSet<char>() { '+', '-', '*', '/', '=', '?', ':' };
         private static readonly HashSet<string> assignmentSet = new HashSet<string>() { "=", "+=", "-=", "*=", "/=" };
         private static readonly HashSet<string> commaSet = new HashSet<string>() { "," };
         public static readonly HashSet<string> plusMinusSet = new HashSet<string>() { "+", "-" };
         public static readonly HashSet<string> equalsSet = new HashSet<string>() { "==", "!=" };
+        public static readonly IReadOnlyList<string> ternaryList = new string[] { "?", ":" };
         public static readonly HashSet<string> asteriskSlashSet = new HashSet<string>() { "*", "/" };
         public static readonly HashSet<string> notSet = new HashSet<string>() { "!" };
 
@@ -148,6 +149,19 @@ namespace CasualConsole
                 ("var j = 'hello'; j += 2", "hello2"),
                 ("var k = 'hello'; k += 2 + 3", "hello5"),
                 ("var l = 'hello'; l += ' '; l += 'world'", "hello world"),
+                ("true ? 2 : 5", 2),
+                ("false ? 2 : 5", 5),
+                ("true ? 2 : true ? 3 : 5", 2),
+                ("false ? 2 : true ? 3 : 5", 3),
+                ("false ? 2 : false ? 3 : 5", 5),
+                ("true ? true ? 2 : 3 : 5", 2),
+                ("returnValue(true) ? true ? 2 : 3 : 5", 2),
+                ("true ? (true ? 2 : 3) : 5", 2),
+                ("1 ? 2 : 5", 2),
+                ("0 ? 2 : 5", 5),
+                ("null ? 2 : 5", 5),
+                ("'' ? 2 : 5", 5),
+                ("'foo' ? 2 : 5", 2),
             };
 
             var interpreter = new Interpreter();
@@ -278,6 +292,25 @@ namespace CasualConsole
         private CustomValue HandleReturnValue(CustomValue[] arguments)
         {
             return arguments[0];
+        }
+
+        private CustomValue TernaryExpression(List<(Operator operatorType, ExpressionTree tree)> expressions)
+        {
+            bool isValid = expressions.Count == 3
+                && expressions[0].operatorType == Operator.None
+                && expressions[1].operatorType == Operator.QuestionMark
+                && expressions[2].operatorType == Operator.Colon;
+
+            if (!isValid)
+                throw new Exception();
+
+            var conditionValue = expressions[0].tree.Evaluate(this);
+            bool isTruthy = conditionValue.IsTruthy();
+
+            if (isTruthy)
+                return expressions[1].tree.Evaluate(this);
+            else
+                return expressions[2].tree.Evaluate(this);
         }
 
         private CustomValue CheckEqualsOrNot(List<(Operator operatorType, ExpressionTree tree)> trees)
@@ -468,6 +501,10 @@ namespace CasualConsole
             {
                 return CheckEqualsOrNot(expressions);
             }
+            if (operatorType == Operator.QuestionMark)
+            {
+                return TernaryExpression(expressions);
+            }
             throw new Exception();
         }
 
@@ -644,6 +681,38 @@ namespace CasualConsole
             yield return (new StringRange(tokens, index, tokens.Count), operatorToken);
         }
 
+        public static IEnumerable<(IReadOnlyList<string> list, string operatorToken)> SplitByArray(this IReadOnlyList<string> tokens, IReadOnlyList<string> separator)
+        {
+            var index = 0;
+            var parenthesesCount = 0;
+            string operatorToken = null;
+            string firstSeparator = separator[0];
+            string secondSeparator = separator[1];
+            string nextSeparator = firstSeparator;
+            var separatorCount = 0;
+
+            for (int i = 0; i < tokens.Count; i++)
+            {
+                var token = tokens[i];
+                if (token == "(") parenthesesCount++;
+                else if (token == ")") parenthesesCount--;
+
+                if (token == firstSeparator && nextSeparator == secondSeparator) separatorCount++;
+                if (token == secondSeparator && nextSeparator == secondSeparator) separatorCount--;
+
+                if (parenthesesCount == 0 && token == nextSeparator && (token == firstSeparator || (token == secondSeparator && separatorCount == -1)))
+                {
+                    yield return (new StringRange(tokens, index, i), operatorToken);
+                    operatorToken = token;
+                    index = i + 1;
+                    if (nextSeparator == secondSeparator)
+                        break;
+                    nextSeparator = secondSeparator;
+                }
+            }
+            yield return (new StringRange(tokens, index, tokens.Count), operatorToken);
+        }
+
         public static IEnumerable<StringRange> GetStatements(this IReadOnlyList<string> tokens)
         {
             int index = 0;
@@ -787,6 +856,23 @@ namespace CasualConsole
             return new CustomValue(s, ValueType.String);
         }
 
+        internal bool IsTruthy()
+        {
+            switch (type)
+            {
+                case ValueType.Null:
+                    return false;
+                case ValueType.Number:
+                    return ((double)value) != 0;
+                case ValueType.String:
+                    return !string.IsNullOrEmpty((string)value);
+                case ValueType.Bool:
+                    return (bool)value;
+                default:
+                    throw new Exception();
+            }
+        }
+
         internal static void Test()
         {
             var stringTestCases = new List<(string token, string value)>()
@@ -827,6 +913,8 @@ namespace CasualConsole
         CheckEquals,
         CheckNotEquals,
         Not,
+        QuestionMark,
+        Colon,
     }
 
     class CustomRange<T> : IReadOnlyList<T>
@@ -886,6 +974,31 @@ namespace CasualConsole
     static class ExpressionTreeMethods
     {
         public static ExpressionTree New(IReadOnlyList<string> expressionTokens)
+        {
+            if (expressionTokens.Count == 1)
+                return New(expressionTokens[0]);
+
+            var tree = new ExpressionTreeList();
+
+            var split = expressionTokens.SplitByArray(Interpreter.ternaryList).ToList();
+            if (split.Count == 1)
+                return ExpressionTreeMethods.NewTernary(expressionTokens);
+
+            foreach (var splitExpression in split)
+            {
+                Operator operatorType = Operator.None;
+                if (splitExpression.operatorToken == "?")
+                    operatorType = Operator.QuestionMark;
+                else if (splitExpression.operatorToken == ":")
+                    operatorType = Operator.Colon;
+
+                var subTree = ExpressionTreeMethods.New(splitExpression.list);
+                tree.expressions.Value.Add((operatorType, subTree));
+            }
+            return tree;
+        }
+
+        public static ExpressionTree NewTernary(IReadOnlyList<string> expressionTokens)
         {
             if (expressionTokens.Count == 1)
                 return New(expressionTokens[0]);
