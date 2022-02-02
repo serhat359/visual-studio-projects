@@ -9,11 +9,11 @@ namespace CasualConsole
     public class Interpreter
     {
         internal static readonly HashSet<char> onlyChars = new HashSet<char>() { '(', ')', ',', ';', '{', '}' };
-        internal static readonly HashSet<char> multiChars = new HashSet<char>() { '+', '-', '*', '/', '=', '?', ':' };
+        internal static readonly HashSet<char> multiChars = new HashSet<char>() { '+', '-', '*', '/', '=', '?', ':', '<', '>' };
         internal static readonly HashSet<string> assignmentSet = new HashSet<string>() { "=", "+=", "-=", "*=", "/=" };
         internal static readonly HashSet<string> commaSet = new HashSet<string>() { "," };
         internal static readonly HashSet<string> plusMinusSet = new HashSet<string>() { "+", "-" };
-        internal static readonly HashSet<string> equalsSet = new HashSet<string>() { "==", "!=" };
+        internal static readonly HashSet<string> comparisonSet = new HashSet<string>() { "==", "!=", "<", ">", "<=", ">=" };
         internal static readonly IReadOnlyList<string> ternaryList = new string[] { "?", ":" };
         internal static readonly HashSet<string> asteriskSlashSet = new HashSet<string>() { "*", "/" };
         internal static readonly HashSet<string> notSet = new HashSet<string>() { "!" };
@@ -149,6 +149,12 @@ namespace CasualConsole
                 ("true == false == false", true),
                 ("true == (false == false)", true),
                 ("!true == !true", true),
+                ("2 < 3", true),
+                ("2 <= 3", true),
+                ("2 > 3", false),
+                ("2 >= 3", false),
+                ("2 >= 2", true),
+                ("2 <= 2", true),
                 ("var f = 1; f += 2", 3),
                 ("var g = 1; g -= 2", -1),
                 ("var h = 3; h *= 4", 12),
@@ -325,6 +331,39 @@ namespace CasualConsole
                 return expressions[2].tree.Evaluate(this);
         }
 
+        private bool Compare(CustomValue first, CustomValue second, Operator operatorType)
+        {
+            if (first.type != second.type)
+                throw new Exception();
+
+            Func<CustomValue, CustomValue, int> comparer;
+            switch (first.type)
+            {
+                case ValueType.Number:
+                    comparer = (f1, f2) => ((double)f1.value).CompareTo((double)f2.value);
+                    break;
+                case ValueType.String:
+                    comparer = (f1, f2) => ((string)f1.value).CompareTo((string)f2.value);
+                    break;
+                default:
+                    throw new Exception();
+            }
+
+            switch (operatorType)
+            {
+                case Operator.GreaterThan:
+                    return comparer(first, second) > 0;
+                case Operator.LessThan:
+                    return comparer(first, second) < 0;
+                case Operator.GreaterThanOrEqual:
+                    return comparer(first, second) >= 0;
+                case Operator.LessThanOrEqual:
+                    return comparer(first, second) <= 0;
+                default:
+                    throw new Exception();
+            }
+        }
+
         private CustomValue CheckEqualsOrNot(List<(Operator operatorType, ExpressionTree tree)> trees)
         {
             if (trees[0].operatorType != Operator.None) throw new Exception();
@@ -338,8 +377,16 @@ namespace CasualConsole
                 bool result;
                 if (value.operatorType == Operator.CheckEquals)
                     result = object.Equals(lastValue.value, value.value.value);
-                else
+                else if (value.operatorType == Operator.CheckNotEquals)
                     result = !object.Equals(lastValue.value, value.value.value);
+                else if (value.operatorType == Operator.LessThan
+                    || value.operatorType == Operator.GreaterThan
+                    || value.operatorType == Operator.LessThanOrEqual
+                    || value.operatorType == Operator.GreaterThanOrEqual)
+                    result = Compare(lastValue, value.value, value.operatorType);
+                else
+                    throw new Exception();
+
                 lastValue = result ? CustomValue.True : CustomValue.False;
             }
 
@@ -511,7 +558,12 @@ namespace CasualConsole
             {
                 return MultiplyOrDivide(expressions);
             }
-            if (operatorType == Operator.CheckEquals || operatorType == Operator.CheckNotEquals)
+            if (operatorType == Operator.CheckEquals
+                || operatorType == Operator.CheckNotEquals
+                || operatorType == Operator.LessThan
+                || operatorType == Operator.GreaterThan
+                || operatorType == Operator.LessThanOrEqual
+                || operatorType == Operator.GreaterThanOrEqual)
             {
                 return CheckEqualsOrNot(expressions);
             }
@@ -945,6 +997,10 @@ namespace CasualConsole
         Divide,
         CheckEquals,
         CheckNotEquals,
+        GreaterThan,
+        LessThan,
+        GreaterThanOrEqual,
+        LessThanOrEqual,
         Not,
         QuestionMark,
         Colon,
@@ -1038,7 +1094,7 @@ namespace CasualConsole
 
             var tree = new ExpressionTreeList();
 
-            var split = expressionTokens.SplitBy(Interpreter.equalsSet);
+            var split = expressionTokens.SplitBy(Interpreter.comparisonSet);
             foreach (var splitExpression in split)
             {
                 Operator operatorType = Operator.None;
@@ -1046,6 +1102,14 @@ namespace CasualConsole
                     operatorType = Operator.CheckEquals;
                 else if (splitExpression.operatorToken == "!=")
                     operatorType = Operator.CheckNotEquals;
+                else if (splitExpression.operatorToken == "<")
+                    operatorType = Operator.LessThan;
+                else if (splitExpression.operatorToken == ">")
+                    operatorType = Operator.GreaterThan;
+                else if (splitExpression.operatorToken == "<=")
+                    operatorType = Operator.LessThanOrEqual;
+                else if (splitExpression.operatorToken == ">=")
+                    operatorType = Operator.GreaterThanOrEqual;
 
                 var subTree = ExpressionTreeMethods.NewNoEquals(splitExpression.list);
                 tree.expressions.Value.Add((operatorType, subTree));
