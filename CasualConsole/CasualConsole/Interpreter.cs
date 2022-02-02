@@ -182,6 +182,10 @@ namespace CasualConsole
                 ("var scopeif5 = 5; if(true) if(true) { scopeif5 += 1; scopeif5 += 1; } scopeif5", 7),
                 ("var scopeifelse1 = 6; if(false){ scopeifelse1 = 7; } else { scopeifelse1 = 8; }  scopeifelse1", 8),
                 ("var elseif1 = 1; if(false) elseif1 = 10; else if (false) elseif1 = 11; else if (true) elseif1 = 12; else elseif1 = 13; elseif1", 12),
+                ("var elseif2 = 1; if(true) if(true) if(false) elseif2 = 2; else if (false) elseif2 = 3; else if (true) elseif2 = 4; else elseif2 = 5; elseif2", 4),
+                ("var elseif3 = 1; if(true) if(false) elseif3 = 5; else elseif3 = 7; elseif3", 7),
+                ("var elseif4 = 1; if(true) if(true) if(false) elseif4 = 2; else if (false) elseif4 = 3; else if (true) elseif4 = 4; else elseif4 = 5; elseif4",4),
+                ("var elseif5 = 1; if(true) if(false) { if(false) elseif5 = 2; } else if (false) elseif5 = 3; else if (true) elseif5 = 4; else elseif5 = 5; elseif5", 4),
             };
 
             var interpreter = new Interpreter();
@@ -219,6 +223,10 @@ namespace CasualConsole
                     Statement nonIfElseStatement = null;
 
                     var ifStatement = (IfStatement)statement;
+                    while (ifStatement.statementOfIf.IsIfStatement)
+                    {
+                        ifStatement = (IfStatement)ifStatement.statementOfIf;
+                    }
 
                     while (statementRangesEnumerator.MoveNext())
                     {
@@ -1407,7 +1415,7 @@ namespace CasualConsole
     class IfStatement : Statement
     {
         ExpressionTree conditionExpression;
-        Statement statementOfIf;
+        internal Statement statementOfIf;
         internal Lazy<List<(ExpressionTree condition, Statement statement)>> elseIfStatements = new Lazy<List<(ExpressionTree, Statement)>>(() => new List<(ExpressionTree, Statement)>());
         Statement elseStatement;
 
