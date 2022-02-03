@@ -9,13 +9,13 @@ namespace CasualConsole
     public class Interpreter
     {
         internal static readonly HashSet<char> onlyChars = new HashSet<char>() { '(', ')', ',', ';', '{', '}' };
-        internal static readonly HashSet<char> multiChars = new HashSet<char>() { '+', '-', '*', '/', '=', '?', ':', '<', '>' };
-        internal static readonly HashSet<string> assignmentSet = new HashSet<string>() { "=", "+=", "-=", "*=", "/=" };
+        internal static readonly HashSet<char> multiChars = new HashSet<char>() { '+', '-', '*', '/', '%', '=', '?', ':', '<', '>' };
+        internal static readonly HashSet<string> assignmentSet = new HashSet<string>() { "=", "+=", "-=", "*=", "/=", "%=" };
         internal static readonly HashSet<string> commaSet = new HashSet<string>() { "," };
         internal static readonly HashSet<string> plusMinusSet = new HashSet<string>() { "+", "-" };
         internal static readonly HashSet<string> comparisonSet = new HashSet<string>() { "==", "!=", "<", ">", "<=", ">=" };
         internal static readonly IReadOnlyList<string> ternaryList = new string[] { "?", ":" };
-        internal static readonly HashSet<string> asteriskSlashSet = new HashSet<string>() { "*", "/" };
+        internal static readonly HashSet<string> asteriskSlashSet = new HashSet<string>() { "*", "/", "%" };
         internal static readonly HashSet<string> notSet = new HashSet<string>() { "!" };
 
         private Dictionary<string, CustomValue> defaultvariables = new Dictionary<string, CustomValue>();
@@ -182,6 +182,9 @@ namespace CasualConsole
                 ("5 * 2 + 2", 12),
                 ("5 + 2 * 2", 9),
                 ("(5 + 2) * 2", 14),
+                ("5 % 1", 0),
+                ("5 % 2", 1),
+                ("var mod1 = 5; mod1 %= 2", 1),
                 ("2==2", true),
                 ("2==3", false),
                 ("returnValue(2) == 2", true),
@@ -255,7 +258,7 @@ namespace CasualConsole
                 ("abs(0)", 0),
                 ("abs(-1)", 1),
                 ("abs(-15)", 15),
-                //("var gcd = function(a,b) { a = abs(a); b = abs(b); if (b > a) {var temp = a; a = b; b = temp;} while (true) { if (b == 0) return a; a %= b; if (a == 0) return b; b %= a; } }; gcd(24,60)", 12),
+                ("var gcd = function(a,b) { a = abs(a); b = abs(b); if (b > a) {var temp = a; a = b; b = temp;} while (true) { if (b == 0) return a; a %= b; if (a == 0) return b; b %= a; } }; gcd(24,60)", 12),
                 //("returnValue(true)", true),
                 //("(returnValue)(true)", true),
                 //("(function(){})()", null),
@@ -495,6 +498,8 @@ namespace CasualConsole
                     total *= (double)value.value.value;
                 else if (value.operatorType == Operator.Divide)
                     total /= (double)value.value.value;
+                else if (value.operatorType == Operator.Modulus)
+                    total %= (int)(double)value.value.value;
                 else
                     throw new Exception();
             }
@@ -629,7 +634,7 @@ namespace CasualConsole
             {
                 return AddOrSubtract(expressions, variableScope);
             }
-            if (operatorType == Operator.Multiply || operatorType == Operator.Divide)
+            if (operatorType == Operator.Multiply || operatorType == Operator.Divide || operatorType == Operator.Modulus)
             {
                 return MultiplyOrDivide(expressions, variableScope);
             }
@@ -1111,6 +1116,7 @@ namespace CasualConsole
         Minus,
         Multiply,
         Divide,
+        Modulus,
         CheckEquals,
         CheckNotEquals,
         GreaterThan,
@@ -1346,6 +1352,8 @@ namespace CasualConsole
                     operatorType = Operator.Multiply;
                 else if (splitExpression.operatorToken == "/")
                     operatorType = Operator.Divide;
+                else if (splitExpression.operatorToken == "%")
+                    operatorType = Operator.Modulus;
 
                 var subTree = ExpressionTreeMethods.NewNoAsterisk(splitExpression.list);
                 tree.expressions.Value.Add((operatorType, subTree));
@@ -1493,6 +1501,13 @@ namespace CasualConsole
                         {
                             var existingValue = variableScope.GetVariable(variableName);
                             value = interpreter.MultiplyOrDivide(new (Operator, ExpressionTree)[] { (Operator.None, new ExpressionTreeCustomValue(existingValue)), (Operator.Divide, new ExpressionTreeCustomValue(value)) }, variableScope);
+                            variableScope.SetVariable(variableName, value);
+                        }
+                        break;
+                    case "%=":
+                        {
+                            var existingValue = variableScope.GetVariable(variableName);
+                            value = interpreter.MultiplyOrDivide(new (Operator, ExpressionTree)[] { (Operator.None, new ExpressionTreeCustomValue(existingValue)), (Operator.Modulus, new ExpressionTreeCustomValue(value)) }, variableScope);
                             variableScope.SetVariable(variableName, value);
                         }
                         break;
