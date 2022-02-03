@@ -34,6 +34,14 @@ namespace CasualConsole
             return InterpretTokens(tokens).value;
         }
 
+        public static Interpreter GetNewWithDefaultFunctions()
+        {
+            var interpreter = new Interpreter();
+            interpreter.InterpretCode("var returnValue = function(x){ return x; };");
+            interpreter.InterpretCode("var abs = function(x){ if(x < 0) return -x; else return x; };");
+            return interpreter;
+        }
+
         public static void GetStatementRangesTest()
         {
             var testCases = new List<(string code, string[] statements)>
@@ -85,6 +93,7 @@ namespace CasualConsole
 
             var testCases = new List<(string code, object value)>()
             {
+                ("var returnValue = function(x){ return x; };", null),
                 ("", null),
                 ("    ", null),
                 ("2", 2),
@@ -258,10 +267,17 @@ namespace CasualConsole
                 ("abs(0)", 0),
                 ("abs(-1)", 1),
                 ("abs(-15)", 15),
+                ("(abs)(-16)", 16),
                 ("var gcd = function(a,b) { a = abs(a); b = abs(b); if (b > a) {var temp = a; a = b; b = temp;} while (true) { if (b == 0) return a; a %= b; if (a == 0) return b; b %= a; } }; gcd(24,60)", 12),
-                //("returnValue(true)", true),
-                //("(returnValue)(true)", true),
-                //("(function(){})()", null),
+                ("returnValue(true)", true),
+                ("(returnValue)(true)", true),
+                ("(returnValue)(1) + (returnValue)(2)", 3),
+                ("(function(){})()", null),
+                ("(function(){ return 1; })()", 1),
+                ("(function(x){ return x; })(2)", 2),
+                ("(function(){ return abs; })()(-3)", 3),
+                ("returnValue(abs)(-4)", 4),
+                ("(function(){ return function(){ return 1; }; })()()", 1),
                 //("function customReturnConstant(){ return -8; } customReturnConstant()", -8),
             };
 
@@ -363,42 +379,42 @@ namespace CasualConsole
         {
             if (variableScope.TryGetVariable(functionName, out var f))
             {
-                if (f.type != ValueType.Function)
-                    throw new Exception();
-
-                var function = (CustomFunction)f.value;
-                var functionParameterArguments = new Dictionary<string, CustomValue>();
-                for (int i = 0; i < function.parameters.Count; i++)
-                {
-                    var argName = function.parameters[i];
-                    var value = i < arguments.Length ? arguments[i] : CustomValue.Null;
-                    functionParameterArguments[argName] = value;
-                }
-                var newScope = VariableScope.NewWithInner(variableScope, functionParameterArguments);
-                var (result, isReturn) = function.body.Evaluate(this, newScope);
-                return result;
+                return CallFunction(f, arguments, variableScope);
             }
 
             switch (functionName)
             {
                 case "print":
                     return HandlePrint(arguments);
-                case "returnValue":
-                    return HandleReturnValue(arguments);
                 default:
                     throw new Exception();
             }
+        }
+
+        internal CustomValue CallFunction(CustomValue f, CustomValue[] arguments, VariableScope variableScope)
+        {
+            if (f.type == ValueType.String)
+                return CallFunction((string)f.value, arguments, variableScope);
+            if (f.type != ValueType.Function)
+                throw new Exception();
+
+            var function = (CustomFunction)f.value;
+            var functionParameterArguments = new Dictionary<string, CustomValue>();
+            for (int i = 0; i < function.parameters.Count; i++)
+            {
+                var argName = function.parameters[i];
+                var value = i < arguments.Length ? arguments[i] : CustomValue.Null;
+                functionParameterArguments[argName] = value;
+            }
+            var newScope = VariableScope.NewWithInner(variableScope, functionParameterArguments);
+            var (result, isReturn) = function.body.Evaluate(this, newScope);
+            return result;
         }
 
         private CustomValue HandlePrint(CustomValue[] arguments)
         {
             Console.WriteLine(arguments[0].value);
             return CustomValue.Null;
-        }
-
-        private CustomValue HandleReturnValue(CustomValue[] arguments)
-        {
-            return arguments[0];
         }
 
         private CustomValue TernaryExpression(List<(Operator operatorType, ExpressionTree tree)> expressions, VariableScope variableScope)
@@ -592,12 +608,7 @@ namespace CasualConsole
 
             if (IsVariableName(expressionTokens[0]) && expressionTokens[1] == "(")
             {
-                var functionName = expressionTokens[0];
-                var allExpression = new StringRange(expressionTokens, 2, expressionTokens.IndexOfParenthesesEnd(2));
-                var expressions = allExpression.SplitBy(commaSet);
-                var arguments = expressions.Select(expression => GetValueFromExpression(expression.list, variableScope)).ToArray();
-                var returnValue = CallFunction(functionName, arguments, variableScope);
-                return returnValue;
+                return new ExpressionTreeFunctionCall(expressionTokens).EvaluateTree(this, variableScope);
             }
 
             throw new Exception();
@@ -1391,7 +1402,17 @@ namespace CasualConsole
                 return New(expressionTokens[0]);
 
             if (expressionTokens[0] == "(")
-                return ExpressionTreeMethods.New(new StringRange(expressionTokens, 1, expressionTokens.Count - 1));
+            {
+                var end = expressionTokens.IndexOfParenthesesEnd(1);
+                if (end == expressionTokens.Count - 1)
+                {
+                    return ExpressionTreeMethods.New(new StringRange(expressionTokens, 1, expressionTokens.Count - 1));
+                }
+                else
+                {
+                    return new ExpressionTreeFunctionCall(expressionTokens);
+                }
+            }
             else
                 return ExpressionTreeMethods.NewStripped(expressionTokens);
         }
@@ -1568,6 +1589,61 @@ namespace CasualConsole
         public CustomValue EvaluateTree(Interpreter interpreter, VariableScope variableScope)
         {
             return customValue;
+        }
+    }
+    class ExpressionTreeFunctionCall : ExpressionTree
+    {
+        IReadOnlyList<string> tokens;
+
+        public ExpressionTreeFunctionCall(IReadOnlyList<string> tokens)
+        {
+            this.tokens = tokens;
+        }
+
+        public CustomValue EvaluateTree(Interpreter interpreter, VariableScope variableScope)
+        {
+            int tokensLastIndex = tokens.Count - 1;
+
+            int parenthesisIndex;
+            CustomValue function;
+            if (tokens[0] == "(")
+            {
+                var newend = tokens.IndexOfParenthesesEnd(1);
+                parenthesisIndex = newend + 1;
+
+                var functionCreationExpression = ExpressionTreeMethods.New(new StringRange(tokens, 0, parenthesisIndex));
+                function = functionCreationExpression.EvaluateTree(interpreter, variableScope);
+            }
+            else
+            {
+                parenthesisIndex = 1;
+
+                function = CustomValue.FromParsedString(tokens[0]);
+            }
+            int oldEnd = parenthesisIndex - 1;
+            int end = oldEnd;
+            CustomValue returnValue = function;
+
+            while (true)
+            {
+                (end, returnValue) = EvaluateFunctionCall(interpreter, variableScope, returnValue, end);
+                if (end == tokensLastIndex)
+                    return returnValue;
+                else if (end < tokensLastIndex)
+                    continue;
+                else
+                    throw new Exception();
+            }
+        }
+
+        private (int, CustomValue) EvaluateFunctionCall(Interpreter interpreter, VariableScope variableScope, CustomValue function, int oldEnd)
+        {
+            int end = tokens.IndexOfParenthesesEnd(oldEnd + 2);
+            var expressionTokens = new StringRange(tokens, oldEnd + 2, end);
+            var expressions = expressionTokens.SplitBy(Interpreter.commaSet);
+            var arguments = expressions.Select(expression => interpreter.GetValueFromExpression(expression.list, variableScope)).ToArray();
+            CustomValue returnValue = interpreter.CallFunction(function, arguments, variableScope);
+            return (end, returnValue);
         }
     }
 
