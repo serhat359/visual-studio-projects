@@ -60,6 +60,7 @@ namespace CasualConsole
                 ("function(){} + function(){} + function(){}", new[]{ "function(){} + function(){} + function(){}" }),
                 ("function(){};function(){};", new[]{ "function(){};", "function(){};" }),
                 ("var func2 = true ? function(){ return '1'; } : function(){ return '2'; }; func2()", new[]{ "var func2 = true ? function(){ return '1'; } : function(){ return '2'; };", "func2()" }),
+                ("function customReturnConstant(){ return -8; } customReturnConstant()",new []{ "function customReturnConstant(){ return -8; }", "customReturnConstant()" }),
             };
 
             foreach (var testCase in testCases)
@@ -278,7 +279,8 @@ namespace CasualConsole
                 ("(function(){ return abs; })()(-3)", 3),
                 ("returnValue(abs)(-4)", 4),
                 ("(function(){ return function(){ return 1; }; })()()", 1),
-                //("function customReturnConstant(){ return -8; } customReturnConstant()", -8),
+                ("function customReturnConstant(){ return -8; } customReturnConstant()", -8),
+                ("function returnAddAll(x,y,z){ return x + y + z; } returnAddAll(1,2,3)", 6),
             };
 
             var interpreter = new Interpreter();
@@ -894,7 +896,8 @@ namespace CasualConsole
                 }
                 else if (tokens[i] == "function")
                 {
-                    hasFunction = true;
+                    if (tokens[i + 1] == "(")
+                        hasFunction = true;
                 }
                 else if (tokens[i] == "{")
                 {
@@ -1736,19 +1739,27 @@ namespace CasualConsole
         {
             if (tokens.Count == 0) return (CustomValue.Null, false);
 
-            var firstToken = tokens[0];
-            if (firstToken == "var")
+            if (tokens[0] == "var")
             {
                 // Assignment to new variable
                 var assignmentTree = ExpressionTreeMethods.NewAssignmentExpressionTree(new StringRange(tokens, 1, tokens.Count), hasVar: true);
                 var value = assignmentTree.EvaluateTree(interpreter, variableScope);
                 return (CustomValue.Null, false);
             }
-            else if (firstToken == "return")
+            else if (tokens[0] == "return")
             {
                 var returnExpression = ExpressionTreeMethods.New(new StringRange(tokens, 1, tokens.Count));
                 var returnValue = returnExpression.EvaluateTree(interpreter, variableScope);
                 return (returnValue, true);
+            }
+            else if (tokens[0] == "function" && Interpreter.IsVariableName(tokens[1]))
+            {
+                var variableName = tokens[1];
+                var functionStatement = new FunctionStatement(tokens);
+                var function = functionStatement.EvaluateTree(interpreter, variableScope);
+
+                variableScope.AddVariable(variableName, function);
+                return (CustomValue.Null, false);
             }
 
             CustomValue expressionValue = interpreter.GetValueFromExpression(tokens, variableScope);
@@ -1966,7 +1977,8 @@ namespace CasualConsole
 
         public (CustomValue, bool) Evaluate(Interpreter interpreter, VariableScope variableScope)
         {
-            var (parameters, body) = StatementMethods.GetConditionTokensAndBody(tokens, 2, isFunction: true);
+            var parenthesesIndex = tokens.IndexOf("(", 0);
+            var (parameters, body) = StatementMethods.GetConditionTokensAndBody(tokens, parenthesesIndex + 1, isFunction: true);
 
             var parametersMap = new Dictionary<string, int>(); // Map is used to ensure uniqueness
             var parametersList = new List<string>();
