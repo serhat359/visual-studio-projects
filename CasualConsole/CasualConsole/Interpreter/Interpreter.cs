@@ -8,7 +8,7 @@ namespace CasualConsole.Interpreter
 {
     public class Interpreter
     {
-        internal static readonly HashSet<char> onlyChars = new HashSet<char>() { '(', ')', ',', ';', '{', '}' };
+        internal static readonly HashSet<char> onlyChars = new HashSet<char>() { '(', ')', ',', ';', '{', '}', '[', ']' };
         internal static readonly HashSet<char> multiChars = new HashSet<char>() { '+', '-', '*', '/', '%', '=', '?', ':', '<', '>' };
         internal static readonly HashSet<string> assignmentSet = new HashSet<string>() { "=", "+=", "-=", "*=", "/=", "%=" };
         internal static readonly HashSet<string> commaSet = new HashSet<string>() { "," };
@@ -293,6 +293,11 @@ namespace CasualConsole.Interpreter
                 ("function customReturnConstant(){ return -8; } customReturnConstant()", -8),
                 ("function returnAddAll(x,y,z){ return x + y + z; } returnAddAll(1,2,3)", 6),
                 ("var k1 = 2; function f_k1(){ k1 = 10; } f_k1(); k1", 10),
+                ("var o1 = { name: 'Serhat', \"age\": 2, 'otherField': 23 }; o1 != null", true),
+                ("o1['name']", "Serhat"),
+                ("o1['age']", 2),
+                ("o1['otherField']", 23),
+                ("o1['undefinedVariable']", null),
             };
 
             var interpreter = new Interpreter();
@@ -761,7 +766,7 @@ namespace CasualConsole.Interpreter
 
     static class InterpreterExtensions
     {
-        public static IEnumerable<(IReadOnlyList<string> list, string operatorToken)> SplitBy(this IReadOnlyList<string> tokens, HashSet<string> separator)
+        public static IEnumerable<IReadOnlyList<string>> SplitBy(this IReadOnlyList<string> tokens, HashSet<string> separator)
         {
             if (tokens.Count == 0)
                 yield break;
@@ -778,44 +783,12 @@ namespace CasualConsole.Interpreter
 
                 if (parenthesesCount == 0 && separator.Contains(token))
                 {
-                    yield return (new StringRange(tokens, index, i), operatorToken);
+                    yield return new StringRange(tokens, index, i);
                     operatorToken = token;
                     index = i + 1;
                 }
             }
-            yield return (new StringRange(tokens, index, tokens.Count), operatorToken);
-        }
-
-        public static IEnumerable<(IReadOnlyList<string> list, string operatorToken)> SplitByArray(this IReadOnlyList<string> tokens, IReadOnlyList<string> separator)
-        {
-            var index = 0;
-            var parenthesesCount = 0;
-            string operatorToken = null;
-            string firstSeparator = separator[0];
-            string secondSeparator = separator[1];
-            string nextSeparator = firstSeparator;
-            var separatorCount = 0;
-
-            for (int i = 0; i < tokens.Count; i++)
-            {
-                var token = tokens[i];
-                if (token == "(") parenthesesCount++;
-                else if (token == ")") parenthesesCount--;
-
-                if (token == firstSeparator && nextSeparator == secondSeparator) separatorCount++;
-                if (token == secondSeparator && nextSeparator == secondSeparator) separatorCount--;
-
-                if (parenthesesCount == 0 && token == nextSeparator && (token == firstSeparator || (token == secondSeparator && separatorCount == -1)))
-                {
-                    yield return (new StringRange(tokens, index, i), operatorToken);
-                    operatorToken = token;
-                    index = i + 1;
-                    if (nextSeparator == secondSeparator)
-                        break;
-                    nextSeparator = secondSeparator;
-                }
-            }
-            yield return (new StringRange(tokens, index, tokens.Count), operatorToken);
+            yield return new StringRange(tokens, index, tokens.Count);
         }
 
         public static IEnumerable<StringRange> GetStatementRanges(this IReadOnlyList<string> tokens)
@@ -888,34 +861,26 @@ namespace CasualConsole.Interpreter
 
         public static int IndexOfParenthesesEnd(this IReadOnlyList<string> source, int startIndex)
         {
-            int count = 0;
-            for (int i = startIndex; i < source.Count; i++)
-            {
-                string currentElement = source[i];
-                if (currentElement == ")")
-                {
-                    if (count == 0)
-                        return i;
-
-                    count--;
-                    if (count < 0)
-                        throw new Exception();
-                }
-                else if (currentElement == "(")
-                {
-                    count++;
-                }
-            }
-            return -1;
+            return IndexOfPairsEnd(source, startIndex, "(", ")");
         }
 
         public static int IndexOfBracesEnd(this IReadOnlyList<string> source, int startIndex)
+        {
+            return IndexOfPairsEnd(source, startIndex, "{", "}");
+        }
+
+        public static int IndexOfBracketsEnd(this IReadOnlyList<string> source, int startIndex)
+        {
+            return IndexOfPairsEnd(source, startIndex, "[", "]");
+        }
+
+        private static int IndexOfPairsEnd(this IReadOnlyList<string> source, int startIndex, string first, string last)
         {
             int count = 0;
             for (int i = startIndex; i < source.Count; i++)
             {
                 string currentElement = source[i];
-                if (currentElement == "}")
+                if (currentElement == last)
                 {
                     if (count == 0)
                         return i;
@@ -924,7 +889,7 @@ namespace CasualConsole.Interpreter
                     if (count < 0)
                         throw new Exception();
                 }
-                else if (currentElement == "{")
+                else if (currentElement == first)
                 {
                     count++;
                 }
@@ -1046,6 +1011,11 @@ namespace CasualConsole.Interpreter
             return new CustomValue(func, ValueType.Function);
         }
 
+        internal static CustomValue FromMap(Dictionary<string, CustomValue> map)
+        {
+            return new CustomValue(map, ValueType.Map);
+        }
+
         internal bool IsTruthy()
         {
             switch (type)
@@ -1058,6 +1028,8 @@ namespace CasualConsole.Interpreter
                     return !string.IsNullOrEmpty((string)value);
                 case ValueType.Bool:
                     return (bool)value;
+                case ValueType.Map:
+                    return value != null;
                 default:
                     throw new Exception();
             }
@@ -1092,6 +1064,7 @@ namespace CasualConsole.Interpreter
         String,
         Bool,
         Function,
+        Map,
     }
 
     enum Operator
@@ -1119,6 +1092,7 @@ namespace CasualConsole.Interpreter
         AddSubtract = 2,
         MultiplyDivide = 3,
         FunctionCall = 9999,
+        Indexing = 9999,
     }
 
     class CustomRange<T> : IReadOnlyList<T>
@@ -1350,11 +1324,31 @@ namespace CasualConsole.Interpreter
                     {
                         // Function call
                         var end = tokens.IndexOfParenthesesEnd(index + 1);
+                        if (end < 0)
+                            throw new Exception();
                         var parameters = new StringRange(tokens, index + 1, end);
 
                         addToLastNode(Precedence.FunctionCall, (expression, p) =>
                         {
                             return new FunctionCallExpression(expression, parameters);
+                        });
+
+                        index = end + 1;
+                        continue;
+                    }
+
+                    if (newToken == "[")
+                    {
+                        // Indexing
+
+                        var end = tokens.IndexOfBracketsEnd(index + 1);
+                        if (end < 0)
+                            throw new Exception();
+                        var keyExpressionTokens = new StringRange(tokens, index + 1, end);
+
+                        addToLastNode(Precedence.Indexing, (expression, p) =>
+                        {
+                            return new IndexingExpression(expression, keyExpressionTokens);
                         });
 
                         index = end + 1;
@@ -1393,6 +1387,16 @@ namespace CasualConsole.Interpreter
                 var parenthesesTokens = new StringRange(tokens, index, newend + 1);
                 var newExpression = new ParenthesesExpression(parenthesesTokens);
                 return (newExpression, newend + 1);
+            }
+            if (token == "{")
+            {
+                var bracesEnd = tokens.IndexOfBracesEnd(index + 1);
+                if (bracesEnd < 0)
+                    throw new Exception();
+
+                var mapExpressionTokens = new StringRange(tokens, index, bracesEnd + 1);
+                var mapExpression = new MapExpression(mapExpressionTokens);
+                return (mapExpression, bracesEnd + 1);
             }
 
             if (token == "true")
@@ -1508,10 +1512,65 @@ namespace CasualConsole.Interpreter
         public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
         {
             var expressions = parameterTokens.SplitBy(Interpreter.commaSet);
-            var arguments = expressions.Select(expression => interpreter.GetValueFromExpression(expression.list, variableScope)).ToArray();
+            var arguments = expressions.Select(expression => interpreter.GetValueFromExpression(expression, variableScope)).ToArray();
             var function = lValue.EvaluateExpression(interpreter, variableScope);
             CustomValue returnValue = interpreter.CallFunction(function, arguments, variableScope);
             return returnValue;
+        }
+    }
+    class IndexingExpression : Expression
+    {
+        private Expression expression;
+        private IReadOnlyList<string> keyExpressionTokens;
+
+        public IndexingExpression(Expression expression, IReadOnlyList<string> keyExpressionTokens)
+        {
+            this.expression = expression;
+            this.keyExpressionTokens = keyExpressionTokens;
+        }
+
+        public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+        {
+            var ownerExpressionValue = expression.EvaluateExpression(interpreter, variableScope);
+            var keyExpressionValue = ExpressionMethods.New(keyExpressionTokens).EvaluateExpression(interpreter, variableScope);
+
+            if (ownerExpressionValue.type == ValueType.Map && keyExpressionValue.type == ValueType.String)
+            {
+                var map = (Dictionary<string, CustomValue>)ownerExpressionValue.value;
+                if (map.TryGetValue((string)keyExpressionValue.value, out var value))
+                    return value;
+                else
+                    return CustomValue.Null;
+            }
+
+            throw new Exception();
+        }
+    }
+    class MapExpression : Expression
+    {
+        IReadOnlyList<string> tokens;
+
+        public MapExpression(IReadOnlyList<string> tokens)
+        {
+            this.tokens = new StringRange(tokens, 1, tokens.Count - 1);
+        }
+
+        public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+        {
+            var res = tokens.SplitBy(Interpreter.commaSet);
+            var map = new Dictionary<string, CustomValue>();
+            foreach (var item in res)
+            {
+                var firstToken = item[0];
+                var fieldName = Interpreter.IsVariableName(firstToken) ? firstToken : (string)CustomValue.FromString(firstToken).value;
+
+                if (item[1] != ":")
+                    throw new Exception();
+
+                var fieldValue = ExpressionMethods.New(new StringRange(item, 2, item.Count)).EvaluateExpression(interpreter, variableScope);
+                map.Add(fieldName, fieldValue);
+            }
+            return CustomValue.FromMap(map);
         }
     }
     class ParenthesesExpression : Expression
