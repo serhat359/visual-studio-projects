@@ -299,6 +299,10 @@ namespace CasualConsole.Interpreter
                 ("o1['otherField']", 23),
                 ("o1['undefinedVariable']", null),
                 ("o1['otherMap']['field1']", 2001),
+                ("o1['otherMap']['newFieldOtherMap'] = 1256", 1256),
+                ("o1['otherMap']['newFieldOtherMap']", 1256),
+                ("o1['newField'] = 987", 987),
+                ("o1['newField']", 987),
             };
 
             var interpreter = new Interpreter();
@@ -1521,19 +1525,19 @@ namespace CasualConsole.Interpreter
     }
     class IndexingExpression : Expression
     {
-        private Expression expression;
-        private IReadOnlyList<string> keyExpressionTokens;
+        internal Expression baseExpression;
+        internal Expression keyExpression;
 
-        public IndexingExpression(Expression expression, IReadOnlyList<string> keyExpressionTokens)
+        public IndexingExpression(Expression baseExpression, IReadOnlyList<string> keyExpressionTokens)
         {
-            this.expression = expression;
-            this.keyExpressionTokens = keyExpressionTokens;
+            this.baseExpression = baseExpression;
+            this.keyExpression = ExpressionMethods.New(keyExpressionTokens);
         }
 
         public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
         {
-            var ownerExpressionValue = expression.EvaluateExpression(interpreter, variableScope);
-            var keyExpressionValue = ExpressionMethods.New(keyExpressionTokens).EvaluateExpression(interpreter, variableScope);
+            var ownerExpressionValue = baseExpression.EvaluateExpression(interpreter, variableScope);
+            var keyExpressionValue = keyExpression.EvaluateExpression(interpreter, variableScope);
 
             if (ownerExpressionValue.type == ValueType.Map && keyExpressionValue.type == ValueType.String)
             {
@@ -1717,10 +1721,9 @@ namespace CasualConsole.Interpreter
 
         public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
         {
-            var variableName = ((SingleTokenVariableExpression)lValue).token;
-
             if (hasVar)
             {
+                var variableName = ((SingleTokenVariableExpression)lValue).token;
                 if (assignmentOperator != "=")
                     throw new Exception();
 
@@ -1731,52 +1734,62 @@ namespace CasualConsole.Interpreter
             else
             {
                 var value = rValue.EvaluateExpression(interpreter, variableScope);
-                var assignmentToken = assignmentOperator;
 
-                switch (assignmentToken)
+                Func<CustomValue, CustomValue> operation;
+
+                operation = existingValue => interpreter.AddOrSubtract(existingValue, Operator.Plus, value);
+
+                switch (assignmentOperator)
                 {
                     case "=":
-                        variableScope.SetVariable(variableName, value);
+                        operation = existingValue => value;
                         break;
                     case "+=":
-                        {
-                            var existingValue = variableScope.GetVariable(variableName);
-                            value = interpreter.AddOrSubtract(existingValue, Operator.Plus, value);
-                            variableScope.SetVariable(variableName, value);
-                        }
+                        operation = existingValue => interpreter.AddOrSubtract(existingValue, Operator.Plus, value);
                         break;
                     case "-=":
-                        {
-                            var existingValue = variableScope.GetVariable(variableName);
-                            value = interpreter.AddOrSubtract(existingValue, Operator.Minus, value);
-                            variableScope.SetVariable(variableName, value);
-                        }
+                        operation = existingValue => interpreter.AddOrSubtract(existingValue, Operator.Minus, value);
                         break;
                     case "*=":
-                        {
-                            var existingValue = variableScope.GetVariable(variableName);
-                            value = interpreter.MultiplyOrDivide(existingValue, Operator.Multiply, value);
-                            variableScope.SetVariable(variableName, value);
-                        }
+                        operation = existingValue => interpreter.MultiplyOrDivide(existingValue, Operator.Multiply, value);
                         break;
                     case "/=":
-                        {
-                            var existingValue = variableScope.GetVariable(variableName);
-                            value = interpreter.MultiplyOrDivide(existingValue, Operator.Divide, value);
-                            variableScope.SetVariable(variableName, value);
-                        }
+                        operation = existingValue => interpreter.MultiplyOrDivide(existingValue, Operator.Divide, value);
                         break;
                     case "%=":
-                        {
-                            var existingValue = variableScope.GetVariable(variableName);
-                            value = interpreter.MultiplyOrDivide(existingValue, Operator.Modulus, value);
-                            variableScope.SetVariable(variableName, value);
-                        }
+                        operation = existingValue => interpreter.MultiplyOrDivide(existingValue, Operator.Modulus, value);
                         break;
                     default:
                         throw new Exception();
                 }
-                return value;
+
+                if (lValue is SingleTokenVariableExpression singleExpression)
+                {
+                    var variableName = ((SingleTokenVariableExpression)lValue).token;
+                    var existingValue = variableScope.GetVariable(variableName);
+                    var newValue = operation(existingValue);
+                    variableScope.SetVariable(variableName, newValue);
+                    return newValue;
+                }
+                else if (lValue is IndexingExpression indexingExpression)
+                {
+                    var basePart = indexingExpression.baseExpression.EvaluateExpression(interpreter, variableScope);
+                    var keyPart = indexingExpression.keyExpression.EvaluateExpression(interpreter, variableScope);
+
+                    if (basePart.type == ValueType.Map && keyPart.type == ValueType.String)
+                    {
+                        var map = (Dictionary<string, CustomValue>)basePart.value;
+                        var key = (string)keyPart.value;
+                        map[key] = value;
+                        return value;
+                    }
+
+                    throw new Exception();
+                }
+                else
+                {
+                    throw new Exception();
+                }
             }
         }
 
