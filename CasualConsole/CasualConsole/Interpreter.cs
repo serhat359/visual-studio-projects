@@ -281,6 +281,7 @@ namespace CasualConsole
                 ("(function(){ return function(){ return 1; }; })()()", 1),
                 ("function customReturnConstant(){ return -8; } customReturnConstant()", -8),
                 ("function returnAddAll(x,y,z){ return x + y + z; } returnAddAll(1,2,3)", 6),
+                ("var k1 = 2; function f_k1(){ k1 = 10; } f_k1(); k1", 10),
             };
 
             var interpreter = new Interpreter();
