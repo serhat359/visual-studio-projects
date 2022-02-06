@@ -34,12 +34,12 @@ namespace CasualConsole
         {
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 | SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
 
-            Interpreter.Test();
+            Interpreter.Interpreter.Test();
 
             //StartInterpreterConsole();
 
             var code = File.ReadAllText(@"C:\Users\Xhertas\Desktop\program.txt");
-            var result = new Interpreter().InterpretCode(code);
+            var result = new Interpreter.Interpreter().InterpretCode(code);
 
             Console.ReadLine();
 
@@ -131,7 +131,7 @@ namespace CasualConsole
         private static void StartInterpreterConsole()
         {
             Console.WriteLine("Welcome to Serhat's Interpreter!");
-            var consoleInterpreter = new Interpreter();
+            var consoleInterpreter = new Interpreter.Interpreter();
             while (true)
             {
                 Console.Write("$: ");
@@ -139,7 +139,10 @@ namespace CasualConsole
                 try
                 {
                     var val = consoleInterpreter.InterpretCode(line);
-                    Console.WriteLine(val);
+                    if (val is bool valbool)
+                        Console.WriteLine(valbool ? "true" : "false");
+                    else
+                        Console.WriteLine(val?.ToString() ?? "(null)");
                 }
                 catch (Exception e)
                 {

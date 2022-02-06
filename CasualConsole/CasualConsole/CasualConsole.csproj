@@ -91,7 +91,7 @@
     <Compile Include="ExpressionCodes.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="HeroesV.cs" />
-    <Compile Include="Interpreter.cs" />
+    <Compile Include="Interpreter\Interpreter.cs" />
     <Compile Include="Intersection.cs" />
     <Compile Include="JsonTest.cs" />
     <Compile Include="LaytonBridgePuzzle.cs" />
