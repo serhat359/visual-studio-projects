@@ -293,11 +293,12 @@ namespace CasualConsole.Interpreter
                 ("function customReturnConstant(){ return -8; } customReturnConstant()", -8),
                 ("function returnAddAll(x,y,z){ return x + y + z; } returnAddAll(1,2,3)", 6),
                 ("var k1 = 2; function f_k1(){ k1 = 10; } f_k1(); k1", 10),
-                ("var o1 = { name: 'Serhat', \"age\": 2, 'otherField': 23 }; o1 != null", true),
+                ("var o1 = { name: 'Serhat', \"age\": 2, 'otherField': 23, otherMap : { field1: 2001 } }; o1 != null", true),
                 ("o1['name']", "Serhat"),
                 ("o1['age']", 2),
                 ("o1['otherField']", 23),
                 ("o1['undefinedVariable']", null),
+                ("o1['otherMap']['field1']", 2001),
             };
 
             var interpreter = new Interpreter();
