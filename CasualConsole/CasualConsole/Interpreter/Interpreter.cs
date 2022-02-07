@@ -52,6 +52,7 @@ namespace CasualConsole.Interpreter
                 ("var a = 2;", new[]{ "var a = 2;" }),
                 ("var a = 2; var b = 2;", new[]{ "var a = 2;", "var b = 2;" }),
                 ("{}", new[]{ "{}" }),
+                ("({})", new[]{ "({})" }),
                 ("{}{}", new[]{ "{}","{}" }),
                 ("{} var a = 2; {}", new[]{ "{}", "var a = 2;", "{}" }),
                 ("{ var a = 2; }", new[]{ "{ var a = 2; }" }),
@@ -293,7 +294,7 @@ namespace CasualConsole.Interpreter
                 ("function customReturnConstant(){ return -8; } customReturnConstant()", -8),
                 ("function returnAddAll(x,y,z){ return x + y + z; } returnAddAll(1,2,3)", 6),
                 ("var k1 = 2; function f_k1(){ k1 = 10; } f_k1(); k1", 10),
-                ("var o1 = { name: 'Serhat', \"age\": 2, 'otherField': 23, otherMap : { field1: 2001 } }; o1 != null", true),
+                ("var o1 = { name: 'Serhat', \"age\": 2, 'otherField': 23, otherMap : { field1: 2001 }, f:function(){} }; o1 != null", true),
                 ("o1['name']", "Serhat"),
                 ("o1['age']", 2),
                 ("o1['otherField']", 23),
@@ -303,6 +304,11 @@ namespace CasualConsole.Interpreter
                 ("o1['otherMap']['newFieldOtherMap']", 1256),
                 ("o1['newField'] = 987", 987),
                 ("o1['newField']", 987),
+                ("({  }) != null", true),
+                ("(function(){ return { name: 'serhat' } })()['name']", "serhat"),
+                ("({ f: function(){ return -29; } }) != null", true),
+                ("({ f: function(){ return -29; } })['f'] != null", true),
+                ("({ f: function(){ return -29; } })['f']()", -29),
             };
 
             var interpreter = new Interpreter();
@@ -815,6 +821,12 @@ namespace CasualConsole.Interpreter
             bool hasFunction = false;
             for (int i = startingIndex; i < tokens.Count; i++)
             {
+                if (tokens[i] == "(" && i == startingIndex)
+                {
+                    var newIndex = tokens.IndexOfParenthesesEnd(i + 1);
+                    i = newIndex;
+                }
+
                 if (tokens[i] == ";")
                 {
                     i++;
