@@ -317,6 +317,7 @@ namespace CasualConsole.Interpreter
                 ("var while2 = 1; while(while2 < 7) { while2 += 1;  if(while2 == 6) break; } while2", 6),
                 ("var while3 = 0; while(true){ break; } while3", 0),
                 ("var while4 = 0; while(true){ while(true){ while4 = 2; break; } while4 = 4; break; } while4", 4),
+                ("var while5 = 0; var while6 = 1; while(true){ while6 += 1; if(while6 == 10) break; if(while6 % 2 == 0) continue; while5 += 5; } while5", 20),
             };
 
             var interpreter = new Interpreter();
@@ -408,7 +409,7 @@ namespace CasualConsole.Interpreter
             return CustomValue.Null;
         }
 
-        private (CustomValue value, bool isReturn, bool isBreak) GetValueFromStatement(Statement statement, VariableScope variableScope)
+        private (CustomValue value, bool isReturn, bool isBreak, bool isContinue) GetValueFromStatement(Statement statement, VariableScope variableScope)
         {
             return statement.EvaluateStatement(this, variableScope);
         }
@@ -445,8 +446,8 @@ namespace CasualConsole.Interpreter
                 functionParameterArguments[argName] = value;
             }
             var newScope = VariableScope.NewWithInner(variableScope, functionParameterArguments);
-            var (result, isReturn, isBreak) = function.body.EvaluateStatement(this, newScope);
-            if (isBreak)
+            var (result, isReturn, isBreak, isContinue) = function.body.EvaluateStatement(this, newScope);
+            if (isBreak || isContinue)
                 throw new Exception();
             return result;
         }
@@ -1854,7 +1855,7 @@ namespace CasualConsole.Interpreter
 
     interface Statement
     {
-        (CustomValue value, bool isReturn, bool isBreak) EvaluateStatement(Interpreter interpreter, VariableScope variableScope);
+        (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope);
         StatementType Type { get; }
     }
     static class StatementMethods
@@ -1923,28 +1924,32 @@ namespace CasualConsole.Interpreter
 
         public StatementType Type => StatementType.LineStatement;
 
-        public (CustomValue value, bool isReturn, bool isBreak) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
+        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
         {
-            if (tokens.Count == 0) return (CustomValue.Null, false, false);
+            if (tokens.Count == 0) return (CustomValue.Null, false, false, false);
 
             if (tokens[0] == "var")
             {
                 // Assignment to new variable
                 var assignmentTree = AssignmentExpression.FromVarStatement(new StringRange(tokens, 1, tokens.Count));
                 var value = assignmentTree.EvaluateExpression(interpreter, variableScope);
-                return (CustomValue.Null, false, false);
+                return (CustomValue.Null, false, false, false);
             }
             else if (tokens[0] == "return")
             {
                 if (tokens.Count == 1)
-                    return (CustomValue.Null, true, false);
+                    return (CustomValue.Null, true, false, false);
                 var returnExpression = ExpressionMethods.New(new StringRange(tokens, 1, tokens.Count));
                 var returnValue = returnExpression.EvaluateExpression(interpreter, variableScope);
-                return (returnValue, true, false);
+                return (returnValue, true, false, false);
             }
             else if (tokens[0] == "break")
             {
-                return (CustomValue.Null, false, true);
+                return (CustomValue.Null, false, true, false);
+            }
+            else if (tokens[0] == "continue")
+            {
+                return (CustomValue.Null, false, false, true);
             }
             else if (tokens[0] == "function" && Interpreter.IsVariableName(tokens[1]))
             {
@@ -1953,13 +1958,13 @@ namespace CasualConsole.Interpreter
                 var function = functionStatement.EvaluateExpression(interpreter, variableScope);
 
                 variableScope.AddVariable(variableName, function);
-                return (CustomValue.Null, false, false);
+                return (CustomValue.Null, false, false, false);
             }
 
             CustomValue expressionValue = interpreter.GetValueFromExpression(tokens, variableScope);
             if (hasSemiColon)
-                return (CustomValue.Null, false, false);
-            return (expressionValue, false, false);
+                return (CustomValue.Null, false, false, false);
+            return (expressionValue, false, false, false);
         }
     }
     class BlockStatement : Statement
@@ -1979,18 +1984,20 @@ namespace CasualConsole.Interpreter
 
         public StatementType Type => StatementType.BlockStatement;
 
-        public (CustomValue value, bool isReturn, bool isBreak) EvaluateStatement(Interpreter interpreter, VariableScope innerScope)
+        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope innerScope)
         {
             var variableScope = VariableScope.NewWithInner(innerScope);
             foreach (var statement in statements)
             {
-                var (value, isReturn, isBreak) = statement.EvaluateStatement(interpreter, variableScope);
+                var (value, isReturn, isBreak, isContinue) = statement.EvaluateStatement(interpreter, variableScope);
                 if (isReturn)
-                    return (value, true, false);
+                    return (value, true, false, false);
                 if (isBreak)
-                    return (CustomValue.Null, false, true);
+                    return (CustomValue.Null, false, true, false);
+                if (isContinue)
+                    return (CustomValue.Null, false, false, true);
             }
-            return (CustomValue.Null, false, false);
+            return (CustomValue.Null, false, false, false);
         }
     }
     class WhileStatement : Statement
@@ -2010,7 +2017,7 @@ namespace CasualConsole.Interpreter
 
         public StatementType Type => StatementType.WhileStatement;
 
-        public (CustomValue value, bool isReturn, bool isBreak) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
+        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
         {
             while (true)
             {
@@ -2018,14 +2025,16 @@ namespace CasualConsole.Interpreter
                 if (!conditionValue.IsTruthy())
                     break;
 
-                var (value, isReturn, isBreak) = statement.EvaluateStatement(interpreter, variableScope);
+                var (value, isReturn, isBreak, isContinue) = statement.EvaluateStatement(interpreter, variableScope);
                 if (isReturn)
-                    return (value, true, false);
+                    return (value, true, false, false);
                 if (isBreak)
-                    return (CustomValue.Null, false, false); // Should return false for isBreak because it consumes it
+                    break;
+                if (isContinue)
+                    continue;
             }
 
-            return (CustomValue.Null, false, false);
+            return (CustomValue.Null, false, false, false);
         }
     }
     class IfStatement : Statement
@@ -2060,15 +2069,15 @@ namespace CasualConsole.Interpreter
             elseStatement = statementAfterIf;
         }
 
-        public (CustomValue value, bool isReturn, bool isBreak) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
+        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
         {
             var conditionValue = conditionExpression.EvaluateExpression(interpreter, variableScope);
             if (conditionValue.IsTruthy())
             {
-                var (value, isReturn, isBreak) = statementOfIf.EvaluateStatement(interpreter, variableScope);
+                var (value, isReturn, isBreak, isContinue) = statementOfIf.EvaluateStatement(interpreter, variableScope);
                 if (isReturn)
-                    return (value, true, false);
-                return (CustomValue.Null, false, isBreak);
+                    return (value, true, false, false);
+                return (CustomValue.Null, false, isBreak, isContinue);
             }
 
             foreach (var elseIfStatement in elseIfStatements.Value)
@@ -2076,22 +2085,22 @@ namespace CasualConsole.Interpreter
                 var elseIfCondition = elseIfStatement.condition.EvaluateExpression(interpreter, variableScope);
                 if (elseIfCondition.IsTruthy())
                 {
-                    var (value, isReturn, isBreak) = elseIfStatement.statement.EvaluateStatement(interpreter, variableScope);
+                    var (value, isReturn, isBreak, isContinue) = elseIfStatement.statement.EvaluateStatement(interpreter, variableScope);
                     if (isReturn)
-                        return (value, true, false);
-                    return (CustomValue.Null, false, isBreak);
+                        return (value, true, false, false);
+                    return (CustomValue.Null, false, isBreak, isContinue);
                 }
             }
 
             if (elseStatement != null)
             {
-                var (value, isReturn, isBreak) = elseStatement.EvaluateStatement(interpreter, variableScope);
+                var (value, isReturn, isBreak, isContinue) = elseStatement.EvaluateStatement(interpreter, variableScope);
                 if (isReturn)
-                    return (value, true, false);
-                return (CustomValue.Null, false, isBreak);
+                    return (value, true, false, false);
+                return (CustomValue.Null, false, isBreak, isContinue);
             }
 
-            return (CustomValue.Null, false, false);
+            return (CustomValue.Null, false, false, false);
         }
     }
     class ElseIfStatement : Statement
@@ -2111,7 +2120,7 @@ namespace CasualConsole.Interpreter
 
         public StatementType Type => StatementType.ElseIfStatement;
 
-        public (CustomValue value, bool isReturn, bool isBreak) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
+        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
         {
             return statement.EvaluateStatement(interpreter, variableScope);
         }
@@ -2129,7 +2138,7 @@ namespace CasualConsole.Interpreter
 
         public StatementType Type => StatementType.ElseStatement;
 
-        public (CustomValue value, bool isReturn, bool isBreak) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
+        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
         {
             return statement.EvaluateStatement(interpreter, variableScope);
         }
@@ -2145,7 +2154,7 @@ namespace CasualConsole.Interpreter
 
         public StatementType Type => StatementType.FunctionStatement;
 
-        public (CustomValue value, bool isReturn, bool isBreak) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
+        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
         {
             var parenthesesIndex = tokens.IndexOf("(", 0);
             var (parameters, body) = StatementMethods.GetConditionTokensAndBody(tokens, parenthesesIndex + 1, isFunction: true);
@@ -2168,7 +2177,7 @@ namespace CasualConsole.Interpreter
             }
 
             var function = new CustomFunction(parametersList, body);
-            return (CustomValue.FromFunction(function), false, false);
+            return (CustomValue.FromFunction(function), false, false, false);
         }
 
         public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
