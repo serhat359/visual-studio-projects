@@ -321,8 +321,11 @@ namespace CasualConsole.Interpreter
                 ("var while4 = 0; while(true){ while(true){ while4 = 2; break; } while4 = 4; break; } while4", 4),
                 ("var while5 = 0; var while6 = 1; while(true){ while6 += 1; if(while6 == 10) break; if(while6 % 2 == 0) continue; while5 += 5; } while5", 20),
                 ("((x,y) => { return x + y; })(2,3)", 5),
-                ("(() => { return -2; })()", -2),
+                ("(() => { return -1; })()", -1),
                 ("(x => { return -2; })()", -2),
+                ("(() => -3)()", -3),
+                ("(x => -4)()", -4),
+                ("(x => -4 - 2)()", -6),
             };
 
             var interpreter = new Interpreter();
@@ -1333,14 +1336,23 @@ namespace CasualConsole.Interpreter
                     if (newToken == "=>")
                     {
                         var nextToken = tokens[index + 1];
-                        if (nextToken != "{")
-                            throw new Exception();
 
-                        var end = tokens.IndexOfBracesEnd(index + 2);
-                        if (end < 0)
-                            throw new Exception();
+                        IReadOnlyList<string> functionBodyTokens;
+                        int end;
 
-                        var functionBodyTokens = new StringRange(tokens, index + 1, end + 1);
+                        if (nextToken == "{")
+                        {
+                            end = tokens.IndexOfBracesEnd(index + 2);
+                            if (end < 0)
+                                throw new Exception();
+
+                            functionBodyTokens = new StringRange(tokens, index + 1, end + 1);
+                        }
+                        else
+                        {
+                            functionBodyTokens = new StringRange(tokens, index + 1, tokens.Count);
+                            end = tokens.Count - 1;
+                        }
 
                         AddToLastNode(ref previousExpression, Precedence.FunctionCall, (expression, p) =>
                         {
@@ -2191,7 +2203,7 @@ namespace CasualConsole.Interpreter
 
         private FunctionStatement(IReadOnlyList<string> parameters, Statement body)
         {
-            if (parameters[0] == "(")
+            if (parameters.Count > 0 && parameters[0] == "(")
                 throw new Exception();
             this.parameters = parameters;
             this.body = body;
