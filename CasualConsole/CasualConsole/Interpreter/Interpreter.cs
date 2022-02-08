@@ -286,6 +286,9 @@ namespace CasualConsole.Interpreter
                 ("(returnValue)(true)", true),
                 ("(returnValue)(1) + (returnValue)(2)", 3),
                 ("(function(){})()", null),
+                ("(function(){ return true; })()", true),
+                ("(function(){ return; })()", null),
+                ("(function(){ return null; })()", null),
                 ("(function(){ return 1; })()", 1),
                 ("(function(x){ return x; })(2)", 2),
                 ("(function(){ return abs; })()(-3)", 3),
@@ -1923,6 +1926,8 @@ namespace CasualConsole.Interpreter
             }
             else if (tokens[0] == "return")
             {
+                if (tokens.Count == 1)
+                    return (CustomValue.Null, true);
                 var returnExpression = ExpressionMethods.New(new StringRange(tokens, 1, tokens.Count));
                 var returnValue = returnExpression.EvaluateExpression(interpreter, variableScope);
                 return (returnValue, true);
