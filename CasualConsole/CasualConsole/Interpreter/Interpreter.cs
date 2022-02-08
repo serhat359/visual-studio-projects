@@ -345,16 +345,16 @@ namespace CasualConsole.Interpreter
                 var statementRange = statementRangesEnumerator.Current;
                 var statement = StatementMethods.New(statementRange, false);
 
-                if (statement.IsElseIfStatement || statement.IsElseStatement)
+                if (statement.Type == StatementType.ElseIfStatement || statement.Type == StatementType.ElseStatement)
                     throw new Exception();
 
-                if (statement.IsIfStatement)
+                if (statement.Type == StatementType.IfStatement)
                 {
                     StringRange nonIfElseStatementRange = null;
                     Statement nonIfElseStatement = null;
 
                     var ifStatement = (IfStatement)statement;
-                    while (ifStatement.statementOfIf.IsIfStatement)
+                    while (ifStatement.statementOfIf.Type == StatementType.IfStatement)
                     {
                         ifStatement = (IfStatement)ifStatement.statementOfIf;
                     }
@@ -363,11 +363,11 @@ namespace CasualConsole.Interpreter
                     {
                         var statementRangeAfterIf = statementRangesEnumerator.Current;
                         var statementAfterIf = StatementMethods.New(statementRangeAfterIf, false);
-                        if (statementAfterIf.IsElseIfStatement)
+                        if (statementAfterIf.Type == StatementType.ElseIfStatement)
                         {
                             ifStatement.AddElseIf(statementAfterIf);
                         }
-                        else if (statementAfterIf.IsElseStatement)
+                        else if (statementAfterIf.Type == StatementType.ElseStatement)
                         {
                             ifStatement.SetElse(statementAfterIf);
                             break;
@@ -1082,6 +1082,17 @@ namespace CasualConsole.Interpreter
                 }
             }
         }
+    }
+
+    enum StatementType
+    {
+        LineStatement,
+        BlockStatement,
+        IfStatement,
+        ElseIfStatement,
+        ElseStatement,
+        WhileStatement,
+        FunctionStatement,
     }
 
     enum ValueType
@@ -1844,9 +1855,7 @@ namespace CasualConsole.Interpreter
     interface Statement
     {
         (CustomValue value, bool isReturn, bool isBreak) EvaluateStatement(Interpreter interpreter, VariableScope variableScope);
-        bool IsIfStatement { get; }
-        bool IsElseIfStatement { get; }
-        bool IsElseStatement { get; }
+        StatementType Type { get; }
     }
     static class StatementMethods
     {
@@ -1912,11 +1921,7 @@ namespace CasualConsole.Interpreter
             this.tokens = tokens;
         }
 
-        public bool IsIfStatement => false;
-
-        public bool IsElseIfStatement => false;
-
-        public bool IsElseStatement => false;
+        public StatementType Type => StatementType.LineStatement;
 
         public (CustomValue value, bool isReturn, bool isBreak) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
         {
@@ -1972,11 +1977,7 @@ namespace CasualConsole.Interpreter
             this.isFunction = isFunction;
         }
 
-        public bool IsIfStatement => false;
-
-        public bool IsElseIfStatement => false;
-
-        public bool IsElseStatement => false;
+        public StatementType Type => StatementType.BlockStatement;
 
         public (CustomValue value, bool isReturn, bool isBreak) EvaluateStatement(Interpreter interpreter, VariableScope innerScope)
         {
@@ -2007,11 +2008,7 @@ namespace CasualConsole.Interpreter
             this.statement = statement;
         }
 
-        public bool IsIfStatement => false;
-
-        public bool IsElseIfStatement => false;
-
-        public bool IsElseStatement => false;
+        public StatementType Type => StatementType.WhileStatement;
 
         public (CustomValue value, bool isReturn, bool isBreak) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
         {
@@ -2048,11 +2045,7 @@ namespace CasualConsole.Interpreter
             this.statementOfIf = statement;
         }
 
-        public bool IsIfStatement => true;
-
-        public bool IsElseIfStatement => false;
-
-        public bool IsElseStatement => false;
+        public StatementType Type => StatementType.IfStatement;
 
         internal void AddElseIf(Statement statementAfterIf)
         {
@@ -2116,11 +2109,7 @@ namespace CasualConsole.Interpreter
             this.statement = statement;
         }
 
-        public bool IsIfStatement => false;
-
-        public bool IsElseIfStatement => true;
-
-        public bool IsElseStatement => false;
+        public StatementType Type => StatementType.ElseIfStatement;
 
         public (CustomValue value, bool isReturn, bool isBreak) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
         {
@@ -2138,11 +2127,7 @@ namespace CasualConsole.Interpreter
             statement = StatementMethods.New(new StringRange(tokens, 1, tokens.Count), isFunction: false);
         }
 
-        public bool IsIfStatement => false;
-
-        public bool IsElseIfStatement => false;
-
-        public bool IsElseStatement => true;
+        public StatementType Type => StatementType.ElseStatement;
 
         public (CustomValue value, bool isReturn, bool isBreak) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
         {
@@ -2158,11 +2143,7 @@ namespace CasualConsole.Interpreter
             this.tokens = tokens;
         }
 
-        public bool IsIfStatement => false;
-
-        public bool IsElseIfStatement => false;
-
-        public bool IsElseStatement => false;
+        public StatementType Type => StatementType.FunctionStatement;
 
         public (CustomValue value, bool isReturn, bool isBreak) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
         {
