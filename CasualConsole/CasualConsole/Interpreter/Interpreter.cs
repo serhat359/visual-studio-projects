@@ -309,6 +309,8 @@ namespace CasualConsole.Interpreter
                 ("({ f: function(){ return -29; } }) != null", true),
                 ("({ f: function(){ return -29; } })['f'] != null", true),
                 ("({ f: function(){ return -29; } })['f']()", -29),
+                ("({ field: 2 })['field']", 2),
+                ("var o2 = { fieldName: 'field' }; ({ field: 23 })[o2['fieldName']]", 23),
             };
 
             var interpreter = new Interpreter();
@@ -1222,38 +1224,6 @@ namespace CasualConsole.Interpreter
             Expression previousExpression = null;
             var index = 0;
 
-            void addToLastNode(Precedence precedence, Func<Expression, Precedence?, Expression> handler)
-            {
-                if (previousExpression is TreeExpression treeExpression && precedence >= treeExpression.precedence)
-                {
-                    TreeExpression lowestTreeExpression = treeExpression;
-
-                    while (lowestTreeExpression.nextValues[lowestTreeExpression.nextValues.Count - 1].Item2 is TreeExpression subTree
-                        && precedence > subTree.precedence)
-                    {
-                        lowestTreeExpression = subTree;
-                    }
-
-                    var treeElementIndex = lowestTreeExpression.nextValues.Count - 1;
-                    var (treeLastElementOperator, treeLastElementExpression) = lowestTreeExpression.nextValues[treeElementIndex];
-
-                    if (precedence == treeExpression.precedence)
-                    {
-                        var newExpression = handler(lowestTreeExpression, lowestTreeExpression.precedence);
-                    }
-                    else
-                    {
-                        var newExpression = handler(treeLastElementExpression, lowestTreeExpression.precedence);
-                        lowestTreeExpression.nextValues[treeElementIndex] = (treeLastElementOperator, newExpression);
-                    }
-                }
-                else
-                {
-                    var newExpression = handler(previousExpression, null);
-                    previousExpression = newExpression;
-                }
-            };
-
             while (true)
             {
                 if (index == tokens.Count)
@@ -1264,9 +1234,6 @@ namespace CasualConsole.Interpreter
                     var (expression, newIndex) = ReadExpression(tokens, index);
                     if (newIndex <= index)
                         throw new Exception();
-
-                    if (newIndex == tokens.Count)
-                        return expression;
 
                     index = newIndex;
                     previousExpression = expression;
@@ -1293,7 +1260,7 @@ namespace CasualConsole.Interpreter
                         Expression nextExpression;
                         (nextExpression, index) = ReadExpression(tokens, index + 1);
 
-                        addToLastNode(newPrecedence, (expression, precedence) =>
+                        AddToLastNode(ref previousExpression, newPrecedence, (expression, precedence) =>
                         {
                             if (precedence == null || !(precedence == newPrecedence))
                             {
@@ -1345,7 +1312,7 @@ namespace CasualConsole.Interpreter
                             throw new Exception();
                         var parameters = new StringRange(tokens, index + 1, end);
 
-                        addToLastNode(Precedence.FunctionCall, (expression, p) =>
+                        AddToLastNode(ref previousExpression, Precedence.FunctionCall, (expression, p) =>
                         {
                             return new FunctionCallExpression(expression, parameters);
                         });
@@ -1357,13 +1324,12 @@ namespace CasualConsole.Interpreter
                     if (newToken == "[")
                     {
                         // Indexing
-
                         var end = tokens.IndexOfBracketsEnd(index + 1);
                         if (end < 0)
                             throw new Exception();
                         var keyExpressionTokens = new StringRange(tokens, index + 1, end);
 
-                        addToLastNode(Precedence.Indexing, (expression, p) =>
+                        AddToLastNode(ref previousExpression, Precedence.Indexing, (expression, p) =>
                         {
                             return new IndexingExpression(expression, keyExpressionTokens);
                         });
@@ -1459,6 +1425,38 @@ namespace CasualConsole.Interpreter
             }
 
             throw new Exception();
+        }
+
+        private static void AddToLastNode(ref Expression previousExpression, Precedence precedence, Func<Expression, Precedence?, Expression> handler)
+        {
+            if (previousExpression is TreeExpression treeExpression && precedence >= treeExpression.precedence)
+            {
+                TreeExpression lowestTreeExpression = treeExpression;
+
+                while (lowestTreeExpression.nextValues[lowestTreeExpression.nextValues.Count - 1].Item2 is TreeExpression subTree
+                    && precedence > subTree.precedence)
+                {
+                    lowestTreeExpression = subTree;
+                }
+
+                var treeElementIndex = lowestTreeExpression.nextValues.Count - 1;
+                var (treeLastElementOperator, treeLastElementExpression) = lowestTreeExpression.nextValues[treeElementIndex];
+
+                if (precedence == treeExpression.precedence)
+                {
+                    var newExpression = handler(lowestTreeExpression, lowestTreeExpression.precedence);
+                }
+                else
+                {
+                    var newExpression = handler(treeLastElementExpression, lowestTreeExpression.precedence);
+                    lowestTreeExpression.nextValues[treeElementIndex] = (treeLastElementOperator, newExpression);
+                }
+            }
+            else
+            {
+                var newExpression = handler(previousExpression, null);
+                previousExpression = newExpression;
+            }
         }
     }
     class TreeExpression : Expression
