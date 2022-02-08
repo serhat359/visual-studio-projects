@@ -57,6 +57,8 @@ namespace CasualConsole.Interpreter
                 ("{} var a = 2; {}", new[]{ "{}", "var a = 2;", "{}" }),
                 ("{ var a = 2; }", new[]{ "{ var a = 2; }" }),
                 ("function () {}", new[]{ "function () {}" }),
+                ("() => {}", new[]{ "() => {}" }),
+                ("(x,y) => {}", new[]{ "(x,y) => {}" }),
                 ("function(){} + 1", new[]{ "function(){} + 1" }),
                 ("function(){} + function(){} + function(){}", new[]{ "function(){} + function(){} + function(){}" }),
                 ("function(){};function(){};", new[]{ "function(){};", "function(){};" }),
@@ -318,6 +320,9 @@ namespace CasualConsole.Interpreter
                 ("var while3 = 0; while(true){ break; } while3", 0),
                 ("var while4 = 0; while(true){ while(true){ while4 = 2; break; } while4 = 4; break; } while4", 4),
                 ("var while5 = 0; var while6 = 1; while(true){ while6 += 1; if(while6 == 10) break; if(while6 % 2 == 0) continue; while5 += 5; } while5", 20),
+                ("((x,y) => { return x + y; })(2,3)", 5),
+                ("(() => { return -2; })()", -2),
+                ("(x => { return -2; })()", -2),
             };
 
             var interpreter = new Interpreter();
@@ -1132,6 +1137,7 @@ namespace CasualConsole.Interpreter
         MultiplyDivide = 3,
         FunctionCall = 9999,
         Indexing = 9999,
+        LambdaExpression = 9999,
     }
 
     class CustomRange<T> : IReadOnlyList<T>
@@ -1324,6 +1330,39 @@ namespace CasualConsole.Interpreter
                         return ternaryExpression;
                     }
 
+                    if (newToken == "=>")
+                    {
+                        var nextToken = tokens[index + 1];
+                        if (nextToken != "{")
+                            throw new Exception();
+
+                        var end = tokens.IndexOfBracesEnd(index + 2);
+                        if (end < 0)
+                            throw new Exception();
+
+                        var functionBodyTokens = new StringRange(tokens, index + 1, end + 1);
+
+                        AddToLastNode(ref previousExpression, Precedence.FunctionCall, (expression, p) =>
+                        {
+                            if (expression is ParenthesesExpression parenthesesExpression)
+                            {
+                                var parenthesesTokens = parenthesesExpression.parenthesesTokens;
+                                var parameterTokens = new StringRange(parenthesesTokens, 1, parenthesesTokens.Count - 1);
+                                return FunctionStatement.FromParametersAndBody(parameterTokens, functionBodyTokens);
+                            }
+                            else if (expression is SingleTokenVariableExpression singleTokenVariableExpression)
+                            {
+                                var parameterTokens = new string[] { singleTokenVariableExpression.token };
+                                return FunctionStatement.FromParametersAndBody(parameterTokens, functionBodyTokens);
+                            }
+                            else
+                                throw new Exception();
+                        });
+
+                        index = end + 1;
+                        continue;
+                    }
+
                     if (newToken == "(")
                     {
                         // Function call
@@ -1428,7 +1467,7 @@ namespace CasualConsole.Interpreter
                     throw new Exception();
 
                 var functionExpressionTokens = new StringRange(tokens, index, bracesEnd + 1);
-                var functionExpression = new FunctionStatement(functionExpressionTokens);
+                var functionExpression = FunctionStatement.FromTokens(functionExpressionTokens);
                 return (functionExpression, bracesEnd + 1);
             }
             if (Interpreter.IsNumber(token))
@@ -1610,10 +1649,12 @@ namespace CasualConsole.Interpreter
     }
     class ParenthesesExpression : Expression
     {
-        private IReadOnlyList<string> parenthesesTokens;
+        internal IReadOnlyList<string> parenthesesTokens; // Should contain parentheses
 
         public ParenthesesExpression(IReadOnlyList<string> parenthesesTokens)
         {
+            if (parenthesesTokens[0] != "(")
+                throw new Exception();
             this.parenthesesTokens = parenthesesTokens;
         }
 
@@ -1886,7 +1927,7 @@ namespace CasualConsole.Interpreter
             else
                 return new LineStatement(tokens);
         }
-        internal static (IReadOnlyList<string>, Statement) GetConditionTokensAndBody(IReadOnlyList<string> tokens, int conditionStartIndex, bool isFunction)
+        internal static (IReadOnlyList<string>, IReadOnlyList<string>) GetTokensConditionAndBody(IReadOnlyList<string> tokens, int conditionStartIndex)
         {
             var endOfParentheses = tokens.IndexOfParenthesesEnd(conditionStartIndex);
             if (endOfParentheses < 0)
@@ -1894,14 +1935,14 @@ namespace CasualConsole.Interpreter
             var conditionTokens = new StringRange(tokens, conditionStartIndex, endOfParentheses);
 
             var statementTokens = new StringRange(tokens, endOfParentheses + 1, tokens.Count);
-            var statement = StatementMethods.New(statementTokens, isFunction);
 
-            return (conditionTokens, statement);
+            return (conditionTokens, statementTokens);
         }
         internal static (Expression, Statement) GetConditionAndBody(IReadOnlyList<string> tokens, int conditionStartIndex)
         {
-            var (conditionTokens, statement) = GetConditionTokensAndBody(tokens, conditionStartIndex, isFunction: false);
+            var (conditionTokens, statementTokens) = GetTokensConditionAndBody(tokens, conditionStartIndex);
             var conditionExpression = ExpressionMethods.New(conditionTokens);
+            var statement = StatementMethods.New(statementTokens, isFunction: false);
 
             return (conditionExpression, statement);
         }
@@ -1954,7 +1995,7 @@ namespace CasualConsole.Interpreter
             else if (tokens[0] == "function" && Interpreter.IsVariableName(tokens[1]))
             {
                 var variableName = tokens[1];
-                var functionStatement = new FunctionStatement(tokens);
+                var functionStatement = FunctionStatement.FromTokens(tokens);
                 var function = functionStatement.EvaluateExpression(interpreter, variableScope);
 
                 variableScope.AddVariable(variableName, function);
@@ -2145,20 +2186,35 @@ namespace CasualConsole.Interpreter
     }
     class FunctionStatement : Statement, Expression
     {
-        IReadOnlyList<string> tokens;
+        IReadOnlyList<string> parameters; // Should not contain parentheses
+        Statement body;
 
-        public FunctionStatement(IReadOnlyList<string> tokens)
+        private FunctionStatement(IReadOnlyList<string> parameters, Statement body)
         {
-            this.tokens = tokens;
+            if (parameters[0] == "(")
+                throw new Exception();
+            this.parameters = parameters;
+            this.body = body;
         }
 
         public StatementType Type => StatementType.FunctionStatement;
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
+        public static FunctionStatement FromParametersAndBody(IReadOnlyList<string> parameterTokens, IReadOnlyList<string> bodyTokens)
+        {
+            var body = StatementMethods.New(bodyTokens, isFunction: true);
+            return new FunctionStatement(parameterTokens, body);
+        }
+
+        public static FunctionStatement FromTokens(IReadOnlyList<string> tokens)
         {
             var parenthesesIndex = tokens.IndexOf("(", 0);
-            var (parameters, body) = StatementMethods.GetConditionTokensAndBody(tokens, parenthesesIndex + 1, isFunction: true);
+            var (parameters, bodyTokens) = StatementMethods.GetTokensConditionAndBody(tokens, parenthesesIndex + 1);
+            var body = StatementMethods.New(bodyTokens, isFunction: true);
+            return new FunctionStatement(parameters, body);
+        }
 
+        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
+        {
             var parametersMap = new Dictionary<string, int>(); // Map is used to ensure uniqueness
             var parametersList = new List<string>();
             for (int i = 0; i < parameters.Count; i++)
