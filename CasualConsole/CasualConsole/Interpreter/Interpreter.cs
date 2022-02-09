@@ -8,7 +8,7 @@ namespace CasualConsole.Interpreter
 {
     public class Interpreter
     {
-        internal static readonly HashSet<char> onlyChars = new HashSet<char>() { '(', ')', ',', ';', '{', '}', '[', ']' };
+        internal static readonly HashSet<char> onlyChars = new HashSet<char>() { '(', ')', ',', ';', '{', '}', '[', ']', '.' };
         internal static readonly HashSet<char> multiChars = new HashSet<char>() { '+', '-', '*', '/', '%', '=', '?', ':', '<', '>' };
         internal static readonly HashSet<string> assignmentSet = new HashSet<string>() { "=", "+=", "-=", "*=", "/=", "%=" };
         internal static readonly HashSet<string> commaSet = new HashSet<string>() { "," };
@@ -301,14 +301,22 @@ namespace CasualConsole.Interpreter
                 ("var k1 = 2; function f_k1(){ k1 = 10; } f_k1(); k1", 10),
                 ("var o1 = { name: 'Serhat', \"age\": 2, 'otherField': 23, otherMap : { field1: 2001 }, f:function(){} }; o1 != null", true),
                 ("o1['name']", "Serhat"),
+                ("o1.name", "Serhat"),
                 ("o1['age']", 2),
+                ("o1.age", 2),
                 ("o1['otherField']", 23),
+                ("o1.otherField", 23),
                 ("o1['undefinedVariable']", null),
+                ("o1.undefinedVariable", null),
                 ("o1['otherMap']['field1']", 2001),
+                ("o1.otherMap.field1", 2001),
                 ("o1['otherMap']['newFieldOtherMap'] = 1256", 1256),
                 ("o1['otherMap']['newFieldOtherMap']", 1256),
+                ("o1.otherMap.newFieldOtherMap = 1257", 1257),
+                ("o1.otherMap.newFieldOtherMap", 1257),
                 ("o1['newField'] = 987", 987),
                 ("o1['newField']", 987),
+                ("o1.newField", 987),
                 ("({  }) != null", true),
                 ("(function(){ return { name: 'serhat' } })()['name']", "serhat"),
                 ("({ f: function(){ return -29; } }) != null", true),
@@ -629,6 +637,33 @@ namespace CasualConsole.Interpreter
 
             var expressionTree = ExpressionMethods.New(expressionTokens);
             return expressionTree.EvaluateExpression(this, variableScope);
+        }
+
+        internal CustomValue DoIndexingGet(CustomValue ownerExpressionValue, CustomValue keyExpressionValue)
+        {
+            if (ownerExpressionValue.type == ValueType.Map && keyExpressionValue.type == ValueType.String)
+            {
+                var map = (Dictionary<string, CustomValue>)ownerExpressionValue.value;
+                if (map.TryGetValue((string)keyExpressionValue.value, out var value))
+                    return value;
+                else
+                    return CustomValue.Null;
+            }
+
+            throw new Exception();
+        }
+
+        internal CustomValue DoIndexingSet(CustomValue value, CustomValue basePart, CustomValue keyPart)
+        {
+            if (basePart.type == ValueType.Map && keyPart.type == ValueType.String)
+            {
+                var map = (Dictionary<string, CustomValue>)basePart.value;
+                var key = (string)keyPart.value;
+                map[key] = value;
+                return value;
+            }
+
+            throw new Exception();
         }
 
         internal static bool IsVariableName(string token)
@@ -1140,6 +1175,7 @@ namespace CasualConsole.Interpreter
         MultiplyDivide = 3,
         FunctionCall = 9999,
         Indexing = 9999,
+        DotAccess = 9999,
         LambdaExpression = 9999,
     }
 
@@ -1409,6 +1445,22 @@ namespace CasualConsole.Interpreter
                         continue;
                     }
 
+                    if (newToken == ".")
+                    {
+                        // Dot access
+                        var fieldName = tokens[index + 1];
+                        if (!Interpreter.IsVariableName(fieldName))
+                            throw new Exception();
+
+                        AddToLastNode(ref previousExpression, Precedence.DotAccess, (expression, p) =>
+                        {
+                            return new DotAccessExpression(expression, fieldName);
+                        });
+
+                        index += 2;
+                        continue;
+                    }
+
                     throw new Exception();
                 }
             }
@@ -1620,16 +1672,31 @@ namespace CasualConsole.Interpreter
             var ownerExpressionValue = baseExpression.EvaluateExpression(interpreter, variableScope);
             var keyExpressionValue = keyExpression.EvaluateExpression(interpreter, variableScope);
 
-            if (ownerExpressionValue.type == ValueType.Map && keyExpressionValue.type == ValueType.String)
-            {
-                var map = (Dictionary<string, CustomValue>)ownerExpressionValue.value;
-                if (map.TryGetValue((string)keyExpressionValue.value, out var value))
-                    return value;
-                else
-                    return CustomValue.Null;
-            }
+            return interpreter.DoIndexingGet(ownerExpressionValue, keyExpressionValue);
+        }
+    }
+    class DotAccessExpression : Expression
+    {
+        internal Expression baseExpression;
+        private string fieldName;
 
-            throw new Exception();
+        public DotAccessExpression(Expression expression, string fieldName)
+        {
+            this.baseExpression = expression;
+            this.fieldName = fieldName;
+        }
+
+        public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+        {
+            var ownerExpressionValue = baseExpression.EvaluateExpression(interpreter, variableScope);
+            var keyExpressionValue = GetKeyValue();
+
+            return interpreter.DoIndexingGet(ownerExpressionValue, keyExpressionValue);
+        }
+
+        public CustomValue GetKeyValue()
+        {
+            return CustomValue.FromParsedString(fieldName);
         }
     }
     class MapExpression : Expression
@@ -1859,15 +1926,14 @@ namespace CasualConsole.Interpreter
                     var basePart = indexingExpression.baseExpression.EvaluateExpression(interpreter, variableScope);
                     var keyPart = indexingExpression.keyExpression.EvaluateExpression(interpreter, variableScope);
 
-                    if (basePart.type == ValueType.Map && keyPart.type == ValueType.String)
-                    {
-                        var map = (Dictionary<string, CustomValue>)basePart.value;
-                        var key = (string)keyPart.value;
-                        map[key] = value;
-                        return value;
-                    }
+                    return interpreter.DoIndexingSet(value, basePart, keyPart);
+                }
+                else if (lValue is DotAccessExpression dotAccessExpression)
+                {
+                    var basePart = dotAccessExpression.baseExpression.EvaluateExpression(interpreter, variableScope);
+                    var keyPart = dotAccessExpression.GetKeyValue();
 
-                    throw new Exception();
+                    return interpreter.DoIndexingSet(value, basePart, keyPart);
                 }
                 else
                 {
