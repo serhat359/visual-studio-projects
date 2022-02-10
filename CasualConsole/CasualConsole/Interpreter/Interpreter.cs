@@ -342,6 +342,8 @@ namespace CasualConsole.Interpreter
                 ("var plusplus4 = { obj: { number: 28 } }; ++plusplus4.obj.number", 29),
                 ("var plusplus5 = { obj2: { number: 30 } }; ++plusplus5['obj2'].number", 31),
                 ("var plusplus6 = { number: -10 }; ++plusplus6.number; plusplus6.number", -9),
+                ("var minusminus1 = { number: 28 }; --minusminus1.number", 27),
+                ("var minusminus2 = { number: 29 }; --minusminus2['number']", 28),
             };
 
             var interpreter = new Interpreter();
@@ -1545,6 +1547,12 @@ namespace CasualConsole.Interpreter
             {
                 var (expressionRest, lastIndex) = ReadExpression(tokens, index + 1);
                 var newExpression = new PrePostIncDecExpression(expressionRest, isPre: true, isInc: true);
+                return (newExpression, lastIndex);
+            }
+            if (token == "--")
+            {
+                var (expressionRest, lastIndex) = ReadExpression(tokens, index + 1);
+                var newExpression = new PrePostIncDecExpression(expressionRest, isPre: true, isInc: false);
                 return (newExpression, lastIndex);
             }
 
