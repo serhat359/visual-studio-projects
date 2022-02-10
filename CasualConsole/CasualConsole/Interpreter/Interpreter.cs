@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
@@ -42,7 +43,7 @@ namespace CasualConsole.Interpreter
             return InterpretTokens(tokens).value;
         }
 
-        private static void GetStatementRangesTest()
+        private static void GetStatementRangesTest(bool verbose)
         {
             var testCases = new List<(string code, string[] statements)>
             {
@@ -82,17 +83,20 @@ namespace CasualConsole.Interpreter
                 }
             }
 
-            var oldColor = Console.ForegroundColor;
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("All GetStatementRangesTest tests have passed!");
-            Console.ForegroundColor = oldColor;
+            if (verbose)
+            {
+                var oldColor = Console.ForegroundColor;
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("All GetStatementRangesTest tests have passed!");
+                Console.ForegroundColor = oldColor;
+            }
         }
 
-        public static void Test()
+        public static void Test(bool verbose = true)
         {
             CustomValue.Test();
 
-            GetStatementRangesTest();
+            GetStatementRangesTest(verbose);
 
             var testCases = new List<(string code, object value)>()
             {
@@ -378,10 +382,30 @@ namespace CasualConsole.Interpreter
                 }
             }
 
-            var oldColor = Console.ForegroundColor;
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("All Interpreter tests have passed!");
-            Console.ForegroundColor = oldColor;
+            if (verbose)
+            {
+                var oldColor = Console.ForegroundColor;
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("All Interpreter tests have passed!");
+                Console.ForegroundColor = oldColor;
+            }
+        }
+
+        public static void Benchmark()
+        {
+            var stopwatch = new Stopwatch();
+            while (true)
+            {
+                stopwatch.Restart();
+
+                for (int i = 0; i < 200; i++)
+                {
+                    Test(verbose: false);
+                }
+
+                stopwatch.Stop();
+                Console.WriteLine($"Elapsed millis: {stopwatch.ElapsedMilliseconds}");
+            }
         }
 
         private CustomValue InterpretTokens(IReadOnlyList<string> tokenSource)
@@ -1206,9 +1230,18 @@ namespace CasualConsole.Interpreter
 
             public CustomRange(IReadOnlyList<T> array, int start, int end)
             {
-                this.array = array;
-                this.start = start;
-                this.end = end;
+                if (array is CustomRange<T> range)
+                {
+                    this.array = (List<T>)range.array;
+                    this.start = range.start + start;
+                    this.end = this.start + (end - start);
+                }
+                else
+                {
+                    this.array = array;
+                    this.start = start;
+                    this.end = end;
+                }
             }
 
             public T this[int index] => array[start + index];
