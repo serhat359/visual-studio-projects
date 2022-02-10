@@ -9,11 +9,12 @@ namespace CasualConsole.Interpreter
     public class Interpreter
     {
         internal static readonly HashSet<char> onlyChars = new HashSet<char>() { '(', ')', ',', ';', '{', '}', '[', ']', '.' };
-        internal static readonly HashSet<char> multiChars = new HashSet<char>() { '+', '-', '*', '/', '%', '=', '?', ':', '<', '>' };
+        internal static readonly HashSet<char> multiChars = new HashSet<char>() { '+', '-', '*', '/', '%', '=', '?', ':', '<', '>', '&', '|' };
         internal static readonly HashSet<string> assignmentSet = new HashSet<string>() { "=", "+=", "-=", "*=", "/=", "%=" };
         internal static readonly HashSet<string> commaSet = new HashSet<string>() { "," };
         internal static readonly HashSet<string> plusMinusSet = new HashSet<string>() { "+", "-" };
         internal static readonly HashSet<string> comparisonSet = new HashSet<string>() { "==", "!=", "<", ">", "<=", ">=" };
+        internal static readonly HashSet<string> andOrSet = new HashSet<string>() { "&&", "||" };
         internal static readonly IReadOnlyList<string> ternaryList = new string[] { "?", ":" };
         internal static readonly HashSet<string> asteriskSlashSet = new HashSet<string>() { "*", "/", "%" };
         internal static readonly HashSet<string> notSet = new HashSet<string>() { "!" };
@@ -344,6 +345,21 @@ namespace CasualConsole.Interpreter
                 ("var plusplus6 = { number: -10 }; ++plusplus6.number; plusplus6.number", -9),
                 ("var minusminus1 = { number: 28 }; --minusminus1.number", 27),
                 ("var minusminus2 = { number: 29 }; --minusminus2['number']", 28),
+                ("1 == 1 && 2 == 2", true),
+                ("1 == 1 && 2 == 3", false),
+                ("0 == 1 && 2 == 2", false),
+                ("0 == 1 && 2 == 3", false),
+                ("var o5 = { number: 29 }; o5 != null && o5.number == 29", true),
+                ("var o6 = null; o6 != null && o6.number == 29", false), // Optimization check
+                ("var o7 = { number: 32 }; o7 && o7.number == 32", true), // Truthy check
+                ("var o8 = null; o8 && o8.number == 33", false), // Optimization check with truthy
+                ("1 == 1 || 2 == 2", true),
+                ("1 == 1 || 2 == 3", true),
+                ("0 == 1 || 2 == 2", true),
+                ("0 == 1 || 2 == 3", false),
+                ("var x1 = -9; var modifier = function(){ x1 = -8; return false; }", null), // Preperation for next test
+                ("var x2 = false && modifier(); x2 == false && x1 == -9", true), // Optimization check
+                ("var x3 = true && modifier(); x3 == false && x1 == -8", true), // Optimization check
             };
 
             var interpreter = new Interpreter();
@@ -515,6 +531,38 @@ namespace CasualConsole.Interpreter
                 default:
                     throw new Exception();
             }
+        }
+
+        internal CustomValue AndOr(Expression firstTree, IReadOnlyList<(Operator operatorType, Expression tree)> trees, VariableScope variableScope)
+        {
+            var firstValue = firstTree.EvaluateExpression(this, variableScope);
+
+            bool result = firstValue.IsTruthy();
+
+            for (int i = 0; i < trees.Count; i++)
+            {
+                var nextTree = trees[i];
+                if (nextTree.operatorType == Operator.AndAnd)
+                {
+                    if (!result)
+                        continue;
+                    var nextValue = nextTree.tree.EvaluateExpression(this, variableScope);
+                    bool isNextTruthy = nextValue.IsTruthy();
+                    result = result && isNextTruthy;
+                }
+                else if (nextTree.operatorType == Operator.OrOr)
+                {
+                    if (result)
+                        continue;
+                    var nextValue = nextTree.tree.EvaluateExpression(this, variableScope);
+                    bool isNextTruthy = nextValue.IsTruthy();
+                    result = result || isNextTruthy;
+                }
+                else
+                    throw new Exception();
+            }
+
+            return result ? CustomValue.True : CustomValue.False;
         }
 
         internal CustomValue CompareTo(Expression firstTree, IReadOnlyList<(Operator operatorType, Expression tree)> trees, VariableScope variableScope)
@@ -743,6 +791,8 @@ namespace CasualConsole.Interpreter
                 case "<=": return Operator.LessThanOrEqual;
                 case ">": return Operator.GreaterThan;
                 case ">=": return Operator.GreaterThanOrEqual;
+                case "&&": return Operator.AndAnd;
+                case "||": return Operator.OrOr;
                 default: throw new Exception();
             }
         }
@@ -1210,13 +1260,16 @@ namespace CasualConsole.Interpreter
         Not,
         QuestionMark,
         Colon,
+        AndAnd,
+        OrOr,
     }
 
     enum Precedence : int
     {
-        Comparison = 1,
-        AddSubtract = 2,
-        MultiplyDivide = 3,
+        AndOr = 1,
+        Comparison = 2,
+        AddSubtract = 3,
+        MultiplyDivide = 4,
         FunctionCall = 9999,
         Indexing = 9999,
         DotAccess = 9999,
@@ -1362,7 +1415,8 @@ namespace CasualConsole.Interpreter
 
                     if (Interpreter.plusMinusSet.Contains(newToken)
                         || Interpreter.asteriskSlashSet.Contains(newToken)
-                        || Interpreter.comparisonSet.Contains(newToken))
+                        || Interpreter.comparisonSet.Contains(newToken)
+                        || Interpreter.andOrSet.Contains(newToken))
                     {
                         var newPrecedence = TreeExpression.GetPrecedence(newToken);
 
@@ -1677,6 +1731,8 @@ namespace CasualConsole.Interpreter
                     return interpreter.AddOrSubtract(firstExpression, nextValues, variableScope);
                 case Precedence.MultiplyDivide:
                     return interpreter.MultiplyOrDivide(firstExpression, nextValues, variableScope);
+                case Precedence.AndOr:
+                    return interpreter.AndOr(firstExpression, nextValues, variableScope);
                 default:
                     break;
             }
@@ -1699,6 +1755,8 @@ namespace CasualConsole.Interpreter
                 case "<=": return Precedence.Comparison;
                 case ">": return Precedence.Comparison;
                 case ">=": return Precedence.Comparison;
+                case "&&": return Precedence.AndOr;
+                case "||": return Precedence.AndOr;
                 default: throw new Exception();
             }
         }
