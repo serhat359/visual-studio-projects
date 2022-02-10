@@ -299,11 +299,11 @@ namespace CasualConsole.Interpreter
                 ("function customReturnConstant(){ return -8; } customReturnConstant()", -8),
                 ("function returnAddAll(x,y,z){ return x + y + z; } returnAddAll(1,2,3)", 6),
                 ("var k1 = 2; function f_k1(){ k1 = 10; } f_k1(); k1", 10),
-                ("var o1 = { name: 'Serhat', \"age\": 2, 'otherField': 23, otherMap : { field1: 2001 }, f:function(){} }; o1 != null", true),
+                ("var o1 = { name: 'Serhat', \"number\": 2, 'otherField': 23, otherMap : { field1: 2001 }, f:function(){} }; o1 != null", true),
                 ("o1['name']", "Serhat"),
                 ("o1.name", "Serhat"),
-                ("o1['age']", 2),
-                ("o1.age", 2),
+                ("o1['number']", 2),
+                ("o1.number", 2),
                 ("o1['otherField']", 23),
                 ("o1.otherField", 23),
                 ("o1['undefinedVariable']", null),
@@ -334,6 +334,14 @@ namespace CasualConsole.Interpreter
                 ("(() => -3)()", -3),
                 ("(x => -4)()", -4),
                 ("(x => -4 - 2)()", -6),
+                ("var o3 = { 'number': 20 }; o3.number += 1", 21),
+                ("var o4 = { 'number': 24 }; o4.number += 1; o4.number", 25),
+                ("var plusplus1 = 2; ++plusplus1", 3),
+                ("var plusplus2 = { number: 21 }; ++plusplus2.number", 22),
+                ("var plusplus3 = { number: 25 }; ++plusplus3['number']", 26),
+                ("var plusplus4 = { obj: { number: 28 } }; ++plusplus4.obj.number", 29),
+                ("var plusplus5 = { obj2: { number: 30 } }; ++plusplus5['obj2'].number", 31),
+                ("var plusplus6 = { number: -10 }; ++plusplus6.number; plusplus6.number", -9),
             };
 
             var interpreter = new Interpreter();
@@ -664,6 +672,40 @@ namespace CasualConsole.Interpreter
             }
 
             throw new Exception();
+        }
+
+        internal static CustomValue ApplyLValueOperation(Expression lValue, Func<CustomValue, CustomValue> operation, Interpreter interpreter, VariableScope variableScope, out CustomValue oldValue)
+        {
+            if (lValue is SingleTokenVariableExpression singleExpression)
+            {
+                var variableName = ((SingleTokenVariableExpression)lValue).token;
+                oldValue = variableScope.GetVariable(variableName);
+                var newValue = operation(oldValue);
+                variableScope.SetVariable(variableName, newValue);
+                return newValue;
+            }
+            else if (lValue is IndexingExpression indexingExpression)
+            {
+                var basePart = indexingExpression.baseExpression.EvaluateExpression(interpreter, variableScope);
+                var keyPart = indexingExpression.keyExpression.EvaluateExpression(interpreter, variableScope);
+
+                oldValue = interpreter.DoIndexingGet(basePart, keyPart);
+                var newValue = operation(oldValue);
+                return interpreter.DoIndexingSet(newValue, basePart, keyPart);
+            }
+            else if (lValue is DotAccessExpression dotAccessExpression)
+            {
+                var basePart = dotAccessExpression.baseExpression.EvaluateExpression(interpreter, variableScope);
+                var keyPart = dotAccessExpression.GetKeyValue();
+
+                oldValue = interpreter.DoIndexingGet(basePart, keyPart);
+                var newValue = operation(oldValue);
+                return interpreter.DoIndexingSet(newValue, basePart, keyPart);
+            }
+            else
+            {
+                throw new Exception();
+            }
         }
 
         internal static bool IsVariableName(string token)
@@ -1438,7 +1480,15 @@ namespace CasualConsole.Interpreter
 
                         AddToLastNode(ref previousExpression, Precedence.Indexing, (expression, p) =>
                         {
-                            return new IndexingExpression(expression, keyExpressionTokens);
+                            if (expression is PrePostIncDecExpression prePostIncDecExpression)
+                            {
+                                prePostIncDecExpression.expressionRest = new IndexingExpression(prePostIncDecExpression.expressionRest, keyExpressionTokens);
+                                return prePostIncDecExpression;
+                            }
+                            else
+                            {
+                                return new IndexingExpression(expression, keyExpressionTokens);
+                            }
                         });
 
                         index = end + 1;
@@ -1454,7 +1504,15 @@ namespace CasualConsole.Interpreter
 
                         AddToLastNode(ref previousExpression, Precedence.DotAccess, (expression, p) =>
                         {
-                            return new DotAccessExpression(expression, fieldName);
+                            if (expression is PrePostIncDecExpression prePostIncDecExpression)
+                            {
+                                prePostIncDecExpression.expressionRest = new DotAccessExpression(prePostIncDecExpression.expressionRest, fieldName);
+                                return prePostIncDecExpression;
+                            }
+                            else
+                            {
+                                return new DotAccessExpression(expression, fieldName);
+                            }
                         });
 
                         index += 2;
@@ -1481,6 +1539,12 @@ namespace CasualConsole.Interpreter
             {
                 var (expressionRest, lastIndex) = ReadExpression(tokens, index + 1);
                 var newExpression = new NotExpression(token, expressionRest);
+                return (newExpression, lastIndex);
+            }
+            if (token == "++")
+            {
+                var (expressionRest, lastIndex) = ReadExpression(tokens, index + 1);
+                var newExpression = new PrePostIncDecExpression(expressionRest, isPre: true, isInc: true);
                 return (newExpression, lastIndex);
             }
 
@@ -1845,6 +1909,29 @@ namespace CasualConsole.Interpreter
             return restValue ? CustomValue.False : CustomValue.True;
         }
     }
+    class PrePostIncDecExpression : Expression
+    {
+        internal Expression expressionRest;
+        bool isPre;
+        bool isInc;
+
+        public PrePostIncDecExpression(Expression expressionRest, bool isPre, bool isInc)
+        {
+            this.expressionRest = expressionRest;
+            this.isPre = isPre;
+            this.isInc = isInc;
+        }
+
+        public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+        {
+            CustomValue value = CustomValue.FromNumber(1);
+            Func<CustomValue, CustomValue> operation = existingValue => interpreter.AddOrSubtract(existingValue, isInc ? Operator.Plus : Operator.Minus, value);
+
+            var newValue = Interpreter.ApplyLValueOperation(expressionRest, operation, interpreter, variableScope, out var oldValue);
+
+            return isPre ? newValue : oldValue;
+        }
+    }
     class AssignmentExpression : Expression
     {
         public Expression lValue;
@@ -1887,8 +1974,6 @@ namespace CasualConsole.Interpreter
 
                 Func<CustomValue, CustomValue> operation;
 
-                operation = existingValue => interpreter.AddOrSubtract(existingValue, Operator.Plus, value);
-
                 switch (assignmentOperator)
                 {
                     case "=":
@@ -1913,32 +1998,7 @@ namespace CasualConsole.Interpreter
                         throw new Exception();
                 }
 
-                if (lValue is SingleTokenVariableExpression singleExpression)
-                {
-                    var variableName = ((SingleTokenVariableExpression)lValue).token;
-                    var existingValue = variableScope.GetVariable(variableName);
-                    var newValue = operation(existingValue);
-                    variableScope.SetVariable(variableName, newValue);
-                    return newValue;
-                }
-                else if (lValue is IndexingExpression indexingExpression)
-                {
-                    var basePart = indexingExpression.baseExpression.EvaluateExpression(interpreter, variableScope);
-                    var keyPart = indexingExpression.keyExpression.EvaluateExpression(interpreter, variableScope);
-
-                    return interpreter.DoIndexingSet(value, basePart, keyPart);
-                }
-                else if (lValue is DotAccessExpression dotAccessExpression)
-                {
-                    var basePart = dotAccessExpression.baseExpression.EvaluateExpression(interpreter, variableScope);
-                    var keyPart = dotAccessExpression.GetKeyValue();
-
-                    return interpreter.DoIndexingSet(value, basePart, keyPart);
-                }
-                else
-                {
-                    throw new Exception();
-                }
+                return Interpreter.ApplyLValueOperation(lValue, operation, interpreter, variableScope, out var _);
             }
         }
 
