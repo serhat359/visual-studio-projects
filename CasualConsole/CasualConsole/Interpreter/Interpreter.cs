@@ -2,29 +2,28 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using StringRange = CasualConsole.Interpreter.CustomRange<string>;
 
 namespace CasualConsole.Interpreter
 {
     public class Interpreter
     {
-        internal static readonly HashSet<char> onlyChars = new HashSet<char>() { '(', ')', ',', ';', '{', '}', '[', ']', '.' };
-        internal static readonly HashSet<char> multiChars = new HashSet<char>() { '+', '-', '*', '/', '%', '=', '?', ':', '<', '>', '&', '|' };
-        internal static readonly HashSet<string> assignmentSet = new HashSet<string>() { "=", "+=", "-=", "*=", "/=", "%=" };
-        internal static readonly HashSet<string> commaSet = new HashSet<string>() { "," };
-        internal static readonly HashSet<string> plusMinusSet = new HashSet<string>() { "+", "-" };
-        internal static readonly HashSet<string> comparisonSet = new HashSet<string>() { "==", "!=", "<", ">", "<=", ">=" };
-        internal static readonly HashSet<string> andOrSet = new HashSet<string>() { "&&", "||" };
-        internal static readonly IReadOnlyList<string> ternaryList = new string[] { "?", ":" };
-        internal static readonly HashSet<string> asteriskSlashSet = new HashSet<string>() { "*", "/", "%" };
-        internal static readonly HashSet<string> notSet = new HashSet<string>() { "!" };
+        private static readonly HashSet<char> onlyChars = new HashSet<char>() { '(', ')', ',', ';', '{', '}', '[', ']', '.' };
+        private static readonly HashSet<char> multiChars = new HashSet<char>() { '+', '-', '*', '/', '%', '=', '?', ':', '<', '>', '&', '|' };
+        private static readonly HashSet<string> assignmentSet = new HashSet<string>() { "=", "+=", "-=", "*=", "/=", "%=" };
+        private static readonly HashSet<string> commaSet = new HashSet<string>() { "," };
+        private static readonly HashSet<string> plusMinusSet = new HashSet<string>() { "+", "-" };
+        private static readonly HashSet<string> comparisonSet = new HashSet<string>() { "==", "!=", "<", ">", "<=", ">=" };
+        private static readonly HashSet<string> andOrSet = new HashSet<string>() { "&&", "||" };
+        private static readonly IReadOnlyList<string> ternaryList = new string[] { "?", ":" };
+        private static readonly HashSet<string> asteriskSlashSet = new HashSet<string>() { "*", "/", "%" };
+        private static readonly HashSet<string> notSet = new HashSet<string>() { "!" };
 
-        internal static Expression trueExpression;
-        internal static Expression falseExpression;
-        internal static Expression nullExpression;
+        private static Expression trueExpression;
+        private static Expression falseExpression;
+        private static Expression nullExpression;
 
         private Dictionary<string, CustomValue> defaultvariables = new Dictionary<string, CustomValue>();
-        internal VariableScope variableScope;
+        private VariableScope variableScope;
 
         public Interpreter()
         {
@@ -43,7 +42,7 @@ namespace CasualConsole.Interpreter
             return InterpretTokens(tokens).value;
         }
 
-        public static void GetStatementRangesTest()
+        private static void GetStatementRangesTest()
         {
             var testCases = new List<(string code, string[] statements)>
             {
@@ -70,7 +69,7 @@ namespace CasualConsole.Interpreter
             foreach (var testCase in testCases)
             {
                 var tokens = GetTokens(testCase.code).ToList();
-                var statements = tokens.GetStatementRanges().ToList();
+                var statements = GetStatementRanges(tokens).ToList();
                 if (statements.Count != testCase.statements.Length)
                     throw new Exception();
                 for (int i = 0; i < statements.Count; i++)
@@ -387,7 +386,7 @@ namespace CasualConsole.Interpreter
 
         private CustomValue InterpretTokens(IReadOnlyList<string> tokenSource)
         {
-            var statementRanges = tokenSource.GetStatementRanges();
+            var statementRanges = GetStatementRanges(tokenSource);
             var statementRangesEnumerator = statementRanges.GetEnumerator();
 
             while (statementRangesEnumerator.MoveNext())
@@ -400,7 +399,7 @@ namespace CasualConsole.Interpreter
 
                 if (statement.Type == StatementType.IfStatement)
                 {
-                    StringRange nonIfElseStatementRange = null;
+                    CustomRange<string> nonIfElseStatementRange = null;
                     Statement nonIfElseStatement = null;
 
                     var ifStatement = (IfStatement)statement;
@@ -458,6 +457,94 @@ namespace CasualConsole.Interpreter
             return CustomValue.Null;
         }
 
+        private static IEnumerable<CustomRange<string>> GetStatementRanges(IReadOnlyList<string> tokens)
+        {
+            int index = 0;
+            while (index < tokens.Count)
+            {
+                var newIndex = GetStatementEndIndex(tokens, index);
+                if (newIndex <= index)
+                    throw new Exception();
+                yield return new CustomRange<string>(tokens, index, newIndex);
+                index = newIndex;
+            }
+            yield break;
+        }
+
+        private static int GetStatementEndIndex(IReadOnlyList<string> tokens, int startingIndex)
+        {
+            bool hasFunction = false;
+            for (int i = startingIndex; i < tokens.Count; i++)
+            {
+                if (tokens[i] == "(" && i == startingIndex)
+                {
+                    var newIndex = tokens.IndexOfParenthesesEnd(i + 1);
+                    i = newIndex;
+                }
+
+                if (tokens[i] == ";")
+                {
+                    i++;
+                    return i;
+                }
+                else if (tokens[i] == "function")
+                {
+                    if (tokens[i + 1] == "(")
+                        hasFunction = true;
+                }
+                else if (tokens[i] == "{")
+                {
+                    int braceCount = 1;
+                    i++;
+                    while (true)
+                    {
+                        if (tokens[i] == "{") braceCount++;
+                        else if (tokens[i] == "}") braceCount--;
+
+                        if (braceCount == 0)
+                        {
+                            if (!hasFunction)
+                            {
+                                return i + 1;
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+
+                        i++;
+                    }
+                }
+            }
+            return tokens.Count;
+        }
+
+        private static IEnumerable<IReadOnlyList<string>> SplitBy(IReadOnlyList<string> tokens, HashSet<string> separator)
+        {
+            if (tokens.Count == 0)
+                yield break;
+
+            var index = 0;
+            var parenthesesCount = 0;
+            string operatorToken = null;
+
+            for (int i = 0; i < tokens.Count; i++)
+            {
+                var token = tokens[i];
+                if (token == "(") parenthesesCount++;
+                else if (token == ")") parenthesesCount--;
+
+                if (parenthesesCount == 0 && separator.Contains(token))
+                {
+                    yield return new CustomRange<string>(tokens, index, i);
+                    operatorToken = token;
+                    index = i + 1;
+                }
+            }
+            yield return new CustomRange<string>(tokens, index, tokens.Count);
+        }
+
         private (CustomValue value, bool isReturn, bool isBreak, bool isContinue) GetValueFromStatement(Statement statement, VariableScope variableScope)
         {
             return statement.EvaluateStatement(this, variableScope);
@@ -479,7 +566,7 @@ namespace CasualConsole.Interpreter
             }
         }
 
-        internal CustomValue CallFunction(CustomValue f, CustomValue[] arguments, VariableScope variableScope)
+        private CustomValue CallFunction(CustomValue f, CustomValue[] arguments, VariableScope variableScope)
         {
             if (f.type == ValueType.String)
                 return CallFunction((string)f.value, arguments, variableScope);
@@ -540,7 +627,7 @@ namespace CasualConsole.Interpreter
             }
         }
 
-        internal CustomValue AndOr(Expression firstTree, IReadOnlyList<(Operator operatorType, Expression tree)> trees, VariableScope variableScope)
+        private CustomValue AndOr(Expression firstTree, IReadOnlyList<(Operator operatorType, Expression tree)> trees, VariableScope variableScope)
         {
             var firstValue = firstTree.EvaluateExpression(this, variableScope);
 
@@ -572,7 +659,7 @@ namespace CasualConsole.Interpreter
             return result ? CustomValue.True : CustomValue.False;
         }
 
-        internal CustomValue CompareTo(Expression firstTree, IReadOnlyList<(Operator operatorType, Expression tree)> trees, VariableScope variableScope)
+        private CustomValue CompareTo(Expression firstTree, IReadOnlyList<(Operator operatorType, Expression tree)> trees, VariableScope variableScope)
         {
             var firstValue = firstTree.EvaluateExpression(this, variableScope);
             var values = trees.SelectFast(x => (x.operatorType, value: x.tree.EvaluateExpression(this, variableScope)));
@@ -600,7 +687,7 @@ namespace CasualConsole.Interpreter
             return lastValue;
         }
 
-        internal CustomValue MultiplyOrDivide(Expression firstTree, IReadOnlyList<(Operator operatorType, Expression tree)> trees, VariableScope variableScope)
+        private CustomValue MultiplyOrDivide(Expression firstTree, IReadOnlyList<(Operator operatorType, Expression tree)> trees, VariableScope variableScope)
         {
             var firstValue = firstTree.EvaluateExpression(this, variableScope);
             var values = trees.SelectFast(x => (x.operatorType, value: x.tree.EvaluateExpression(this, variableScope)));
@@ -608,12 +695,12 @@ namespace CasualConsole.Interpreter
             return MultiplyOrDivide(firstValue, values);
         }
 
-        internal CustomValue MultiplyOrDivide(CustomValue firstValue, Operator operatorType, CustomValue value)
+        private CustomValue MultiplyOrDivide(CustomValue firstValue, Operator operatorType, CustomValue value)
         {
             return MultiplyOrDivide(firstValue, new[] { (operatorType, value) });
         }
 
-        internal CustomValue MultiplyOrDivide(CustomValue firstValue, IReadOnlyList<(Operator operatorType, CustomValue value)> values)
+        private CustomValue MultiplyOrDivide(CustomValue firstValue, IReadOnlyList<(Operator operatorType, CustomValue value)> values)
         {
             double total = (double)firstValue.value;
             for (int i = 0; i < values.Count; i++)
@@ -634,7 +721,7 @@ namespace CasualConsole.Interpreter
             return CustomValue.FromNumber(total);
         }
 
-        internal CustomValue AddOrSubtract(Expression firstTree, IReadOnlyList<(Operator operatorType, Expression tree)> trees, VariableScope variableScope)
+        private CustomValue AddOrSubtract(Expression firstTree, IReadOnlyList<(Operator operatorType, Expression tree)> trees, VariableScope variableScope)
         {
             var firstValue = firstTree.EvaluateExpression(this, variableScope);
             var values = trees.SelectFast(x => (x.operatorType, value: x.tree.EvaluateExpression(this, variableScope)));
@@ -642,12 +729,12 @@ namespace CasualConsole.Interpreter
             return AddOrSubtract(firstValue, values);
         }
 
-        internal CustomValue AddOrSubtract(CustomValue firstValue, Operator operatorType, CustomValue value)
+        private CustomValue AddOrSubtract(CustomValue firstValue, Operator operatorType, CustomValue value)
         {
             return AddOrSubtract(firstValue, new[] { (operatorType, value) });
         }
 
-        internal CustomValue AddOrSubtract(CustomValue firstValue, IReadOnlyList<(Operator operatorType, CustomValue value)> values)
+        private CustomValue AddOrSubtract(CustomValue firstValue, IReadOnlyList<(Operator operatorType, CustomValue value)> values)
         {
             bool hasMinus = false;
             bool hasString = false;
@@ -695,7 +782,7 @@ namespace CasualConsole.Interpreter
             }
         }
 
-        internal CustomValue GetValueFromExpression(IReadOnlyList<string> expressionTokens, VariableScope variableScope)
+        private CustomValue GetValueFromExpression(IReadOnlyList<string> expressionTokens, VariableScope variableScope)
         {
             if (expressionTokens.Count == 0)
                 throw new Exception();
@@ -704,7 +791,7 @@ namespace CasualConsole.Interpreter
             return expressionTree.EvaluateExpression(this, variableScope);
         }
 
-        internal CustomValue DoIndexingGet(CustomValue ownerExpressionValue, CustomValue keyExpressionValue)
+        private CustomValue DoIndexingGet(CustomValue ownerExpressionValue, CustomValue keyExpressionValue)
         {
             if (ownerExpressionValue.type == ValueType.Map && keyExpressionValue.type == ValueType.String)
             {
@@ -718,7 +805,7 @@ namespace CasualConsole.Interpreter
             throw new Exception();
         }
 
-        internal CustomValue DoIndexingSet(CustomValue value, CustomValue basePart, CustomValue keyPart)
+        private CustomValue DoIndexingSet(CustomValue value, CustomValue basePart, CustomValue keyPart)
         {
             if (basePart.type == ValueType.Map && keyPart.type == ValueType.String)
             {
@@ -731,7 +818,7 @@ namespace CasualConsole.Interpreter
             throw new Exception();
         }
 
-        internal static CustomValue ApplyLValueOperation(Expression lValue, Func<CustomValue, CustomValue> operation, Interpreter interpreter, VariableScope variableScope, out CustomValue oldValue)
+        private static CustomValue ApplyLValueOperation(Expression lValue, Func<CustomValue, CustomValue> operation, Interpreter interpreter, VariableScope variableScope, out CustomValue oldValue)
         {
             if (lValue is SingleTokenVariableExpression singleExpression)
             {
@@ -765,25 +852,25 @@ namespace CasualConsole.Interpreter
             }
         }
 
-        internal static bool IsVariableName(string token)
+        private static bool IsVariableName(string token)
         {
             char firstChar = token[0];
             return firstChar == '_' || char.IsLetter(firstChar);
         }
 
-        internal static bool IsNumber(string token)
+        private static bool IsNumber(string token)
         {
             char firstChar = token[0];
             return char.IsDigit(firstChar);
         }
 
-        internal static bool IsStaticString(string token)
+        private static bool IsStaticString(string token)
         {
             char firstChar = token[0];
             return firstChar == '"' || firstChar == '\'';
         }
 
-        internal static Operator ParseOperator(string token)
+        private static Operator ParseOperator(string token)
         {
             switch (token)
             {
@@ -928,288 +1015,115 @@ namespace CasualConsole.Interpreter
                 }
             }
         }
-    }
 
-    static class InterpreterExtensions
-    {
-        public static IEnumerable<IReadOnlyList<string>> SplitBy(this IReadOnlyList<string> tokens, HashSet<string> separator)
+        class CustomFunction
         {
-            if (tokens.Count == 0)
-                yield break;
+            internal IReadOnlyList<string> parameters;
+            internal Statement body;
 
-            var index = 0;
-            var parenthesesCount = 0;
-            string operatorToken = null;
-
-            for (int i = 0; i < tokens.Count; i++)
+            public CustomFunction(IReadOnlyList<string> parameters, Statement body)
             {
-                var token = tokens[i];
-                if (token == "(") parenthesesCount++;
-                else if (token == ")") parenthesesCount--;
-
-                if (parenthesesCount == 0 && separator.Contains(token))
-                {
-                    yield return new StringRange(tokens, index, i);
-                    operatorToken = token;
-                    index = i + 1;
-                }
+                this.parameters = parameters;
+                this.body = body;
             }
-            yield return new StringRange(tokens, index, tokens.Count);
         }
 
-        public static IEnumerable<StringRange> GetStatementRanges(this IReadOnlyList<string> tokens)
+        private struct CustomValue
         {
-            int index = 0;
-            while (index < tokens.Count)
+            public object value;
+            public ValueType type;
+
+            public static readonly CustomValue Null = new CustomValue(null, ValueType.Null);
+            public static readonly CustomValue True = new CustomValue(true, ValueType.Bool);
+            public static readonly CustomValue False = new CustomValue(false, ValueType.Bool);
+
+            public CustomValue(object value, ValueType type)
             {
-                var newIndex = GetStatementEndIndex(tokens, index);
-                if (newIndex <= index)
+                this.value = value;
+                this.type = type;
+            }
+
+            public static CustomValue FromNumber(string s)
+            {
+                return new CustomValue(double.Parse(s), ValueType.Number);
+            }
+
+            public static CustomValue FromNumber(double s)
+            {
+                return new CustomValue(s, ValueType.Number);
+            }
+
+            public static CustomValue FromString(string s)
+            {
+                if (s[0] != '"' && s[0] != '\'')
                     throw new Exception();
-                yield return new StringRange(tokens, index, newIndex);
-                index = newIndex;
-            }
-            yield break;
-        }
 
-        public static int GetStatementEndIndex(IReadOnlyList<string> tokens, int startingIndex)
-        {
-            bool hasFunction = false;
-            for (int i = startingIndex; i < tokens.Count; i++)
-            {
-                if (tokens[i] == "(" && i == startingIndex)
-                {
-                    var newIndex = tokens.IndexOfParenthesesEnd(i + 1);
-                    i = newIndex;
-                }
+                char firstChar = s[0];
 
-                if (tokens[i] == ";")
+                var sb = new StringBuilder();
+                for (int i = 1; i < s.Length; i++)
                 {
-                    i++;
-                    return i;
-                }
-                else if (tokens[i] == "function")
-                {
-                    if (tokens[i + 1] == "(")
-                        hasFunction = true;
-                }
-                else if (tokens[i] == "{")
-                {
-                    int braceCount = 1;
-                    i++;
-                    while (true)
+                    char c = s[i];
+                    if (c == firstChar)
+                        break;
+                    else if (c == '\\')
                     {
-                        if (tokens[i] == "{") braceCount++;
-                        else if (tokens[i] == "}") braceCount--;
-
-                        if (braceCount == 0)
-                        {
-                            if (!hasFunction)
-                            {
-                                return i + 1;
-                            }
-                            else
-                            {
-                                break;
-                            }
-                        }
-
                         i++;
+                        char c2 = s[i];
+                        switch (c2)
+                        {
+                            case '"': sb.Append(c2); break;
+                            case '\'': sb.Append(c2); break;
+                            case '\\': sb.Append(c2); break;
+                            case 't': sb.Append('\t'); break;
+                            case 'r': sb.Append('\r'); break;
+                            case 'n': sb.Append('\n'); break;
+                            default: throw new Exception();
+                        }
                     }
+                    else
+                        sb.Append(c);
                 }
+                return new CustomValue(sb.ToString(), ValueType.String);
             }
-            return tokens.Count;
-        }
 
-        public static int IndexOf<T>(this IReadOnlyList<T> source, T element, int startIndex) where T : IEquatable<T>
-        {
-            for (int i = startIndex; i < source.Count; i++)
+            public static CustomValue FromParsedString(string s)
             {
-                T currentElement = source[i];
-                if (currentElement.Equals(element))
-                    return i;
+                return new CustomValue(s, ValueType.String);
             }
-            return -1;
-        }
 
-        public static int IndexOfParenthesesEnd(this IReadOnlyList<string> source, int startIndex)
-        {
-            return IndexOfPairsEnd(source, startIndex, "(", ")");
-        }
-
-        public static int IndexOfBracesEnd(this IReadOnlyList<string> source, int startIndex)
-        {
-            return IndexOfPairsEnd(source, startIndex, "{", "}");
-        }
-
-        public static int IndexOfBracketsEnd(this IReadOnlyList<string> source, int startIndex)
-        {
-            return IndexOfPairsEnd(source, startIndex, "[", "]");
-        }
-
-        private static int IndexOfPairsEnd(this IReadOnlyList<string> source, int startIndex, string first, string last)
-        {
-            int count = 0;
-            for (int i = startIndex; i < source.Count; i++)
+            internal static CustomValue FromFunction(CustomFunction func)
             {
-                string currentElement = source[i];
-                if (currentElement == last)
+                return new CustomValue(func, ValueType.Function);
+            }
+
+            internal static CustomValue FromMap(Dictionary<string, CustomValue> map)
+            {
+                return new CustomValue(map, ValueType.Map);
+            }
+
+            internal bool IsTruthy()
+            {
+                switch (type)
                 {
-                    if (count == 0)
-                        return i;
-
-                    count--;
-                    if (count < 0)
+                    case ValueType.Null:
+                        return false;
+                    case ValueType.Number:
+                        return ((double)value) != 0;
+                    case ValueType.String:
+                        return !string.IsNullOrEmpty((string)value);
+                    case ValueType.Bool:
+                        return (bool)value;
+                    case ValueType.Map:
+                        return value != null;
+                    default:
                         throw new Exception();
                 }
-                else if (currentElement == first)
-                {
-                    count++;
-                }
             }
-            return -1;
-        }
 
-        public static IReadOnlyList<E> SelectFast<T, E>(this IReadOnlyList<T> source, Func<T, E> converter)
-        {
-            var newArr = new E[source.Count];
-            for (int i = 0; i < source.Count; i++)
+            internal static void Test()
             {
-                newArr[i] = converter(source[i]);
-            }
-            return newArr;
-        }
-
-        public static bool Equals(object result, object expected)
-        {
-            if (result == null && expected == null)
-                return true;
-
-            Type resultType = result.GetType();
-            Type expectedType = expected.GetType();
-
-            if (resultType == typeof(int) && expectedType == typeof(double))
-            {
-                return object.Equals((double)(int)result, expected);
-            }
-            else if (resultType == typeof(double) && expectedType == typeof(int))
-            {
-                return object.Equals(result, (double)(int)expected);
-            }
-            else
-            {
-                return object.Equals(result, expected);
-            }
-        }
-    }
-
-    class CustomFunction
-    {
-        internal IReadOnlyList<string> parameters;
-        internal Statement body;
-
-        public CustomFunction(IReadOnlyList<string> parameters, Statement body)
-        {
-            this.parameters = parameters;
-            this.body = body;
-        }
-    }
-
-    struct CustomValue
-    {
-        public object value;
-        public ValueType type;
-
-        public static readonly CustomValue Null = new CustomValue(null, ValueType.Null);
-        public static readonly CustomValue True = new CustomValue(true, ValueType.Bool);
-        public static readonly CustomValue False = new CustomValue(false, ValueType.Bool);
-
-        public CustomValue(object value, ValueType type)
-        {
-            this.value = value;
-            this.type = type;
-        }
-
-        public static CustomValue FromNumber(string s)
-        {
-            return new CustomValue(double.Parse(s), ValueType.Number);
-        }
-
-        public static CustomValue FromNumber(double s)
-        {
-            return new CustomValue(s, ValueType.Number);
-        }
-
-        public static CustomValue FromString(string s)
-        {
-            if (s[0] != '"' && s[0] != '\'')
-                throw new Exception();
-
-            char firstChar = s[0];
-
-            var sb = new StringBuilder();
-            for (int i = 1; i < s.Length; i++)
-            {
-                char c = s[i];
-                if (c == firstChar)
-                    break;
-                else if (c == '\\')
-                {
-                    i++;
-                    char c2 = s[i];
-                    switch (c2)
-                    {
-                        case '"': sb.Append(c2); break;
-                        case '\'': sb.Append(c2); break;
-                        case '\\': sb.Append(c2); break;
-                        case 't': sb.Append('\t'); break;
-                        case 'r': sb.Append('\r'); break;
-                        case 'n': sb.Append('\n'); break;
-                        default: throw new Exception();
-                    }
-                }
-                else
-                    sb.Append(c);
-            }
-            return new CustomValue(sb.ToString(), ValueType.String);
-        }
-
-        public static CustomValue FromParsedString(string s)
-        {
-            return new CustomValue(s, ValueType.String);
-        }
-
-        internal static CustomValue FromFunction(CustomFunction func)
-        {
-            return new CustomValue(func, ValueType.Function);
-        }
-
-        internal static CustomValue FromMap(Dictionary<string, CustomValue> map)
-        {
-            return new CustomValue(map, ValueType.Map);
-        }
-
-        internal bool IsTruthy()
-        {
-            switch (type)
-            {
-                case ValueType.Null:
-                    return false;
-                case ValueType.Number:
-                    return ((double)value) != 0;
-                case ValueType.String:
-                    return !string.IsNullOrEmpty((string)value);
-                case ValueType.Bool:
-                    return (bool)value;
-                case ValueType.Map:
-                    return value != null;
-                default:
-                    throw new Exception();
-            }
-        }
-
-        internal static void Test()
-        {
-            var stringTestCases = new List<(string token, string value)>()
+                var stringTestCases = new List<(string token, string value)>()
             {
                 ("\"2\"", "2"),
                 ("\"Hello world\"", "Hello world"),
@@ -1218,1246 +1132,1332 @@ namespace CasualConsole.Interpreter
                 ("\"\\t\"", "\t"),
             };
 
-            foreach (var stringTestCase in stringTestCases)
-            {
-                var result = CustomValue.FromString(stringTestCase.token);
-                if (!string.Equals(result.value, stringTestCase.value))
+                foreach (var stringTestCase in stringTestCases)
                 {
-                    throw new Exception();
+                    var result = CustomValue.FromString(stringTestCase.token);
+                    if (!string.Equals(result.value, stringTestCase.value))
+                    {
+                        throw new Exception();
+                    }
                 }
             }
         }
-    }
 
-    enum StatementType
-    {
-        LineStatement,
-        BlockStatement,
-        IfStatement,
-        ElseIfStatement,
-        ElseStatement,
-        WhileStatement,
-        FunctionStatement,
-    }
-
-    enum ValueType
-    {
-        Null,
-        Number,
-        String,
-        Bool,
-        Function,
-        Map,
-    }
-
-    enum Operator
-    {
-        None,
-        Plus,
-        Minus,
-        Multiply,
-        Divide,
-        Modulus,
-        CheckEquals,
-        CheckNotEquals,
-        GreaterThan,
-        LessThan,
-        GreaterThanOrEqual,
-        LessThanOrEqual,
-        Not,
-        QuestionMark,
-        Colon,
-        AndAnd,
-        OrOr,
-    }
-
-    enum Precedence : int
-    {
-        AndOr = 1,
-        Comparison = 2,
-        AddSubtract = 3,
-        MultiplyDivide = 4,
-        FunctionCall = 9999,
-        Indexing = 9999,
-        DotAccess = 9999,
-        LambdaExpression = 9999,
-        Increment = 9999,
-    }
-
-    class CustomRange<T> : IReadOnlyList<T>
-    {
-        public readonly IReadOnlyList<T> array;
-        public readonly int start;
-        public readonly int end;
-
-        public CustomRange(IReadOnlyList<T> array, int start, int end)
+        enum StatementType
         {
-            this.array = array;
-            this.start = start;
-            this.end = end;
+            LineStatement,
+            BlockStatement,
+            IfStatement,
+            ElseIfStatement,
+            ElseStatement,
+            WhileStatement,
+            FunctionStatement,
         }
 
-        public T this[int index] => array[start + index];
-
-        public int Count => end - start;
-
-        public IEnumerator<T> GetEnumerator()
+        enum ValueType
         {
-            for (int i = start; i < end; i++)
+            Null,
+            Number,
+            String,
+            Bool,
+            Function,
+            Map,
+        }
+
+        private enum Operator
+        {
+            None,
+            Plus,
+            Minus,
+            Multiply,
+            Divide,
+            Modulus,
+            CheckEquals,
+            CheckNotEquals,
+            GreaterThan,
+            LessThan,
+            GreaterThanOrEqual,
+            LessThanOrEqual,
+            Not,
+            QuestionMark,
+            Colon,
+            AndAnd,
+            OrOr,
+        }
+
+        enum Precedence : int
+        {
+            AndOr = 1,
+            Comparison = 2,
+            AddSubtract = 3,
+            MultiplyDivide = 4,
+            FunctionCall = 9999,
+            Indexing = 9999,
+            DotAccess = 9999,
+            LambdaExpression = 9999,
+            Increment = 9999,
+        }
+
+        private class CustomRange<T> : IReadOnlyList<T>
+        {
+            public readonly IReadOnlyList<T> array;
+            public readonly int start;
+            public readonly int end;
+
+            public CustomRange(IReadOnlyList<T> array, int start, int end)
             {
-                yield return array[i];
+                this.array = array;
+                this.start = start;
+                this.end = end;
             }
-        }
 
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
-    }
+            public T this[int index] => array[start + index];
 
-    class VariableScope
-    {
-        private Dictionary<string, CustomValue> variables;
-        private VariableScope innerScope;
+            public int Count => end - start;
 
-        private VariableScope(Dictionary<string, CustomValue> variables, VariableScope innerScope)
-        {
-            this.variables = variables;
-            this.innerScope = innerScope;
-        }
-
-        public bool TryGetVariable(string variableName, out CustomValue value)
-        {
-            if (variables.TryGetValue(variableName, out value))
+            public IEnumerator<T> GetEnumerator()
             {
-                return true;
-            }
-            if (innerScope != null && innerScope.TryGetVariable(variableName, out value))
-            {
-                return true;
-            }
-            return false;
-        }
-
-        public CustomValue GetVariable(string variableName)
-        {
-            if (TryGetVariable(variableName, out var value))
-            {
-                return value;
-            }
-            else
-                throw new Exception($"variable not defined: {variableName}");
-        }
-
-        public void SetVariable(string variableName, CustomValue value)
-        {
-            if (variables.ContainsKey(variableName))
-            {
-                variables[variableName] = value;
-            }
-            else if (innerScope != null)
-            {
-                innerScope.SetVariable(variableName, value);
-            }
-            else
-                throw new Exception();
-        }
-
-        public void AddVariable(string variableName, CustomValue value)
-        {
-            variables.Add(variableName, value);
-        }
-
-        public static VariableScope NewFromExisting(Dictionary<string, CustomValue> variables)
-        {
-            return new VariableScope(variables, null);
-        }
-        public static VariableScope NewWithInner(VariableScope innerScope)
-        {
-            var newVariables = new Dictionary<string, CustomValue>();
-            return NewWithInner(innerScope, newVariables);
-        }
-        public static VariableScope NewWithInner(VariableScope innerScope, Dictionary<string, CustomValue> values)
-        {
-            return new VariableScope(values, innerScope);
-        }
-    }
-
-    interface Expression
-    {
-        CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope);
-    }
-    static class ExpressionMethods
-    {
-        public static Expression New(IReadOnlyList<string> tokens)
-        {
-            Expression previousExpression = null;
-            var index = 0;
-
-            while (true)
-            {
-                if (index == tokens.Count)
-                    return previousExpression;
-
-                if (previousExpression == null)
+                for (int i = start; i < end; i++)
                 {
-                    var (expression, newIndex) = ReadExpression(tokens, index);
-                    if (newIndex <= index)
-                        throw new Exception();
+                    yield return array[i];
+                }
+            }
 
-                    index = newIndex;
-                    previousExpression = expression;
+            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
+        }
+
+        class VariableScope
+        {
+            private Dictionary<string, CustomValue> variables;
+            private VariableScope innerScope;
+
+            private VariableScope(Dictionary<string, CustomValue> variables, VariableScope innerScope)
+            {
+                this.variables = variables;
+                this.innerScope = innerScope;
+            }
+
+            public bool TryGetVariable(string variableName, out CustomValue value)
+            {
+                if (variables.TryGetValue(variableName, out value))
+                {
+                    return true;
+                }
+                if (innerScope != null && innerScope.TryGetVariable(variableName, out value))
+                {
+                    return true;
+                }
+                return false;
+            }
+
+            public CustomValue GetVariable(string variableName)
+            {
+                if (TryGetVariable(variableName, out var value))
+                {
+                    return value;
                 }
                 else
-                {
-                    var newToken = tokens[index];
+                    throw new Exception($"variable not defined: {variableName}");
+            }
 
-                    if (newToken == ";")
+            public void SetVariable(string variableName, CustomValue value)
+            {
+                if (variables.ContainsKey(variableName))
+                {
+                    variables[variableName] = value;
+                }
+                else if (innerScope != null)
+                {
+                    innerScope.SetVariable(variableName, value);
+                }
+                else
+                    throw new Exception();
+            }
+
+            public void AddVariable(string variableName, CustomValue value)
+            {
+                variables.Add(variableName, value);
+            }
+
+            public static VariableScope NewFromExisting(Dictionary<string, CustomValue> variables)
+            {
+                return new VariableScope(variables, null);
+            }
+            public static VariableScope NewWithInner(VariableScope innerScope)
+            {
+                var newVariables = new Dictionary<string, CustomValue>();
+                return NewWithInner(innerScope, newVariables);
+            }
+            public static VariableScope NewWithInner(VariableScope innerScope, Dictionary<string, CustomValue> values)
+            {
+                return new VariableScope(values, innerScope);
+            }
+        }
+
+        interface Expression
+        {
+            CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope);
+        }
+        static class ExpressionMethods
+        {
+            public static Expression New(IReadOnlyList<string> tokens)
+            {
+                Expression previousExpression = null;
+                var index = 0;
+
+                while (true)
+                {
+                    if (index == tokens.Count)
                         return previousExpression;
 
-                    if (Interpreter.assignmentSet.Contains(newToken))
+                    if (previousExpression == null)
                     {
-                        var restTokens = new StringRange(tokens, index + 1, tokens.Count);
-                        return new AssignmentExpression(previousExpression, newToken, restTokens, false);
+                        var (expression, newIndex) = ReadExpression(tokens, index);
+                        if (newIndex <= index)
+                            throw new Exception();
+
+                        index = newIndex;
+                        previousExpression = expression;
                     }
-
-                    if (Interpreter.plusMinusSet.Contains(newToken)
-                        || Interpreter.asteriskSlashSet.Contains(newToken)
-                        || Interpreter.comparisonSet.Contains(newToken)
-                        || Interpreter.andOrSet.Contains(newToken))
+                    else
                     {
-                        var newPrecedence = TreeExpression.GetPrecedence(newToken);
+                        var newToken = tokens[index];
 
-                        Expression nextExpression;
-                        (nextExpression, index) = ReadExpression(tokens, index + 1);
+                        if (newToken == ";")
+                            return previousExpression;
 
-                        AddToLastNode(ref previousExpression, newPrecedence, (expression, precedence) =>
+                        if (Interpreter.assignmentSet.Contains(newToken))
                         {
-                            if (precedence == null || !(precedence == newPrecedence))
+                            var restTokens = new CustomRange<string>(tokens, index + 1, tokens.Count);
+                            return new AssignmentExpression(previousExpression, newToken, restTokens, false);
+                        }
+
+                        if (Interpreter.plusMinusSet.Contains(newToken)
+                            || Interpreter.asteriskSlashSet.Contains(newToken)
+                            || Interpreter.comparisonSet.Contains(newToken)
+                            || Interpreter.andOrSet.Contains(newToken))
+                        {
+                            var newPrecedence = TreeExpression.GetPrecedence(newToken);
+
+                            Expression nextExpression;
+                            (nextExpression, index) = ReadExpression(tokens, index + 1);
+
+                            AddToLastNode(ref previousExpression, newPrecedence, (expression, precedence) =>
                             {
-                                var newTree = new TreeExpression(newPrecedence, expression);
-                                newTree.AddExpression(newToken, nextExpression);
-                                return newTree;
+                                if (precedence == null || !(precedence == newPrecedence))
+                                {
+                                    var newTree = new TreeExpression(newPrecedence, expression);
+                                    newTree.AddExpression(newToken, nextExpression);
+                                    return newTree;
+                                }
+                                else
+                                {
+                                    ((TreeExpression)expression).AddExpression(newToken, nextExpression);
+                                    return null;
+                                }
+                            });
+
+                            continue;
+                        }
+
+                        if (newToken == "?")
+                        {
+                            var questionMarkIndex = index;
+                            var count = 1;
+                            int colonIndex = index + 1;
+                            for (; colonIndex < tokens.Count; colonIndex++)
+                            {
+                                var ternaryToken = tokens[colonIndex];
+                                if (ternaryToken == "?")
+                                    count++;
+                                if (ternaryToken == ":")
+                                    count--;
+
+                                if (count == 0)
+                                    break;
+                            }
+
+                            var questionMarkExpressionTokens = new CustomRange<string>(tokens, questionMarkIndex + 1, colonIndex);
+                            var questionMarkExpression = ExpressionMethods.New(questionMarkExpressionTokens);
+                            var colonExpressionTokens = new CustomRange<string>(tokens, colonIndex + 1, tokens.Count);
+                            var colonExpression = ExpressionMethods.New(colonExpressionTokens);
+
+                            var ternaryExpression = new TernaryExpression(previousExpression, questionMarkExpression, colonExpression);
+                            return ternaryExpression;
+                        }
+
+                        if (newToken == "=>")
+                        {
+                            var nextToken = tokens[index + 1];
+
+                            IReadOnlyList<string> functionBodyTokens;
+                            int end;
+
+                            if (nextToken == "{")
+                            {
+                                end = tokens.IndexOfBracesEnd(index + 2);
+                                if (end < 0)
+                                    throw new Exception();
+
+                                functionBodyTokens = new CustomRange<string>(tokens, index + 1, end + 1);
                             }
                             else
                             {
-                                ((TreeExpression)expression).AddExpression(newToken, nextExpression);
-                                return null;
+                                functionBodyTokens = new CustomRange<string>(tokens, index + 1, tokens.Count);
+                                end = tokens.Count - 1;
                             }
-                        });
 
-                        continue;
-                    }
+                            AddToLastNode(ref previousExpression, Precedence.FunctionCall, (expression, p) =>
+                            {
+                                if (expression is ParenthesesExpression parenthesesExpression)
+                                {
+                                    var parenthesesTokens = parenthesesExpression.parenthesesTokens;
+                                    var parameterTokens = new CustomRange<string>(parenthesesTokens, 1, parenthesesTokens.Count - 1);
+                                    return FunctionStatement.FromParametersAndBody(parameterTokens, functionBodyTokens);
+                                }
+                                else if (expression is SingleTokenVariableExpression singleTokenVariableExpression)
+                                {
+                                    var parameterTokens = new string[] { singleTokenVariableExpression.token };
+                                    return FunctionStatement.FromParametersAndBody(parameterTokens, functionBodyTokens);
+                                }
+                                else
+                                    throw new Exception();
+                            });
 
-                    if (newToken == "?")
-                    {
-                        var questionMarkIndex = index;
-                        var count = 1;
-                        int colonIndex = index + 1;
-                        for (; colonIndex < tokens.Count; colonIndex++)
-                        {
-                            var ternaryToken = tokens[colonIndex];
-                            if (ternaryToken == "?")
-                                count++;
-                            if (ternaryToken == ":")
-                                count--;
-
-                            if (count == 0)
-                                break;
+                            index = end + 1;
+                            continue;
                         }
 
-                        var questionMarkExpressionTokens = new StringRange(tokens, questionMarkIndex + 1, colonIndex);
-                        var questionMarkExpression = ExpressionMethods.New(questionMarkExpressionTokens);
-                        var colonExpressionTokens = new StringRange(tokens, colonIndex + 1, tokens.Count);
-                        var colonExpression = ExpressionMethods.New(colonExpressionTokens);
-
-                        var ternaryExpression = new TernaryExpression(previousExpression, questionMarkExpression, colonExpression);
-                        return ternaryExpression;
-                    }
-
-                    if (newToken == "=>")
-                    {
-                        var nextToken = tokens[index + 1];
-
-                        IReadOnlyList<string> functionBodyTokens;
-                        int end;
-
-                        if (nextToken == "{")
+                        if (newToken == "(")
                         {
-                            end = tokens.IndexOfBracesEnd(index + 2);
+                            // Function call
+                            var end = tokens.IndexOfParenthesesEnd(index + 1);
                             if (end < 0)
                                 throw new Exception();
+                            var parameters = new CustomRange<string>(tokens, index + 1, end);
 
-                            functionBodyTokens = new StringRange(tokens, index + 1, end + 1);
-                        }
-                        else
-                        {
-                            functionBodyTokens = new StringRange(tokens, index + 1, tokens.Count);
-                            end = tokens.Count - 1;
+                            AddToLastNode(ref previousExpression, Precedence.FunctionCall, (expression, p) =>
+                            {
+                                return new FunctionCallExpression(expression, parameters);
+                            });
+
+                            index = end + 1;
+                            continue;
                         }
 
-                        AddToLastNode(ref previousExpression, Precedence.FunctionCall, (expression, p) =>
+                        if (newToken == "++" || newToken == "--")
                         {
-                            if (expression is ParenthesesExpression parenthesesExpression)
+                            var isInc = newToken == "++";
+                            AddToLastNode(ref previousExpression, Precedence.Indexing, (expression, p) =>
                             {
-                                var parenthesesTokens = parenthesesExpression.parenthesesTokens;
-                                var parameterTokens = new StringRange(parenthesesTokens, 1, parenthesesTokens.Count - 1);
-                                return FunctionStatement.FromParametersAndBody(parameterTokens, functionBodyTokens);
-                            }
-                            else if (expression is SingleTokenVariableExpression singleTokenVariableExpression)
-                            {
-                                var parameterTokens = new string[] { singleTokenVariableExpression.token };
-                                return FunctionStatement.FromParametersAndBody(parameterTokens, functionBodyTokens);
-                            }
-                            else
+                                return new PrePostIncDecExpression(expression, isPre: false, isInc: isInc);
+                            });
+
+                            index += 1;
+                            continue;
+                        }
+
+                        if (newToken == "[")
+                        {
+                            // Indexing
+                            var end = tokens.IndexOfBracketsEnd(index + 1);
+                            if (end < 0)
                                 throw new Exception();
-                        });
+                            var keyExpressionTokens = new CustomRange<string>(tokens, index + 1, end);
 
-                        index = end + 1;
-                        continue;
-                    }
-
-                    if (newToken == "(")
-                    {
-                        // Function call
-                        var end = tokens.IndexOfParenthesesEnd(index + 1);
-                        if (end < 0)
-                            throw new Exception();
-                        var parameters = new StringRange(tokens, index + 1, end);
-
-                        AddToLastNode(ref previousExpression, Precedence.FunctionCall, (expression, p) =>
-                        {
-                            return new FunctionCallExpression(expression, parameters);
-                        });
-
-                        index = end + 1;
-                        continue;
-                    }
-
-                    if (newToken == "++" || newToken == "--")
-                    {
-                        var isInc = newToken == "++";
-                        AddToLastNode(ref previousExpression, Precedence.Indexing, (expression, p) =>
-                        {
-                            return new PrePostIncDecExpression(expression, isPre: false, isInc: isInc);
-                        });
-
-                        index += 1;
-                        continue;
-                    }
-
-                    if (newToken == "[")
-                    {
-                        // Indexing
-                        var end = tokens.IndexOfBracketsEnd(index + 1);
-                        if (end < 0)
-                            throw new Exception();
-                        var keyExpressionTokens = new StringRange(tokens, index + 1, end);
-
-                        AddToLastNode(ref previousExpression, Precedence.Indexing, (expression, p) =>
-                        {
-                            if (expression is PrePostIncDecExpression prePostIncDecExpression)
+                            AddToLastNode(ref previousExpression, Precedence.Indexing, (expression, p) =>
                             {
-                                prePostIncDecExpression.expressionRest = new IndexingExpression(prePostIncDecExpression.expressionRest, keyExpressionTokens);
-                                return prePostIncDecExpression;
-                            }
-                            else
-                            {
-                                return new IndexingExpression(expression, keyExpressionTokens);
-                            }
-                        });
+                                if (expression is PrePostIncDecExpression prePostIncDecExpression)
+                                {
+                                    prePostIncDecExpression.expressionRest = new IndexingExpression(prePostIncDecExpression.expressionRest, keyExpressionTokens);
+                                    return prePostIncDecExpression;
+                                }
+                                else
+                                {
+                                    return new IndexingExpression(expression, keyExpressionTokens);
+                                }
+                            });
 
-                        index = end + 1;
-                        continue;
-                    }
+                            index = end + 1;
+                            continue;
+                        }
 
-                    if (newToken == ".")
-                    {
-                        // Dot access
-                        var fieldName = tokens[index + 1];
-                        if (!Interpreter.IsVariableName(fieldName))
-                            throw new Exception();
-
-                        AddToLastNode(ref previousExpression, Precedence.DotAccess, (expression, p) =>
+                        if (newToken == ".")
                         {
-                            if (expression is PrePostIncDecExpression prePostIncDecExpression)
-                            {
-                                prePostIncDecExpression.expressionRest = new DotAccessExpression(prePostIncDecExpression.expressionRest, fieldName);
-                                return prePostIncDecExpression;
-                            }
-                            else
-                            {
-                                return new DotAccessExpression(expression, fieldName);
-                            }
-                        });
+                            // Dot access
+                            var fieldName = tokens[index + 1];
+                            if (!Interpreter.IsVariableName(fieldName))
+                                throw new Exception();
 
-                        index += 2;
-                        continue;
+                            AddToLastNode(ref previousExpression, Precedence.DotAccess, (expression, p) =>
+                            {
+                                if (expression is PrePostIncDecExpression prePostIncDecExpression)
+                                {
+                                    prePostIncDecExpression.expressionRest = new DotAccessExpression(prePostIncDecExpression.expressionRest, fieldName);
+                                    return prePostIncDecExpression;
+                                }
+                                else
+                                {
+                                    return new DotAccessExpression(expression, fieldName);
+                                }
+                            });
+
+                            index += 2;
+                            continue;
+                        }
+
+                        throw new Exception();
                     }
-
-                    throw new Exception();
-                }
-            }
-
-            throw new Exception();
-        }
-
-        public static (Expression, int) ReadExpression(IReadOnlyList<string> tokens, int index)
-        {
-            var token = tokens[index];
-            if (token == "-" || token == "+")
-            {
-                var (expressionRest, lastIndex) = ReadExpression(tokens, index + 1);
-                var newExpression = new SinglePlusMinusExpression(token, expressionRest);
-                return (newExpression, lastIndex);
-            }
-            if (token == "!")
-            {
-                var (expressionRest, lastIndex) = ReadExpression(tokens, index + 1);
-                var newExpression = new NotExpression(token, expressionRest);
-                return (newExpression, lastIndex);
-            }
-            if (token == "++" || token == "--")
-            {
-                var isInc = token == "++";
-                var (expressionRest, lastIndex) = ReadExpression(tokens, index + 1);
-                var newExpression = new PrePostIncDecExpression(expressionRest, isPre: true, isInc: isInc);
-                return (newExpression, lastIndex);
-            }
-
-            if (token == "(")
-            {
-                var newend = tokens.IndexOfParenthesesEnd(index + 1);
-                if (newend < 0)
-                    throw new Exception();
-
-                var parenthesesTokens = new StringRange(tokens, index, newend + 1);
-                var newExpression = new ParenthesesExpression(parenthesesTokens);
-                return (newExpression, newend + 1);
-            }
-            if (token == "{")
-            {
-                var bracesEnd = tokens.IndexOfBracesEnd(index + 1);
-                if (bracesEnd < 0)
-                    throw new Exception();
-
-                var mapExpressionTokens = new StringRange(tokens, index, bracesEnd + 1);
-                var mapExpression = new MapExpression(mapExpressionTokens);
-                return (mapExpression, bracesEnd + 1);
-            }
-
-            if (token == "true")
-            {
-                return (Interpreter.trueExpression, index + 1);
-            }
-            if (token == "false")
-            {
-                return (Interpreter.falseExpression, index + 1);
-            }
-            if (token == "null")
-            {
-                return (Interpreter.nullExpression, index + 1);
-            }
-            if (token == "function")
-            {
-                if (tokens[index + 1] != "(")
-                    throw new Exception();
-                var parenthesesEnd = tokens.IndexOfParenthesesEnd(index + 2);
-                if (parenthesesEnd < 0)
-                    throw new Exception();
-                if (tokens[parenthesesEnd + 1] != "{")
-                    throw new Exception();
-                var bracesEnd = tokens.IndexOfBracesEnd(parenthesesEnd + 2);
-                if (bracesEnd < 0)
-                    throw new Exception();
-
-                var functionExpressionTokens = new StringRange(tokens, index, bracesEnd + 1);
-                var functionExpression = FunctionStatement.FromTokens(functionExpressionTokens);
-                return (functionExpression, bracesEnd + 1);
-            }
-            if (Interpreter.IsNumber(token))
-            {
-                return (new SingleTokenNumberExpression(token), index + 1);
-            }
-            if (Interpreter.IsStaticString(token))
-            {
-                return (new SingleTokenStringExpression(token), index + 1);
-            }
-            if (Interpreter.IsVariableName(token))
-            {
-                return (new SingleTokenVariableExpression(token), index + 1);
-            }
-
-            throw new Exception();
-        }
-
-        private static void AddToLastNode(ref Expression previousExpression, Precedence precedence, Func<Expression, Precedence?, Expression> handler)
-        {
-            if (previousExpression is TreeExpression treeExpression && precedence >= treeExpression.precedence)
-            {
-                TreeExpression lowestTreeExpression = treeExpression;
-
-                while (lowestTreeExpression.nextValues[lowestTreeExpression.nextValues.Count - 1].Item2 is TreeExpression subTree
-                    && precedence > subTree.precedence)
-                {
-                    lowestTreeExpression = subTree;
                 }
 
-                var treeElementIndex = lowestTreeExpression.nextValues.Count - 1;
-                var (treeLastElementOperator, treeLastElementExpression) = lowestTreeExpression.nextValues[treeElementIndex];
+                throw new Exception();
+            }
 
-                if (precedence == treeExpression.precedence)
+            public static (Expression, int) ReadExpression(IReadOnlyList<string> tokens, int index)
+            {
+                var token = tokens[index];
+                if (token == "-" || token == "+")
                 {
-                    var newExpression = handler(lowestTreeExpression, lowestTreeExpression.precedence);
+                    var (expressionRest, lastIndex) = ReadExpression(tokens, index + 1);
+                    var newExpression = new SinglePlusMinusExpression(token, expressionRest);
+                    return (newExpression, lastIndex);
+                }
+                if (token == "!")
+                {
+                    var (expressionRest, lastIndex) = ReadExpression(tokens, index + 1);
+                    var newExpression = new NotExpression(token, expressionRest);
+                    return (newExpression, lastIndex);
+                }
+                if (token == "++" || token == "--")
+                {
+                    var isInc = token == "++";
+                    var (expressionRest, lastIndex) = ReadExpression(tokens, index + 1);
+                    var newExpression = new PrePostIncDecExpression(expressionRest, isPre: true, isInc: isInc);
+                    return (newExpression, lastIndex);
+                }
+
+                if (token == "(")
+                {
+                    var newend = tokens.IndexOfParenthesesEnd(index + 1);
+                    if (newend < 0)
+                        throw new Exception();
+
+                    var parenthesesTokens = new CustomRange<string>(tokens, index, newend + 1);
+                    var newExpression = new ParenthesesExpression(parenthesesTokens);
+                    return (newExpression, newend + 1);
+                }
+                if (token == "{")
+                {
+                    var bracesEnd = tokens.IndexOfBracesEnd(index + 1);
+                    if (bracesEnd < 0)
+                        throw new Exception();
+
+                    var mapExpressionTokens = new CustomRange<string>(tokens, index, bracesEnd + 1);
+                    var mapExpression = new MapExpression(mapExpressionTokens);
+                    return (mapExpression, bracesEnd + 1);
+                }
+
+                if (token == "true")
+                {
+                    return (Interpreter.trueExpression, index + 1);
+                }
+                if (token == "false")
+                {
+                    return (Interpreter.falseExpression, index + 1);
+                }
+                if (token == "null")
+                {
+                    return (Interpreter.nullExpression, index + 1);
+                }
+                if (token == "function")
+                {
+                    if (tokens[index + 1] != "(")
+                        throw new Exception();
+                    var parenthesesEnd = tokens.IndexOfParenthesesEnd(index + 2);
+                    if (parenthesesEnd < 0)
+                        throw new Exception();
+                    if (tokens[parenthesesEnd + 1] != "{")
+                        throw new Exception();
+                    var bracesEnd = tokens.IndexOfBracesEnd(parenthesesEnd + 2);
+                    if (bracesEnd < 0)
+                        throw new Exception();
+
+                    var functionExpressionTokens = new CustomRange<string>(tokens, index, bracesEnd + 1);
+                    var functionExpression = FunctionStatement.FromTokens(functionExpressionTokens);
+                    return (functionExpression, bracesEnd + 1);
+                }
+                if (Interpreter.IsNumber(token))
+                {
+                    return (new SingleTokenNumberExpression(token), index + 1);
+                }
+                if (Interpreter.IsStaticString(token))
+                {
+                    return (new SingleTokenStringExpression(token), index + 1);
+                }
+                if (Interpreter.IsVariableName(token))
+                {
+                    return (new SingleTokenVariableExpression(token), index + 1);
+                }
+
+                throw new Exception();
+            }
+
+            private static void AddToLastNode(ref Expression previousExpression, Precedence precedence, Func<Expression, Precedence?, Expression> handler)
+            {
+                if (previousExpression is TreeExpression treeExpression && precedence >= treeExpression.precedence)
+                {
+                    TreeExpression lowestTreeExpression = treeExpression;
+
+                    while (lowestTreeExpression.nextValues[lowestTreeExpression.nextValues.Count - 1].Item2 is TreeExpression subTree
+                        && precedence > subTree.precedence)
+                    {
+                        lowestTreeExpression = subTree;
+                    }
+
+                    var treeElementIndex = lowestTreeExpression.nextValues.Count - 1;
+                    var (treeLastElementOperator, treeLastElementExpression) = lowestTreeExpression.nextValues[treeElementIndex];
+
+                    if (precedence == treeExpression.precedence)
+                    {
+                        var newExpression = handler(lowestTreeExpression, lowestTreeExpression.precedence);
+                    }
+                    else
+                    {
+                        var newExpression = handler(treeLastElementExpression, lowestTreeExpression.precedence);
+                        lowestTreeExpression.nextValues[treeElementIndex] = (treeLastElementOperator, newExpression);
+                    }
                 }
                 else
                 {
-                    var newExpression = handler(treeLastElementExpression, lowestTreeExpression.precedence);
-                    lowestTreeExpression.nextValues[treeElementIndex] = (treeLastElementOperator, newExpression);
+                    var newExpression = handler(previousExpression, null);
+                    previousExpression = newExpression;
                 }
             }
-            else
-            {
-                var newExpression = handler(previousExpression, null);
-                previousExpression = newExpression;
-            }
         }
-    }
-    class TreeExpression : Expression
-    {
-        internal Precedence precedence;
-        private Expression firstExpression;
-        internal List<(Operator operatorToken, Expression)> nextValues;
-
-        public TreeExpression(Precedence precedence, Expression firstExpression)
+        class TreeExpression : Expression
         {
-            this.precedence = precedence;
-            this.firstExpression = firstExpression;
-            this.nextValues = new List<(Operator operatorToken, Expression)>();
-        }
+            internal Precedence precedence;
+            private Expression firstExpression;
+            internal List<(Operator operatorToken, Expression)> nextValues;
 
-        public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
-        {
-            switch (precedence)
+            public TreeExpression(Precedence precedence, Expression firstExpression)
             {
-                case Precedence.Comparison:
-                    return interpreter.CompareTo(firstExpression, nextValues, variableScope);
-                case Precedence.AddSubtract:
-                    return interpreter.AddOrSubtract(firstExpression, nextValues, variableScope);
-                case Precedence.MultiplyDivide:
-                    return interpreter.MultiplyOrDivide(firstExpression, nextValues, variableScope);
-                case Precedence.AndOr:
-                    return interpreter.AndOr(firstExpression, nextValues, variableScope);
-                default:
-                    break;
+                this.precedence = precedence;
+                this.firstExpression = firstExpression;
+                this.nextValues = new List<(Operator operatorToken, Expression)>();
             }
 
-            throw new NotImplementedException();
-        }
-
-        public static Precedence GetPrecedence(string operatorToken)
-        {
-            switch (operatorToken)
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
             {
-                case "+": return Precedence.AddSubtract;
-                case "-": return Precedence.AddSubtract;
-                case "*": return Precedence.MultiplyDivide;
-                case "/": return Precedence.MultiplyDivide;
-                case "%": return Precedence.MultiplyDivide;
-                case "==": return Precedence.Comparison;
-                case "!=": return Precedence.Comparison;
-                case "<": return Precedence.Comparison;
-                case "<=": return Precedence.Comparison;
-                case ">": return Precedence.Comparison;
-                case ">=": return Precedence.Comparison;
-                case "&&": return Precedence.AndOr;
-                case "||": return Precedence.AndOr;
-                default: throw new Exception();
+                switch (precedence)
+                {
+                    case Precedence.Comparison:
+                        return interpreter.CompareTo(firstExpression, nextValues, variableScope);
+                    case Precedence.AddSubtract:
+                        return interpreter.AddOrSubtract(firstExpression, nextValues, variableScope);
+                    case Precedence.MultiplyDivide:
+                        return interpreter.MultiplyOrDivide(firstExpression, nextValues, variableScope);
+                    case Precedence.AndOr:
+                        return interpreter.AndOr(firstExpression, nextValues, variableScope);
+                    default:
+                        break;
+                }
+
+                throw new NotImplementedException();
+            }
+
+            public static Precedence GetPrecedence(string operatorToken)
+            {
+                switch (operatorToken)
+                {
+                    case "+": return Precedence.AddSubtract;
+                    case "-": return Precedence.AddSubtract;
+                    case "*": return Precedence.MultiplyDivide;
+                    case "/": return Precedence.MultiplyDivide;
+                    case "%": return Precedence.MultiplyDivide;
+                    case "==": return Precedence.Comparison;
+                    case "!=": return Precedence.Comparison;
+                    case "<": return Precedence.Comparison;
+                    case "<=": return Precedence.Comparison;
+                    case ">": return Precedence.Comparison;
+                    case ">=": return Precedence.Comparison;
+                    case "&&": return Precedence.AndOr;
+                    case "||": return Precedence.AndOr;
+                    default: throw new Exception();
+                }
+            }
+
+            internal void AddExpression(string newToken, Expression nextExpression)
+            {
+                nextValues.Add((Interpreter.ParseOperator(newToken), nextExpression));
             }
         }
-
-        internal void AddExpression(string newToken, Expression nextExpression)
+        class FunctionCallExpression : Expression
         {
-            nextValues.Add((Interpreter.ParseOperator(newToken), nextExpression));
-        }
-    }
-    class FunctionCallExpression : Expression
-    {
-        Expression lValue;
-        IReadOnlyList<string> parameterTokens;
+            Expression lValue;
+            IReadOnlyList<string> parameterTokens;
 
-        public FunctionCallExpression(Expression lValue, IReadOnlyList<string> parameterTokens)
-        {
-            this.lValue = lValue;
-            this.parameterTokens = parameterTokens;
-        }
-
-        public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
-        {
-            var expressions = parameterTokens.SplitBy(Interpreter.commaSet);
-            var arguments = expressions.Select(expression => interpreter.GetValueFromExpression(expression, variableScope)).ToArray();
-            var function = lValue.EvaluateExpression(interpreter, variableScope);
-            CustomValue returnValue = interpreter.CallFunction(function, arguments, variableScope);
-            return returnValue;
-        }
-    }
-    class IndexingExpression : Expression
-    {
-        internal Expression baseExpression;
-        internal Expression keyExpression;
-
-        public IndexingExpression(Expression baseExpression, IReadOnlyList<string> keyExpressionTokens)
-        {
-            this.baseExpression = baseExpression;
-            this.keyExpression = ExpressionMethods.New(keyExpressionTokens);
-        }
-
-        public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
-        {
-            var ownerExpressionValue = baseExpression.EvaluateExpression(interpreter, variableScope);
-            var keyExpressionValue = keyExpression.EvaluateExpression(interpreter, variableScope);
-
-            return interpreter.DoIndexingGet(ownerExpressionValue, keyExpressionValue);
-        }
-    }
-    class DotAccessExpression : Expression
-    {
-        internal Expression baseExpression;
-        private string fieldName;
-
-        public DotAccessExpression(Expression expression, string fieldName)
-        {
-            this.baseExpression = expression;
-            this.fieldName = fieldName;
-        }
-
-        public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
-        {
-            var ownerExpressionValue = baseExpression.EvaluateExpression(interpreter, variableScope);
-            var keyExpressionValue = GetKeyValue();
-
-            return interpreter.DoIndexingGet(ownerExpressionValue, keyExpressionValue);
-        }
-
-        public CustomValue GetKeyValue()
-        {
-            return CustomValue.FromParsedString(fieldName);
-        }
-    }
-    class MapExpression : Expression
-    {
-        IReadOnlyList<string> tokens;
-
-        public MapExpression(IReadOnlyList<string> tokens)
-        {
-            this.tokens = new StringRange(tokens, 1, tokens.Count - 1);
-        }
-
-        public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
-        {
-            var res = tokens.SplitBy(Interpreter.commaSet);
-            var map = new Dictionary<string, CustomValue>();
-            foreach (var item in res)
+            public FunctionCallExpression(Expression lValue, IReadOnlyList<string> parameterTokens)
             {
-                var firstToken = item[0];
-                var fieldName = Interpreter.IsVariableName(firstToken) ? firstToken : (string)CustomValue.FromString(firstToken).value;
+                this.lValue = lValue;
+                this.parameterTokens = parameterTokens;
+            }
 
-                if (item[1] != ":")
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            {
+                var expressions = SplitBy(parameterTokens, Interpreter.commaSet);
+                var arguments = expressions.Select(expression => interpreter.GetValueFromExpression(expression, variableScope)).ToArray();
+                var function = lValue.EvaluateExpression(interpreter, variableScope);
+                CustomValue returnValue = interpreter.CallFunction(function, arguments, variableScope);
+                return returnValue;
+            }
+        }
+        class IndexingExpression : Expression
+        {
+            internal Expression baseExpression;
+            internal Expression keyExpression;
+
+            public IndexingExpression(Expression baseExpression, IReadOnlyList<string> keyExpressionTokens)
+            {
+                this.baseExpression = baseExpression;
+                this.keyExpression = ExpressionMethods.New(keyExpressionTokens);
+            }
+
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            {
+                var ownerExpressionValue = baseExpression.EvaluateExpression(interpreter, variableScope);
+                var keyExpressionValue = keyExpression.EvaluateExpression(interpreter, variableScope);
+
+                return interpreter.DoIndexingGet(ownerExpressionValue, keyExpressionValue);
+            }
+        }
+        class DotAccessExpression : Expression
+        {
+            internal Expression baseExpression;
+            private string fieldName;
+
+            public DotAccessExpression(Expression expression, string fieldName)
+            {
+                this.baseExpression = expression;
+                this.fieldName = fieldName;
+            }
+
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            {
+                var ownerExpressionValue = baseExpression.EvaluateExpression(interpreter, variableScope);
+                var keyExpressionValue = GetKeyValue();
+
+                return interpreter.DoIndexingGet(ownerExpressionValue, keyExpressionValue);
+            }
+
+            public CustomValue GetKeyValue()
+            {
+                return CustomValue.FromParsedString(fieldName);
+            }
+        }
+        class MapExpression : Expression
+        {
+            IReadOnlyList<string> tokens;
+
+            public MapExpression(IReadOnlyList<string> tokens)
+            {
+                this.tokens = new CustomRange<string>(tokens, 1, tokens.Count - 1);
+            }
+
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            {
+                var res = SplitBy(tokens, Interpreter.commaSet);
+                var map = new Dictionary<string, CustomValue>();
+                foreach (var item in res)
+                {
+                    var firstToken = item[0];
+                    var fieldName = Interpreter.IsVariableName(firstToken) ? firstToken : (string)CustomValue.FromString(firstToken).value;
+
+                    if (item[1] != ":")
+                        throw new Exception();
+
+                    var fieldValue = ExpressionMethods.New(new CustomRange<string>(item, 2, item.Count)).EvaluateExpression(interpreter, variableScope);
+                    map.Add(fieldName, fieldValue);
+                }
+                return CustomValue.FromMap(map);
+            }
+        }
+        class ParenthesesExpression : Expression
+        {
+            internal IReadOnlyList<string> parenthesesTokens; // Should contain parentheses
+
+            public ParenthesesExpression(IReadOnlyList<string> parenthesesTokens)
+            {
+                if (parenthesesTokens[0] != "(")
                     throw new Exception();
-
-                var fieldValue = ExpressionMethods.New(new StringRange(item, 2, item.Count)).EvaluateExpression(interpreter, variableScope);
-                map.Add(fieldName, fieldValue);
+                this.parenthesesTokens = parenthesesTokens;
             }
-            return CustomValue.FromMap(map);
-        }
-    }
-    class ParenthesesExpression : Expression
-    {
-        internal IReadOnlyList<string> parenthesesTokens; // Should contain parentheses
 
-        public ParenthesesExpression(IReadOnlyList<string> parenthesesTokens)
-        {
-            if (parenthesesTokens[0] != "(")
-                throw new Exception();
-            this.parenthesesTokens = parenthesesTokens;
-        }
-
-        public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
-        {
-            var insideExpression = ExpressionMethods.New(new StringRange(parenthesesTokens, 1, parenthesesTokens.Count - 1));
-            return insideExpression.EvaluateExpression(interpreter, variableScope);
-        }
-    }
-    class SingleTokenNumberExpression : Expression
-    {
-        private string token;
-
-        public SingleTokenNumberExpression(string token)
-        {
-            this.token = token;
-        }
-
-        public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
-        {
-            return CustomValue.FromNumber(token);
-        }
-    }
-    class SingleTokenStringExpression : Expression
-    {
-        private string token;
-
-        public SingleTokenStringExpression(string token)
-        {
-            this.token = token;
-        }
-
-        public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
-        {
-            return CustomValue.FromString(token);
-        }
-    }
-    class SingleTokenVariableExpression : Expression
-    {
-        internal string token;
-
-        public SingleTokenVariableExpression(string token)
-        {
-            this.token = token;
-        }
-
-        public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
-        {
-            return variableScope.GetVariable(token);
-        }
-    }
-    class CustomValueExpression : Expression
-    {
-        private CustomValue value;
-
-        public CustomValueExpression(CustomValue value)
-        {
-            this.value = value;
-        }
-
-        public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
-        {
-            return value;
-        }
-    }
-    class SinglePlusMinusExpression : Expression
-    {
-        private string token;
-        private Expression expressionRest;
-
-        public SinglePlusMinusExpression(string token, Expression expressionRest)
-        {
-            this.token = token;
-            this.expressionRest = expressionRest;
-        }
-
-        public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
-        {
-            var rest = expressionRest.EvaluateExpression(interpreter, variableScope);
-            if (rest.type != ValueType.Number)
-                throw new Exception();
-
-            if (token == "-")
-                return CustomValue.FromNumber((double)rest.value * -1);
-            else if (token == "+")
-                return CustomValue.FromNumber((double)rest.value);
-            else
-                throw new Exception();
-        }
-    }
-    class NotExpression : Expression
-    {
-        private string token;
-        private Expression expressionRest;
-
-        public NotExpression(string token, Expression expressionRest)
-        {
-            this.token = token;
-            this.expressionRest = expressionRest;
-        }
-
-        public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
-        {
-            var rest = expressionRest.EvaluateExpression(interpreter, variableScope);
-            if (rest.type != ValueType.Bool)
-                throw new Exception();
-
-            bool restValue = (bool)rest.value;
-            return restValue ? CustomValue.False : CustomValue.True;
-        }
-    }
-    class PrePostIncDecExpression : Expression
-    {
-        internal Expression expressionRest;
-        bool isPre;
-        bool isInc;
-
-        public PrePostIncDecExpression(Expression expressionRest, bool isPre, bool isInc)
-        {
-            this.expressionRest = expressionRest;
-            this.isPre = isPre;
-            this.isInc = isInc;
-        }
-
-        public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
-        {
-            CustomValue value = CustomValue.FromNumber(1);
-            Func<CustomValue, CustomValue> operation = existingValue => interpreter.AddOrSubtract(existingValue, isInc ? Operator.Plus : Operator.Minus, value);
-
-            var newValue = Interpreter.ApplyLValueOperation(expressionRest, operation, interpreter, variableScope, out var oldValue);
-
-            return isPre ? newValue : oldValue;
-        }
-    }
-    class AssignmentExpression : Expression
-    {
-        public Expression lValue;
-        public string assignmentOperator;
-        public Expression rValue;
-        public bool hasVar;
-
-        public AssignmentExpression(Expression lValue, string assignmentOperator, IReadOnlyList<string> rValueTokens, bool hasVar)
-        {
-            if (!Interpreter.assignmentSet.Contains(assignmentOperator))
-                throw new Exception();
-
-            this.lValue = lValue;
-            this.assignmentOperator = assignmentOperator;
-            this.rValue = ExpressionMethods.New(rValueTokens);
-            this.hasVar = hasVar;
-        }
-
-        public AssignmentExpression(string variableName, string assignmentOperator, IReadOnlyList<string> rValueTokens, bool hasVar)
-            : this(new SingleTokenVariableExpression(variableName), assignmentOperator, rValueTokens, hasVar)
-        {
-
-        }
-
-        public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
-        {
-            if (hasVar)
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
             {
-                var variableName = ((SingleTokenVariableExpression)lValue).token;
-                if (assignmentOperator != "=")
-                    throw new Exception();
+                var insideExpression = ExpressionMethods.New(new CustomRange<string>(parenthesesTokens, 1, parenthesesTokens.Count - 1));
+                return insideExpression.EvaluateExpression(interpreter, variableScope);
+            }
+        }
+        class SingleTokenNumberExpression : Expression
+        {
+            private string token;
 
-                var value = rValue.EvaluateExpression(interpreter, variableScope);
-                variableScope.AddVariable(variableName, value);
+            public SingleTokenNumberExpression(string token)
+            {
+                this.token = token;
+            }
+
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            {
+                return CustomValue.FromNumber(token);
+            }
+        }
+        class SingleTokenStringExpression : Expression
+        {
+            private string token;
+
+            public SingleTokenStringExpression(string token)
+            {
+                this.token = token;
+            }
+
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            {
+                return CustomValue.FromString(token);
+            }
+        }
+        class SingleTokenVariableExpression : Expression
+        {
+            internal string token;
+
+            public SingleTokenVariableExpression(string token)
+            {
+                this.token = token;
+            }
+
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            {
+                return variableScope.GetVariable(token);
+            }
+        }
+        class CustomValueExpression : Expression
+        {
+            private CustomValue value;
+
+            public CustomValueExpression(CustomValue value)
+            {
+                this.value = value;
+            }
+
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            {
                 return value;
             }
-            else
+        }
+        class SinglePlusMinusExpression : Expression
+        {
+            private string token;
+            private Expression expressionRest;
+
+            public SinglePlusMinusExpression(string token, Expression expressionRest)
             {
-                var value = rValue.EvaluateExpression(interpreter, variableScope);
-
-                Func<CustomValue, CustomValue> operation;
-
-                switch (assignmentOperator)
-                {
-                    case "=":
-                        operation = existingValue => value;
-                        break;
-                    case "+=":
-                        operation = existingValue => interpreter.AddOrSubtract(existingValue, Operator.Plus, value);
-                        break;
-                    case "-=":
-                        operation = existingValue => interpreter.AddOrSubtract(existingValue, Operator.Minus, value);
-                        break;
-                    case "*=":
-                        operation = existingValue => interpreter.MultiplyOrDivide(existingValue, Operator.Multiply, value);
-                        break;
-                    case "/=":
-                        operation = existingValue => interpreter.MultiplyOrDivide(existingValue, Operator.Divide, value);
-                        break;
-                    case "%=":
-                        operation = existingValue => interpreter.MultiplyOrDivide(existingValue, Operator.Modulus, value);
-                        break;
-                    default:
-                        throw new Exception();
-                }
-
-                return Interpreter.ApplyLValueOperation(lValue, operation, interpreter, variableScope, out var _);
+                this.token = token;
+                this.expressionRest = expressionRest;
             }
-        }
 
-        public static AssignmentExpression FromVarStatement(IReadOnlyList<string> tokens)
-        {
-            return new AssignmentExpression(tokens[0], tokens[1], new StringRange(tokens, 2, tokens.Count), true);
-        }
-    }
-    class TernaryExpression : Expression
-    {
-        private Expression conditionExpression;
-        private Expression questionMarkExpression;
-        private Expression colonExpression;
-
-        public TernaryExpression(Expression conditionExpression, Expression questionMarkExpression, Expression colonExpression)
-        {
-            this.conditionExpression = conditionExpression;
-            this.questionMarkExpression = questionMarkExpression;
-            this.colonExpression = colonExpression;
-        }
-
-        public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
-        {
-            var conditionValue = conditionExpression.EvaluateExpression(interpreter, variableScope);
-            bool isTruthy = conditionValue.IsTruthy();
-
-            if (isTruthy)
-                return questionMarkExpression.EvaluateExpression(interpreter, variableScope);
-            else
-                return colonExpression.EvaluateExpression(interpreter, variableScope);
-        }
-    }
-
-    interface Statement
-    {
-        (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope);
-        StatementType Type { get; }
-    }
-    static class StatementMethods
-    {
-        public static Statement New(IReadOnlyList<string> tokens, bool isFunction)
-        {
-            if (tokens[0] == "{")
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
             {
-                if (tokens[tokens.Count - 1] != "}")
+                var rest = expressionRest.EvaluateExpression(interpreter, variableScope);
+                if (rest.type != ValueType.Number)
                     throw new Exception();
-                return new BlockStatement(tokens, isFunction);
-            }
-            else if (tokens[0] == "while")
-            {
-                return new WhileStatement(tokens);
-            }
-            else if (tokens[0] == "if")
-            {
-                return new IfStatement(tokens);
-            }
-            else if (tokens[0] == "else")
-            {
-                if (tokens[1] == "if")
-                    return new ElseIfStatement(tokens);
+
+                if (token == "-")
+                    return CustomValue.FromNumber((double)rest.value * -1);
+                else if (token == "+")
+                    return CustomValue.FromNumber((double)rest.value);
                 else
-                    return new ElseStatement(tokens);
+                    throw new Exception();
             }
-            else
-                return new LineStatement(tokens);
         }
-        internal static (IReadOnlyList<string>, IReadOnlyList<string>) GetTokensConditionAndBody(IReadOnlyList<string> tokens, int conditionStartIndex)
+        class NotExpression : Expression
         {
-            var endOfParentheses = tokens.IndexOfParenthesesEnd(conditionStartIndex);
-            if (endOfParentheses < 0)
-                throw new Exception();
-            var conditionTokens = new StringRange(tokens, conditionStartIndex, endOfParentheses);
+            private string token;
+            private Expression expressionRest;
 
-            var statementTokens = new StringRange(tokens, endOfParentheses + 1, tokens.Count);
-
-            return (conditionTokens, statementTokens);
-        }
-        internal static (Expression, Statement) GetConditionAndBody(IReadOnlyList<string> tokens, int conditionStartIndex)
-        {
-            var (conditionTokens, statementTokens) = GetTokensConditionAndBody(tokens, conditionStartIndex);
-            var conditionExpression = ExpressionMethods.New(conditionTokens);
-            var statement = StatementMethods.New(statementTokens, isFunction: false);
-
-            return (conditionExpression, statement);
-        }
-    }
-    class LineStatement : Statement
-    {
-        IReadOnlyList<string> tokens;
-        bool hasSemiColon;
-
-        public LineStatement(IReadOnlyList<string> tokens)
-        {
-            if (tokens[tokens.Count - 1] == ";")
+            public NotExpression(string token, Expression expressionRest)
             {
-                hasSemiColon = true;
-                tokens = new StringRange(tokens, 0, tokens.Count - 1);
+                this.token = token;
+                this.expressionRest = expressionRest;
             }
 
-            this.tokens = tokens;
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            {
+                var rest = expressionRest.EvaluateExpression(interpreter, variableScope);
+                if (rest.type != ValueType.Bool)
+                    throw new Exception();
+
+                bool restValue = (bool)rest.value;
+                return restValue ? CustomValue.False : CustomValue.True;
+            }
         }
-
-        public StatementType Type => StatementType.LineStatement;
-
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
+        class PrePostIncDecExpression : Expression
         {
-            if (tokens.Count == 0) return (CustomValue.Null, false, false, false);
+            internal Expression expressionRest;
+            bool isPre;
+            bool isInc;
 
-            if (tokens[0] == "var")
+            public PrePostIncDecExpression(Expression expressionRest, bool isPre, bool isInc)
             {
-                // Assignment to new variable
-                var assignmentTree = AssignmentExpression.FromVarStatement(new StringRange(tokens, 1, tokens.Count));
-                var value = assignmentTree.EvaluateExpression(interpreter, variableScope);
-                return (CustomValue.Null, false, false, false);
-            }
-            else if (tokens[0] == "return")
-            {
-                if (tokens.Count == 1)
-                    return (CustomValue.Null, true, false, false);
-                var returnExpression = ExpressionMethods.New(new StringRange(tokens, 1, tokens.Count));
-                var returnValue = returnExpression.EvaluateExpression(interpreter, variableScope);
-                return (returnValue, true, false, false);
-            }
-            else if (tokens[0] == "break")
-            {
-                return (CustomValue.Null, false, true, false);
-            }
-            else if (tokens[0] == "continue")
-            {
-                return (CustomValue.Null, false, false, true);
-            }
-            else if (tokens[0] == "function" && Interpreter.IsVariableName(tokens[1]))
-            {
-                var variableName = tokens[1];
-                var functionStatement = FunctionStatement.FromTokens(tokens);
-                var function = functionStatement.EvaluateExpression(interpreter, variableScope);
-
-                variableScope.AddVariable(variableName, function);
-                return (CustomValue.Null, false, false, false);
+                this.expressionRest = expressionRest;
+                this.isPre = isPre;
+                this.isInc = isInc;
             }
 
-            CustomValue expressionValue = interpreter.GetValueFromExpression(tokens, variableScope);
-            if (hasSemiColon)
-                return (CustomValue.Null, false, false, false);
-            return (expressionValue, false, false, false);
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            {
+                CustomValue value = CustomValue.FromNumber(1);
+                Func<CustomValue, CustomValue> operation = existingValue => interpreter.AddOrSubtract(existingValue, isInc ? Operator.Plus : Operator.Minus, value);
+
+                var newValue = Interpreter.ApplyLValueOperation(expressionRest, operation, interpreter, variableScope, out var oldValue);
+
+                return isPre ? newValue : oldValue;
+            }
         }
-    }
-    class BlockStatement : Statement
-    {
-        List<Statement> statements;
-        bool isFunction;
-
-        public BlockStatement(IReadOnlyList<string> tokens, bool isFunction)
+        class AssignmentExpression : Expression
         {
-            if (tokens[0] != "{")
-                throw new Exception();
-            tokens = new StringRange(tokens, 1, tokens.Count - 1);
-            var statementRanges = tokens.GetStatementRanges();
-            statements = statementRanges.Select(range => StatementMethods.New(range, isFunction)).ToList();
-            this.isFunction = isFunction;
-        }
+            public Expression lValue;
+            public string assignmentOperator;
+            public Expression rValue;
+            public bool hasVar;
 
-        public StatementType Type => StatementType.BlockStatement;
-
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope innerScope)
-        {
-            var variableScope = VariableScope.NewWithInner(innerScope);
-            foreach (var statement in statements)
+            public AssignmentExpression(Expression lValue, string assignmentOperator, IReadOnlyList<string> rValueTokens, bool hasVar)
             {
-                var (value, isReturn, isBreak, isContinue) = statement.EvaluateStatement(interpreter, variableScope);
-                if (isReturn)
-                    return (value, true, false, false);
-                if (isBreak)
-                    return (CustomValue.Null, false, true, false);
-                if (isContinue)
-                    return (CustomValue.Null, false, false, true);
+                if (!Interpreter.assignmentSet.Contains(assignmentOperator))
+                    throw new Exception();
+
+                this.lValue = lValue;
+                this.assignmentOperator = assignmentOperator;
+                this.rValue = ExpressionMethods.New(rValueTokens);
+                this.hasVar = hasVar;
             }
-            return (CustomValue.Null, false, false, false);
+
+            public AssignmentExpression(string variableName, string assignmentOperator, IReadOnlyList<string> rValueTokens, bool hasVar)
+                : this(new SingleTokenVariableExpression(variableName), assignmentOperator, rValueTokens, hasVar)
+            {
+
+            }
+
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            {
+                if (hasVar)
+                {
+                    var variableName = ((SingleTokenVariableExpression)lValue).token;
+                    if (assignmentOperator != "=")
+                        throw new Exception();
+
+                    var value = rValue.EvaluateExpression(interpreter, variableScope);
+                    variableScope.AddVariable(variableName, value);
+                    return value;
+                }
+                else
+                {
+                    var value = rValue.EvaluateExpression(interpreter, variableScope);
+
+                    Func<CustomValue, CustomValue> operation;
+
+                    switch (assignmentOperator)
+                    {
+                        case "=":
+                            operation = existingValue => value;
+                            break;
+                        case "+=":
+                            operation = existingValue => interpreter.AddOrSubtract(existingValue, Operator.Plus, value);
+                            break;
+                        case "-=":
+                            operation = existingValue => interpreter.AddOrSubtract(existingValue, Operator.Minus, value);
+                            break;
+                        case "*=":
+                            operation = existingValue => interpreter.MultiplyOrDivide(existingValue, Operator.Multiply, value);
+                            break;
+                        case "/=":
+                            operation = existingValue => interpreter.MultiplyOrDivide(existingValue, Operator.Divide, value);
+                            break;
+                        case "%=":
+                            operation = existingValue => interpreter.MultiplyOrDivide(existingValue, Operator.Modulus, value);
+                            break;
+                        default:
+                            throw new Exception();
+                    }
+
+                    return Interpreter.ApplyLValueOperation(lValue, operation, interpreter, variableScope, out var _);
+                }
+            }
+
+            public static AssignmentExpression FromVarStatement(IReadOnlyList<string> tokens)
+            {
+                var variableName = tokens[0];
+                return new AssignmentExpression(variableName, tokens[1], new CustomRange<string>(tokens, 2, tokens.Count), true);
+            }
         }
-    }
-    class WhileStatement : Statement
-    {
-        Expression conditionExpression;
-        Statement statement;
-
-        public WhileStatement(IReadOnlyList<string> tokens)
+        class TernaryExpression : Expression
         {
-            if (tokens[1] != "(")
-                throw new Exception();
-            var conditionStartIndex = 2;
-            var (expression, statement) = StatementMethods.GetConditionAndBody(tokens, conditionStartIndex);
-            this.conditionExpression = expression;
-            this.statement = statement;
-        }
+            private Expression conditionExpression;
+            private Expression questionMarkExpression;
+            private Expression colonExpression;
 
-        public StatementType Type => StatementType.WhileStatement;
+            public TernaryExpression(Expression conditionExpression, Expression questionMarkExpression, Expression colonExpression)
+            {
+                this.conditionExpression = conditionExpression;
+                this.questionMarkExpression = questionMarkExpression;
+                this.colonExpression = colonExpression;
+            }
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
-        {
-            while (true)
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
             {
                 var conditionValue = conditionExpression.EvaluateExpression(interpreter, variableScope);
-                if (!conditionValue.IsTruthy())
-                    break;
+                bool isTruthy = conditionValue.IsTruthy();
 
-                var (value, isReturn, isBreak, isContinue) = statement.EvaluateStatement(interpreter, variableScope);
-                if (isReturn)
-                    return (value, true, false, false);
-                if (isBreak)
-                    break;
-                if (isContinue)
-                    continue;
+                if (isTruthy)
+                    return questionMarkExpression.EvaluateExpression(interpreter, variableScope);
+                else
+                    return colonExpression.EvaluateExpression(interpreter, variableScope);
             }
-
-            return (CustomValue.Null, false, false, false);
-        }
-    }
-    class IfStatement : Statement
-    {
-        Expression conditionExpression;
-        internal Statement statementOfIf;
-        internal Lazy<List<(Expression condition, Statement statement)>> elseIfStatements = new Lazy<List<(Expression, Statement)>>(() => new List<(Expression, Statement)>());
-        Statement elseStatement;
-
-        public IfStatement(IReadOnlyList<string> tokens)
-        {
-            if (tokens[1] != "(")
-                throw new Exception();
-            var conditionStartIndex = 2;
-            var (expression, statement) = StatementMethods.GetConditionAndBody(tokens, conditionStartIndex);
-            this.conditionExpression = expression;
-            this.statementOfIf = statement;
         }
 
-        public StatementType Type => StatementType.IfStatement;
-
-        internal void AddElseIf(Statement statementAfterIf)
+        interface Statement
         {
-            var elseIf = (ElseIfStatement)statementAfterIf;
-            elseIfStatements.Value.Add((elseIf.condition, elseIf.statement));
+            (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope);
+            StatementType Type { get; }
         }
-
-        internal void SetElse(Statement statementAfterIf)
+        static class StatementMethods
         {
-            if (elseStatement != null)
-                throw new Exception();
-            elseStatement = statementAfterIf;
-        }
-
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
-        {
-            var conditionValue = conditionExpression.EvaluateExpression(interpreter, variableScope);
-            if (conditionValue.IsTruthy())
+            public static Statement New(IReadOnlyList<string> tokens, bool isFunction)
             {
-                var (value, isReturn, isBreak, isContinue) = statementOfIf.EvaluateStatement(interpreter, variableScope);
-                if (isReturn)
-                    return (value, true, false, false);
-                return (CustomValue.Null, false, isBreak, isContinue);
-            }
-
-            foreach (var elseIfStatement in elseIfStatements.Value)
-            {
-                var elseIfCondition = elseIfStatement.condition.EvaluateExpression(interpreter, variableScope);
-                if (elseIfCondition.IsTruthy())
+                if (tokens[0] == "{")
                 {
-                    var (value, isReturn, isBreak, isContinue) = elseIfStatement.statement.EvaluateStatement(interpreter, variableScope);
+                    if (tokens[tokens.Count - 1] != "}")
+                        throw new Exception();
+                    return new BlockStatement(tokens, isFunction);
+                }
+                else if (tokens[0] == "while")
+                {
+                    return new WhileStatement(tokens);
+                }
+                else if (tokens[0] == "if")
+                {
+                    return new IfStatement(tokens);
+                }
+                else if (tokens[0] == "else")
+                {
+                    if (tokens[1] == "if")
+                        return new ElseIfStatement(tokens);
+                    else
+                        return new ElseStatement(tokens);
+                }
+                else
+                    return new LineStatement(tokens);
+            }
+            internal static (IReadOnlyList<string>, IReadOnlyList<string>) GetTokensConditionAndBody(IReadOnlyList<string> tokens, int conditionStartIndex)
+            {
+                var endOfParentheses = tokens.IndexOfParenthesesEnd(conditionStartIndex);
+                if (endOfParentheses < 0)
+                    throw new Exception();
+                var conditionTokens = new CustomRange<string>(tokens, conditionStartIndex, endOfParentheses);
+
+                var statementTokens = new CustomRange<string>(tokens, endOfParentheses + 1, tokens.Count);
+
+                return (conditionTokens, statementTokens);
+            }
+            internal static (Expression, Statement) GetConditionAndBody(IReadOnlyList<string> tokens, int conditionStartIndex)
+            {
+                var (conditionTokens, statementTokens) = GetTokensConditionAndBody(tokens, conditionStartIndex);
+                var conditionExpression = ExpressionMethods.New(conditionTokens);
+                var statement = StatementMethods.New(statementTokens, isFunction: false);
+
+                return (conditionExpression, statement);
+            }
+        }
+        class LineStatement : Statement
+        {
+            IReadOnlyList<string> tokens;
+            bool hasSemiColon;
+
+            public LineStatement(IReadOnlyList<string> tokens)
+            {
+                if (tokens[tokens.Count - 1] == ";")
+                {
+                    hasSemiColon = true;
+                    tokens = new CustomRange<string>(tokens, 0, tokens.Count - 1);
+                }
+
+                this.tokens = tokens;
+            }
+
+            public StatementType Type => StatementType.LineStatement;
+
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
+            {
+                if (tokens.Count == 0) return (CustomValue.Null, false, false, false);
+
+                if (tokens[0] == "var")
+                {
+                    // Assignment to new variable
+                    var assignmentTree = AssignmentExpression.FromVarStatement(new CustomRange<string>(tokens, 1, tokens.Count));
+                    var value = assignmentTree.EvaluateExpression(interpreter, variableScope);
+                    return (CustomValue.Null, false, false, false);
+                }
+                else if (tokens[0] == "return")
+                {
+                    if (tokens.Count == 1)
+                        return (CustomValue.Null, true, false, false);
+                    var returnExpression = ExpressionMethods.New(new CustomRange<string>(tokens, 1, tokens.Count));
+                    var returnValue = returnExpression.EvaluateExpression(interpreter, variableScope);
+                    return (returnValue, true, false, false);
+                }
+                else if (tokens[0] == "break")
+                {
+                    return (CustomValue.Null, false, true, false);
+                }
+                else if (tokens[0] == "continue")
+                {
+                    return (CustomValue.Null, false, false, true);
+                }
+                else if (tokens[0] == "function" && Interpreter.IsVariableName(tokens[1]))
+                {
+                    var variableName = tokens[1];
+                    var functionStatement = FunctionStatement.FromTokens(tokens);
+                    var function = functionStatement.EvaluateExpression(interpreter, variableScope);
+
+                    variableScope.AddVariable(variableName, function);
+                    return (CustomValue.Null, false, false, false);
+                }
+
+                CustomValue expressionValue = interpreter.GetValueFromExpression(tokens, variableScope);
+                if (hasSemiColon)
+                    return (CustomValue.Null, false, false, false);
+                return (expressionValue, false, false, false);
+            }
+        }
+        class BlockStatement : Statement
+        {
+            List<Statement> statements;
+            bool isFunction;
+
+            public BlockStatement(IReadOnlyList<string> tokens, bool isFunction)
+            {
+                if (tokens[0] != "{")
+                    throw new Exception();
+                tokens = new CustomRange<string>(tokens, 1, tokens.Count - 1);
+                var statementRanges = GetStatementRanges(tokens);
+                statements = statementRanges.Select(range => StatementMethods.New(range, isFunction)).ToList();
+                this.isFunction = isFunction;
+            }
+
+            public StatementType Type => StatementType.BlockStatement;
+
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope innerScope)
+            {
+                var variableScope = VariableScope.NewWithInner(innerScope);
+                foreach (var statement in statements)
+                {
+                    var (value, isReturn, isBreak, isContinue) = statement.EvaluateStatement(interpreter, variableScope);
+                    if (isReturn)
+                        return (value, true, false, false);
+                    if (isBreak)
+                        return (CustomValue.Null, false, true, false);
+                    if (isContinue)
+                        return (CustomValue.Null, false, false, true);
+                }
+                return (CustomValue.Null, false, false, false);
+            }
+        }
+        class WhileStatement : Statement
+        {
+            Expression conditionExpression;
+            Statement statement;
+
+            public WhileStatement(IReadOnlyList<string> tokens)
+            {
+                if (tokens[1] != "(")
+                    throw new Exception();
+                var conditionStartIndex = 2;
+                var (expression, statement) = StatementMethods.GetConditionAndBody(tokens, conditionStartIndex);
+                this.conditionExpression = expression;
+                this.statement = statement;
+            }
+
+            public StatementType Type => StatementType.WhileStatement;
+
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
+            {
+                while (true)
+                {
+                    var conditionValue = conditionExpression.EvaluateExpression(interpreter, variableScope);
+                    if (!conditionValue.IsTruthy())
+                        break;
+
+                    var (value, isReturn, isBreak, isContinue) = statement.EvaluateStatement(interpreter, variableScope);
+                    if (isReturn)
+                        return (value, true, false, false);
+                    if (isBreak)
+                        break;
+                    if (isContinue)
+                        continue;
+                }
+
+                return (CustomValue.Null, false, false, false);
+            }
+        }
+        class IfStatement : Statement
+        {
+            Expression conditionExpression;
+            internal Statement statementOfIf;
+            internal Lazy<List<(Expression condition, Statement statement)>> elseIfStatements = new Lazy<List<(Expression, Statement)>>(() => new List<(Expression, Statement)>());
+            Statement elseStatement;
+
+            public IfStatement(IReadOnlyList<string> tokens)
+            {
+                if (tokens[1] != "(")
+                    throw new Exception();
+                var conditionStartIndex = 2;
+                var (expression, statement) = StatementMethods.GetConditionAndBody(tokens, conditionStartIndex);
+                this.conditionExpression = expression;
+                this.statementOfIf = statement;
+            }
+
+            public StatementType Type => StatementType.IfStatement;
+
+            internal void AddElseIf(Statement statementAfterIf)
+            {
+                var elseIf = (ElseIfStatement)statementAfterIf;
+                elseIfStatements.Value.Add((elseIf.condition, elseIf.statement));
+            }
+
+            internal void SetElse(Statement statementAfterIf)
+            {
+                if (elseStatement != null)
+                    throw new Exception();
+                elseStatement = statementAfterIf;
+            }
+
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
+            {
+                var conditionValue = conditionExpression.EvaluateExpression(interpreter, variableScope);
+                if (conditionValue.IsTruthy())
+                {
+                    var (value, isReturn, isBreak, isContinue) = statementOfIf.EvaluateStatement(interpreter, variableScope);
                     if (isReturn)
                         return (value, true, false, false);
                     return (CustomValue.Null, false, isBreak, isContinue);
                 }
-            }
 
-            if (elseStatement != null)
-            {
-                var (value, isReturn, isBreak, isContinue) = elseStatement.EvaluateStatement(interpreter, variableScope);
-                if (isReturn)
-                    return (value, true, false, false);
-                return (CustomValue.Null, false, isBreak, isContinue);
-            }
-
-            return (CustomValue.Null, false, false, false);
-        }
-    }
-    class ElseIfStatement : Statement
-    {
-        internal Expression condition;
-        internal Statement statement;
-
-        public ElseIfStatement(IReadOnlyList<string> tokens)
-        {
-            if (tokens[2] != "(")
-                throw new Exception();
-            var conditionStartIndex = 3;
-            var (condition, statement) = StatementMethods.GetConditionAndBody(tokens, conditionStartIndex);
-            this.condition = condition;
-            this.statement = statement;
-        }
-
-        public StatementType Type => StatementType.ElseIfStatement;
-
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
-        {
-            return statement.EvaluateStatement(interpreter, variableScope);
-        }
-    }
-    class ElseStatement : Statement
-    {
-        Statement statement;
-
-        public ElseStatement(IReadOnlyList<string> tokens)
-        {
-            if (tokens[0] != "else")
-                throw new Exception();
-            statement = StatementMethods.New(new StringRange(tokens, 1, tokens.Count), isFunction: false);
-        }
-
-        public StatementType Type => StatementType.ElseStatement;
-
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
-        {
-            return statement.EvaluateStatement(interpreter, variableScope);
-        }
-    }
-    class FunctionStatement : Statement, Expression
-    {
-        IReadOnlyList<string> parameters; // Should not contain parentheses
-        Statement body;
-
-        private FunctionStatement(IReadOnlyList<string> parameters, Statement body)
-        {
-            if (parameters.Count > 0 && parameters[0] == "(")
-                throw new Exception();
-            this.parameters = parameters;
-            this.body = body;
-        }
-
-        public StatementType Type => StatementType.FunctionStatement;
-
-        public static FunctionStatement FromParametersAndBody(IReadOnlyList<string> parameterTokens, IReadOnlyList<string> bodyTokens)
-        {
-            var body = StatementMethods.New(bodyTokens, isFunction: true);
-            return new FunctionStatement(parameterTokens, body);
-        }
-
-        public static FunctionStatement FromTokens(IReadOnlyList<string> tokens)
-        {
-            var parenthesesIndex = tokens.IndexOf("(", 0);
-            var (parameters, bodyTokens) = StatementMethods.GetTokensConditionAndBody(tokens, parenthesesIndex + 1);
-            var body = StatementMethods.New(bodyTokens, isFunction: true);
-            return new FunctionStatement(parameters, body);
-        }
-
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
-        {
-            var parametersMap = new Dictionary<string, int>(); // Map is used to ensure uniqueness
-            var parametersList = new List<string>();
-            for (int i = 0; i < parameters.Count; i++)
-            {
-                if (i % 2 == 1)
+                foreach (var elseIfStatement in elseIfStatements.Value)
                 {
-                    if (parameters[i] != ",")
-                        throw new Exception();
+                    var elseIfCondition = elseIfStatement.condition.EvaluateExpression(interpreter, variableScope);
+                    if (elseIfCondition.IsTruthy())
+                    {
+                        var (value, isReturn, isBreak, isContinue) = elseIfStatement.statement.EvaluateStatement(interpreter, variableScope);
+                        if (isReturn)
+                            return (value, true, false, false);
+                        return (CustomValue.Null, false, isBreak, isContinue);
+                    }
                 }
-                else
+
+                if (elseStatement != null)
                 {
-                    var parameterIndex = i / 2;
-                    parametersMap.Add(parameters[i], parameterIndex);
-                    parametersList.Add(parameters[i]);
+                    var (value, isReturn, isBreak, isContinue) = elseStatement.EvaluateStatement(interpreter, variableScope);
+                    if (isReturn)
+                        return (value, true, false, false);
+                    return (CustomValue.Null, false, isBreak, isContinue);
                 }
+
+                return (CustomValue.Null, false, false, false);
+            }
+        }
+        class ElseIfStatement : Statement
+        {
+            internal Expression condition;
+            internal Statement statement;
+
+            public ElseIfStatement(IReadOnlyList<string> tokens)
+            {
+                if (tokens[2] != "(")
+                    throw new Exception();
+                var conditionStartIndex = 3;
+                var (condition, statement) = StatementMethods.GetConditionAndBody(tokens, conditionStartIndex);
+                this.condition = condition;
+                this.statement = statement;
             }
 
-            var function = new CustomFunction(parametersList, body);
-            return (CustomValue.FromFunction(function), false, false, false);
-        }
+            public StatementType Type => StatementType.ElseIfStatement;
 
-        public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
+            {
+                return statement.EvaluateStatement(interpreter, variableScope);
+            }
+        }
+        class ElseStatement : Statement
         {
-            return EvaluateStatement(interpreter, variableScope).Item1;
+            Statement statement;
+
+            public ElseStatement(IReadOnlyList<string> tokens)
+            {
+                if (tokens[0] != "else")
+                    throw new Exception();
+                statement = StatementMethods.New(new CustomRange<string>(tokens, 1, tokens.Count), isFunction: false);
+            }
+
+            public StatementType Type => StatementType.ElseStatement;
+
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
+            {
+                return statement.EvaluateStatement(interpreter, variableScope);
+            }
+        }
+        class FunctionStatement : Statement, Expression
+        {
+            IReadOnlyList<string> parameters; // Should not contain parentheses
+            Statement body;
+
+            private FunctionStatement(IReadOnlyList<string> parameters, Statement body)
+            {
+                if (parameters.Count > 0 && parameters[0] == "(")
+                    throw new Exception();
+                this.parameters = parameters;
+                this.body = body;
+            }
+
+            public StatementType Type => StatementType.FunctionStatement;
+
+            public static FunctionStatement FromParametersAndBody(IReadOnlyList<string> parameterTokens, IReadOnlyList<string> bodyTokens)
+            {
+                var body = StatementMethods.New(bodyTokens, isFunction: true);
+                return new FunctionStatement(parameterTokens, body);
+            }
+
+            public static FunctionStatement FromTokens(IReadOnlyList<string> tokens)
+            {
+                var parenthesesIndex = tokens.IndexOf("(", 0);
+                var (parameters, bodyTokens) = StatementMethods.GetTokensConditionAndBody(tokens, parenthesesIndex + 1);
+                var body = StatementMethods.New(bodyTokens, isFunction: true);
+                return new FunctionStatement(parameters, body);
+            }
+
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
+            {
+                var parametersMap = new Dictionary<string, int>(); // Map is used to ensure uniqueness
+                var parametersList = new List<string>();
+                for (int i = 0; i < parameters.Count; i++)
+                {
+                    if (i % 2 == 1)
+                    {
+                        if (parameters[i] != ",")
+                            throw new Exception();
+                    }
+                    else
+                    {
+                        var parameterIndex = i / 2;
+                        parametersMap.Add(parameters[i], parameterIndex);
+                        parametersList.Add(parameters[i]);
+                    }
+                }
+
+                var function = new CustomFunction(parametersList, body);
+                return (CustomValue.FromFunction(function), false, false, false);
+            }
+
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            {
+                return EvaluateStatement(interpreter, variableScope).Item1;
+            }
+        }
+    }
+}
+
+static class InterpreterExtensions
+{
+    public static int IndexOf<T>(this IReadOnlyList<T> source, T element, int startIndex) where T : IEquatable<T>
+    {
+        for (int i = startIndex; i < source.Count; i++)
+        {
+            T currentElement = source[i];
+            if (currentElement.Equals(element))
+                return i;
+        }
+        return -1;
+    }
+
+    public static int IndexOfParenthesesEnd(this IReadOnlyList<string> source, int startIndex)
+    {
+        return IndexOfPairsEnd(source, startIndex, "(", ")");
+    }
+
+    public static int IndexOfBracesEnd(this IReadOnlyList<string> source, int startIndex)
+    {
+        return IndexOfPairsEnd(source, startIndex, "{", "}");
+    }
+
+    public static int IndexOfBracketsEnd(this IReadOnlyList<string> source, int startIndex)
+    {
+        return IndexOfPairsEnd(source, startIndex, "[", "]");
+    }
+
+    private static int IndexOfPairsEnd(this IReadOnlyList<string> source, int startIndex, string first, string last)
+    {
+        int count = 0;
+        for (int i = startIndex; i < source.Count; i++)
+        {
+            string currentElement = source[i];
+            if (currentElement == last)
+            {
+                if (count == 0)
+                    return i;
+
+                count--;
+                if (count < 0)
+                    throw new Exception();
+            }
+            else if (currentElement == first)
+            {
+                count++;
+            }
+        }
+        return -1;
+    }
+
+    public static IReadOnlyList<E> SelectFast<T, E>(this IReadOnlyList<T> source, Func<T, E> converter)
+    {
+        var newArr = new E[source.Count];
+        for (int i = 0; i < source.Count; i++)
+        {
+            newArr[i] = converter(source[i]);
+        }
+        return newArr;
+    }
+
+    public static bool Equals(object result, object expected)
+    {
+        if (result == null && expected == null)
+            return true;
+
+        Type resultType = result.GetType();
+        Type expectedType = expected.GetType();
+
+        if (resultType == typeof(int) && expectedType == typeof(double))
+        {
+            return object.Equals((double)(int)result, expected);
+        }
+        else if (resultType == typeof(double) && expectedType == typeof(int))
+        {
+            return object.Equals(result, (double)(int)expected);
+        }
+        else
+        {
+            return object.Equals(result, expected);
         }
     }
 }
