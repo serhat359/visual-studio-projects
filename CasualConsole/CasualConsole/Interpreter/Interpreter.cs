@@ -360,6 +360,13 @@ namespace CasualConsole.Interpreter
                 ("var x1 = -9; var modifier = function(){ x1 = -8; return false; }", null), // Preperation for next test
                 ("var x2 = false && modifier(); x2 == false && x1 == -9", true), // Optimization check
                 ("var x3 = true && modifier(); x3 == false && x1 == -8", true), // Optimization check
+                ("var plusplus7 = 8; var plusplus8 = plusplus7++; plusplus8 == 8 && plusplus7 == 9", true),
+                ("var plusplus9 = 10; 2 + plusplus9++", 12),
+                ("var o9 = { number: 5 }; var n1 = o9['number']++; n1 == 5 && o9['number'] == 6", true),
+                ("var o10 = { number: 6 }; var n2 = o10.number++; n2 == 6 && o10.number == 7", true),
+                ("var plusplus10 = 9; 2 + plusplus10--", 11),
+                ("var o11 = { number: 2 }; var n3 = o11['number']--; n3 == 2 && o11['number'] == 1", true),
+                ("var o12 = { number: 3 }; var n4 = o12.number--; n4 == 3 && o12.number == 2", true),
             };
 
             var interpreter = new Interpreter();
@@ -854,7 +861,7 @@ namespace CasualConsole.Interpreter
                 {
                     int start = i;
                     i++;
-                    while (multiChars.Contains(content[i]))
+                    while (i < content.Length && multiChars.Contains(content[i]))
                         i++;
                     string token = content.Substring(start, i - start);
                     yield return token;
@@ -1274,6 +1281,7 @@ namespace CasualConsole.Interpreter
         Indexing = 9999,
         DotAccess = 9999,
         LambdaExpression = 9999,
+        Increment = 9999,
     }
 
     class CustomRange<T> : IReadOnlyList<T>
@@ -1526,6 +1534,18 @@ namespace CasualConsole.Interpreter
                         continue;
                     }
 
+                    if (newToken == "++" || newToken == "--")
+                    {
+                        var isInc = newToken == "++";
+                        AddToLastNode(ref previousExpression, Precedence.Indexing, (expression, p) =>
+                        {
+                            return new PrePostIncDecExpression(expression, isPre: false, isInc: isInc);
+                        });
+
+                        index += 1;
+                        continue;
+                    }
+
                     if (newToken == "[")
                     {
                         // Indexing
@@ -1597,16 +1617,11 @@ namespace CasualConsole.Interpreter
                 var newExpression = new NotExpression(token, expressionRest);
                 return (newExpression, lastIndex);
             }
-            if (token == "++")
+            if (token == "++" || token == "--")
             {
+                var isInc = token == "++";
                 var (expressionRest, lastIndex) = ReadExpression(tokens, index + 1);
-                var newExpression = new PrePostIncDecExpression(expressionRest, isPre: true, isInc: true);
-                return (newExpression, lastIndex);
-            }
-            if (token == "--")
-            {
-                var (expressionRest, lastIndex) = ReadExpression(tokens, index + 1);
-                var newExpression = new PrePostIncDecExpression(expressionRest, isPre: true, isInc: false);
+                var newExpression = new PrePostIncDecExpression(expressionRest, isPre: true, isInc: isInc);
                 return (newExpression, lastIndex);
             }
 
