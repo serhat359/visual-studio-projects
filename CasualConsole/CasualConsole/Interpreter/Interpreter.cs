@@ -15,9 +15,7 @@ namespace CasualConsole.Interpreter
         private static readonly HashSet<string> plusMinusSet = new HashSet<string>() { "+", "-" };
         private static readonly HashSet<string> comparisonSet = new HashSet<string>() { "==", "!=", "<", ">", "<=", ">=" };
         private static readonly HashSet<string> andOrSet = new HashSet<string>() { "&&", "||" };
-        private static readonly IReadOnlyList<string> ternaryList = new string[] { "?", ":" };
         private static readonly HashSet<string> asteriskSlashSet = new HashSet<string>() { "*", "/", "%" };
-        private static readonly HashSet<string> notSet = new HashSet<string>() { "!" };
 
         private static Expression trueExpression;
         private static Expression falseExpression;
@@ -373,10 +371,10 @@ namespace CasualConsole.Interpreter
             };
 
             var interpreter = new Interpreter();
-            foreach (var testCase in testCases)
+            foreach (var (code, value) in testCases)
             {
-                var result = interpreter.InterpretCode(testCase.code);
-                if (!InterpreterExtensions.Equals(result, testCase.value))
+                var result = interpreter.InterpretCode(code);
+                if (!InterpreterExtensions.Equals(result, value))
                 {
                     throw new Exception();
                 }
@@ -416,7 +414,7 @@ namespace CasualConsole.Interpreter
             while (statementRangesEnumerator.MoveNext())
             {
                 var statementRange = statementRangesEnumerator.Current;
-                var statement = StatementMethods.New(statementRange, false);
+                var statement = StatementMethods.New(statementRange);
 
                 if (statement.Type == StatementType.ElseIfStatement || statement.Type == StatementType.ElseStatement)
                     throw new Exception();
@@ -435,7 +433,7 @@ namespace CasualConsole.Interpreter
                     while (statementRangesEnumerator.MoveNext())
                     {
                         var statementRangeAfterIf = statementRangesEnumerator.Current;
-                        var statementAfterIf = StatementMethods.New(statementRangeAfterIf, false);
+                        var statementAfterIf = StatementMethods.New(statementRangeAfterIf);
                         if (statementAfterIf.Type == StatementType.ElseIfStatement)
                         {
                             ifStatement.AddElseIf(statementAfterIf);
@@ -551,7 +549,6 @@ namespace CasualConsole.Interpreter
 
             var index = 0;
             var parenthesesCount = 0;
-            string operatorToken = null;
 
             for (int i = 0; i < tokens.Count; i++)
             {
@@ -562,7 +559,6 @@ namespace CasualConsole.Interpreter
                 if (parenthesesCount == 0 && separator.Contains(token))
                 {
                     yield return new CustomRange<string>(tokens, index, i);
-                    operatorToken = token;
                     index = i + 1;
                 }
             }
@@ -576,24 +572,22 @@ namespace CasualConsole.Interpreter
 
         private CustomValue CallFunction(string functionName, CustomValue[] arguments, VariableScope variableScope)
         {
+            switch (functionName)
+            {
+                case "print":
+                    return HandlePrint(arguments);
+            }
+
             if (variableScope.TryGetVariable(functionName, out var f))
             {
                 return CallFunction(f, arguments, variableScope);
             }
 
-            switch (functionName)
-            {
-                case "print":
-                    return HandlePrint(arguments);
-                default:
-                    throw new Exception();
-            }
+            throw new Exception();
         }
 
         private CustomValue CallFunction(CustomValue f, CustomValue[] arguments, VariableScope variableScope)
         {
-            if (f.type == ValueType.String)
-                return CallFunction((string)f.value, arguments, variableScope);
             if (f.type != ValueType.Function)
                 throw new Exception();
 
@@ -659,20 +653,20 @@ namespace CasualConsole.Interpreter
 
             for (int i = 0; i < trees.Count; i++)
             {
-                var nextTree = trees[i];
-                if (nextTree.operatorType == Operator.AndAnd)
+                var (operatorType, tree) = trees[i];
+                if (operatorType == Operator.AndAnd)
                 {
                     if (!result)
                         continue;
-                    var nextValue = nextTree.tree.EvaluateExpression(this, variableScope);
+                    var nextValue = tree.EvaluateExpression(this, variableScope);
                     bool isNextTruthy = nextValue.IsTruthy();
                     result = result && isNextTruthy;
                 }
-                else if (nextTree.operatorType == Operator.OrOr)
+                else if (operatorType == Operator.OrOr)
                 {
                     if (result)
                         continue;
-                    var nextValue = nextTree.tree.EvaluateExpression(this, variableScope);
+                    var nextValue = tree.EvaluateExpression(this, variableScope);
                     bool isNextTruthy = nextValue.IsTruthy();
                     result = result || isNextTruthy;
                 }
@@ -846,7 +840,7 @@ namespace CasualConsole.Interpreter
         {
             if (lValue is SingleTokenVariableExpression singleExpression)
             {
-                var variableName = ((SingleTokenVariableExpression)lValue).token;
+                var variableName = singleExpression.token;
                 oldValue = variableScope.GetVariable(variableName);
                 var newValue = operation(oldValue);
                 variableScope.SetVariable(variableName, newValue);
@@ -1561,7 +1555,7 @@ namespace CasualConsole.Interpreter
                 if (token == "!")
                 {
                     var (expressionRest, lastIndex) = ReadExpression(tokens, index + 1);
-                    var newExpression = new NotExpression(token, expressionRest);
+                    var newExpression = new NotExpression(expressionRest);
                     return (newExpression, lastIndex);
                 }
                 if (token == "++" || token == "--")
@@ -1743,9 +1737,16 @@ namespace CasualConsole.Interpreter
             {
                 var expressions = SplitBy(parameterTokens, Interpreter.commaSet);
                 var arguments = expressions.Select(expression => interpreter.GetValueFromExpression(expression, variableScope)).ToArray();
-                var function = lValue.EvaluateExpression(interpreter, variableScope);
-                CustomValue returnValue = interpreter.CallFunction(function, arguments, variableScope);
-                return returnValue;
+                if (lValue is SingleTokenVariableExpression variable)
+                {
+                    var functionName = variable.token;
+                    return interpreter.CallFunction(functionName, arguments, variableScope);
+                }
+                else
+                {
+                    var function = lValue.EvaluateExpression(interpreter, variableScope);
+                    return interpreter.CallFunction(function, arguments, variableScope);
+                }
             }
         }
         class IndexingExpression : Expression
@@ -1918,12 +1919,10 @@ namespace CasualConsole.Interpreter
         }
         class NotExpression : Expression
         {
-            private string token;
             private Expression expressionRest;
 
-            public NotExpression(string token, Expression expressionRest)
+            public NotExpression(Expression expressionRest)
             {
-                this.token = token;
                 this.expressionRest = expressionRest;
             }
 
@@ -2068,13 +2067,13 @@ namespace CasualConsole.Interpreter
         }
         static class StatementMethods
         {
-            public static Statement New(IReadOnlyList<string> tokens, bool isFunction)
+            public static Statement New(IReadOnlyList<string> tokens)
             {
                 if (tokens[0] == "{")
                 {
                     if (tokens[tokens.Count - 1] != "}")
                         throw new Exception();
-                    return new BlockStatement(tokens, isFunction);
+                    return new BlockStatement(tokens);
                 }
                 else if (tokens[0] == "while")
                 {
@@ -2109,7 +2108,7 @@ namespace CasualConsole.Interpreter
             {
                 var (conditionTokens, statementTokens) = GetTokensConditionAndBody(tokens, conditionStartIndex);
                 var conditionExpression = ExpressionMethods.New(conditionTokens);
-                var statement = StatementMethods.New(statementTokens, isFunction: false);
+                var statement = StatementMethods.New(statementTokens);
 
                 return (conditionExpression, statement);
             }
@@ -2178,16 +2177,14 @@ namespace CasualConsole.Interpreter
         class BlockStatement : Statement
         {
             List<Statement> statements;
-            bool isFunction;
 
-            public BlockStatement(IReadOnlyList<string> tokens, bool isFunction)
+            public BlockStatement(IReadOnlyList<string> tokens)
             {
                 if (tokens[0] != "{")
                     throw new Exception();
                 tokens = new CustomRange<string>(tokens, 1, tokens.Count - 1);
                 var statementRanges = GetStatementRanges(tokens);
-                statements = statementRanges.Select(range => StatementMethods.New(range, isFunction)).ToList();
-                this.isFunction = isFunction;
+                statements = statementRanges.Select(range => StatementMethods.New(range)).ToList();
             }
 
             public StatementType Type => StatementType.BlockStatement;
@@ -2341,7 +2338,7 @@ namespace CasualConsole.Interpreter
             {
                 if (tokens[0] != "else")
                     throw new Exception();
-                statement = StatementMethods.New(new CustomRange<string>(tokens, 1, tokens.Count), isFunction: false);
+                statement = StatementMethods.New(new CustomRange<string>(tokens, 1, tokens.Count));
             }
 
             public StatementType Type => StatementType.ElseStatement;
@@ -2368,7 +2365,7 @@ namespace CasualConsole.Interpreter
 
             public static FunctionStatement FromParametersAndBody(IReadOnlyList<string> parameterTokens, IReadOnlyList<string> bodyTokens)
             {
-                var body = StatementMethods.New(bodyTokens, isFunction: true);
+                var body = StatementMethods.New(bodyTokens);
                 return new FunctionStatement(parameterTokens, body);
             }
 
@@ -2376,7 +2373,7 @@ namespace CasualConsole.Interpreter
             {
                 var parenthesesIndex = tokens.IndexOf("(", 0);
                 var (parameters, bodyTokens) = StatementMethods.GetTokensConditionAndBody(tokens, parenthesesIndex + 1);
-                var body = StatementMethods.New(bodyTokens, isFunction: true);
+                var body = StatementMethods.New(bodyTokens);
                 return new FunctionStatement(parameters, body);
             }
 
