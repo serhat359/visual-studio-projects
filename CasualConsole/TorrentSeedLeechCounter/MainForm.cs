@@ -1,5 +1,4 @@
-﻿using MyThreadProject;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
@@ -7,6 +6,7 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Xml;
 
@@ -37,7 +37,7 @@ namespace TorrentSeedLeechCounter
 
             this.consoleOutput.Text = "Checking database availability..." + "\n";
 
-            MyThread.DoInThread(true, threadAction);
+            Task.Run(threadAction);
         }
 
         public void MainProgram()

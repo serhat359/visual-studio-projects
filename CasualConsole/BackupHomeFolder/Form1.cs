@@ -1,9 +1,9 @@
-﻿using MyThreadProject;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Windows.Forms;
 using System.Linq;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace BackupHomeFolder
 {
@@ -53,7 +53,7 @@ namespace BackupHomeFolder
 
                     IntPtr windowHandle = this.Handle;
 
-                    MyThread<int> actionthread = MyThread.DoInThread(true, () =>
+                    Task<int> actionthread = Task.Run(() =>
                     {
                         CheckResult checkResult = CheckDifferences(sourceFolder, destinationFolder);
 
@@ -85,7 +85,7 @@ namespace BackupHomeFolder
             int fileCountToCopy = 0;
             long bytesToCopy = 0;
 
-            var threadToCopy = MyThread.DoInThread(true, () =>
+            var threadToCopy = Task.Run(() =>
             {
                 List<FileCopyInfo> result = GetFilesToCopy(sourceFolder, destinationFolder, subfolders, ref fileCountToCopy, ref bytesToCopy);
 
@@ -96,15 +96,15 @@ namespace BackupHomeFolder
             int fileCountToDelete = 0;
             long bytesToDelete = 0;
 
-            var threadToDelete = MyThread.DoInThread(true, () =>
+            var threadToDelete = Task.Run(() =>
             {
                 List<string> result = GetFilesToDelete(sourceFolder, destinationFolder, subfolders, ref fileCountToDelete, ref bytesToDelete);
 
                 return result;
             });
 
-            List<FileCopyInfo> filesToCopy = threadToCopy.Await();
-            List<string> filesToDelete = threadToDelete.Await();
+            List<FileCopyInfo> filesToCopy = threadToCopy.Result;
+            List<string> filesToDelete = threadToDelete.Result;
 
             return new CheckResult
             {

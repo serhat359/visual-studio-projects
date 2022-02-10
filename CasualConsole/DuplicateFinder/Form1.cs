@@ -1,9 +1,9 @@
-﻿using MyThreadProject;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace DuplicateFinder
@@ -24,13 +24,13 @@ namespace DuplicateFinder
             var sourcePath = sourcePathTxt.Text;
             var destinationPath = destinationPathTxt.Text;
 
-            var sourcePathThread = MyThread.DoInThread(false, () => GetHashes(sourcePath));
-            var destinationPathThread = MyThread.DoInThread(false, () => GetHashes(destinationPath));
+            var sourcePathThread = Task.Run(() => GetHashes(sourcePath));
+            var destinationPathThread = Task.Run(() => GetHashes(destinationPath));
 
-            MyThread.DoInThread(false, () =>
+            Task.Run(async () =>
             {
-                var sourceHashes = sourcePathThread.Await();
-                var destinationHashes = destinationPathThread.Await();
+                var sourceHashes = await sourcePathThread;
+                var destinationHashes = await destinationPathThread;
 
                 foreach (var key in destinationHashes.Keys)
                 {
@@ -78,11 +78,11 @@ namespace DuplicateFinder
             correctSourceCreationDateButton.Enabled = false;
 
             var sourcePath = sourcePathTxt.Text;
-            var sourcePathThread = MyThread.DoInThread(false, () => GetHashes(sourcePath));
+            var sourcePathThread = Task.Run(() => GetHashes(sourcePath));
 
-            MyThread.DoInThread(false, () =>
+            Task.Run(async () =>
             {
-                var res = sourcePathThread.Await();
+                var res = await sourcePathThread;
 
                 foreach (var hash in res)
                 {

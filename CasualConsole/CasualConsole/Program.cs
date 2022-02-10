@@ -1,6 +1,5 @@
 ﻿using Bencode;
 using CasualConsole.MultiReplacer;
-using MyThreadProject;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -392,14 +391,14 @@ namespace CasualConsole
         {
             var list = new List<int>();
 
-            var threads = Enumerable.Range(0, 5).Select(i => IIFE(val => MyThread.DoInThread(true, () =>
+            var threads = Enumerable.Range(0, 5).Select(i => IIFE(val => Task.Run(() =>
             {
                 Thread.Sleep(new Random().Next(0, 2000));
                 lock (list) { list.Add(val); }
                 return 0;
             }), i)).ToList();
 
-            var newList = threads.Select(x => x.Await()).ToList();
+            var newList = threads.Select(x => x.Result).ToList();
         }
 
         private static E IIFE<T, E>(Func<T, E> func, T val)
@@ -448,15 +447,12 @@ namespace CasualConsole
             return foundMax;
         }
 
-        private static string FindPalindromeMultiThread(string str)
+        private static async Task<string> FindPalindromeMultiThread(string str)
         {
-            bool foundOne = false;
-            string foundMax = "";
-
-            var threads = new List<MyThread<string>>();
+            var threads = new List<Task<string>>();
             for (int i = 0; i < str.Length; i++)
             {
-                var thr = IIFE(index => MyThread.DoInThread(true, () => FindPalindromeFor(str, index)), i);
+                var thr = IIFE(index => Task.Run(() => FindPalindromeFor(str, index)), i);
                 threads.Add(thr);
             }
 
@@ -464,7 +460,7 @@ namespace CasualConsole
             for (int i = 0; i < threads.Count; i++)
             {
                 var t = threads[i];
-                var res = t.Await();
+                var res = await t;
                 if (res != null && res.Length > results.Length)
                 {
                     results = res;
@@ -1194,27 +1190,6 @@ namespace CasualConsole
             }
         }
 
-        private static List<MyThread<int>> UseAllCPUResources()
-        {
-            List<MyThread<int>> threadList = new List<MyThread<int>>();
-
-            for (int i = 0; i < 4; i++)
-            {
-                MyThread<int> x = MyThread<int>.New(true, () =>
-                {
-                    while (true)
-                    {
-
-                    }
-                    return 0;
-                });
-
-                threadList.Add(x);
-            }
-
-            return threadList;
-        }
-
         private static void DumpActiveProcessAndServiceList()
         {
             var services = ServiceController.GetServices();
@@ -1504,7 +1479,7 @@ namespace CasualConsole
             Console.WriteLine("The operation {1} took {0} milliseconds", (endTicks - startTicks).TotalMilliseconds, operationName);
         }
 
-        private static void MultiThreadJobQueueTest()
+        private static async Task MultiThreadJobQueueTest()
         {
             bool willEnqueueJob = true;
 
@@ -1548,7 +1523,7 @@ namespace CasualConsole
 
             ConsoleColor[] colors = new ConsoleColor[] { ConsoleColor.Yellow, ConsoleColor.Red, ConsoleColor.Green, ConsoleColor.Blue };
 
-            List<MyThread<int>> converterThreadList = Enumerable.Range(0, 4).Select(threadIndex => MyThread.DoInThread(false, () =>
+            List<Task<int>> converterThreadList = Enumerable.Range(0, 4).Select(threadIndex => Task.Run(() =>
             {
                 convertThreadAction(threadIndex, colors[threadIndex]);
                 return 0;
@@ -1571,7 +1546,7 @@ namespace CasualConsole
 
             foreach (var thread in converterThreadList)
             {
-                thread.Await();
+                await thread;
             }
 
             Console.ForegroundColor = ConsoleColor.Gray;
