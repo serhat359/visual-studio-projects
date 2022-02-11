@@ -22,6 +22,12 @@ namespace CasualConsole.Interpreter
         private static Expression falseExpression;
         private static Expression nullExpression;
 
+        private static readonly Lazy<CustomValue> arrayPushFunction = new Lazy<CustomValue>(() =>
+        {
+            var func = new ArrayPushFunction();
+            return CustomValue.FromFunction(func);
+        });
+
         private Dictionary<string, CustomValue> defaultvariables = new Dictionary<string, CustomValue>();
         private VariableScope defaultVariableScope;
         private CustomValue defaultThisOwner;
@@ -388,6 +394,19 @@ namespace CasualConsole.Interpreter
                 ("arr1.name", "hello"),
                 ("var o13 = { 'name': 'some name', nameGetter: function(){ return this.name; } }; o13.nameGetter()", "some name"),
                 ("var indexer = function(i){ return this[i]; }; var arr2 = [4,5,6]; arr2.get = indexer; arr2.get(0)", 4),
+                ("var arr3 = [];", null),
+                ("arr3.length", 0),
+                ("arr3.push(5)", 1),
+                ("arr3.length", 1),
+                ("arr3[0]", 5),
+                ("arr3.length = 2", 2),
+                ("arr3.push(12)", 3),
+                ("arr3[0]", 5),
+                ("arr3[1]", null),
+                ("arr3[2]", 12),
+                ("arr3.length = 0", 0),
+                ("arr3.push(7)", 1),
+                ("arr3[0]", 7),
             };
 
             var interpreter = new Interpreter();
@@ -611,17 +630,17 @@ namespace CasualConsole.Interpreter
             if (f.type != ValueType.Function)
                 throw new Exception();
 
-            var function = (CustomFunction)f.value;
+            var function = (FunctionObject)f.value;
             var functionParameterArguments = new Dictionary<string, CustomValue>();
-            for (int i = 0; i < function.parameters.Count; i++)
+            for (int i = 0; i < function.Parameters.Count; i++)
             {
-                var argName = function.parameters[i];
+                var argName = function.Parameters[i];
                 var value = i < arguments.Length ? arguments[i] : CustomValue.Null;
                 functionParameterArguments[argName] = value;
             }
             var newScope = VariableScope.NewWithInner(context.variableScope, functionParameterArguments);
             var newContext = new Context(newScope, context.thisOwner);
-            var (result, isReturn, isBreak, isContinue) = function.body.EvaluateStatement(newContext);
+            var (result, isReturn, isBreak, isContinue) = function.EvaluateStatement(newContext);
             if (isBreak || isContinue)
                 throw new Exception();
             return result;
@@ -1079,15 +1098,45 @@ namespace CasualConsole.Interpreter
             }
         }
 
-        class CustomFunction
+        interface FunctionObject : Statement
         {
-            internal IReadOnlyList<string> parameters;
-            internal Statement body;
+            IReadOnlyList<string> Parameters { get; }
+        }
+        class CustomFunction : FunctionObject
+        {
+            private IReadOnlyList<string> parameters;
+            private Statement body;
 
             public CustomFunction(IReadOnlyList<string> parameters, Statement body)
             {
                 this.parameters = parameters;
                 this.body = body;
+            }
+
+            public IReadOnlyList<string> Parameters => parameters;
+
+            public StatementType Type => throw new Exception();
+
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+            {
+                return body.EvaluateStatement(context);
+            }
+        }
+        class ArrayPushFunction : FunctionObject
+        {
+            public IReadOnlyList<string> Parameters => new[] { "x" };
+
+            public StatementType Type => throw new Exception();
+
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+            {
+                var thisArray = context.thisOwner;
+                if (thisArray.type != ValueType.Array)
+                    throw new Exception();
+                var array = (CustomArray)thisArray.value;
+                var pushValue = context.variableScope.GetVariable(Parameters[0]);
+                array.list.Add(pushValue);
+                return (CustomValue.FromNumber(array.list.Count), false, false, false);
             }
         }
         class CustomArray
@@ -1095,13 +1144,39 @@ namespace CasualConsole.Interpreter
             internal List<CustomValue> list;
             internal Dictionary<string, CustomValue> map;
 
-            public int Length { get; set; }
+            public int Length
+            {
+                get
+                {
+                    return list.Count;
+                }
+                set
+                {
+                    var newLength = value;
+                    if (newLength > list.Count)
+                    {
+                        var diff = newLength - list.Count;
+                        for (int i = 0; i < diff; i++)
+                        {
+                            list.Add(CustomValue.Null);
+                        }
+                    }
+                    else if (newLength < list.Count)
+                    {
+                        var diff = list.Count - newLength;
+                        for (int i = 0; i < diff; i++)
+                        {
+                            list.RemoveAt(list.Count - 1);
+                        }
+                    }
+                }
+            }
 
             public CustomArray(List<CustomValue> list)
             {
                 this.list = list;
                 this.map = new Dictionary<string, CustomValue>();
-                this.Length = list.Count;
+                this.map["push"] = arrayPushFunction.Value;
             }
         }
 
@@ -1169,7 +1244,7 @@ namespace CasualConsole.Interpreter
                 return new CustomValue(s, ValueType.String);
             }
 
-            internal static CustomValue FromFunction(CustomFunction func)
+            internal static CustomValue FromFunction(FunctionObject func)
             {
                 return new CustomValue(func, ValueType.Function);
             }
@@ -1785,7 +1860,7 @@ namespace CasualConsole.Interpreter
                         break;
                 }
 
-                throw new NotImplementedException();
+                throw new Exception();
             }
 
             public static Precedence GetPrecedence(string operatorToken)
