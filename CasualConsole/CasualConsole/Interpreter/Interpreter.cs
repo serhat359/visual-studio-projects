@@ -27,6 +27,11 @@ namespace CasualConsole.Interpreter
             var func = new ArrayPushFunction();
             return CustomValue.FromFunction(func);
         });
+        private static readonly Lazy<CustomValue> arrayPopFunction = new Lazy<CustomValue>(() =>
+        {
+            var func = new ArrayPopFunction();
+            return CustomValue.FromFunction(func);
+        });
 
         private Dictionary<string, CustomValue> defaultvariables = new Dictionary<string, CustomValue>();
         private VariableScope defaultVariableScope;
@@ -407,6 +412,14 @@ namespace CasualConsole.Interpreter
                 ("arr3.length = 0", 0),
                 ("arr3.push(7)", 1),
                 ("arr3[0]", 7),
+                ("arr3 = [7,6,7];", null),
+                ("arr3.length", 3),
+                ("arr3.pop()", 7),
+                ("arr3.length", 2),
+                ("arr3.pop()", 6),
+                ("arr3.length", 1),
+                ("arr3.pop()", 7),
+                ("arr3.length", 0),
             };
 
             var interpreter = new Interpreter();
@@ -1139,6 +1152,23 @@ namespace CasualConsole.Interpreter
                 return (CustomValue.FromNumber(array.list.Count), false, false, false);
             }
         }
+        class ArrayPopFunction : FunctionObject
+        {
+            public IReadOnlyList<string> Parameters => new string[] { };
+
+            public StatementType Type => throw new Exception();
+
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+            {
+                var thisArray = context.thisOwner;
+                if (thisArray.type != ValueType.Array)
+                    throw new Exception();
+                var array = (CustomArray)thisArray.value;
+                var returnValue = array.list[array.list.Count - 1];
+                array.list.RemoveAt(array.list.Count - 1);
+                return (returnValue, false, false, false);
+            }
+        }
         class CustomArray
         {
             internal List<CustomValue> list;
@@ -1177,6 +1207,7 @@ namespace CasualConsole.Interpreter
                 this.list = list;
                 this.map = new Dictionary<string, CustomValue>();
                 this.map["push"] = arrayPushFunction.Value;
+                this.map["pop"] = arrayPopFunction.Value;
             }
         }
 
