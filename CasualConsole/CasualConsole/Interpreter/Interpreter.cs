@@ -426,7 +426,8 @@ namespace CasualConsole.Interpreter
                 ("for(;;) break;", null),
                 ("var for1 = 1; for(var i=0; i < 10; i++) for1 += 2; for1", 21),
                 ("var total = 0; var a = [1,2,3,4]; for(var i = 0; i < a.length; i++) total += a[i]; total", 10),
-                ("for(var i=0, j=10; ; i+=2, j++){ if(i==j) break; } i == 20 && j == 20", true)
+                ("for(var i=0, j=10; ; i+=2, j++){ if(i==j) break; } i == 20 && j == 20", true),
+                ("var total = 0; var o = { x1: 2, x2: 5, x4: 7 }; for(var x in o) total += o[x]; total", 14),
             };
 
             var interpreter = new Interpreter();
@@ -1351,6 +1352,7 @@ namespace CasualConsole.Interpreter
             ElseStatement,
             WhileStatement,
             ForStatement,
+            ForInStatement,
             FunctionStatement,
         }
 
@@ -2328,7 +2330,7 @@ namespace CasualConsole.Interpreter
                 }
                 else if (tokens[0] == "for")
                 {
-                    return new ForStatement(tokens);
+                    return ForStatement.FromTokens(tokens);
                 }
                 else if (tokens[0] == "if")
                 {
@@ -2501,27 +2503,12 @@ namespace CasualConsole.Interpreter
             IReadOnlyList<Statement> iterationStatements;
             Statement bodyStatement;
 
-            public ForStatement(IReadOnlyList<string> tokens)
+            private ForStatement(IReadOnlyList<Statement> initializationStatements, Expression conditionExpression, IReadOnlyList<Statement> iterationStatements, Statement bodyStatement)
             {
-                if (tokens[1] != "(")
-                    throw new Exception();
-                var conditionStartIndex = 2;
-                var (expressionTokens, statementTokens) = StatementMethods.GetTokensConditionAndBody(tokens, conditionStartIndex);
-                var expressions = SplitBy(expressionTokens, semicolonSet).ToList();
-                if (expressions.Count != 3)
-                    throw new Exception();
-                var allInitializationTokens = expressions[0];
-                var initializationTokenGroup = SplitBy(allInitializationTokens, commaSet).ToList();
-                initializationStatements = initializationTokenGroup.SelectFast(x => StatementMethods.New(x));
-
-                var conditionTokens = expressions[1];
-                conditionExpression = conditionTokens.Count > 0 ? ExpressionMethods.New(conditionTokens) : trueExpression;
-
-                var allIterationTokens = expressions[2];
-                var iterationTokenGroup = SplitBy(allIterationTokens, commaSet).ToList();
-                iterationStatements = iterationTokenGroup.SelectFast(x => StatementMethods.New(x));
-
-                bodyStatement = StatementMethods.New(statementTokens);
+                this.initializationStatements = initializationStatements;
+                this.conditionExpression = conditionExpression;
+                this.iterationStatements = iterationStatements;
+                this.bodyStatement = bodyStatement;
             }
 
             public StatementType Type => StatementType.ForStatement;
@@ -2563,6 +2550,106 @@ namespace CasualConsole.Interpreter
                 {
                     iterationStatement.EvaluateStatement(context);
                 }
+            }
+
+            public static Statement FromTokens(IReadOnlyList<string> tokens)
+            {
+                if (tokens[1] != "(")
+                    throw new Exception();
+                var conditionStartIndex = 2;
+                var (expressionTokens, statementTokens) = StatementMethods.GetTokensConditionAndBody(tokens, conditionStartIndex);
+                var expressions = SplitBy(expressionTokens, semicolonSet).ToList();
+                if (expressions.Count == 3)
+                {
+                    // Normal for loop
+                    var allInitializationTokens = expressions[0];
+                    var initializationTokenGroup = SplitBy(allInitializationTokens, commaSet).ToList();
+                    var initializationStatements = initializationTokenGroup.SelectFast(x => StatementMethods.New(x));
+
+                    var conditionTokens = expressions[1];
+                    var conditionExpression = conditionTokens.Count > 0 ? ExpressionMethods.New(conditionTokens) : trueExpression;
+
+                    var allIterationTokens = expressions[2];
+                    var iterationTokenGroup = SplitBy(allIterationTokens, commaSet).ToList();
+                    var iterationStatements = iterationTokenGroup.SelectFast(x => StatementMethods.New(x));
+
+                    var bodyStatement = StatementMethods.New(statementTokens);
+
+                    return new ForStatement(initializationStatements, conditionExpression, iterationStatements, bodyStatement);
+                }
+                else if (expressions.Count == 1)
+                {
+                    var parenthesesTokens = expressions[0];
+                    var isVar = parenthesesTokens[0] == "var";
+                    var index = isVar ? 1 : 0;
+                    var variableName = parenthesesTokens[index];
+                    var operationType = parenthesesTokens[index + 1];
+                    var restTokens = new CustomRange<string>(parenthesesTokens, index + 2, parenthesesTokens.Count);
+                    var restExpression = ExpressionMethods.New(restTokens);
+                    var bodyStatement = StatementMethods.New(statementTokens);
+
+                    if (operationType == "in")
+                    {
+                        return new ForInStatement(isVar, variableName, restExpression, bodyStatement);
+                    }
+                    throw new Exception();
+                }
+                throw new Exception();
+            }
+        }
+        class ForInStatement : Statement
+        {
+            bool isVar;
+            string variableName;
+            Expression source;
+            Statement bodyStatement;
+
+            public ForInStatement(bool isVar, string variableName, Expression source, Statement bodyStatement)
+            {
+                this.isVar = isVar;
+                this.variableName = variableName;
+                this.source = source;
+                this.bodyStatement = bodyStatement;
+            }
+
+            public StatementType Type => StatementType.ForInStatement;
+
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+            {
+                var scope = context.variableScope;
+                var sourceValue = source.EvaluateExpression(context);
+                if (sourceValue.type != ValueType.Map)
+                    throw new Exception();
+
+                var map = (Dictionary<string, CustomValue>)sourceValue.value;
+                var keys = map.Keys;
+
+                foreach (var key in keys)
+                {
+                    VariableScope loopScope;
+
+                    if (isVar)
+                    {
+                        var newScope = VariableScope.NewWithInner(scope);
+                        newScope.AddVariable(variableName, CustomValue.FromParsedString(key));
+                        loopScope = newScope;
+                    }
+                    else
+                    {
+                        scope.SetVariable(variableName, CustomValue.FromParsedString(key));
+                        loopScope = scope;
+                    }
+
+                    var (value, isReturn, isBreak, isContinue) = bodyStatement.EvaluateStatement(new Context(loopScope, context.thisOwner));
+                    if (isReturn)
+                        return (value, true, false, false);
+                    if (isBreak)
+                        break;
+                    if (isContinue)
+                        continue;
+                }
+
+                return (CustomValue.Null, false, false, false);
             }
         }
         class IfStatement : Statement
