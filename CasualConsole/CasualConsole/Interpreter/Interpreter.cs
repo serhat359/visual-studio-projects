@@ -428,6 +428,7 @@ namespace CasualConsole.Interpreter
                 ("var total = 0; var a = [1,2,3,4]; for(var i = 0; i < a.length; i++) total += a[i]; total", 10),
                 ("for(var i=0, j=10; ; i+=2, j++){ if(i==j) break; } i == 20 && j == 20", true),
                 ("var total = 0; var o = { x1: 2, x2: 5, x4: 7 }; for(var x in o) total += o[x]; total", 14),
+                ("var total = 0; for(var x of [1,2,3,4,5]) total += x; total", 15),
             };
 
             var interpreter = new Interpreter();
@@ -1353,6 +1354,7 @@ namespace CasualConsole.Interpreter
             WhileStatement,
             ForStatement,
             ForInStatement,
+            ForOfStatement,
             FunctionStatement,
         }
 
@@ -1509,6 +1511,24 @@ namespace CasualConsole.Interpreter
             public static VariableScope NewWithInner(VariableScope innerScope, Dictionary<string, CustomValue> values)
             {
                 return new VariableScope(values, innerScope);
+            }
+            public static VariableScope GetNewLoopScope(VariableScope scope, bool isVar, string variableName, CustomValue variableValue)
+            {
+                VariableScope loopScope;
+
+                if (isVar)
+                {
+                    var newScope = VariableScope.NewWithInner(scope);
+                    newScope.AddVariable(variableName, variableValue);
+                    loopScope = newScope;
+                }
+                else
+                {
+                    scope.SetVariable(variableName, variableValue);
+                    loopScope = scope;
+                }
+
+                return loopScope;
             }
         }
         class Context
@@ -2592,6 +2612,10 @@ namespace CasualConsole.Interpreter
                     {
                         return new ForInStatement(isVar, variableName, restExpression, bodyStatement);
                     }
+                    else if (operationType == "of")
+                    {
+                        return new ForOfStatement(isVar, variableName, restExpression, bodyStatement);
+                    }
                     throw new Exception();
                 }
                 throw new Exception();
@@ -2626,19 +2650,48 @@ namespace CasualConsole.Interpreter
 
                 foreach (var key in keys)
                 {
-                    VariableScope loopScope;
+                    var loopScope = VariableScope.GetNewLoopScope(scope, isVar, variableName, CustomValue.FromParsedString(key));
 
-                    if (isVar)
-                    {
-                        var newScope = VariableScope.NewWithInner(scope);
-                        newScope.AddVariable(variableName, CustomValue.FromParsedString(key));
-                        loopScope = newScope;
-                    }
-                    else
-                    {
-                        scope.SetVariable(variableName, CustomValue.FromParsedString(key));
-                        loopScope = scope;
-                    }
+                    var (value, isReturn, isBreak, isContinue) = bodyStatement.EvaluateStatement(new Context(loopScope, context.thisOwner));
+                    if (isReturn)
+                        return (value, true, false, false);
+                    if (isBreak)
+                        break;
+                    if (isContinue)
+                        continue;
+                }
+
+                return (CustomValue.Null, false, false, false);
+            }
+        }
+        class ForOfStatement : Statement
+        {
+            bool isVar;
+            string variableName;
+            Expression source;
+            Statement bodyStatement;
+
+            public ForOfStatement(bool isVar, string variableName, Expression source, Statement bodyStatement)
+            {
+                this.isVar = isVar;
+                this.variableName = variableName;
+                this.source = source;
+                this.bodyStatement = bodyStatement;
+            }
+
+            public StatementType Type => StatementType.ForOfStatement;
+
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+            {
+                var scope = context.variableScope;
+                var sourceValue = source.EvaluateExpression(context);
+                if (sourceValue.type != ValueType.Array)
+                    throw new Exception();
+
+                var array = (CustomArray)sourceValue.value;
+                foreach (var item in array.list)
+                {
+                    var loopScope = VariableScope.GetNewLoopScope(scope, isVar, variableName, item);
 
                     var (value, isReturn, isBreak, isContinue) = bodyStatement.EvaluateStatement(new Context(loopScope, context.thisOwner));
                     if (isReturn)
