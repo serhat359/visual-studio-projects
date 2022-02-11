@@ -9,7 +9,7 @@ namespace CasualConsole.Interpreter
     public class Interpreter
     {
         private static readonly HashSet<char> onlyChars = new HashSet<char>() { '(', ')', ',', ';', '{', '}', '[', ']', '.' };
-        private static readonly HashSet<char> multiChars = new HashSet<char>() { '+', '-', '*', '/', '%', '=', '?', ':', '<', '>', '&', '|' };
+        private static readonly HashSet<char> multiChars = new HashSet<char>() { '+', '-', '*', '/', '%', '=', '?', ':', '<', '>', '&', '|', '!' };
         private static readonly HashSet<string> assignmentSet = new HashSet<string>() { "=", "+=", "-=", "*=", "/=", "%=" };
         private static readonly HashSet<string> commaSet = new HashSet<string>() { "," };
         private static readonly HashSet<string> plusMinusSet = new HashSet<string>() { "+", "-" };
@@ -976,32 +976,6 @@ namespace CasualConsole.Interpreter
                     i++;
                     yield return c.ToString();
                 }
-                else if (c == '=')
-                {
-                    if (content[i + 1] == '=')
-                    {
-                        i += 2;
-                        yield return "==";
-                    }
-                    else
-                    {
-                        i++;
-                        yield return "=";
-                    }
-                }
-                else if (c == '!')
-                {
-                    if (content[i + 1] == '=')
-                    {
-                        i += 2;
-                        yield return "!=";
-                    }
-                    else
-                    {
-                        i++;
-                        yield return "!";
-                    }
-                }
                 else if (c == '"' || c == '\'')
                 {
                     int start = i;
@@ -1133,7 +1107,9 @@ namespace CasualConsole.Interpreter
                     case ValueType.Bool:
                         return (bool)value;
                     case ValueType.Map:
-                        return value != null;
+                        return true;
+                    case ValueType.Function:
+                        return true;
                     default:
                         throw new Exception();
                 }
