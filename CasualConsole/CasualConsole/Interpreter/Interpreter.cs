@@ -12,6 +12,7 @@ namespace CasualConsole.Interpreter
         private static readonly HashSet<char> multiChars = new HashSet<char>() { '+', '-', '*', '/', '%', '=', '?', ':', '<', '>', '&', '|', '!' };
         private static readonly HashSet<string> assignmentSet = new HashSet<string>() { "=", "+=", "-=", "*=", "/=", "%=" };
         private static readonly HashSet<string> commaSet = new HashSet<string>() { "," };
+        private static readonly HashSet<string> semicolonSet = new HashSet<string>() { ";" };
         private static readonly HashSet<string> plusMinusSet = new HashSet<string>() { "+", "-" };
         private static readonly HashSet<string> comparisonSet = new HashSet<string>() { "==", "!=", "<", ">", "<=", ">=" };
         private static readonly HashSet<string> andOrSet = new HashSet<string>() { "&&", "||" };
@@ -79,6 +80,8 @@ namespace CasualConsole.Interpreter
                 ("function(){};function(){};", new[]{ "function(){};", "function(){};" }),
                 ("var func2 = true ? function(){ return '1'; } : function(){ return '2'; }; func2()", new[]{ "var func2 = true ? function(){ return '1'; } : function(){ return '2'; };", "func2()" }),
                 ("function customReturnConstant(){ return -8; } customReturnConstant()",new []{ "function customReturnConstant(){ return -8; }", "customReturnConstant()" }),
+                ("for(;;){}", new[]{ "for(;;){}" }),
+                ("while(){}", new[]{ "while(){}" }),
             };
 
             foreach (var testCase in testCases)
@@ -420,6 +423,10 @@ namespace CasualConsole.Interpreter
                 ("arr3.length", 1),
                 ("arr3.pop()", 7),
                 ("arr3.length", 0),
+                ("for(;;) break;", null),
+                ("var for1 = 1; for(var i=0; i < 10; i++) for1 += 2; for1", 21),
+                ("var total = 0; var a = [1,2,3,4]; for(var i = 0; i < a.length; i++) total += a[i]; total", 10),
+                ("for(var i=0, j=10; ; i+=2, j++){ if(i==j) break; } i == 20 && j == 20", true)
             };
 
             var interpreter = new Interpreter();
@@ -550,7 +557,7 @@ namespace CasualConsole.Interpreter
             bool hasFunction = false;
             for (int i = startingIndex; i < tokens.Count; i++)
             {
-                if (tokens[i] == "(" && i == startingIndex)
+                if (tokens[i] == "(")
                 {
                     var newIndex = tokens.IndexOfParenthesesEnd(i + 1);
                     i = newIndex;
@@ -1343,6 +1350,7 @@ namespace CasualConsole.Interpreter
             ElseIfStatement,
             ElseStatement,
             WhileStatement,
+            ForStatement,
             FunctionStatement,
         }
 
@@ -1483,7 +1491,8 @@ namespace CasualConsole.Interpreter
 
             public void AddVariable(string variableName, CustomValue value)
             {
-                variables.Add(variableName, value);
+                //variables.Add(variableName, value); // This line was removed because currently we're okay with reinitializing a variable
+                variables[variableName] = value;
             }
 
             public static VariableScope NewFromExisting(Dictionary<string, CustomValue> variables)
@@ -2317,6 +2326,10 @@ namespace CasualConsole.Interpreter
                 {
                     return new WhileStatement(tokens);
                 }
+                else if (tokens[0] == "for")
+                {
+                    return new ForStatement(tokens);
+                }
                 else if (tokens[0] == "if")
                 {
                     return new IfStatement(tokens);
@@ -2479,6 +2492,77 @@ namespace CasualConsole.Interpreter
                 }
 
                 return (CustomValue.Null, false, false, false);
+            }
+        }
+        class ForStatement : Statement
+        {
+            IReadOnlyList<Statement> initializationStatements;
+            Expression conditionExpression;
+            IReadOnlyList<Statement> iterationStatements;
+            Statement bodyStatement;
+
+            public ForStatement(IReadOnlyList<string> tokens)
+            {
+                if (tokens[1] != "(")
+                    throw new Exception();
+                var conditionStartIndex = 2;
+                var (expressionTokens, statementTokens) = StatementMethods.GetTokensConditionAndBody(tokens, conditionStartIndex);
+                var expressions = SplitBy(expressionTokens, semicolonSet).ToList();
+                if (expressions.Count != 3)
+                    throw new Exception();
+                var allInitializationTokens = expressions[0];
+                var initializationTokenGroup = SplitBy(allInitializationTokens, commaSet).ToList();
+                initializationStatements = initializationTokenGroup.SelectFast(x => StatementMethods.New(x));
+
+                var conditionTokens = expressions[1];
+                conditionExpression = conditionTokens.Count > 0 ? ExpressionMethods.New(conditionTokens) : trueExpression;
+
+                var allIterationTokens = expressions[2];
+                var iterationTokenGroup = SplitBy(allIterationTokens, commaSet).ToList();
+                iterationStatements = iterationTokenGroup.SelectFast(x => StatementMethods.New(x));
+
+                bodyStatement = StatementMethods.New(statementTokens);
+            }
+
+            public StatementType Type => StatementType.ForStatement;
+
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+            {
+                // Initialize
+                foreach (var initializationStatement in initializationStatements)
+                {
+                    initializationStatement.EvaluateStatement(context);
+                }
+
+                while (true)
+                {
+                    var conditionValue = conditionExpression.EvaluateExpression(context);
+                    if (!conditionValue.IsTruthy())
+                        break;
+
+                    var (value, isReturn, isBreak, isContinue) = bodyStatement.EvaluateStatement(context);
+                    if (isReturn)
+                        return (value, true, false, false);
+                    if (isBreak)
+                        break;
+                    if (isContinue)
+                    {
+                        DoIteration(context);
+                        continue;
+                    }
+
+                    DoIteration(context);
+                }
+
+                return (CustomValue.Null, false, false, false);
+            }
+
+            private void DoIteration(Context context)
+            {
+                foreach (var iterationStatement in iterationStatements)
+                {
+                    iterationStatement.EvaluateStatement(context);
+                }
             }
         }
         class IfStatement : Statement
