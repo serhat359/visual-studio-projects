@@ -368,6 +368,19 @@ namespace CasualConsole.Interpreter
                 ("var plusplus10 = 9; 2 + plusplus10--", 11),
                 ("var o11 = { number: 2 }; var n3 = o11['number']--; n3 == 2 && o11['number'] == 1", true),
                 ("var o12 = { number: 3 }; var n4 = o12.number--; n4 == 3 && o12.number == 2", true),
+                ("var a1 = [1,2,3]", null),
+                ("a1.length", 3),
+                ("a1[0]", 1),
+                ("a1[1]", 2),
+                ("a1[2]", 3),
+                ("a1[1] = 5", 5),
+                ("a1[1]", 5),
+                ("a1.length = 4", 4),
+                ("a1.length", 4),
+                ("a1[3]", null),
+                ("a1.name", null),
+                ("a1.name = 'hello'", "hello"),
+                ("a1.name", "hello"),
             };
 
             var interpreter = new Interpreter();
@@ -809,28 +822,78 @@ namespace CasualConsole.Interpreter
             return expressionTree.EvaluateExpression(this, variableScope);
         }
 
-        private CustomValue DoIndexingGet(CustomValue ownerExpressionValue, CustomValue keyExpressionValue)
+        private CustomValue DoIndexingGet(CustomValue baseExpressionValue, CustomValue keyExpressionValue)
         {
-            if (ownerExpressionValue.type == ValueType.Map && keyExpressionValue.type == ValueType.String)
+            if (baseExpressionValue.type == ValueType.Map && keyExpressionValue.type == ValueType.String)
             {
-                var map = (Dictionary<string, CustomValue>)ownerExpressionValue.value;
+                var map = (Dictionary<string, CustomValue>)baseExpressionValue.value;
                 if (map.TryGetValue((string)keyExpressionValue.value, out var value))
                     return value;
                 else
                     return CustomValue.Null;
             }
+            else if (baseExpressionValue.type == ValueType.Array)
+            {
+                var array = (CustomArray)baseExpressionValue.value;
+                if (keyExpressionValue.type == ValueType.Number)
+                {
+                    var index = (int)(double)keyExpressionValue.value;
+                    if (index >= array.Length)
+                        throw new Exception();
+                    else if (index >= array.list.Count)
+                        return CustomValue.Null;
+                    else
+                        return array.list[index];
+                }
+                else if (keyExpressionValue.type == ValueType.String)
+                {
+                    var fieldName = (string)keyExpressionValue.value;
+                    if (fieldName == "length")
+                        return CustomValue.FromNumber(array.Length);
+
+                    if (array.map.TryGetValue(fieldName, out CustomValue mapValue))
+                        return mapValue;
+                    else
+                        return CustomValue.Null;
+                }
+            }
 
             throw new Exception();
         }
 
-        private CustomValue DoIndexingSet(CustomValue value, CustomValue basePart, CustomValue keyPart)
+        private CustomValue DoIndexingSet(CustomValue value, CustomValue baseExpressionValue, CustomValue keyExpressionValue)
         {
-            if (basePart.type == ValueType.Map && keyPart.type == ValueType.String)
+            if (baseExpressionValue.type == ValueType.Map && keyExpressionValue.type == ValueType.String)
             {
-                var map = (Dictionary<string, CustomValue>)basePart.value;
-                var key = (string)keyPart.value;
+                var map = (Dictionary<string, CustomValue>)baseExpressionValue.value;
+                var key = (string)keyExpressionValue.value;
                 map[key] = value;
                 return value;
+            }
+            else if (baseExpressionValue.type == ValueType.Array)
+            {
+                var array = (CustomArray)baseExpressionValue.value;
+                if (keyExpressionValue.type == ValueType.Number)
+                {
+                    var index = (int)(double)keyExpressionValue.value;
+                    array.list[index] = value;
+                    return value;
+                }
+                else if (keyExpressionValue.type == ValueType.String)
+                {
+                    var fieldName = (string)keyExpressionValue.value;
+                    if (fieldName == "length")
+                    {
+                        int newLength = (int)(double)value.value;
+                        array.Length = newLength;
+                        return value;
+                    }
+                    else
+                    {
+                        array.map[fieldName] = value;
+                        return value;
+                    }
+                }
             }
 
             throw new Exception();
@@ -848,21 +911,21 @@ namespace CasualConsole.Interpreter
             }
             else if (lValue is IndexingExpression indexingExpression)
             {
-                var basePart = indexingExpression.baseExpression.EvaluateExpression(interpreter, variableScope);
-                var keyPart = indexingExpression.keyExpression.EvaluateExpression(interpreter, variableScope);
+                var baseExpressionValue = indexingExpression.baseExpression.EvaluateExpression(interpreter, variableScope);
+                var keyExpressionValue = indexingExpression.keyExpression.EvaluateExpression(interpreter, variableScope);
 
-                oldValue = interpreter.DoIndexingGet(basePart, keyPart);
+                oldValue = interpreter.DoIndexingGet(baseExpressionValue, keyExpressionValue);
                 var newValue = operation(oldValue);
-                return interpreter.DoIndexingSet(newValue, basePart, keyPart);
+                return interpreter.DoIndexingSet(newValue, baseExpressionValue, keyExpressionValue);
             }
             else if (lValue is DotAccessExpression dotAccessExpression)
             {
-                var basePart = dotAccessExpression.baseExpression.EvaluateExpression(interpreter, variableScope);
-                var keyPart = dotAccessExpression.GetKeyValue();
+                var baseExpressionValue = dotAccessExpression.baseExpression.EvaluateExpression(interpreter, variableScope);
+                var keyExpressionValue = dotAccessExpression.GetKeyValue();
 
-                oldValue = interpreter.DoIndexingGet(basePart, keyPart);
+                oldValue = interpreter.DoIndexingGet(baseExpressionValue, keyExpressionValue);
                 var newValue = operation(oldValue);
-                return interpreter.DoIndexingSet(newValue, basePart, keyPart);
+                return interpreter.DoIndexingSet(newValue, baseExpressionValue, keyExpressionValue);
             }
             else
             {
@@ -1019,6 +1082,20 @@ namespace CasualConsole.Interpreter
                 this.body = body;
             }
         }
+        class CustomArray
+        {
+            internal List<CustomValue> list;
+            internal Dictionary<string, CustomValue> map;
+
+            public int Length { get; set; }
+
+            public CustomArray(List<CustomValue> list)
+            {
+                this.list = list;
+                this.map = new Dictionary<string, CustomValue>();
+                this.Length = list.Count;
+            }
+        }
 
         private struct CustomValue
         {
@@ -1094,6 +1171,11 @@ namespace CasualConsole.Interpreter
                 return new CustomValue(map, ValueType.Map);
             }
 
+            internal static CustomValue FromArray(CustomArray array)
+            {
+                return new CustomValue(array, ValueType.Array);
+            }
+
             internal bool IsTruthy()
             {
                 switch (type)
@@ -1109,6 +1191,8 @@ namespace CasualConsole.Interpreter
                     case ValueType.Map:
                         return true;
                     case ValueType.Function:
+                        return true;
+                    case ValueType.Array:
                         return true;
                     default:
                         throw new Exception();
@@ -1156,6 +1240,7 @@ namespace CasualConsole.Interpreter
             Bool,
             Function,
             Map,
+            Array,
         }
 
         private enum Operator
@@ -1562,6 +1647,16 @@ namespace CasualConsole.Interpreter
                     var mapExpression = new MapExpression(mapExpressionTokens);
                     return (mapExpression, bracesEnd + 1);
                 }
+                if (token == "[")
+                {
+                    var bracketsEnd = tokens.IndexOfBracketsEnd(index + 1);
+                    if (bracketsEnd < 0)
+                        throw new Exception();
+
+                    var arrayTokens = new CustomRange<string>(tokens, index, bracketsEnd + 1);
+                    var arrayExpression = new ArrayExpression(arrayTokens);
+                    return (arrayExpression, bracketsEnd + 1);
+                }
 
                 if (token == "true")
                 {
@@ -1793,6 +1888,28 @@ namespace CasualConsole.Interpreter
                     map.Add(fieldName, fieldValue);
                 }
                 return CustomValue.FromMap(map);
+            }
+        }
+        class ArrayExpression : Expression
+        {
+            private CustomRange<string> tokens;
+
+            public ArrayExpression(CustomRange<string> tokens)
+            {
+                this.tokens = new CustomRange<string>(tokens, 1, tokens.Count - 1);
+            }
+
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            {
+                var res = SplitBy(tokens, Interpreter.commaSet);
+                var list = new List<CustomValue>();
+                foreach (var item in res)
+                {
+                    var itemValue = ExpressionMethods.New(item).EvaluateExpression(interpreter, variableScope);
+                    list.Add(itemValue);
+                }
+                var array = new CustomArray(list);
+                return CustomValue.FromArray(array);
             }
         }
         class ParenthesesExpression : Expression
