@@ -16,18 +16,21 @@ namespace CasualConsole.Interpreter
         private static readonly HashSet<string> comparisonSet = new HashSet<string>() { "==", "!=", "<", ">", "<=", ">=" };
         private static readonly HashSet<string> andOrSet = new HashSet<string>() { "&&", "||" };
         private static readonly HashSet<string> asteriskSlashSet = new HashSet<string>() { "*", "/", "%" };
+        private static readonly HashSet<string> keywords = new HashSet<string>() { "this" };
 
         private static Expression trueExpression;
         private static Expression falseExpression;
         private static Expression nullExpression;
 
         private Dictionary<string, CustomValue> defaultvariables = new Dictionary<string, CustomValue>();
-        private VariableScope variableScope;
+        private VariableScope defaultVariableScope;
+        private CustomValue defaultThisOwner;
 
         public Interpreter()
         {
             defaultvariables = new Dictionary<string, CustomValue>();
-            variableScope = VariableScope.NewFromExisting(defaultvariables);
+            defaultVariableScope = VariableScope.NewFromExisting(defaultvariables);
+            defaultThisOwner = CustomValue.Null;
 
             trueExpression = new CustomValueExpression(CustomValue.True);
             falseExpression = new CustomValueExpression(CustomValue.False);
@@ -368,19 +371,21 @@ namespace CasualConsole.Interpreter
                 ("var plusplus10 = 9; 2 + plusplus10--", 11),
                 ("var o11 = { number: 2 }; var n3 = o11['number']--; n3 == 2 && o11['number'] == 1", true),
                 ("var o12 = { number: 3 }; var n4 = o12.number--; n4 == 3 && o12.number == 2", true),
-                ("var a1 = [1,2,3]", null),
-                ("a1.length", 3),
-                ("a1[0]", 1),
-                ("a1[1]", 2),
-                ("a1[2]", 3),
-                ("a1[1] = 5", 5),
-                ("a1[1]", 5),
-                ("a1.length = 4", 4),
-                ("a1.length", 4),
-                ("a1[3]", null),
-                ("a1.name", null),
-                ("a1.name = 'hello'", "hello"),
-                ("a1.name", "hello"),
+                ("var arr1 = [1,2,3]", null),
+                ("arr1.length", 3),
+                ("arr1[0]", 1),
+                ("arr1[1]", 2),
+                ("arr1[2]", 3),
+                ("arr1[1] = 5", 5),
+                ("arr1[1]", 5),
+                ("arr1.length = 4", 4),
+                ("arr1.length", 4),
+                ("arr1[3]", null),
+                ("arr1.name", null),
+                ("arr1.name = 'hello'", "hello"),
+                ("arr1.name", "hello"),
+                ("var o13 = { 'name': 'some name', nameGetter: function(){ return this.name; } }; o13.nameGetter()", "some name"),
+                ("var indexer = function(i){ return this[i]; }; var arr2 = [4,5,6]; arr2.get = indexer; arr2.get(0)", 4),
             };
 
             var interpreter = new Interpreter();
@@ -464,7 +469,7 @@ namespace CasualConsole.Interpreter
                         }
                     }
 
-                    var value = GetValueFromStatement(ifStatement, variableScope);
+                    var value = GetValueFromStatement(ifStatement, defaultVariableScope, defaultThisOwner);
                     if (statementRange.end == tokenSource.Count)
                     {
                         return value.Item1;
@@ -472,7 +477,7 @@ namespace CasualConsole.Interpreter
 
                     if (nonIfElseStatement != null)
                     {
-                        value = GetValueFromStatement(nonIfElseStatement, variableScope);
+                        value = GetValueFromStatement(nonIfElseStatement, defaultVariableScope, defaultThisOwner);
                         if (nonIfElseStatementRange.end == tokenSource.Count)
                         {
                             return value.Item1;
@@ -481,7 +486,7 @@ namespace CasualConsole.Interpreter
                 }
                 else
                 {
-                    var value = GetValueFromStatement(statement, variableScope);
+                    var value = GetValueFromStatement(statement, defaultVariableScope, defaultThisOwner);
                     if (statementRange.end == tokenSource.Count)
                     {
                         return value.Item1;
@@ -578,12 +583,12 @@ namespace CasualConsole.Interpreter
             yield return new CustomRange<string>(tokens, index, tokens.Count);
         }
 
-        private (CustomValue value, bool isReturn, bool isBreak, bool isContinue) GetValueFromStatement(Statement statement, VariableScope variableScope)
+        private (CustomValue value, bool isReturn, bool isBreak, bool isContinue) GetValueFromStatement(Statement statement, VariableScope variableScope, CustomValue owner)
         {
-            return statement.EvaluateStatement(this, variableScope);
+            return statement.EvaluateStatement(this, variableScope, owner);
         }
 
-        private CustomValue CallFunction(string functionName, CustomValue[] arguments, VariableScope variableScope)
+        private CustomValue CallFunction(string functionName, CustomValue[] arguments, VariableScope variableScope, CustomValue owner)
         {
             switch (functionName)
             {
@@ -593,13 +598,13 @@ namespace CasualConsole.Interpreter
 
             if (variableScope.TryGetVariable(functionName, out var f))
             {
-                return CallFunction(f, arguments, variableScope);
+                return CallFunction(f, arguments, variableScope, owner);
             }
 
             throw new Exception();
         }
 
-        private CustomValue CallFunction(CustomValue f, CustomValue[] arguments, VariableScope variableScope)
+        private CustomValue CallFunction(CustomValue f, CustomValue[] arguments, VariableScope variableScope, CustomValue owner)
         {
             if (f.type != ValueType.Function)
                 throw new Exception();
@@ -613,7 +618,7 @@ namespace CasualConsole.Interpreter
                 functionParameterArguments[argName] = value;
             }
             var newScope = VariableScope.NewWithInner(variableScope, functionParameterArguments);
-            var (result, isReturn, isBreak, isContinue) = function.body.EvaluateStatement(this, newScope);
+            var (result, isReturn, isBreak, isContinue) = function.body.EvaluateStatement(this, newScope, owner);
             if (isBreak || isContinue)
                 throw new Exception();
             return result;
@@ -658,9 +663,9 @@ namespace CasualConsole.Interpreter
             }
         }
 
-        private CustomValue AndOr(Expression firstTree, IReadOnlyList<(Operator operatorType, Expression tree)> trees, VariableScope variableScope)
+        private CustomValue AndOr(Expression firstTree, IReadOnlyList<(Operator operatorType, Expression tree)> trees, VariableScope variableScope, CustomValue owner)
         {
-            var firstValue = firstTree.EvaluateExpression(this, variableScope);
+            var firstValue = firstTree.EvaluateExpression(this, variableScope, owner);
 
             bool result = firstValue.IsTruthy();
 
@@ -671,7 +676,7 @@ namespace CasualConsole.Interpreter
                 {
                     if (!result)
                         continue;
-                    var nextValue = tree.EvaluateExpression(this, variableScope);
+                    var nextValue = tree.EvaluateExpression(this, variableScope, owner);
                     bool isNextTruthy = nextValue.IsTruthy();
                     result = result && isNextTruthy;
                 }
@@ -679,7 +684,7 @@ namespace CasualConsole.Interpreter
                 {
                     if (result)
                         continue;
-                    var nextValue = tree.EvaluateExpression(this, variableScope);
+                    var nextValue = tree.EvaluateExpression(this, variableScope, owner);
                     bool isNextTruthy = nextValue.IsTruthy();
                     result = result || isNextTruthy;
                 }
@@ -690,10 +695,10 @@ namespace CasualConsole.Interpreter
             return result ? CustomValue.True : CustomValue.False;
         }
 
-        private CustomValue CompareTo(Expression firstTree, IReadOnlyList<(Operator operatorType, Expression tree)> trees, VariableScope variableScope)
+        private CustomValue CompareTo(Expression firstTree, IReadOnlyList<(Operator operatorType, Expression tree)> trees, VariableScope variableScope, CustomValue owner)
         {
-            var firstValue = firstTree.EvaluateExpression(this, variableScope);
-            var values = trees.SelectFast(x => (x.operatorType, value: x.tree.EvaluateExpression(this, variableScope)));
+            var firstValue = firstTree.EvaluateExpression(this, variableScope, owner);
+            var values = trees.SelectFast(x => (x.operatorType, value: x.tree.EvaluateExpression(this, variableScope, owner)));
 
             var lastValue = firstValue;
             for (int i = 0; i < values.Count; i++)
@@ -718,10 +723,10 @@ namespace CasualConsole.Interpreter
             return lastValue;
         }
 
-        private CustomValue MultiplyOrDivide(Expression firstTree, IReadOnlyList<(Operator operatorType, Expression tree)> trees, VariableScope variableScope)
+        private CustomValue MultiplyOrDivide(Expression firstTree, IReadOnlyList<(Operator operatorType, Expression tree)> trees, VariableScope variableScope, CustomValue owner)
         {
-            var firstValue = firstTree.EvaluateExpression(this, variableScope);
-            var values = trees.SelectFast(x => (x.operatorType, value: x.tree.EvaluateExpression(this, variableScope)));
+            var firstValue = firstTree.EvaluateExpression(this, variableScope, owner);
+            var values = trees.SelectFast(x => (x.operatorType, value: x.tree.EvaluateExpression(this, variableScope, owner)));
 
             return MultiplyOrDivide(firstValue, values);
         }
@@ -752,10 +757,10 @@ namespace CasualConsole.Interpreter
             return CustomValue.FromNumber(total);
         }
 
-        private CustomValue AddOrSubtract(Expression firstTree, IReadOnlyList<(Operator operatorType, Expression tree)> trees, VariableScope variableScope)
+        private CustomValue AddOrSubtract(Expression firstTree, IReadOnlyList<(Operator operatorType, Expression tree)> trees, VariableScope variableScope, CustomValue owner)
         {
-            var firstValue = firstTree.EvaluateExpression(this, variableScope);
-            var values = trees.SelectFast(x => (x.operatorType, value: x.tree.EvaluateExpression(this, variableScope)));
+            var firstValue = firstTree.EvaluateExpression(this, variableScope, owner);
+            var values = trees.SelectFast(x => (x.operatorType, value: x.tree.EvaluateExpression(this, variableScope, owner)));
 
             return AddOrSubtract(firstValue, values);
         }
@@ -813,13 +818,13 @@ namespace CasualConsole.Interpreter
             }
         }
 
-        private CustomValue GetValueFromExpression(IReadOnlyList<string> expressionTokens, VariableScope variableScope)
+        private CustomValue GetValueFromExpression(IReadOnlyList<string> expressionTokens, VariableScope variableScope, CustomValue owner)
         {
             if (expressionTokens.Count == 0)
                 throw new Exception();
 
             var expressionTree = ExpressionMethods.New(expressionTokens);
-            return expressionTree.EvaluateExpression(this, variableScope);
+            return expressionTree.EvaluateExpression(this, variableScope, owner);
         }
 
         private CustomValue DoIndexingGet(CustomValue baseExpressionValue, CustomValue keyExpressionValue)
@@ -899,7 +904,7 @@ namespace CasualConsole.Interpreter
             throw new Exception();
         }
 
-        private static CustomValue ApplyLValueOperation(Expression lValue, Func<CustomValue, CustomValue> operation, Interpreter interpreter, VariableScope variableScope, out CustomValue oldValue)
+        private static CustomValue ApplyLValueOperation(Expression lValue, Func<CustomValue, CustomValue> operation, Interpreter interpreter, VariableScope variableScope, CustomValue owner, out CustomValue oldValue)
         {
             if (lValue is SingleTokenVariableExpression singleExpression)
             {
@@ -911,8 +916,8 @@ namespace CasualConsole.Interpreter
             }
             else if (lValue is IndexingExpression indexingExpression)
             {
-                var baseExpressionValue = indexingExpression.baseExpression.EvaluateExpression(interpreter, variableScope);
-                var keyExpressionValue = indexingExpression.keyExpression.EvaluateExpression(interpreter, variableScope);
+                var baseExpressionValue = indexingExpression.baseExpression.EvaluateExpression(interpreter, variableScope, owner);
+                var keyExpressionValue = indexingExpression.keyExpression.EvaluateExpression(interpreter, variableScope, owner);
 
                 oldValue = interpreter.DoIndexingGet(baseExpressionValue, keyExpressionValue);
                 var newValue = operation(oldValue);
@@ -920,7 +925,7 @@ namespace CasualConsole.Interpreter
             }
             else if (lValue is DotAccessExpression dotAccessExpression)
             {
-                var baseExpressionValue = dotAccessExpression.baseExpression.EvaluateExpression(interpreter, variableScope);
+                var baseExpressionValue = dotAccessExpression.baseExpression.EvaluateExpression(interpreter, variableScope, owner);
                 var keyExpressionValue = dotAccessExpression.GetKeyValue();
 
                 oldValue = interpreter.DoIndexingGet(baseExpressionValue, keyExpressionValue);
@@ -1353,6 +1358,8 @@ namespace CasualConsole.Interpreter
 
             public void SetVariable(string variableName, CustomValue value)
             {
+                if (keywords.Contains(variableName))
+                    throw new Exception();
                 if (variables.ContainsKey(variableName))
                 {
                     variables[variableName] = value;
@@ -1387,7 +1394,7 @@ namespace CasualConsole.Interpreter
 
         interface Expression
         {
-            CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope);
+            CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope, CustomValue owner);
         }
         static class ExpressionMethods
         {
@@ -1748,18 +1755,18 @@ namespace CasualConsole.Interpreter
                 this.nextValues = new List<(Operator operatorToken, Expression)>();
             }
 
-            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope, CustomValue owner)
             {
                 switch (precedence)
                 {
                     case Precedence.Comparison:
-                        return interpreter.CompareTo(firstExpression, nextValues, variableScope);
+                        return interpreter.CompareTo(firstExpression, nextValues, variableScope, owner);
                     case Precedence.AddSubtract:
-                        return interpreter.AddOrSubtract(firstExpression, nextValues, variableScope);
+                        return interpreter.AddOrSubtract(firstExpression, nextValues, variableScope, owner);
                     case Precedence.MultiplyDivide:
-                        return interpreter.MultiplyOrDivide(firstExpression, nextValues, variableScope);
+                        return interpreter.MultiplyOrDivide(firstExpression, nextValues, variableScope, owner);
                     case Precedence.AndOr:
-                        return interpreter.AndOr(firstExpression, nextValues, variableScope);
+                        return interpreter.AndOr(firstExpression, nextValues, variableScope, owner);
                     default:
                         break;
                 }
@@ -1804,19 +1811,34 @@ namespace CasualConsole.Interpreter
                 this.parameterTokens = parameterTokens;
             }
 
-            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope, CustomValue owner)
             {
                 var expressions = SplitBy(parameterTokens, Interpreter.commaSet);
-                var arguments = expressions.Select(expression => interpreter.GetValueFromExpression(expression, variableScope)).ToArray();
-                if (lValue is SingleTokenVariableExpression variable)
+                var arguments = expressions.Select(expression => interpreter.GetValueFromExpression(expression, variableScope, owner)).ToArray();
+
+                CustomValue newOwner;
+                if (lValue is DotAccessExpression dotAccessExpression)
                 {
-                    var functionName = variable.token;
-                    return interpreter.CallFunction(functionName, arguments, variableScope);
+                    newOwner = dotAccessExpression.baseExpression.EvaluateExpression(interpreter, variableScope, owner);
+                }
+                else if (lValue is IndexingExpression indexingExpression)
+                {
+                    newOwner = indexingExpression.baseExpression.EvaluateExpression(interpreter, variableScope, owner);
                 }
                 else
                 {
-                    var function = lValue.EvaluateExpression(interpreter, variableScope);
-                    return interpreter.CallFunction(function, arguments, variableScope);
+                    newOwner = CustomValue.Null;
+                }
+
+                if (lValue is SingleTokenVariableExpression variable)
+                {
+                    var functionName = variable.token;
+                    return interpreter.CallFunction(functionName, arguments, variableScope, newOwner);
+                }
+                else
+                {
+                    var function = lValue.EvaluateExpression(interpreter, variableScope, owner);
+                    return interpreter.CallFunction(function, arguments, variableScope, newOwner);
                 }
             }
         }
@@ -1831,10 +1853,10 @@ namespace CasualConsole.Interpreter
                 this.keyExpression = ExpressionMethods.New(keyExpressionTokens);
             }
 
-            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope, CustomValue owner)
             {
-                var ownerExpressionValue = baseExpression.EvaluateExpression(interpreter, variableScope);
-                var keyExpressionValue = keyExpression.EvaluateExpression(interpreter, variableScope);
+                var ownerExpressionValue = baseExpression.EvaluateExpression(interpreter, variableScope, owner);
+                var keyExpressionValue = keyExpression.EvaluateExpression(interpreter, variableScope, owner);
 
                 return interpreter.DoIndexingGet(ownerExpressionValue, keyExpressionValue);
             }
@@ -1850,9 +1872,9 @@ namespace CasualConsole.Interpreter
                 this.fieldName = fieldName;
             }
 
-            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope, CustomValue owner)
             {
-                var ownerExpressionValue = baseExpression.EvaluateExpression(interpreter, variableScope);
+                var ownerExpressionValue = baseExpression.EvaluateExpression(interpreter, variableScope, owner);
                 var keyExpressionValue = GetKeyValue();
 
                 return interpreter.DoIndexingGet(ownerExpressionValue, keyExpressionValue);
@@ -1872,7 +1894,7 @@ namespace CasualConsole.Interpreter
                 this.tokens = new CustomRange<string>(tokens, 1, tokens.Count - 1);
             }
 
-            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope, CustomValue owner)
             {
                 var res = SplitBy(tokens, Interpreter.commaSet);
                 var map = new Dictionary<string, CustomValue>();
@@ -1884,7 +1906,7 @@ namespace CasualConsole.Interpreter
                     if (item[1] != ":")
                         throw new Exception();
 
-                    var fieldValue = ExpressionMethods.New(new CustomRange<string>(item, 2, item.Count)).EvaluateExpression(interpreter, variableScope);
+                    var fieldValue = ExpressionMethods.New(new CustomRange<string>(item, 2, item.Count)).EvaluateExpression(interpreter, variableScope, owner);
                     map.Add(fieldName, fieldValue);
                 }
                 return CustomValue.FromMap(map);
@@ -1899,13 +1921,13 @@ namespace CasualConsole.Interpreter
                 this.tokens = new CustomRange<string>(tokens, 1, tokens.Count - 1);
             }
 
-            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope, CustomValue owner)
             {
                 var res = SplitBy(tokens, Interpreter.commaSet);
                 var list = new List<CustomValue>();
                 foreach (var item in res)
                 {
-                    var itemValue = ExpressionMethods.New(item).EvaluateExpression(interpreter, variableScope);
+                    var itemValue = ExpressionMethods.New(item).EvaluateExpression(interpreter, variableScope, owner);
                     list.Add(itemValue);
                 }
                 var array = new CustomArray(list);
@@ -1923,10 +1945,10 @@ namespace CasualConsole.Interpreter
                 this.parenthesesTokens = parenthesesTokens;
             }
 
-            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope, CustomValue owner)
             {
                 var insideExpression = ExpressionMethods.New(new CustomRange<string>(parenthesesTokens, 1, parenthesesTokens.Count - 1));
-                return insideExpression.EvaluateExpression(interpreter, variableScope);
+                return insideExpression.EvaluateExpression(interpreter, variableScope, owner);
             }
         }
         class SingleTokenNumberExpression : Expression
@@ -1938,7 +1960,7 @@ namespace CasualConsole.Interpreter
                 this.token = token;
             }
 
-            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope, CustomValue owner)
             {
                 return CustomValue.FromNumber(token);
             }
@@ -1952,7 +1974,7 @@ namespace CasualConsole.Interpreter
                 this.token = token;
             }
 
-            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope, CustomValue owner)
             {
                 return CustomValue.FromString(token);
             }
@@ -1966,8 +1988,10 @@ namespace CasualConsole.Interpreter
                 this.token = token;
             }
 
-            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope, CustomValue owner)
             {
+                if (token == "this")
+                    return owner;
                 return variableScope.GetVariable(token);
             }
         }
@@ -1980,7 +2004,7 @@ namespace CasualConsole.Interpreter
                 this.value = value;
             }
 
-            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope, CustomValue owner)
             {
                 return value;
             }
@@ -1996,9 +2020,9 @@ namespace CasualConsole.Interpreter
                 this.expressionRest = expressionRest;
             }
 
-            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope, CustomValue owner)
             {
-                var rest = expressionRest.EvaluateExpression(interpreter, variableScope);
+                var rest = expressionRest.EvaluateExpression(interpreter, variableScope, owner);
                 if (rest.type != ValueType.Number)
                     throw new Exception();
 
@@ -2019,9 +2043,9 @@ namespace CasualConsole.Interpreter
                 this.expressionRest = expressionRest;
             }
 
-            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope, CustomValue owner)
             {
-                var rest = expressionRest.EvaluateExpression(interpreter, variableScope);
+                var rest = expressionRest.EvaluateExpression(interpreter, variableScope, owner);
                 if (rest.type != ValueType.Bool)
                     throw new Exception();
 
@@ -2042,12 +2066,12 @@ namespace CasualConsole.Interpreter
                 this.isInc = isInc;
             }
 
-            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope, CustomValue owner)
             {
                 CustomValue value = CustomValue.FromNumber(1);
                 Func<CustomValue, CustomValue> operation = existingValue => interpreter.AddOrSubtract(existingValue, isInc ? Operator.Plus : Operator.Minus, value);
 
-                var newValue = Interpreter.ApplyLValueOperation(expressionRest, operation, interpreter, variableScope, out var oldValue);
+                var newValue = Interpreter.ApplyLValueOperation(expressionRest, operation, interpreter, variableScope, owner, out var oldValue);
 
                 return isPre ? newValue : oldValue;
             }
@@ -2076,7 +2100,7 @@ namespace CasualConsole.Interpreter
 
             }
 
-            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope, CustomValue owner)
             {
                 if (hasVar)
                 {
@@ -2084,13 +2108,13 @@ namespace CasualConsole.Interpreter
                     if (assignmentOperator != "=")
                         throw new Exception();
 
-                    var value = rValue.EvaluateExpression(interpreter, variableScope);
+                    var value = rValue.EvaluateExpression(interpreter, variableScope, owner);
                     variableScope.AddVariable(variableName, value);
                     return value;
                 }
                 else
                 {
-                    var value = rValue.EvaluateExpression(interpreter, variableScope);
+                    var value = rValue.EvaluateExpression(interpreter, variableScope, owner);
 
                     Func<CustomValue, CustomValue> operation;
 
@@ -2118,7 +2142,7 @@ namespace CasualConsole.Interpreter
                             throw new Exception();
                     }
 
-                    return Interpreter.ApplyLValueOperation(lValue, operation, interpreter, variableScope, out var _);
+                    return Interpreter.ApplyLValueOperation(lValue, operation, interpreter, variableScope, owner, out var _);
                 }
             }
 
@@ -2141,21 +2165,21 @@ namespace CasualConsole.Interpreter
                 this.colonExpression = colonExpression;
             }
 
-            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope, CustomValue owner)
             {
-                var conditionValue = conditionExpression.EvaluateExpression(interpreter, variableScope);
+                var conditionValue = conditionExpression.EvaluateExpression(interpreter, variableScope, owner);
                 bool isTruthy = conditionValue.IsTruthy();
 
                 if (isTruthy)
-                    return questionMarkExpression.EvaluateExpression(interpreter, variableScope);
+                    return questionMarkExpression.EvaluateExpression(interpreter, variableScope, owner);
                 else
-                    return colonExpression.EvaluateExpression(interpreter, variableScope);
+                    return colonExpression.EvaluateExpression(interpreter, variableScope, owner);
             }
         }
 
         interface Statement
         {
-            (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope);
+            (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope, CustomValue owner);
             StatementType Type { get; }
         }
         static class StatementMethods
@@ -2224,7 +2248,7 @@ namespace CasualConsole.Interpreter
 
             public StatementType Type => StatementType.LineStatement;
 
-            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope, CustomValue owner)
             {
                 if (tokens.Count == 0) return (CustomValue.Null, false, false, false);
 
@@ -2232,7 +2256,7 @@ namespace CasualConsole.Interpreter
                 {
                     // Assignment to new variable
                     var assignmentTree = AssignmentExpression.FromVarStatement(new CustomRange<string>(tokens, 1, tokens.Count));
-                    var value = assignmentTree.EvaluateExpression(interpreter, variableScope);
+                    var value = assignmentTree.EvaluateExpression(interpreter, variableScope, owner);
                     return (CustomValue.Null, false, false, false);
                 }
                 else if (tokens[0] == "return")
@@ -2240,7 +2264,7 @@ namespace CasualConsole.Interpreter
                     if (tokens.Count == 1)
                         return (CustomValue.Null, true, false, false);
                     var returnExpression = ExpressionMethods.New(new CustomRange<string>(tokens, 1, tokens.Count));
-                    var returnValue = returnExpression.EvaluateExpression(interpreter, variableScope);
+                    var returnValue = returnExpression.EvaluateExpression(interpreter, variableScope, owner);
                     return (returnValue, true, false, false);
                 }
                 else if (tokens[0] == "break")
@@ -2255,13 +2279,13 @@ namespace CasualConsole.Interpreter
                 {
                     var variableName = tokens[1];
                     var functionStatement = FunctionStatement.FromTokens(tokens);
-                    var function = functionStatement.EvaluateExpression(interpreter, variableScope);
+                    var function = functionStatement.EvaluateExpression(interpreter, variableScope, owner);
 
                     variableScope.AddVariable(variableName, function);
                     return (CustomValue.Null, false, false, false);
                 }
 
-                CustomValue expressionValue = interpreter.GetValueFromExpression(tokens, variableScope);
+                CustomValue expressionValue = interpreter.GetValueFromExpression(tokens, variableScope, owner);
                 if (hasSemiColon)
                     return (CustomValue.Null, false, false, false);
                 return (expressionValue, false, false, false);
@@ -2282,12 +2306,12 @@ namespace CasualConsole.Interpreter
 
             public StatementType Type => StatementType.BlockStatement;
 
-            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope innerScope)
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope innerScope, CustomValue owner)
             {
                 var variableScope = VariableScope.NewWithInner(innerScope);
                 foreach (var statement in statements)
                 {
-                    var (value, isReturn, isBreak, isContinue) = statement.EvaluateStatement(interpreter, variableScope);
+                    var (value, isReturn, isBreak, isContinue) = statement.EvaluateStatement(interpreter, variableScope, owner);
                     if (isReturn)
                         return (value, true, false, false);
                     if (isBreak)
@@ -2315,15 +2339,15 @@ namespace CasualConsole.Interpreter
 
             public StatementType Type => StatementType.WhileStatement;
 
-            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope, CustomValue owner)
             {
                 while (true)
                 {
-                    var conditionValue = conditionExpression.EvaluateExpression(interpreter, variableScope);
+                    var conditionValue = conditionExpression.EvaluateExpression(interpreter, variableScope, owner);
                     if (!conditionValue.IsTruthy())
                         break;
 
-                    var (value, isReturn, isBreak, isContinue) = statement.EvaluateStatement(interpreter, variableScope);
+                    var (value, isReturn, isBreak, isContinue) = statement.EvaluateStatement(interpreter, variableScope, owner);
                     if (isReturn)
                         return (value, true, false, false);
                     if (isBreak)
@@ -2367,12 +2391,12 @@ namespace CasualConsole.Interpreter
                 elseStatement = statementAfterIf;
             }
 
-            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope, CustomValue owner)
             {
-                var conditionValue = conditionExpression.EvaluateExpression(interpreter, variableScope);
+                var conditionValue = conditionExpression.EvaluateExpression(interpreter, variableScope, owner);
                 if (conditionValue.IsTruthy())
                 {
-                    var (value, isReturn, isBreak, isContinue) = statementOfIf.EvaluateStatement(interpreter, variableScope);
+                    var (value, isReturn, isBreak, isContinue) = statementOfIf.EvaluateStatement(interpreter, variableScope, owner);
                     if (isReturn)
                         return (value, true, false, false);
                     return (CustomValue.Null, false, isBreak, isContinue);
@@ -2380,10 +2404,10 @@ namespace CasualConsole.Interpreter
 
                 foreach (var elseIfStatement in elseIfStatements.Value)
                 {
-                    var elseIfCondition = elseIfStatement.condition.EvaluateExpression(interpreter, variableScope);
+                    var elseIfCondition = elseIfStatement.condition.EvaluateExpression(interpreter, variableScope, owner);
                     if (elseIfCondition.IsTruthy())
                     {
-                        var (value, isReturn, isBreak, isContinue) = elseIfStatement.statement.EvaluateStatement(interpreter, variableScope);
+                        var (value, isReturn, isBreak, isContinue) = elseIfStatement.statement.EvaluateStatement(interpreter, variableScope, owner);
                         if (isReturn)
                             return (value, true, false, false);
                         return (CustomValue.Null, false, isBreak, isContinue);
@@ -2392,7 +2416,7 @@ namespace CasualConsole.Interpreter
 
                 if (elseStatement != null)
                 {
-                    var (value, isReturn, isBreak, isContinue) = elseStatement.EvaluateStatement(interpreter, variableScope);
+                    var (value, isReturn, isBreak, isContinue) = elseStatement.EvaluateStatement(interpreter, variableScope, owner);
                     if (isReturn)
                         return (value, true, false, false);
                     return (CustomValue.Null, false, isBreak, isContinue);
@@ -2418,9 +2442,9 @@ namespace CasualConsole.Interpreter
 
             public StatementType Type => StatementType.ElseIfStatement;
 
-            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope, CustomValue owner)
             {
-                return statement.EvaluateStatement(interpreter, variableScope);
+                return statement.EvaluateStatement(interpreter, variableScope, owner);
             }
         }
         class ElseStatement : Statement
@@ -2436,9 +2460,9 @@ namespace CasualConsole.Interpreter
 
             public StatementType Type => StatementType.ElseStatement;
 
-            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope, CustomValue owner)
             {
-                return statement.EvaluateStatement(interpreter, variableScope);
+                return statement.EvaluateStatement(interpreter, variableScope, owner);
             }
         }
         class FunctionStatement : Statement, Expression
@@ -2470,7 +2494,7 @@ namespace CasualConsole.Interpreter
                 return new FunctionStatement(parameters, body);
             }
 
-            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope)
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Interpreter interpreter, VariableScope variableScope, CustomValue owner)
             {
                 var parametersMap = new Dictionary<string, int>(); // Map is used to ensure uniqueness
                 var parametersList = new List<string>();
@@ -2493,9 +2517,9 @@ namespace CasualConsole.Interpreter
                 return (CustomValue.FromFunction(function), false, false, false);
             }
 
-            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope)
+            public CustomValue EvaluateExpression(Interpreter interpreter, VariableScope variableScope, CustomValue owner)
             {
-                return EvaluateStatement(interpreter, variableScope).Item1;
+                return EvaluateStatement(interpreter, variableScope, owner).Item1;
             }
         }
     }
