@@ -1373,8 +1373,7 @@ namespace CasualConsole.Interpreter
             ElseStatement,
             WhileStatement,
             ForStatement,
-            ForInStatement,
-            ForOfStatement,
+            ForInOfStatement,
             FunctionStatement,
         }
 
@@ -2695,88 +2694,64 @@ namespace CasualConsole.Interpreter
 
                     if (operationType == "in")
                     {
-                        return new ForInStatement(assignmentType, variableName, restExpression, bodyStatement);
+                        return new ForInOfStatement(true, assignmentType, variableName, restExpression, bodyStatement);
                     }
                     else if (operationType == "of")
                     {
-                        return new ForOfStatement(assignmentType, variableName, restExpression, bodyStatement);
+                        return new ForInOfStatement(false, assignmentType, variableName, restExpression, bodyStatement);
                     }
                     throw new Exception();
                 }
                 throw new Exception();
             }
         }
-        class ForInStatement : Statement
+        class ForInOfStatement : Statement
         {
             AssignmentType assignmentType;
             string variableName;
             Expression source;
             Statement bodyStatement;
+            bool isInStatement;
 
-            public ForInStatement(AssignmentType assignmentType, string variableName, Expression source, Statement bodyStatement)
+            public ForInOfStatement(bool isInStatement, AssignmentType assignmentType, string variableName, Expression source, Statement bodyStatement)
             {
                 this.assignmentType = assignmentType;
                 this.variableName = variableName;
                 this.source = source;
                 this.bodyStatement = bodyStatement;
+                this.isInStatement = isInStatement;
             }
 
-            public StatementType Type => StatementType.ForInStatement;
+            public StatementType Type => StatementType.ForInOfStatement;
 
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
+                bool isOfStatement = !isInStatement;
                 var scope = context.variableScope;
                 var sourceValue = source.EvaluateExpression(context);
-                if (sourceValue.type != ValueType.Map)
+                if (isOfStatement && sourceValue.type != ValueType.Array)
+                    throw new Exception();
+                if (isInStatement && sourceValue.type != ValueType.Map)
                     throw new Exception();
 
-                var map = (Dictionary<string, CustomValue>)sourceValue.value;
-                var keys = map.Keys;
-
-                foreach (var key in keys)
+                IEnumerable<CustomValue> elements;
+                if (isInStatement)
                 {
-                    var loopScope = VariableScope.GetNewLoopScope(scope, assignmentType, variableName, CustomValue.FromParsedString(key));
-
-                    var (value, isReturn, isBreak, isContinue) = bodyStatement.EvaluateStatement(new Context(loopScope, context.thisOwner));
-                    if (isReturn)
-                        return (value, true, false, false);
-                    if (isBreak)
-                        break;
-                    if (isContinue)
-                        continue;
+                    var map = (Dictionary<string, CustomValue>)sourceValue.value;
+                    var keys = map.Keys;
+                    elements = keys.Select(key => CustomValue.FromParsedString(key));
                 }
-
-                return (CustomValue.Null, false, false, false);
-            }
-        }
-        class ForOfStatement : Statement
-        {
-            AssignmentType assignmentType;
-            string variableName;
-            Expression source;
-            Statement bodyStatement;
-
-            public ForOfStatement(AssignmentType assignmentType, string variableName, Expression source, Statement bodyStatement)
-            {
-                this.assignmentType = assignmentType;
-                this.variableName = variableName;
-                this.source = source;
-                this.bodyStatement = bodyStatement;
-            }
-
-            public StatementType Type => StatementType.ForOfStatement;
-
-            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
-            {
-                var scope = context.variableScope;
-                var sourceValue = source.EvaluateExpression(context);
-                if (sourceValue.type != ValueType.Array)
+                else if (isOfStatement)
+                {
+                    var array = (CustomArray)sourceValue.value;
+                    elements = array.list;
+                }
+                else
                     throw new Exception();
 
-                var array = (CustomArray)sourceValue.value;
-                foreach (var item in array.list)
+                foreach (var element in elements)
                 {
-                    var loopScope = VariableScope.GetNewLoopScope(scope, assignmentType, variableName, item);
+                    var loopScope = VariableScope.GetNewLoopScope(scope, assignmentType, variableName, element);
 
                     var (value, isReturn, isBreak, isContinue) = bodyStatement.EvaluateStatement(new Context(loopScope, context.thisOwner));
                     if (isReturn)
