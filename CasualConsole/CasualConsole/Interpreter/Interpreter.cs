@@ -34,16 +34,13 @@ namespace CasualConsole.Interpreter
             return CustomValue.FromFunction(func);
         });
 
-        private Dictionary<string, CustomValue> defaultvariables = new Dictionary<string, CustomValue>();
-        private VariableScope defaultVariableScope;
-        private CustomValue defaultThisOwner;
         private Context defaultContext;
 
         public Interpreter()
         {
-            defaultvariables = new Dictionary<string, CustomValue>();
-            defaultVariableScope = VariableScope.NewFromExisting(defaultvariables);
-            defaultThisOwner = CustomValue.Null;
+            var defaultvariables = new Dictionary<string, (CustomValue, AssignmentType)>();
+            var defaultVariableScope = VariableScope.NewDefault(defaultvariables, true);
+            var defaultThisOwner = CustomValue.Null;
             defaultContext = new Context(defaultVariableScope, defaultThisOwner);
 
             trueExpression = new CustomValueExpression(CustomValue.True);
@@ -429,6 +426,12 @@ namespace CasualConsole.Interpreter
                 ("for(var i=0, j=10; ; i+=2, j++){ if(i==j) break; } i == 20 && j == 20", true),
                 ("var total = 0; var o = { x1: 2, x2: 5, x4: 7 }; for(var x in o) total += o[x]; total", 14),
                 ("var total = 0; for(var x of [1,2,3,4,5]) total += x; total", 15),
+                ("var scopevar1 = 2; { var scopevar1 = 3; } scopevar1", 3),
+                ("let scopelet1 = 2; { let scopelet1 = 3; } scopelet1", 2),
+                ("var scopevar2 = 5; (function(){ var scopevar2 = 8; })(); scopevar2", 5),
+                ("for(var i = 0, j = 0; i < 5; i++){} i", 5),
+                ("let li = 6; for(let li = 0; li < 5; li++){} li", 6),
+                ("for(let li = 0, lj = 0; li < 5; li++, lj++){}", null), // Testing let with multi initialization
             };
 
             var interpreter = new Interpreter();
@@ -653,14 +656,14 @@ namespace CasualConsole.Interpreter
                 throw new Exception();
 
             var function = (FunctionObject)f.value;
-            var functionParameterArguments = new Dictionary<string, CustomValue>();
+            var functionParameterArguments = new Dictionary<string, (CustomValue, AssignmentType)>();
             for (int i = 0; i < function.Parameters.Count; i++)
             {
                 var argName = function.Parameters[i];
                 var value = i < arguments.Length ? arguments[i] : CustomValue.Null;
-                functionParameterArguments[argName] = value;
+                functionParameterArguments[argName] = (value, AssignmentType.Var);
             }
-            var newScope = VariableScope.NewWithInner(context.variableScope, functionParameterArguments);
+            var newScope = VariableScope.NewWithInner(context.variableScope, functionParameterArguments, isFunctionScope: true);
             var newContext = new Context(newScope, context.thisOwner);
             var (result, isReturn, isBreak, isContinue) = function.EvaluateStatement(newContext);
             if (isBreak || isContinue)
@@ -1021,6 +1024,23 @@ namespace CasualConsole.Interpreter
             }
         }
 
+        private static bool IsAssignmentType(string operatorToken, out AssignmentType type)
+        {
+            switch (operatorToken)
+            {
+                case "var":
+                    type = AssignmentType.Var;
+                    return true;
+                case "let":
+                    type = AssignmentType.Let;
+                    return true;
+                default:
+                    break;
+            }
+            type = AssignmentType.None;
+            return false;
+        }
+
         private static IEnumerable<string> GetTokens(string content)
         {
             int i = 0;
@@ -1369,7 +1389,14 @@ namespace CasualConsole.Interpreter
             Array,
         }
 
-        private enum Operator
+        enum AssignmentType
+        {
+            None,
+            Var,
+            Let,
+        }
+
+        enum Operator
         {
             None,
             Plus,
@@ -1445,25 +1472,29 @@ namespace CasualConsole.Interpreter
 
         class VariableScope
         {
-            private Dictionary<string, CustomValue> variables;
+            private Dictionary<string, (CustomValue, AssignmentType)> variables;
             private VariableScope innerScope;
+            private bool isFunctionScope;
 
-            private VariableScope(Dictionary<string, CustomValue> variables, VariableScope innerScope)
+            private VariableScope(Dictionary<string, (CustomValue, AssignmentType)> variables, VariableScope innerScope, bool isFunctionScope)
             {
                 this.variables = variables;
                 this.innerScope = innerScope;
+                this.isFunctionScope = isFunctionScope;
             }
 
             public bool TryGetVariable(string variableName, out CustomValue value)
             {
-                if (variables.TryGetValue(variableName, out value))
+                if (variables.TryGetValue(variableName, out var valuePair))
                 {
+                    value = valuePair.Item1;
                     return true;
                 }
                 if (innerScope != null && innerScope.TryGetVariable(variableName, out value))
                 {
                     return true;
                 }
+                value = CustomValue.Null;
                 return false;
             }
 
@@ -1481,9 +1512,10 @@ namespace CasualConsole.Interpreter
             {
                 if (keywords.Contains(variableName))
                     throw new Exception();
-                if (variables.ContainsKey(variableName))
+                if (variables.TryGetValue(variableName, out var res))
                 {
-                    variables[variableName] = value;
+                    var (_, type) = res;
+                    variables[variableName] = (value, type);
                 }
                 else if (innerScope != null)
                 {
@@ -1493,39 +1525,73 @@ namespace CasualConsole.Interpreter
                     throw new Exception();
             }
 
-            public void AddVariable(string variableName, CustomValue value)
+            public void AddVarVariable(string variableName, CustomValue value)
             {
-                //variables.Add(variableName, value); // This line was removed because currently we're okay with reinitializing a variable
-                variables[variableName] = value;
-            }
+                var scope = this;
+                while (!scope.isFunctionScope)
+                    scope = scope.innerScope;
 
-            public static VariableScope NewFromExisting(Dictionary<string, CustomValue> variables)
-            {
-                return new VariableScope(variables, null);
-            }
-            public static VariableScope NewWithInner(VariableScope innerScope)
-            {
-                var newVariables = new Dictionary<string, CustomValue>();
-                return NewWithInner(innerScope, newVariables);
-            }
-            public static VariableScope NewWithInner(VariableScope innerScope, Dictionary<string, CustomValue> values)
-            {
-                return new VariableScope(values, innerScope);
-            }
-            public static VariableScope GetNewLoopScope(VariableScope scope, bool isVar, string variableName, CustomValue variableValue)
-            {
-                VariableScope loopScope;
-
-                if (isVar)
+                if (scope.variables.TryGetValue(variableName, out var res))
                 {
-                    var newScope = VariableScope.NewWithInner(scope);
-                    newScope.AddVariable(variableName, variableValue);
-                    loopScope = newScope;
+                    var (_, type) = res;
+                    if (type == AssignmentType.Var)
+                        scope.variables[variableName] = (value, AssignmentType.Var);
+                    else
+                        throw new Exception();
                 }
                 else
                 {
-                    scope.SetVariable(variableName, variableValue);
-                    loopScope = scope;
+                    scope.variables[variableName] = (value, AssignmentType.Var);
+                }
+            }
+
+            public void AddLetVariable(string variableName, CustomValue value)
+            {
+                var scope = this;
+                scope.variables.Add(variableName, (value, AssignmentType.Let));
+            }
+
+            public static VariableScope NewDefault(Dictionary<string, (CustomValue, AssignmentType)> variables, bool isFunctionScope)
+            {
+                return new VariableScope(variables, null, isFunctionScope);
+            }
+            public static VariableScope NewWithInner(VariableScope innerScope, bool isFunctionScope)
+            {
+                var newVariables = new Dictionary<string, (CustomValue, AssignmentType)>();
+                return NewWithInner(innerScope, newVariables, isFunctionScope);
+            }
+            public static VariableScope NewWithInner(VariableScope innerScope, Dictionary<string, (CustomValue, AssignmentType)> values, bool isFunctionScope)
+            {
+                return new VariableScope(values, innerScope, isFunctionScope);
+            }
+            public static VariableScope GetNewLoopScope(VariableScope scope, AssignmentType assignmentType, string variableName, CustomValue variableValue)
+            {
+                VariableScope loopScope;
+
+                switch (assignmentType)
+                {
+                    case AssignmentType.None:
+                        {
+                            scope.SetVariable(variableName, variableValue);
+                            loopScope = scope;
+                            break;
+                        }
+                    case AssignmentType.Var:
+                        {
+                            var newScope = VariableScope.NewWithInner(scope, isFunctionScope: false);
+                            newScope.AddVarVariable(variableName, variableValue);
+                            loopScope = newScope;
+                            break;
+                        }
+                    case AssignmentType.Let:
+                        {
+                            var newScope = VariableScope.NewWithInner(scope, isFunctionScope: false);
+                            newScope.AddLetVariable(variableName, variableValue);
+                            loopScope = newScope;
+                            break;
+                        }
+                    default:
+                        throw new Exception();
                 }
 
                 return loopScope;
@@ -1578,7 +1644,7 @@ namespace CasualConsole.Interpreter
                         if (assignmentSet.Contains(newToken))
                         {
                             var restTokens = new CustomRange<string>(tokens, index + 1, tokens.Count);
-                            return new AssignmentExpression(previousExpression, newToken, restTokens, false);
+                            return new AssignmentExpression(previousExpression, newToken, restTokens, AssignmentType.None);
                         }
 
                         if (plusMinusSet.Contains(newToken)
@@ -2233,9 +2299,9 @@ namespace CasualConsole.Interpreter
             public Expression lValue;
             public string assignmentOperator;
             public Expression rValue;
-            public bool hasVar;
+            public AssignmentType assignmentType;
 
-            public AssignmentExpression(Expression lValue, string assignmentOperator, IReadOnlyList<string> rValueTokens, bool hasVar)
+            public AssignmentExpression(Expression lValue, string assignmentOperator, IReadOnlyList<string> rValueTokens, AssignmentType assignmentType)
             {
                 if (!assignmentSet.Contains(assignmentOperator))
                     throw new Exception();
@@ -2243,25 +2309,37 @@ namespace CasualConsole.Interpreter
                 this.lValue = lValue;
                 this.assignmentOperator = assignmentOperator;
                 this.rValue = ExpressionMethods.New(rValueTokens);
-                this.hasVar = hasVar;
+                this.assignmentType = assignmentType;
             }
 
-            public AssignmentExpression(string variableName, string assignmentOperator, IReadOnlyList<string> rValueTokens, bool hasVar)
-                : this(new SingleTokenVariableExpression(variableName), assignmentOperator, rValueTokens, hasVar)
+            public AssignmentExpression(string variableName, string assignmentOperator, IReadOnlyList<string> rValueTokens, AssignmentType assignmentType)
+                : this(new SingleTokenVariableExpression(variableName), assignmentOperator, rValueTokens, assignmentType)
             {
 
             }
 
             public CustomValue EvaluateExpression(Context context)
             {
-                if (hasVar)
+                if (assignmentType != AssignmentType.None)
                 {
                     var variableName = ((SingleTokenVariableExpression)lValue).token;
                     if (assignmentOperator != "=")
                         throw new Exception();
 
                     var value = rValue.EvaluateExpression(context);
-                    context.variableScope.AddVariable(variableName, value);
+
+                    switch (assignmentType)
+                    {
+                        case AssignmentType.Var:
+                            context.variableScope.AddVarVariable(variableName, value);
+                            break;
+                        case AssignmentType.Let:
+                            context.variableScope.AddLetVariable(variableName, value);
+                            break;
+                        default:
+                            throw new Exception();
+                    }
+
                     return value;
                 }
                 else
@@ -2298,10 +2376,10 @@ namespace CasualConsole.Interpreter
                 }
             }
 
-            public static AssignmentExpression FromVarStatement(IReadOnlyList<string> tokens)
+            public static AssignmentExpression FromVarStatement(IReadOnlyList<string> tokens, AssignmentType assignmentType)
             {
                 var variableName = tokens[0];
-                return new AssignmentExpression(variableName, tokens[1], new CustomRange<string>(tokens, 2, tokens.Count), true);
+                return new AssignmentExpression(variableName, tokens[1], new CustomRange<string>(tokens, 2, tokens.Count), assignmentType);
             }
         }
         class TernaryExpression : Expression
@@ -2408,10 +2486,10 @@ namespace CasualConsole.Interpreter
             {
                 if (tokens.Count == 0) return (CustomValue.Null, false, false, false);
 
-                if (tokens[0] == "var")
+                if (IsAssignmentType(tokens[0], out var assignmentType))
                 {
                     // Assignment to new variable
-                    var assignmentTree = AssignmentExpression.FromVarStatement(new CustomRange<string>(tokens, 1, tokens.Count));
+                    var assignmentTree = AssignmentExpression.FromVarStatement(new CustomRange<string>(tokens, 1, tokens.Count), assignmentType);
                     var value = assignmentTree.EvaluateExpression(context);
                     return (CustomValue.Null, false, false, false);
                 }
@@ -2437,7 +2515,7 @@ namespace CasualConsole.Interpreter
                     var functionStatement = FunctionStatement.FromTokens(tokens);
                     var function = functionStatement.EvaluateExpression(context);
 
-                    context.variableScope.AddVariable(variableName, function);
+                    context.variableScope.AddVarVariable(variableName, function);
                     return (CustomValue.Null, false, false, false);
                 }
 
@@ -2464,7 +2542,7 @@ namespace CasualConsole.Interpreter
 
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
-                var newScope = VariableScope.NewWithInner(context.variableScope);
+                var newScope = VariableScope.NewWithInner(context.variableScope, isFunctionScope: false);
                 var newContext = new Context(newScope, context.thisOwner);
                 foreach (var statement in statements)
                 {
@@ -2518,13 +2596,15 @@ namespace CasualConsole.Interpreter
         }
         class ForStatement : Statement
         {
-            IReadOnlyList<Statement> initializationStatements;
+            AssignmentType assignmentType;
+            IReadOnlyList<Expression> initializationStatements;
             Expression conditionExpression;
             IReadOnlyList<Statement> iterationStatements;
             Statement bodyStatement;
 
-            private ForStatement(IReadOnlyList<Statement> initializationStatements, Expression conditionExpression, IReadOnlyList<Statement> iterationStatements, Statement bodyStatement)
+            private ForStatement(AssignmentType assignmentType, IReadOnlyList<Expression> initializationStatements, Expression conditionExpression, IReadOnlyList<Statement> iterationStatements, Statement bodyStatement)
             {
+                this.assignmentType = assignmentType;
                 this.initializationStatements = initializationStatements;
                 this.conditionExpression = conditionExpression;
                 this.iterationStatements = iterationStatements;
@@ -2535,30 +2615,33 @@ namespace CasualConsole.Interpreter
 
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
+                var newScope = VariableScope.NewWithInner(context.variableScope, isFunctionScope: false);
+                var newContext = new Context(newScope, context.thisOwner);
+
                 // Initialize
                 foreach (var initializationStatement in initializationStatements)
                 {
-                    initializationStatement.EvaluateStatement(context);
+                    initializationStatement.EvaluateExpression(newContext);
                 }
 
                 while (true)
                 {
-                    var conditionValue = conditionExpression.EvaluateExpression(context);
+                    var conditionValue = conditionExpression.EvaluateExpression(newContext);
                     if (!conditionValue.IsTruthy())
                         break;
 
-                    var (value, isReturn, isBreak, isContinue) = bodyStatement.EvaluateStatement(context);
+                    var (value, isReturn, isBreak, isContinue) = bodyStatement.EvaluateStatement(newContext);
                     if (isReturn)
                         return (value, true, false, false);
                     if (isBreak)
                         break;
                     if (isContinue)
                     {
-                        DoIteration(context);
+                        DoIteration(newContext);
                         continue;
                     }
 
-                    DoIteration(context);
+                    DoIteration(newContext);
                 }
 
                 return (CustomValue.Null, false, false, false);
@@ -2583,8 +2666,10 @@ namespace CasualConsole.Interpreter
                 {
                     // Normal for loop
                     var allInitializationTokens = expressions[0];
-                    var initializationTokenGroup = SplitBy(allInitializationTokens, commaSet).ToList();
-                    var initializationStatements = initializationTokenGroup.SelectFast(x => StatementMethods.New(x));
+                    var isNewAssignment = IsAssignmentType(allInitializationTokens[0], out var assignmentType);
+                    var assignmentTokens = isNewAssignment ? new CustomRange<string>(allInitializationTokens, 1, allInitializationTokens.Count) : allInitializationTokens;
+                    var initializationTokenGroup = SplitBy(assignmentTokens, commaSet).ToList();
+                    var initializationStatements = initializationTokenGroup.SelectFast(x => AssignmentExpression.FromVarStatement(x, assignmentType));
 
                     var conditionTokens = expressions[1];
                     var conditionExpression = conditionTokens.Count > 0 ? ExpressionMethods.New(conditionTokens) : trueExpression;
@@ -2595,13 +2680,13 @@ namespace CasualConsole.Interpreter
 
                     var bodyStatement = StatementMethods.New(statementTokens);
 
-                    return new ForStatement(initializationStatements, conditionExpression, iterationStatements, bodyStatement);
+                    return new ForStatement(assignmentType, initializationStatements, conditionExpression, iterationStatements, bodyStatement);
                 }
                 else if (expressions.Count == 1)
                 {
                     var parenthesesTokens = expressions[0];
-                    var isVar = parenthesesTokens[0] == "var";
-                    var index = isVar ? 1 : 0;
+                    var isNewAssignment = IsAssignmentType(parenthesesTokens[0], out var assignmentType);
+                    var index = isNewAssignment ? 1 : 0;
                     var variableName = parenthesesTokens[index];
                     var operationType = parenthesesTokens[index + 1];
                     var restTokens = new CustomRange<string>(parenthesesTokens, index + 2, parenthesesTokens.Count);
@@ -2610,11 +2695,11 @@ namespace CasualConsole.Interpreter
 
                     if (operationType == "in")
                     {
-                        return new ForInStatement(isVar, variableName, restExpression, bodyStatement);
+                        return new ForInStatement(assignmentType, variableName, restExpression, bodyStatement);
                     }
                     else if (operationType == "of")
                     {
-                        return new ForOfStatement(isVar, variableName, restExpression, bodyStatement);
+                        return new ForOfStatement(assignmentType, variableName, restExpression, bodyStatement);
                     }
                     throw new Exception();
                 }
@@ -2623,14 +2708,14 @@ namespace CasualConsole.Interpreter
         }
         class ForInStatement : Statement
         {
-            bool isVar;
+            AssignmentType assignmentType;
             string variableName;
             Expression source;
             Statement bodyStatement;
 
-            public ForInStatement(bool isVar, string variableName, Expression source, Statement bodyStatement)
+            public ForInStatement(AssignmentType assignmentType, string variableName, Expression source, Statement bodyStatement)
             {
-                this.isVar = isVar;
+                this.assignmentType = assignmentType;
                 this.variableName = variableName;
                 this.source = source;
                 this.bodyStatement = bodyStatement;
@@ -2650,7 +2735,7 @@ namespace CasualConsole.Interpreter
 
                 foreach (var key in keys)
                 {
-                    var loopScope = VariableScope.GetNewLoopScope(scope, isVar, variableName, CustomValue.FromParsedString(key));
+                    var loopScope = VariableScope.GetNewLoopScope(scope, assignmentType, variableName, CustomValue.FromParsedString(key));
 
                     var (value, isReturn, isBreak, isContinue) = bodyStatement.EvaluateStatement(new Context(loopScope, context.thisOwner));
                     if (isReturn)
@@ -2666,14 +2751,14 @@ namespace CasualConsole.Interpreter
         }
         class ForOfStatement : Statement
         {
-            bool isVar;
+            AssignmentType assignmentType;
             string variableName;
             Expression source;
             Statement bodyStatement;
 
-            public ForOfStatement(bool isVar, string variableName, Expression source, Statement bodyStatement)
+            public ForOfStatement(AssignmentType assignmentType, string variableName, Expression source, Statement bodyStatement)
             {
-                this.isVar = isVar;
+                this.assignmentType = assignmentType;
                 this.variableName = variableName;
                 this.source = source;
                 this.bodyStatement = bodyStatement;
@@ -2691,7 +2776,7 @@ namespace CasualConsole.Interpreter
                 var array = (CustomArray)sourceValue.value;
                 foreach (var item in array.list)
                 {
-                    var loopScope = VariableScope.GetNewLoopScope(scope, isVar, variableName, item);
+                    var loopScope = VariableScope.GetNewLoopScope(scope, assignmentType, variableName, item);
 
                     var (value, isReturn, isBreak, isContinue) = bodyStatement.EvaluateStatement(new Context(loopScope, context.thisOwner));
                     if (isReturn)
