@@ -432,6 +432,12 @@ namespace CasualConsole.Interpreter
                 ("for(var i = 0, j = 0; i < 5; i++){} i", 5),
                 ("let li = 6; for(let li = 0; li < 5; li++){} li", 6),
                 ("for(let li = 0, lj = 0; li < 5; li++, lj++){}", null), // Testing let with multi initialization
+                ("var arr = []; for(var i = 0; i < 2; i++) arr.push(() => i); arr[0]()", 2),
+                ("let i2 = 10; var arr = []; for(let i2 = 0; i2 < 2; i2++) arr.push(() => { return i2; }); arr[0]()", 0),
+                ("var arr = []; for(let i2 = 0; i2 < 2; i2++) { let iset = () => { return i2 = 15; }; let iget = () => i2; arr.push({ iset: iset, iget: iget }); };", null),
+                ("arr[1].iget()", 1),
+                ("arr[1].iset()", 15),
+                ("arr[1].iget()", 15),
             };
 
             var interpreter = new Interpreter();
@@ -613,14 +619,20 @@ namespace CasualConsole.Interpreter
 
             var index = 0;
             var parenthesesCount = 0;
+            var bracketsCount = 0;
+            var bracesCount = 0;
 
             for (int i = 0; i < tokens.Count; i++)
             {
                 var token = tokens[i];
                 if (token == "(") parenthesesCount++;
                 else if (token == ")") parenthesesCount--;
+                else if (token == "[") bracketsCount++;
+                else if (token == "]") bracketsCount--;
+                else if (token == "{") bracesCount++;
+                else if (token == "}") bracesCount--;
 
-                if (parenthesesCount == 0 && separator.Contains(token))
+                if (parenthesesCount == 0 && bracketsCount == 0 && bracesCount == 0 && separator.Contains(token))
                 {
                     yield return new CustomRange<string>(tokens, index, i);
                     index = i + 1;
@@ -663,7 +675,7 @@ namespace CasualConsole.Interpreter
                 var value = i < arguments.Length ? arguments[i] : CustomValue.Null;
                 functionParameterArguments[argName] = (value, AssignmentType.Var);
             }
-            var newScope = VariableScope.NewWithInner(context.variableScope, functionParameterArguments, isFunctionScope: true);
+            var newScope = VariableScope.NewWithInner(function.Scope, functionParameterArguments, isFunctionScope: true);
             var newContext = new Context(newScope, context.thisOwner);
             var (result, isReturn, isBreak, isContinue) = function.EvaluateStatement(newContext);
             if (isBreak || isContinue)
@@ -1143,16 +1155,21 @@ namespace CasualConsole.Interpreter
         interface FunctionObject : Statement
         {
             IReadOnlyList<string> Parameters { get; }
+            VariableScope Scope { get; }
         }
         class CustomFunction : FunctionObject
         {
             private IReadOnlyList<string> parameters;
             private Statement body;
+            private VariableScope scope;
 
-            public CustomFunction(IReadOnlyList<string> parameters, Statement body)
+            public VariableScope Scope => scope;
+
+            public CustomFunction(IReadOnlyList<string> parameters, Statement body, VariableScope scope)
             {
                 this.parameters = parameters;
                 this.body = body;
+                this.scope = scope;
             }
 
             public IReadOnlyList<string> Parameters => parameters;
@@ -1170,6 +1187,8 @@ namespace CasualConsole.Interpreter
 
             public StatementType Type => throw new Exception();
 
+            public VariableScope Scope => null;
+
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
                 var thisArray = context.thisOwner;
@@ -1186,6 +1205,8 @@ namespace CasualConsole.Interpreter
             public IReadOnlyList<string> Parameters => new string[] { };
 
             public StatementType Type => throw new Exception();
+
+            public VariableScope Scope => null;
 
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
@@ -1565,35 +1586,61 @@ namespace CasualConsole.Interpreter
             }
             public static VariableScope GetNewLoopScope(VariableScope scope, AssignmentType assignmentType, string variableName, CustomValue variableValue)
             {
-                VariableScope loopScope;
+                var loopScope = ScopeForLoop(scope, assignmentType);
+                AssignVariable(loopScope, assignmentType, variableName, variableValue);
+                return loopScope;
+            }
+            public static VariableScope GetNewLoopScopeCopy(VariableScope scope, AssignmentType assignmentType)
+            {
+                var newScope = ScopeForLoop(scope, assignmentType);
 
+                foreach (var variable in scope.variables)
+                {
+                    var variableName = variable.Key;
+                    var (variableValue, _) = variable.Value;
+                    AssignVariable(newScope, assignmentType, variableName, variableValue);
+                }
+
+                return newScope;
+            }
+            private static VariableScope ScopeForLoop(VariableScope scope, AssignmentType assignmentType)
+            {
                 switch (assignmentType)
                 {
                     case AssignmentType.None:
                         {
-                            scope.SetVariable(variableName, variableValue);
-                            loopScope = scope;
-                            break;
+                            return scope;
                         }
                     case AssignmentType.Var:
                         {
                             var newScope = VariableScope.NewWithInner(scope, isFunctionScope: false);
-                            newScope.AddVarVariable(variableName, variableValue);
-                            loopScope = newScope;
-                            break;
+                            return newScope;
                         }
                     case AssignmentType.Let:
                         {
                             var newScope = VariableScope.NewWithInner(scope, isFunctionScope: false);
-                            newScope.AddLetVariable(variableName, variableValue);
-                            loopScope = newScope;
-                            break;
+                            return newScope;
                         }
                     default:
                         throw new Exception();
                 }
-
-                return loopScope;
+            }
+            private static void AssignVariable(VariableScope scope, AssignmentType assignmentType, string variableName, CustomValue variableValue)
+            {
+                switch (assignmentType)
+                {
+                    case AssignmentType.None:
+                        scope.SetVariable(variableName, variableValue);
+                        break;
+                    case AssignmentType.Var:
+                        scope.AddVarVariable(variableName, variableValue);
+                        break;
+                    case AssignmentType.Let:
+                        scope.AddLetVariable(variableName, variableValue);
+                        break;
+                    default:
+                        break;
+                }
             }
         }
         class Context
@@ -2629,7 +2676,10 @@ namespace CasualConsole.Interpreter
                     if (!conditionValue.IsTruthy())
                         break;
 
-                    var (value, isReturn, isBreak, isContinue) = bodyStatement.EvaluateStatement(newContext);
+                    var loopScope = VariableScope.GetNewLoopScopeCopy(newScope, assignmentType);
+                    var loopContext = new Context(loopScope, newContext.thisOwner);
+
+                    var (value, isReturn, isBreak, isContinue) = bodyStatement.EvaluateStatement(loopContext);
                     if (isReturn)
                         return (value, true, false, false);
                     if (isBreak)
@@ -2919,7 +2969,7 @@ namespace CasualConsole.Interpreter
                     }
                 }
 
-                var function = new CustomFunction(parametersList, body);
+                var function = new CustomFunction(parametersList, body, context.variableScope);
                 return (CustomValue.FromFunction(function), false, false, false);
             }
 
