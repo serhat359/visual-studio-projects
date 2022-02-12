@@ -17,7 +17,7 @@ namespace CasualConsole.Interpreter
         private static readonly HashSet<string> comparisonSet = new HashSet<string>() { "==", "!=", "<", ">", "<=", ">=" };
         private static readonly HashSet<string> andOrSet = new HashSet<string>() { "&&", "||" };
         private static readonly HashSet<string> asteriskSlashSet = new HashSet<string>() { "*", "/", "%" };
-        private static readonly HashSet<string> keywords = new HashSet<string>() { "this" };
+        private static readonly HashSet<string> keywords = new HashSet<string>() { "this", "var", "let", "if", "while", "for", "break", "continue", "function", "return", "true", "false", "null" };
 
         private static Expression trueExpression;
         private static Expression falseExpression;
@@ -452,6 +452,8 @@ namespace CasualConsole.Interpreter
                 ("arr[1].iget()", 1),
                 ("arr[1].iset()", 15),
                 ("arr[1].iget()", 15),
+                ("let i3 = 0; for(i3 of [1,2,3]){} i3", 3),
+                ("let i4 = 6; for(let i4 of [1,2,3]){} i4", 6),
             };
 
             var interpreter = new Interpreter();
@@ -481,6 +483,21 @@ namespace CasualConsole.Interpreter
                 "((2)",
                 "if(true)",
                 "while(true)",
+                "var a = ",
+                "true,",
+                "var a = ()",
+                "var 23a = 23",
+                "var a-b = -2",
+                "let l11 = 1; let l11 = 1;",
+                "var l12 = 1; let l12 = 1;",
+                "let l21 = 1; var l21 = 1;",
+                "var var = 1",
+                "var let = 1",
+                "let var = 1",
+                "let let = 1",
+                "var true = 1",
+                "var false = 1",
+                "var null = 1",
             };
             var interpreter = new Interpreter();
             foreach (var code in testCases)
@@ -1571,6 +1588,7 @@ namespace CasualConsole.Interpreter
             {
                 if (keywords.Contains(variableName))
                     throw new Exception();
+
                 if (variables.TryGetValue(variableName, out var res))
                 {
                     var (_, type) = res;
@@ -1586,6 +1604,9 @@ namespace CasualConsole.Interpreter
 
             public void AddVarVariable(string variableName, CustomValue value)
             {
+                if (keywords.Contains(variableName))
+                    throw new Exception();
+
                 var scope = this;
                 while (!scope.isFunctionScope)
                     scope = scope.innerScope;
@@ -1606,6 +1627,9 @@ namespace CasualConsole.Interpreter
 
             public void AddLetVariable(string variableName, CustomValue value)
             {
+                if (keywords.Contains(variableName))
+                    throw new Exception();
+
                 var scope = this;
                 scope.variables.Add(variableName, (value, AssignmentType.Let));
             }
