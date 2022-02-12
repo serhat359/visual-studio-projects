@@ -112,6 +112,20 @@ namespace CasualConsole.Interpreter
 
             GetStatementRangesTest(verbose);
 
+            DoPositiveTests();
+            DoNegativeTests();
+
+            if (verbose)
+            {
+                var oldColor = Console.ForegroundColor;
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("All Interpreter tests have passed!");
+                Console.ForegroundColor = oldColor;
+            }
+        }
+
+        private static void DoPositiveTests()
+        {
             var testCases = new List<(string code, object value)>()
             {
                 ("var returnValue = function(x){ return x; };", null),
@@ -449,13 +463,38 @@ namespace CasualConsole.Interpreter
                     throw new Exception();
                 }
             }
+        }
 
-            if (verbose)
+        private static void DoNegativeTests()
+        {
+            var testCases = new List<string>()
             {
-                var oldColor = Console.ForegroundColor;
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("All Interpreter tests have passed!");
-                Console.ForegroundColor = oldColor;
+                "var",
+                "int",
+                "variable",
+                "[",
+                "]",
+                "{",
+                "}",
+                "(",
+                ")",
+                "((2)",
+                "if(true)",
+                "while(true)",
+            };
+            var interpreter = new Interpreter();
+            foreach (var code in testCases)
+            {
+                try
+                {
+                    var result = interpreter.InterpretCode(code);
+                }
+                catch (Exception e)
+                {
+                    continue;
+                }
+
+                throw new Exception("Expected error but there was no error");
             }
         }
 
