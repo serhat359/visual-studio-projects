@@ -454,6 +454,22 @@ namespace CasualConsole.Interpreter
                 ("arr[1].iget()", 15),
                 ("let i3 = 0; for(i3 of [1,2,3]){} i3", 3),
                 ("let i4 = 6; for(let i4 of [1,2,3]){} i4", 6),
+                ("`hello`", "hello"),
+                ("`$`", "$"),
+                ("`\\$`", "$"),
+                ("`\\${number}`", "${number}"),
+                ("`${2}`", "2"),
+                ("`${2+3}`", "5"),
+                ("`${(2+3)}`", "5"),
+                ("`\n`", "\n"), // Allow new lines for backtick strings
+                ("var number = 1; `${number}`", "1"),
+                ("var number = 1; `foo ${number} baz`", "foo 1 baz"),
+                ("var text = 'world'; `hello ${text}`", "hello world"),
+                ("'' + null", "null"),
+                ("'' + true", "true"),
+                ("'' + false", "false"),
+                ("'' + 2", "2"),
+                ("'' + 2.5", "2.5"),
             };
 
             var interpreter = new Interpreter();
@@ -498,6 +514,9 @@ namespace CasualConsole.Interpreter
                 "var true = 1",
                 "var false = 1",
                 "var null = 1",
+                "`${`",
+                "`${}`",
+                "'\n'"
             };
             var interpreter = new Interpreter();
             foreach (var code in testCases)
@@ -524,7 +543,7 @@ namespace CasualConsole.Interpreter
 
                 for (int i = 0; i < 200; i++)
                 {
-                    Test(verbose: false);
+                    DoPositiveTests();
                 }
 
                 stopwatch.Stop();
@@ -896,8 +915,6 @@ namespace CasualConsole.Interpreter
             foreach (var value in values)
             {
                 var valueType = value.value.type;
-                if (valueType != ValueType.Number && valueType != ValueType.String)
-                    throw new ArgumentException();
 
                 if (value.operatorType == Operator.Minus)
                     hasMinus = true;
@@ -927,7 +944,7 @@ namespace CasualConsole.Interpreter
                 sb.Append(firstValue.value.ToString());
                 foreach (var value in values)
                 {
-                    sb.Append(value.value.value.ToString());
+                    sb.Append(value.value.ToString());
                 }
                 return CustomValue.FromParsedString(sb.ToString());
             }
@@ -1068,7 +1085,7 @@ namespace CasualConsole.Interpreter
         private static bool IsStaticString(string token)
         {
             char firstChar = token[0];
-            return firstChar == '"' || firstChar == '\'';
+            return firstChar == '"' || firstChar == '\'' || firstChar == '`';
         }
 
         private static Operator ParseOperator(string token)
@@ -1176,7 +1193,7 @@ namespace CasualConsole.Interpreter
                     i++;
                     yield return c.ToString();
                 }
-                else if (c == '"' || c == '\'')
+                else if (c == '"' || c == '\'' || c == '`')
                 {
                     int start = i;
                     i++;
@@ -1342,38 +1359,10 @@ namespace CasualConsole.Interpreter
                 return new CustomValue(s, ValueType.Number);
             }
 
-            public static CustomValue FromString(string s)
+            public static CustomValue FromStaticString(string s)
             {
-                if (s[0] != '"' && s[0] != '\'')
-                    throw new Exception();
-
-                char firstChar = s[0];
-
-                var sb = new StringBuilder();
-                for (int i = 1; i < s.Length; i++)
-                {
-                    char c = s[i];
-                    if (c == firstChar)
-                        break;
-                    else if (c == '\\')
-                    {
-                        i++;
-                        char c2 = s[i];
-                        switch (c2)
-                        {
-                            case '"': sb.Append(c2); break;
-                            case '\'': sb.Append(c2); break;
-                            case '\\': sb.Append(c2); break;
-                            case 't': sb.Append('\t'); break;
-                            case 'r': sb.Append('\r'); break;
-                            case 'n': sb.Append('\n'); break;
-                            default: throw new Exception();
-                        }
-                    }
-                    else
-                        sb.Append(c);
-                }
-                return new CustomValue(sb.ToString(), ValueType.String);
+                var parsedString = SingleTokenStringExpression.ParseString(s, null);
+                return FromParsedString(parsedString);
             }
 
             public static CustomValue FromParsedString(string s)
@@ -1419,6 +1408,15 @@ namespace CasualConsole.Interpreter
                 }
             }
 
+            internal string ToString()
+            {
+                if (value == null)
+                    return "null";
+                if (value is bool b)
+                    return b ? "true" : "false";
+                return value.ToString();
+            }
+
             internal static void Test()
             {
                 var stringTestCases = new List<(string token, string value)>()
@@ -1432,7 +1430,7 @@ namespace CasualConsole.Interpreter
 
                 foreach (var stringTestCase in stringTestCases)
                 {
-                    var result = CustomValue.FromString(stringTestCase.token);
+                    var result = CustomValue.FromStaticString(stringTestCase.token);
                     if (!string.Equals(result.value, stringTestCase.value))
                     {
                         throw new Exception();
@@ -2228,7 +2226,7 @@ namespace CasualConsole.Interpreter
                 foreach (var item in res)
                 {
                     var firstToken = item[0];
-                    var fieldName = IsVariableName(firstToken) ? firstToken : (string)CustomValue.FromString(firstToken).value;
+                    var fieldName = IsVariableName(firstToken) ? firstToken : (string)CustomValue.FromStaticString(firstToken).value;
 
                     if (item[1] != ":")
                         throw new Exception();
@@ -2303,7 +2301,61 @@ namespace CasualConsole.Interpreter
 
             public CustomValue EvaluateExpression(Context context)
             {
-                return CustomValue.FromString(token);
+                var parsedString = ParseString(token, context);
+                return CustomValue.FromParsedString(parsedString);
+            }
+
+            public static string ParseString(string s, Context context)
+            {
+                if (s[0] != '"' && s[0] != '\'' && s[0] != '`')
+                    throw new Exception();
+
+                var isBacktickString = s[0] == '`';
+
+                if (isBacktickString && context == null)
+                    throw new Exception();
+
+                char firstChar = s[0];
+
+                var sb = new StringBuilder();
+                for (int i = 1; i < s.Length; i++)
+                {
+                    char c = s[i];
+                    if (c == firstChar)
+                        break;
+                    else if ((c == '\r' || c == '\n') && !isBacktickString)
+                        throw new Exception();
+                    else if (c == '\\')
+                    {
+                        i++;
+                        char c2 = s[i];
+                        switch (c2)
+                        {
+                            case '"': sb.Append(c2); break;
+                            case '\'': sb.Append(c2); break;
+                            case '\\': sb.Append(c2); break;
+                            case 't': sb.Append('\t'); break;
+                            case 'r': sb.Append('\r'); break;
+                            case 'n': sb.Append('\n'); break;
+                            case '$': sb.Append(isBacktickString ? c2 : throw new Exception()); break;
+                            default: throw new Exception();
+                        }
+                    }
+                    else if (c == '$' && s[i + 1] == '{')
+                    {
+                        var end = s.IndexOfBracesEnd(i + 2);
+                        var substring = s.Substring(i + 2, end - (i + 2));
+                        var subtokens = GetTokens(substring).ToList();
+                        var subExpression = ExpressionMethods.New(subtokens);
+                        var subExpressionValue = subExpression.EvaluateExpression(context);
+                        var subExpressionString = subExpressionValue.ToString();
+                        sb.Append(subExpressionString);
+                        i = end;
+                    }
+                    else
+                        sb.Append(c);
+                }
+                return sb.ToString();
             }
         }
         class SingleTokenVariableExpression : Expression
@@ -3067,6 +3119,11 @@ static class InterpreterExtensions
         return IndexOfPairsEnd(source, startIndex, "{", "}");
     }
 
+    public static int IndexOfBracesEnd(this string source, int startIndex)
+    {
+        return IndexOfPairsEnd(source, startIndex, '{', '}');
+    }
+
     public static int IndexOfBracketsEnd(this IReadOnlyList<string> source, int startIndex)
     {
         return IndexOfPairsEnd(source, startIndex, "[", "]");
@@ -3078,6 +3135,29 @@ static class InterpreterExtensions
         for (int i = startIndex; i < source.Count; i++)
         {
             string currentElement = source[i];
+            if (currentElement == last)
+            {
+                if (count == 0)
+                    return i;
+
+                count--;
+                if (count < 0)
+                    throw new Exception();
+            }
+            else if (currentElement == first)
+            {
+                count++;
+            }
+        }
+        return -1;
+    }
+
+    private static int IndexOfPairsEnd(this string source, int startIndex, char first, char last)
+    {
+        int count = 0;
+        for (int i = startIndex; i < source.Length; i++)
+        {
+            char currentElement = source[i];
             if (currentElement == last)
             {
                 if (count == 0)
