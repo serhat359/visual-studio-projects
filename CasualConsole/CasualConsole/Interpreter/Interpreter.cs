@@ -470,6 +470,14 @@ namespace CasualConsole.Interpreter
                 ("'' + false", "false"),
                 ("'' + 2", "2"),
                 ("'' + 2.5", "2.5"),
+                ("!2", false),
+                ("!!2", true),
+                ("!0", true),
+                ("!!0", false),
+                ("!''", true),
+                ("!!''", false),
+                ("!'a'", false),
+                ("!!'a'", true),
             };
 
             var interpreter = new Interpreter();
@@ -1178,6 +1186,11 @@ namespace CasualConsole.Interpreter
                     {
                         throw new Exception();
                     }
+                }
+                else if (c == '!' && content[i + 1] == '!')
+                {
+                    i++;
+                    yield return c.ToString();
                 }
                 else if (multiChars.Contains(c))
                 {
@@ -2425,10 +2438,7 @@ namespace CasualConsole.Interpreter
             public CustomValue EvaluateExpression(Context context)
             {
                 var rest = expressionRest.EvaluateExpression(context);
-                if (rest.type != ValueType.Bool)
-                    throw new Exception();
-
-                bool restValue = (bool)rest.value;
+                bool restValue = rest.IsTruthy();
                 return restValue ? CustomValue.False : CustomValue.True;
             }
         }
