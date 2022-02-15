@@ -383,7 +383,7 @@ namespace CasualConsole.Interpreter
                 ("var o5 = { number: 29 }; o5 != null && o5.number == 29", true),
                 ("var o6 = null; o6 != null && o6.number == 29", false), // Optimization check
                 ("var o7 = { number: 32 }; o7 && o7.number == 32", true), // Truthy check
-                ("var o8 = null; o8 && o8.number == 33", false), // Optimization check with truthy
+                ("var o8 = null; o8 != null && o8.number == 33", false), // Optimization check with truthy
                 ("1 == 1 || 2 == 2", true),
                 ("1 == 1 || 2 == 3", true),
                 ("0 == 1 || 2 == 2", true),
@@ -478,6 +478,16 @@ namespace CasualConsole.Interpreter
                 ("!!''", false),
                 ("!'a'", false),
                 ("!!'a'", true),
+                ("null ?? 2", 2),
+                ("null ?? `hello`", "hello"),
+                ("null || `hello`", "hello"),
+                ("null || 2", 2),
+                ("0 ?? 2", 0),
+                ("0 || 2", 2),
+                ("'' ?? 'hello'", ""),
+                ("'' || 'hello'", "hello"),
+                ("2 && 7", 7),
+                ("2 && 0", 0),
             };
 
             var interpreter = new Interpreter();
@@ -809,32 +819,37 @@ namespace CasualConsole.Interpreter
         {
             var firstValue = firstTree.EvaluateExpression(context);
 
-            bool result = firstValue.IsTruthy();
+            CustomValue result = firstValue;
 
             for (int i = 0; i < trees.Count; i++)
             {
                 var (operatorType, tree) = trees[i];
                 if (operatorType == Operator.AndAnd)
                 {
-                    if (!result)
+                    if (!result.IsTruthy())
                         continue;
                     var nextValue = tree.EvaluateExpression(context);
-                    bool isNextTruthy = nextValue.IsTruthy();
-                    result = result && isNextTruthy;
+                    result = nextValue;
                 }
                 else if (operatorType == Operator.OrOr)
                 {
-                    if (result)
+                    if (result.IsTruthy())
                         continue;
                     var nextValue = tree.EvaluateExpression(context);
-                    bool isNextTruthy = nextValue.IsTruthy();
-                    result = result || isNextTruthy;
+                    result = nextValue;
+                }
+                else if (operatorType == Operator.DoubleQuestion)
+                {
+                    if (result.value != null)
+                        continue;
+                    var nextValue = tree.EvaluateExpression(context);
+                    result = nextValue;
                 }
                 else
                     throw new Exception();
             }
 
-            return result ? CustomValue.True : CustomValue.False;
+            return result;
         }
 
         private static CustomValue CompareTo(Expression firstTree, IReadOnlyList<(Operator operatorType, Expression tree)> trees, Context context)
@@ -1113,6 +1128,7 @@ namespace CasualConsole.Interpreter
                 case ">=": return Operator.GreaterThanOrEqual;
                 case "&&": return Operator.AndAnd;
                 case "||": return Operator.OrOr;
+                case "??": return Operator.DoubleQuestion;
                 default: throw new Exception();
             }
         }
@@ -1502,14 +1518,18 @@ namespace CasualConsole.Interpreter
             Colon,
             AndAnd,
             OrOr,
+            DoubleQuestion,
         }
 
         enum Precedence : int
         {
-            AndOr = 1,
-            Comparison = 2,
-            AddSubtract = 3,
-            MultiplyDivide = 4,
+            DoubleQuestionMark = 4,
+            OrOr = 4,
+            AndAnd = 5,
+            EqualityCheck = 9,
+            Comparison = 10,
+            AddSubtract = 12,
+            MultiplyDivide = 13,
             FunctionCall = 9999,
             Indexing = 9999,
             DotAccess = 9999,
@@ -1770,7 +1790,8 @@ namespace CasualConsole.Interpreter
                         if (plusMinusSet.Contains(newToken)
                             || asteriskSlashSet.Contains(newToken)
                             || comparisonSet.Contains(newToken)
-                            || andOrSet.Contains(newToken))
+                            || andOrSet.Contains(newToken)
+                            || newToken == "??")
                         {
                             var newPrecedence = TreeExpression.GetPrecedence(newToken);
 
@@ -1842,7 +1863,7 @@ namespace CasualConsole.Interpreter
                                 end = tokens.Count - 1;
                             }
 
-                            AddToLastNode(ref previousExpression, Precedence.FunctionCall, (expression, p) =>
+                            AddToLastNode(ref previousExpression, Precedence.LambdaExpression, (expression, p) =>
                             {
                                 if (expression is ParenthesesExpression parenthesesExpression)
                                 {
@@ -2096,13 +2117,17 @@ namespace CasualConsole.Interpreter
             {
                 switch (precedence)
                 {
+                    case Precedence.EqualityCheck:
+                        return CompareTo(firstExpression, nextValues, context);
                     case Precedence.Comparison:
                         return CompareTo(firstExpression, nextValues, context);
                     case Precedence.AddSubtract:
                         return AddOrSubtract(firstExpression, nextValues, context);
                     case Precedence.MultiplyDivide:
                         return MultiplyOrDivide(firstExpression, nextValues, context);
-                    case Precedence.AndOr:
+                    case Precedence.AndAnd:
+                        return AndOr(firstExpression, nextValues, context);
+                    case Precedence.OrOr:
                         return AndOr(firstExpression, nextValues, context);
                     default:
                         break;
@@ -2120,14 +2145,15 @@ namespace CasualConsole.Interpreter
                     case "*": return Precedence.MultiplyDivide;
                     case "/": return Precedence.MultiplyDivide;
                     case "%": return Precedence.MultiplyDivide;
-                    case "==": return Precedence.Comparison;
-                    case "!=": return Precedence.Comparison;
+                    case "==": return Precedence.EqualityCheck;
+                    case "!=": return Precedence.EqualityCheck;
                     case "<": return Precedence.Comparison;
                     case "<=": return Precedence.Comparison;
                     case ">": return Precedence.Comparison;
                     case ">=": return Precedence.Comparison;
-                    case "&&": return Precedence.AndOr;
-                    case "||": return Precedence.AndOr;
+                    case "&&": return Precedence.AndAnd;
+                    case "||": return Precedence.OrOr;
+                    case "??": return Precedence.DoubleQuestionMark;
                     default: throw new Exception();
                 }
             }
@@ -3197,8 +3223,10 @@ static class InterpreterExtensions
 
     public static bool Equals(object result, object expected)
     {
-        if (result == null && expected == null)
-            return true;
+        if (result == null)
+            return expected == null;
+        if (expected == null)
+            return false;
 
         Type resultType = result.GetType();
         Type expectedType = expected.GetType();
