@@ -466,6 +466,7 @@ namespace CasualConsole.Interpreter
                 ("var number = 1; `foo ${number} baz`", "foo 1 baz"),
                 ("var text = 'world'; `hello ${text}`", "hello world"),
                 ("'' + null", "null"),
+                ("null + ''", "null"),
                 ("'' + true", "true"),
                 ("'' + false", "false"),
                 ("'' + 2", "2"),
@@ -964,7 +965,7 @@ namespace CasualConsole.Interpreter
             {
                 // String concat
                 var sb = new StringBuilder();
-                sb.Append(firstValue.value.ToString());
+                sb.Append(firstValue.ToString());
                 foreach (var value in values)
                 {
                     sb.Append(value.value.ToString());
