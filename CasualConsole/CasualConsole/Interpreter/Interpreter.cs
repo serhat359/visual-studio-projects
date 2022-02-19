@@ -2268,17 +2268,13 @@ namespace CasualConsole.Interpreter
         }
         class MapExpression : Expression
         {
-            IReadOnlyList<string> tokens;
+            List<(string fieldName, Expression expression)> fieldExpressions;
 
             public MapExpression(IReadOnlyList<string> tokens)
             {
-                this.tokens = new CustomRange<string>(tokens, 1, tokens.Count - 1);
-            }
-
-            public CustomValue EvaluateExpression(Context context)
-            {
+                tokens = new CustomRange<string>(tokens, 1, tokens.Count - 1);
                 var res = SplitBy(tokens, commaSet);
-                var map = new Dictionary<string, CustomValue>();
+                this.fieldExpressions = new List<(string fieldName, Expression expression)>();
                 foreach (var item in res)
                 {
                     var firstToken = item[0];
@@ -2287,7 +2283,17 @@ namespace CasualConsole.Interpreter
                     if (item[1] != ":")
                         throw new Exception();
 
-                    var fieldValue = ExpressionMethods.New(new CustomRange<string>(item, 2, item.Count)).EvaluateExpression(context);
+                    var expression = ExpressionMethods.New(new CustomRange<string>(item, 2, item.Count));
+                    this.fieldExpressions.Add((fieldName, expression));
+                }
+            }
+
+            public CustomValue EvaluateExpression(Context context)
+            {
+                var map = new Dictionary<string, CustomValue>();
+                foreach (var (fieldName, expression) in fieldExpressions)
+                {
+                    var fieldValue = expression.EvaluateExpression(context);
                     map.Add(fieldName, fieldValue);
                 }
                 return CustomValue.FromMap(map);
@@ -2295,24 +2301,25 @@ namespace CasualConsole.Interpreter
         }
         class ArrayExpression : Expression
         {
-            private CustomRange<string> tokens;
+            private List<Expression> expressionList;
 
             public ArrayExpression(CustomRange<string> tokens)
             {
-                this.tokens = new CustomRange<string>(tokens, 1, tokens.Count - 1);
+                tokens = new CustomRange<string>(tokens, 1, tokens.Count - 1);
+                var res = SplitBy(tokens, commaSet);
+                expressionList = new List<Expression>();
+                foreach (var item in res)
+                    expressionList.Add(ExpressionMethods.New(item));
             }
 
             public CustomValue EvaluateExpression(Context context)
             {
-                var res = SplitBy(tokens, commaSet);
                 var list = new List<CustomValue>();
-                foreach (var item in res)
+                foreach (var expression in expressionList)
                 {
-                    var itemValue = ExpressionMethods.New(item).EvaluateExpression(context);
-                    list.Add(itemValue);
+                    list.Add(expression.EvaluateExpression(context));
                 }
-                var array = new CustomArray(list);
-                return CustomValue.FromArray(array);
+                return CustomValue.FromArray(new CustomArray(list));
             }
         }
         class ParenthesesExpression : Expression
