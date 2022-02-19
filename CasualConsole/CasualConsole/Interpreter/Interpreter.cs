@@ -1848,34 +1848,11 @@ namespace CasualConsole.Interpreter
 
                         if (newToken == "=>")
                         {
-                            var nextToken = tokens[index + 1];
-
-                            IReadOnlyList<string> functionBodyTokens;
-                            int end;
-
-                            if (nextToken == "{")
-                            {
-                                end = tokens.IndexOfBracesEnd(index + 2);
-                                if (end < 0)
-                                    throw new Exception();
-
-                                functionBodyTokens = new CustomRange<string>(tokens, index + 1, end + 1);
-                            }
-                            else
-                            {
-                                functionBodyTokens = new CustomRange<string>(tokens, index + 1, tokens.Count);
-                                end = tokens.Count - 1;
-                            }
+                            var (functionBodyTokens, end) = ReadBodyTokensAndEnd(tokens, index);
 
                             AddToLastNode(ref previousExpression, Precedence.LambdaExpression, (expression, p) =>
                             {
-                                if (expression is ParenthesesExpression parenthesesExpression)
-                                {
-                                    var parenthesesTokens = parenthesesExpression.parenthesesTokens;
-                                    var parameterTokens = new CustomRange<string>(parenthesesTokens, 1, parenthesesTokens.Count - 1);
-                                    return FunctionStatement.FromParametersAndBody(parameterTokens, functionBodyTokens);
-                                }
-                                else if (expression is SingleTokenVariableExpression singleTokenVariableExpression)
+                                if (expression is SingleTokenVariableExpression singleTokenVariableExpression)
                                 {
                                     var parameterTokens = new string[] { singleTokenVariableExpression.token };
                                     return FunctionStatement.FromParametersAndBody(parameterTokens, functionBodyTokens);
@@ -2002,9 +1979,22 @@ namespace CasualConsole.Interpreter
                     if (newend < 0)
                         throw new Exception();
 
-                    var parenthesesTokens = new CustomRange<string>(tokens, index, newend + 1);
-                    var newExpression = new ParenthesesExpression(parenthesesTokens);
-                    return (newExpression, newend + 1);
+                    bool isLambda = newend + 1 < tokens.Count && tokens[newend + 1] == "=>";
+                    if (!isLambda)
+                    {
+                        var parenthesesTokens = new CustomRange<string>(tokens, index, newend + 1);
+                        var newExpression = new ParenthesesExpression(parenthesesTokens);
+                        return (newExpression, newend + 1);
+                    }
+                    else
+                    {
+                        var (functionBodyTokens, end) = ReadBodyTokensAndEnd(tokens, newend + 1);
+
+                        var parameterTokens = new CustomRange<string>(tokens, index + 1, newend);
+                        var functionExpression = FunctionStatement.FromParametersAndBody(parameterTokens, functionBodyTokens);
+
+                        return (functionExpression, end + 1);
+                    }
                 }
                 if (token == "{")
                 {
@@ -2070,6 +2060,29 @@ namespace CasualConsole.Interpreter
                 }
 
                 throw new Exception();
+            }
+
+            private static (IReadOnlyList<string>, int) ReadBodyTokensAndEnd(IReadOnlyList<string> tokens, int index)
+            {
+                var nextToken = tokens[index + 1];
+
+                IReadOnlyList<string> functionBodyTokens;
+                int end;
+                if (nextToken == "{")
+                {
+                    end = tokens.IndexOfBracesEnd(index + 2);
+                    if (end < 0)
+                        throw new Exception();
+
+                    functionBodyTokens = new CustomRange<string>(tokens, index + 1, end + 1);
+                }
+                else
+                {
+                    functionBodyTokens = new CustomRange<string>(tokens, index + 1, tokens.Count);
+                    end = tokens.Count - 1;
+                }
+
+                return (functionBodyTokens, end);
             }
 
             private static void AddToLastNode(ref Expression previousExpression, Precedence precedence, Func<Expression, Precedence?, Expression> handler)
@@ -2304,18 +2317,17 @@ namespace CasualConsole.Interpreter
         }
         class ParenthesesExpression : Expression
         {
-            internal IReadOnlyList<string> parenthesesTokens; // Should contain parentheses
+            private Expression insideExpression;
 
             public ParenthesesExpression(IReadOnlyList<string> parenthesesTokens)
             {
                 if (parenthesesTokens[0] != "(")
                     throw new Exception();
-                this.parenthesesTokens = parenthesesTokens;
+                this.insideExpression = ExpressionMethods.New(new CustomRange<string>(parenthesesTokens, 1, parenthesesTokens.Count - 1));
             }
 
             public CustomValue EvaluateExpression(Context context)
             {
-                var insideExpression = ExpressionMethods.New(new CustomRange<string>(parenthesesTokens, 1, parenthesesTokens.Count - 1));
                 return insideExpression.EvaluateExpression(context);
             }
         }
