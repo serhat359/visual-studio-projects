@@ -23,6 +23,8 @@ namespace CasualConsole.Interpreter
         private static Expression falseExpression;
         private static Expression nullExpression;
 
+        private static InternalFunction printFunction;
+
         private static readonly Lazy<CustomValue> arrayPushFunction = new Lazy<CustomValue>(() =>
         {
             var func = new ArrayPushFunction();
@@ -46,6 +48,8 @@ namespace CasualConsole.Interpreter
             trueExpression = new CustomValueExpression(CustomValue.True);
             falseExpression = new CustomValueExpression(CustomValue.False);
             nullExpression = new CustomValueExpression(CustomValue.Null);
+
+            printFunction = new InternalFunction("print");
         }
 
         public object InterpretCode(string code)
@@ -489,7 +493,11 @@ namespace CasualConsole.Interpreter
                 ("'' || 'hello'", "hello"),
                 ("2 && 7", 7),
                 ("2 && 0", 0),
-                ("var name = 'serhat'; ({ name }).name", "serhat"),
+                ("var name = 'name1'; ({ name }).name", "name1"),
+                ("var n1 = 'name2'; (()=> this.n1)()", "name2"),
+                ("var n2 = 'name3'; var o = {}; o.f = ()=>{ return this.n2; }; o.f()", "name3"),
+                ("var n3 = 'name4'; function thisTester1(){ (function(){ this.n3 = 'name4-2'; })(); } thisTester1(); n3", "name4-2"),
+                ("print()", null),
             };
 
             var interpreter = new Interpreter();
@@ -744,28 +752,8 @@ namespace CasualConsole.Interpreter
             return statement.EvaluateStatement(context);
         }
 
-        private static CustomValue CallFunction(string functionName, IReadOnlyList<CustomValue> arguments, Context context)
+        private static CustomValue CallFunction(FunctionObject function, IReadOnlyList<CustomValue> arguments, Context context)
         {
-            switch (functionName)
-            {
-                case "print":
-                    return HandlePrint(arguments);
-            }
-
-            if (context.variableScope.TryGetVariable(functionName, out var f))
-            {
-                return CallFunction(f, arguments, context);
-            }
-
-            throw new Exception();
-        }
-
-        private static CustomValue CallFunction(CustomValue f, IReadOnlyList<CustomValue> arguments, Context context)
-        {
-            if (f.type != ValueType.Function)
-                throw new Exception();
-
-            var function = (FunctionObject)f.value;
             var functionParameterArguments = new Dictionary<string, (CustomValue, AssignmentType)>();
             for (int i = 0; i < function.Parameters.Count; i++)
             {
@@ -781,10 +769,27 @@ namespace CasualConsole.Interpreter
             return result;
         }
 
-        private static CustomValue HandlePrint(IReadOnlyList<CustomValue> arguments)
+        private static FunctionObject GetFunctionObject(CustomValue f)
         {
-            Console.WriteLine(arguments[0].value);
-            return CustomValue.Null;
+            if (f.type != ValueType.Function)
+                throw new Exception();
+            return (FunctionObject)f.value;
+        }
+
+        private static FunctionObject GetFunctionObject(string functionName, VariableScope variableScope)
+        {
+            switch (functionName)
+            {
+                case "print":
+                    return Interpreter.printFunction;
+            }
+
+            if (variableScope.TryGetVariable(functionName, out var f))
+            {
+                return GetFunctionObject(f);
+            }
+
+            throw new Exception();
         }
 
         private static bool Compare(CustomValue first, CustomValue second, Operator operatorType)
@@ -987,7 +992,7 @@ namespace CasualConsole.Interpreter
             return expressionTree.EvaluateExpression(context);
         }
 
-        private static CustomValue DoIndexingGet(CustomValue baseExpressionValue, CustomValue keyExpressionValue)
+        private static CustomValue DoIndexingGet(CustomValue baseExpressionValue, CustomValue keyExpressionValue, Context context)
         {
             if (baseExpressionValue.type == ValueType.Map && keyExpressionValue.type == ValueType.String)
             {
@@ -1022,11 +1027,16 @@ namespace CasualConsole.Interpreter
                         return CustomValue.Null;
                 }
             }
+            else if (baseExpressionValue.type == ValueType.Null)
+            {
+                var variableName = (string)keyExpressionValue.value;
+                return context.variableScope.GetVariable(variableName);
+            }
 
             throw new Exception();
         }
 
-        private static CustomValue DoIndexingSet(CustomValue value, CustomValue baseExpressionValue, CustomValue keyExpressionValue)
+        private static CustomValue DoIndexingSet(CustomValue value, CustomValue baseExpressionValue, CustomValue keyExpressionValue, Context context)
         {
             if (baseExpressionValue.type == ValueType.Map && keyExpressionValue.type == ValueType.String)
             {
@@ -1060,6 +1070,12 @@ namespace CasualConsole.Interpreter
                     }
                 }
             }
+            else if (baseExpressionValue.type == ValueType.Null)
+            {
+                var variableName = (string)keyExpressionValue.value;
+                context.variableScope.SetVariable(variableName, value);
+                return value;
+            }
 
             throw new Exception();
         }
@@ -1079,18 +1095,18 @@ namespace CasualConsole.Interpreter
                 var baseExpressionValue = indexingExpression.baseExpression.EvaluateExpression(context);
                 var keyExpressionValue = indexingExpression.keyExpression.EvaluateExpression(context);
 
-                oldValue = DoIndexingGet(baseExpressionValue, keyExpressionValue);
+                oldValue = DoIndexingGet(baseExpressionValue, keyExpressionValue, context);
                 var newValue = operation(oldValue);
-                return DoIndexingSet(newValue, baseExpressionValue, keyExpressionValue);
+                return DoIndexingSet(newValue, baseExpressionValue, keyExpressionValue, context);
             }
             else if (lValue is DotAccessExpression dotAccessExpression)
             {
                 var baseExpressionValue = dotAccessExpression.baseExpression.EvaluateExpression(context);
-                var keyExpressionValue = dotAccessExpression.keyValue;
+                var keyExpressionValue = dotAccessExpression.keyExpressionValue;
 
-                oldValue = DoIndexingGet(baseExpressionValue, keyExpressionValue);
+                oldValue = DoIndexingGet(baseExpressionValue, keyExpressionValue, context);
                 var newValue = operation(oldValue);
-                return DoIndexingSet(newValue, baseExpressionValue, keyExpressionValue);
+                return DoIndexingSet(newValue, baseExpressionValue, keyExpressionValue, context);
             }
             else
             {
@@ -1263,29 +1279,70 @@ namespace CasualConsole.Interpreter
         {
             IReadOnlyList<string> Parameters { get; }
             VariableScope Scope { get; }
+            bool IsLambda { get; }
         }
         class CustomFunction : FunctionObject
         {
             private IReadOnlyList<string> parameters;
             private Statement body;
             private VariableScope scope;
+            private bool isLambda;
 
-            public VariableScope Scope => scope;
-
-            public CustomFunction(IReadOnlyList<string> parameters, Statement body, VariableScope scope)
+            public CustomFunction(IReadOnlyList<string> parameters, Statement body, VariableScope scope, bool isLambda)
             {
                 this.parameters = parameters;
                 this.body = body;
                 this.scope = scope;
+                this.isLambda = isLambda;
             }
 
             public IReadOnlyList<string> Parameters => parameters;
+
+            public VariableScope Scope => scope;
+
+            public bool IsLambda => isLambda;
 
             public StatementType Type => throw new Exception();
 
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
                 return body.EvaluateStatement(context);
+            }
+        }
+        class InternalFunction : FunctionObject
+        {
+            private string functionName;
+
+            public InternalFunction(string functionName)
+            {
+                this.functionName = functionName;
+            }
+
+            public IReadOnlyList<string> Parameters => new[] { "x" };
+
+            public VariableScope Scope => null;
+
+            public bool IsLambda => false;
+
+            public StatementType Type => throw new NotImplementedException();
+
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+            {
+                switch (functionName)
+                {
+                    case "print":
+                        return (HandlePrint(context), false, false, false);
+                }
+
+                throw new Exception();
+            }
+
+            private CustomValue HandlePrint(Context context)
+            {
+                var printValue = context.variableScope.GetVariable(Parameters[0]);
+                if (printValue.type != ValueType.Null)
+                    Console.WriteLine(printValue.ToString());
+                return CustomValue.Null;
             }
         }
         class ArrayPushFunction : FunctionObject
@@ -1295,6 +1352,8 @@ namespace CasualConsole.Interpreter
             public StatementType Type => throw new Exception();
 
             public VariableScope Scope => null;
+
+            public bool IsLambda => false;
 
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
@@ -1314,6 +1373,8 @@ namespace CasualConsole.Interpreter
             public StatementType Type => throw new Exception();
 
             public VariableScope Scope => null;
+
+            public bool IsLambda => false;
 
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
@@ -1856,7 +1917,7 @@ namespace CasualConsole.Interpreter
                                 if (expression is SingleTokenVariableExpression singleTokenVariableExpression)
                                 {
                                     var parameterTokens = new string[] { singleTokenVariableExpression.token };
-                                    return FunctionStatement.FromParametersAndBody(parameterTokens, functionBodyTokens);
+                                    return FunctionStatement.FromParametersAndBody(parameterTokens, functionBodyTokens, isLambda: true);
                                 }
                                 else
                                     throw new Exception();
@@ -1992,7 +2053,7 @@ namespace CasualConsole.Interpreter
                         var (functionBodyTokens, end) = ReadBodyTokensAndEnd(tokens, newend + 1);
 
                         var parameterTokens = new CustomRange<string>(tokens, index + 1, newend);
-                        var functionExpression = FunctionStatement.FromParametersAndBody(parameterTokens, functionBodyTokens);
+                        var functionExpression = FunctionStatement.FromParametersAndBody(parameterTokens, functionBodyTokens, isLambda);
 
                         return (functionExpression, end + 1);
                     }
@@ -2044,7 +2105,7 @@ namespace CasualConsole.Interpreter
                         throw new Exception();
 
                     var functionExpressionTokens = new CustomRange<string>(tokens, index, bracesEnd + 1);
-                    var functionExpression = FunctionStatement.FromTokens(functionExpressionTokens);
+                    var functionExpression = FunctionStatement.FromTokens(functionExpressionTokens, isLambda: false);
                     return (functionExpression, bracesEnd + 1);
                 }
                 if (IsNumber(token))
@@ -2196,26 +2257,38 @@ namespace CasualConsole.Interpreter
             {
                 var arguments = expressions.SelectFast(expression => GetValueFromExpression(expression, context));
 
-                CustomValue newOwner;
-                if (lValue is DotAccessExpression dotAccessExpression)
-                    newOwner = dotAccessExpression.baseExpression.EvaluateExpression(context);
-                else if (lValue is IndexingExpression indexingExpression)
-                    newOwner = indexingExpression.baseExpression.EvaluateExpression(context);
-                else
-                    newOwner = CustomValue.Null;
-
-                var newContext = new Context(context.variableScope, newOwner);
-
+                FunctionObject function;
                 if (lValue is SingleTokenVariableExpression variable)
                 {
                     var functionName = variable.token;
-                    return CallFunction(functionName, arguments, newContext);
+                    function = GetFunctionObject(functionName, context.variableScope);
                 }
                 else
                 {
-                    var function = lValue.EvaluateExpression(context);
-                    return CallFunction(function, arguments, newContext);
+                    var functionValue = lValue.EvaluateExpression(context);
+                    function = GetFunctionObject(functionValue);
                 }
+
+                Context newContext;
+                var isLambda = function.IsLambda;
+                if (!isLambda)
+                {
+                    CustomValue newOwner;
+                    if (lValue is DotAccessExpression dotAccessExpression)
+                        newOwner = dotAccessExpression.baseExpression.EvaluateExpression(context);
+                    else if (lValue is IndexingExpression indexingExpression)
+                        newOwner = indexingExpression.baseExpression.EvaluateExpression(context);
+                    else
+                        newOwner = CustomValue.Null;
+
+                    newContext = new Context(context.variableScope, newOwner);
+                }
+                else
+                {
+                    newContext = context;
+                }
+
+                return CallFunction(function, arguments, newContext);
             }
         }
         class IndexingExpression : Expression
@@ -2234,26 +2307,24 @@ namespace CasualConsole.Interpreter
                 var ownerExpressionValue = baseExpression.EvaluateExpression(context);
                 var keyExpressionValue = keyExpression.EvaluateExpression(context);
 
-                return DoIndexingGet(ownerExpressionValue, keyExpressionValue);
+                return DoIndexingGet(ownerExpressionValue, keyExpressionValue, context);
             }
         }
         class DotAccessExpression : Expression
         {
             internal Expression baseExpression;
-            internal CustomValue keyValue;
+            internal CustomValue keyExpressionValue;
 
             public DotAccessExpression(Expression expression, string fieldName)
             {
                 this.baseExpression = expression;
-                this.keyValue = CustomValue.FromParsedString(fieldName);
+                this.keyExpressionValue = CustomValue.FromParsedString(fieldName);
             }
 
             public CustomValue EvaluateExpression(Context context)
             {
                 var ownerExpressionValue = baseExpression.EvaluateExpression(context);
-                var keyExpressionValue = keyValue;
-
-                return DoIndexingGet(ownerExpressionValue, keyExpressionValue);
+                return DoIndexingGet(ownerExpressionValue, keyExpressionValue, context);
             }
         }
         class MapExpression : Expression
@@ -2730,7 +2801,7 @@ namespace CasualConsole.Interpreter
                 else if (tokens[0] == "function" && IsVariableName(tokens[1]))
                 {
                     var variableName = tokens[1];
-                    var functionStatement = FunctionStatement.FromTokens(tokens);
+                    var functionStatement = FunctionStatement.FromTokens(tokens, isLambda: false);
                     var function = functionStatement.EvaluateExpression(context);
 
                     context.variableScope.AddVarVariable(variableName, function);
@@ -3097,12 +3168,14 @@ namespace CasualConsole.Interpreter
         {
             List<string> parametersList;
             Statement body;
+            bool isLambda;
 
-            private FunctionStatement(IReadOnlyList<string> parameters, Statement body)
+            private FunctionStatement(IReadOnlyList<string> parameters, Statement body, bool isLambda)
             {
                 if (parameters.Count > 0 && parameters[0] == "(")
                     throw new Exception();
                 this.body = body;
+                this.isLambda = isLambda;
 
                 // Prepare parameters
                 var parametersMap = new Dictionary<string, int>(); // Map is used to ensure uniqueness
@@ -3125,23 +3198,23 @@ namespace CasualConsole.Interpreter
 
             public StatementType Type => StatementType.FunctionStatement;
 
-            public static FunctionStatement FromParametersAndBody(IReadOnlyList<string> parameterTokens, IReadOnlyList<string> bodyTokens)
+            public static FunctionStatement FromParametersAndBody(IReadOnlyList<string> parameterTokens, IReadOnlyList<string> bodyTokens, bool isLambda)
             {
                 var body = StatementMethods.New(bodyTokens);
-                return new FunctionStatement(parameterTokens, body);
+                return new FunctionStatement(parameterTokens, body, isLambda);
             }
 
-            public static FunctionStatement FromTokens(IReadOnlyList<string> tokens)
+            public static FunctionStatement FromTokens(IReadOnlyList<string> tokens, bool isLambda)
             {
                 var parenthesesIndex = tokens.IndexOf("(", 0);
                 var (parameters, bodyTokens) = StatementMethods.GetTokensConditionAndBody(tokens, parenthesesIndex + 1);
                 var body = StatementMethods.New(bodyTokens);
-                return new FunctionStatement(parameters, body);
+                return new FunctionStatement(parameters, body, isLambda);
             }
 
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
-                var function = new CustomFunction(parametersList, body, context.variableScope);
+                var function = new CustomFunction(parametersList, body, context.variableScope, isLambda);
                 return (CustomValue.FromFunction(function), false, false, false);
             }
 
