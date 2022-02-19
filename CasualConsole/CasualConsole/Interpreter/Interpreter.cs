@@ -743,7 +743,7 @@ namespace CasualConsole.Interpreter
             return statement.EvaluateStatement(context);
         }
 
-        private static CustomValue CallFunction(string functionName, CustomValue[] arguments, Context context)
+        private static CustomValue CallFunction(string functionName, IReadOnlyList<CustomValue> arguments, Context context)
         {
             switch (functionName)
             {
@@ -759,7 +759,7 @@ namespace CasualConsole.Interpreter
             throw new Exception();
         }
 
-        private static CustomValue CallFunction(CustomValue f, CustomValue[] arguments, Context context)
+        private static CustomValue CallFunction(CustomValue f, IReadOnlyList<CustomValue> arguments, Context context)
         {
             if (f.type != ValueType.Function)
                 throw new Exception();
@@ -769,7 +769,7 @@ namespace CasualConsole.Interpreter
             for (int i = 0; i < function.Parameters.Count; i++)
             {
                 var argName = function.Parameters[i];
-                var value = i < arguments.Length ? arguments[i] : CustomValue.Null;
+                var value = i < arguments.Count ? arguments[i] : CustomValue.Null;
                 functionParameterArguments[argName] = (value, AssignmentType.Var);
             }
             var newScope = VariableScope.NewWithInner(function.Scope, functionParameterArguments, isFunctionScope: true);
@@ -780,7 +780,7 @@ namespace CasualConsole.Interpreter
             return result;
         }
 
-        private static CustomValue HandlePrint(CustomValue[] arguments)
+        private static CustomValue HandlePrint(IReadOnlyList<CustomValue> arguments)
         {
             Console.WriteLine(arguments[0].value);
             return CustomValue.Null;
@@ -1085,7 +1085,7 @@ namespace CasualConsole.Interpreter
             else if (lValue is DotAccessExpression dotAccessExpression)
             {
                 var baseExpressionValue = dotAccessExpression.baseExpression.EvaluateExpression(context);
-                var keyExpressionValue = dotAccessExpression.GetKeyValue();
+                var keyExpressionValue = dotAccessExpression.keyValue;
 
                 oldValue = DoIndexingGet(baseExpressionValue, keyExpressionValue);
                 var newValue = operation(oldValue);
@@ -2183,32 +2183,26 @@ namespace CasualConsole.Interpreter
         class FunctionCallExpression : Expression
         {
             Expression lValue;
-            IReadOnlyList<string> parameterTokens;
+            IReadOnlyList<string>[] expressions;
 
             public FunctionCallExpression(Expression lValue, IReadOnlyList<string> parameterTokens)
             {
                 this.lValue = lValue;
-                this.parameterTokens = parameterTokens;
+                this.expressions = SplitBy(parameterTokens, commaSet).ToArray();
             }
 
             public CustomValue EvaluateExpression(Context context)
             {
-                var expressions = SplitBy(parameterTokens, commaSet);
-                var arguments = expressions.Select(expression => GetValueFromExpression(expression, context)).ToArray();
+                var arguments = expressions.SelectFast(expression => GetValueFromExpression(expression, context));
 
                 CustomValue newOwner;
                 if (lValue is DotAccessExpression dotAccessExpression)
-                {
                     newOwner = dotAccessExpression.baseExpression.EvaluateExpression(context);
-                }
                 else if (lValue is IndexingExpression indexingExpression)
-                {
                     newOwner = indexingExpression.baseExpression.EvaluateExpression(context);
-                }
                 else
-                {
                     newOwner = CustomValue.Null;
-                }
+
                 var newContext = new Context(context.variableScope, newOwner);
 
                 if (lValue is SingleTokenVariableExpression variable)
@@ -2245,25 +2239,20 @@ namespace CasualConsole.Interpreter
         class DotAccessExpression : Expression
         {
             internal Expression baseExpression;
-            private string fieldName;
+            internal CustomValue keyValue;
 
             public DotAccessExpression(Expression expression, string fieldName)
             {
                 this.baseExpression = expression;
-                this.fieldName = fieldName;
+                this.keyValue = CustomValue.FromParsedString(fieldName);
             }
 
             public CustomValue EvaluateExpression(Context context)
             {
                 var ownerExpressionValue = baseExpression.EvaluateExpression(context);
-                var keyExpressionValue = GetKeyValue();
+                var keyExpressionValue = keyValue;
 
                 return DoIndexingGet(ownerExpressionValue, keyExpressionValue);
-            }
-
-            public CustomValue GetKeyValue()
-            {
-                return CustomValue.FromParsedString(fieldName);
             }
         }
         class MapExpression : Expression
