@@ -535,7 +535,10 @@ namespace CasualConsole.Interpreter
                 "var null = 1",
                 "`${`",
                 "`${}`",
-                "'\n'"
+                "'\n'",
+                "var a = 0; ++++a",
+                "var a = 0; ++a++",
+                "var a = 0; a++++",
             };
             var interpreter = new Interpreter();
             foreach (var code in testCases)
@@ -2318,16 +2321,16 @@ namespace CasualConsole.Interpreter
         }
         class SingleTokenNumberExpression : Expression
         {
-            private string token;
+            private CustomValue number;
 
             public SingleTokenNumberExpression(string token)
             {
-                this.token = token;
+                this.number = CustomValue.FromNumber(token);
             }
 
             public CustomValue EvaluateExpression(Context context)
             {
-                return CustomValue.FromNumber(token);
+                return number;
             }
         }
         class SingleTokenStringExpression : Expression
@@ -2430,13 +2433,19 @@ namespace CasualConsole.Interpreter
         }
         class SinglePlusMinusExpression : Expression
         {
-            private string token;
+            private bool isMinus;
             private Expression expressionRest;
 
             public SinglePlusMinusExpression(string token, Expression expressionRest)
             {
-                this.token = token;
                 this.expressionRest = expressionRest;
+
+                if (token == "-")
+                    isMinus = true;
+                else if (token == "+")
+                    isMinus = false;
+                else
+                    throw new Exception();
             }
 
             public CustomValue EvaluateExpression(Context context)
@@ -2445,12 +2454,10 @@ namespace CasualConsole.Interpreter
                 if (rest.type != ValueType.Number)
                     throw new Exception();
 
-                if (token == "-")
+                if (isMinus)
                     return CustomValue.FromNumber((double)rest.value * -1);
-                else if (token == "+")
-                    return CustomValue.FromNumber((double)rest.value);
                 else
-                    throw new Exception();
+                    return CustomValue.FromNumber((double)rest.value);
             }
         }
         class NotExpression : Expression
@@ -2911,15 +2918,15 @@ namespace CasualConsole.Interpreter
         {
             AssignmentType assignmentType;
             string variableName;
-            Expression source;
+            Expression sourceExpression;
             Statement bodyStatement;
             bool isInStatement;
 
-            public ForInOfStatement(bool isInStatement, AssignmentType assignmentType, string variableName, Expression source, Statement bodyStatement)
+            public ForInOfStatement(bool isInStatement, AssignmentType assignmentType, string variableName, Expression sourceExpression, Statement bodyStatement)
             {
                 this.assignmentType = assignmentType;
                 this.variableName = variableName;
-                this.source = source;
+                this.sourceExpression = sourceExpression;
                 this.bodyStatement = bodyStatement;
                 this.isInStatement = isInStatement;
             }
@@ -2930,7 +2937,7 @@ namespace CasualConsole.Interpreter
             {
                 bool isOfStatement = !isInStatement;
                 var scope = context.variableScope;
-                var sourceValue = source.EvaluateExpression(context);
+                var sourceValue = sourceExpression.EvaluateExpression(context);
                 if (isOfStatement && sourceValue.type != ValueType.Array)
                     throw new Exception();
                 if (isInStatement && sourceValue.type != ValueType.Map)
@@ -3075,15 +3082,32 @@ namespace CasualConsole.Interpreter
         }
         class FunctionStatement : Statement, Expression
         {
-            IReadOnlyList<string> parameters; // Should not contain parentheses
+            List<string> parametersList;
             Statement body;
 
             private FunctionStatement(IReadOnlyList<string> parameters, Statement body)
             {
                 if (parameters.Count > 0 && parameters[0] == "(")
                     throw new Exception();
-                this.parameters = parameters;
                 this.body = body;
+
+                // Prepare parameters
+                var parametersMap = new Dictionary<string, int>(); // Map is used to ensure uniqueness
+                this.parametersList = new List<string>();
+                for (int i = 0; i < parameters.Count; i++)
+                {
+                    if (i % 2 == 1)
+                    {
+                        if (parameters[i] != ",")
+                            throw new Exception();
+                    }
+                    else
+                    {
+                        var parameterIndex = i / 2;
+                        parametersMap.Add(parameters[i], parameterIndex);
+                        this.parametersList.Add(parameters[i]);
+                    }
+                }
             }
 
             public StatementType Type => StatementType.FunctionStatement;
@@ -3104,23 +3128,6 @@ namespace CasualConsole.Interpreter
 
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
-                var parametersMap = new Dictionary<string, int>(); // Map is used to ensure uniqueness
-                var parametersList = new List<string>();
-                for (int i = 0; i < parameters.Count; i++)
-                {
-                    if (i % 2 == 1)
-                    {
-                        if (parameters[i] != ",")
-                            throw new Exception();
-                    }
-                    else
-                    {
-                        var parameterIndex = i / 2;
-                        parametersMap.Add(parameters[i], parameterIndex);
-                        parametersList.Add(parameters[i]);
-                    }
-                }
-
                 var function = new CustomFunction(parametersList, body, context.variableScope);
                 return (CustomValue.FromFunction(function), false, false, false);
             }
