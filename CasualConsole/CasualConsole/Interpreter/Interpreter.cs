@@ -489,6 +489,7 @@ namespace CasualConsole.Interpreter
                 ("'' || 'hello'", "hello"),
                 ("2 && 7", 7),
                 ("2 && 0", 0),
+                ("var name = 'serhat'; ({ name }).name", "serhat"),
             };
 
             var interpreter = new Interpreter();
@@ -2269,10 +2270,14 @@ namespace CasualConsole.Interpreter
                     var firstToken = item[0];
                     var fieldName = IsVariableName(firstToken) ? firstToken : (string)CustomValue.FromStaticString(firstToken).value;
 
-                    if (item[1] != ":")
+                    Expression expression;
+                    if (item.Count == 1)
+                        expression = ExpressionMethods.New(new[] { firstToken });
+                    else if (item[1] == ":")
+                        expression = ExpressionMethods.New(new CustomRange<string>(item, 2, item.Count));
+                    else
                         throw new Exception();
 
-                    var expression = ExpressionMethods.New(new CustomRange<string>(item, 2, item.Count));
                     this.fieldExpressions.Add((fieldName, expression));
                 }
             }
