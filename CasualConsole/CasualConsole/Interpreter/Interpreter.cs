@@ -502,6 +502,7 @@ namespace CasualConsole.Interpreter
                 ("var arr = [2, ...[1,2,3]]; arr[0] == 2 && arr[1] == 1 && arr[2] == 2 && arr[3] == 3", true),
                 ("var arr = [1,2,3]; var arr2 = [...arr]; arr.push(6); arr2.length", 3),
                 ("(function(){ var total = 0; for(var x of arguments) total += x; return total; })(1,2,3,4)", 10),
+                ("(function(){ var total = 0; for(var x of arguments) total += x; return total; })(2, ...[1,2,3,4,5], 1)", 18),
             };
 
             var interpreter = new Interpreter();
@@ -2258,17 +2259,41 @@ namespace CasualConsole.Interpreter
         class FunctionCallExpression : Expression
         {
             Expression lValue;
-            IReadOnlyList<string>[] expressions;
+            List<(bool hasThreeDot, Expression expression)> expressionList;
 
             public FunctionCallExpression(Expression lValue, IReadOnlyList<string> parameterTokens)
             {
                 this.lValue = lValue;
-                this.expressions = SplitBy(parameterTokens, commaSet).ToArray();
+                var res = SplitBy(parameterTokens, commaSet);
+                var expressionList = new List<(bool hasThreeDot, Expression expression)>();
+                foreach (var item in res)
+                {
+                    if (item[0] == "...")
+                        expressionList.Add((true, ExpressionMethods.New(new CustomRange<string>(item, 1, item.Count))));
+                    else
+                        expressionList.Add((false, ExpressionMethods.New(item)));
+                }
+                this.expressionList = expressionList;
             }
 
             public CustomValue EvaluateExpression(Context context)
             {
-                var arguments = expressions.SelectFast(expression => GetValueFromExpression(expression, context));
+                var arguments = new List<CustomValue>();
+
+                foreach (var (hasThreeDot, expression) in expressionList)
+                {
+                    if (hasThreeDot)
+                    {
+                        var value = expression.EvaluateExpression(context);
+                        if (value.type != ValueType.Array)
+                            throw new Exception();
+                        var array = (CustomArray)value.value;
+                        foreach (var item in array.list)
+                            arguments.Add(item);
+                    }
+                    else
+                        arguments.Add(expression.EvaluateExpression(context));
+                }
 
                 FunctionObject function;
                 if (lValue is SingleTokenVariableExpression variable)
