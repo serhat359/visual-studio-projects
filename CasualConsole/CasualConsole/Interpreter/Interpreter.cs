@@ -548,6 +548,7 @@ namespace CasualConsole.Interpreter
                 "var a = 0; ++++a",
                 "var a = 0; ++a++",
                 "var a = 0; a++++",
+                "function(){}",
             };
             var interpreter = new Interpreter();
             foreach (var code in testCases)
@@ -781,7 +782,7 @@ namespace CasualConsole.Interpreter
             switch (functionName)
             {
                 case "print":
-                    return Interpreter.printFunction;
+                    return printFunction;
             }
 
             if (variableScope.TryGetVariable(functionName, out var f))
@@ -2798,8 +2799,11 @@ namespace CasualConsole.Interpreter
                 {
                     return (CustomValue.Null, false, false, true);
                 }
-                else if (tokens[0] == "function" && IsVariableName(tokens[1]))
+                else if (tokens[0] == "function")
                 {
+                    if (!IsVariableName(tokens[1]))
+                        throw new Exception();
+
                     var variableName = tokens[1];
                     var functionStatement = FunctionStatement.FromTokens(tokens, isLambda: false);
                     var function = functionStatement.EvaluateExpression(context);
