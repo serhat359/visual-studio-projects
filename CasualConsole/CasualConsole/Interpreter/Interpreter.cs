@@ -501,6 +501,7 @@ namespace CasualConsole.Interpreter
                 ("[...[1,2,3]].length", 3),
                 ("var arr = [2, ...[1,2,3]]; arr[0] == 2 && arr[1] == 1 && arr[2] == 2 && arr[3] == 3", true),
                 ("var arr = [1,2,3]; var arr2 = [...arr]; arr.push(6); arr2.length", 3),
+                ("(function(){ var total = 0; for(var x of arguments) total += x; return total; })(1,2,3,4)", 10),
             };
 
             var interpreter = new Interpreter();
@@ -766,6 +767,7 @@ namespace CasualConsole.Interpreter
                 var value = i < arguments.Count ? arguments[i] : CustomValue.Null;
                 functionParameterArguments[argName] = (value, AssignmentType.Var);
             }
+            functionParameterArguments["arguments"] = (CustomValue.FromArray(new CustomArray(arguments)), AssignmentType.Var);
             var newScope = VariableScope.NewWithInner(function.Scope, functionParameterArguments, isFunctionScope: true);
             var newContext = new Context(newScope, context.thisOwner);
             var (result, isReturn, isBreak, isContinue) = function.EvaluateStatement(newContext);
@@ -1423,6 +1425,12 @@ namespace CasualConsole.Interpreter
                         }
                     }
                 }
+            }
+
+            public CustomArray(IReadOnlyList<CustomValue> list)
+            {
+                this.list = list.ToList(); // TODO fix this later
+                this.map = new Dictionary<string, CustomValue>();
             }
 
             public CustomArray(List<CustomValue> list)
