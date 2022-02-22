@@ -8,8 +8,8 @@ namespace CasualConsole.Interpreter
 {
     public class Interpreter
     {
-        private static readonly HashSet<char> onlyChars = new HashSet<char>() { '(', ')', ',', ';', '{', '}', '[', ']', '.' };
-        private static readonly HashSet<char> multiChars = new HashSet<char>() { '+', '-', '*', '/', '%', '=', '?', ':', '<', '>', '&', '|', '!' };
+        private static readonly HashSet<char> onlyChars = new HashSet<char>() { '(', ')', ',', ';', '{', '}', '[', ']' };
+        private static readonly HashSet<char> multiChars = new HashSet<char>() { '+', '-', '*', '/', '%', '=', '?', ':', '<', '>', '&', '|', '!', '.' };
         private static readonly HashSet<string> assignmentSet = new HashSet<string>() { "=", "+=", "-=", "*=", "/=", "%=" };
         private static readonly HashSet<string> commaSet = new HashSet<string>() { "," };
         private static readonly HashSet<string> semicolonSet = new HashSet<string>() { ";" };
@@ -498,6 +498,9 @@ namespace CasualConsole.Interpreter
                 ("var n2 = 'name3'; var o = {}; o.f = ()=>{ return this.n2; }; o.f()", "name3"),
                 ("var n3 = 'name4'; function thisTester1(){ (function(){ this.n3 = 'name4-2'; })(); } thisTester1(); n3", "name4-2"),
                 ("print()", null),
+                ("[...[1,2,3]].length", 3),
+                ("var arr = [2, ...[1,2,3]]; arr[0] == 2 && arr[1] == 1 && arr[2] == 2 && arr[3] == 3", true),
+                ("var arr = [1,2,3]; var arr2 = [...arr]; arr.push(6); arr2.length", 3),
             };
 
             var interpreter = new Interpreter();
@@ -549,6 +552,7 @@ namespace CasualConsole.Interpreter
                 "var a = 0; ++a++",
                 "var a = 0; a++++",
                 "function(){}",
+                "...[1,2,3]",
             };
             var interpreter = new Interpreter();
             foreach (var code in testCases)
@@ -2367,23 +2371,38 @@ namespace CasualConsole.Interpreter
         }
         class ArrayExpression : Expression
         {
-            private List<Expression> expressionList;
+            private List<(bool hasThreeDot, Expression expression)> expressionList;
 
             public ArrayExpression(CustomRange<string> tokens)
             {
                 tokens = new CustomRange<string>(tokens, 1, tokens.Count - 1);
                 var res = SplitBy(tokens, commaSet);
-                expressionList = new List<Expression>();
+                expressionList = new List<(bool, Expression)>();
                 foreach (var item in res)
-                    expressionList.Add(ExpressionMethods.New(item));
+                {
+                    if (item[0] == "...")
+                        expressionList.Add((true, ExpressionMethods.New(new CustomRange<string>(item, 1, item.Count))));
+                    else
+                        expressionList.Add((false, ExpressionMethods.New(item)));
+                }
             }
 
             public CustomValue EvaluateExpression(Context context)
             {
                 var list = new List<CustomValue>();
-                foreach (var expression in expressionList)
+                foreach (var (hasThreeDot, expression) in expressionList)
                 {
-                    list.Add(expression.EvaluateExpression(context));
+                    if (hasThreeDot)
+                    {
+                        var value = expression.EvaluateExpression(context);
+                        if (value.type != ValueType.Array)
+                            throw new Exception();
+                        var array = (CustomArray)value.value;
+                        foreach (var item in array.list)
+                            list.Add(item);
+                    }
+                    else
+                        list.Add(expression.EvaluateExpression(context));
                 }
                 return CustomValue.FromArray(new CustomArray(list));
             }
