@@ -17,7 +17,7 @@ namespace CasualConsole.Interpreter
         private static readonly HashSet<string> comparisonSet = new HashSet<string>() { "==", "!=", "<", ">", "<=", ">=" };
         private static readonly HashSet<string> andOrSet = new HashSet<string>() { "&&", "||" };
         private static readonly HashSet<string> asteriskSlashSet = new HashSet<string>() { "*", "/", "%" };
-        private static readonly HashSet<string> keywords = new HashSet<string>() { "this", "var", "let", "if", "while", "for", "break", "continue", "function", "return", "true", "false", "null" };
+        private static readonly HashSet<string> keywords = new HashSet<string>() { "this", "var", "let", "const", "if", "while", "for", "break", "continue", "function", "return", "true", "false", "null" };
 
         private static Expression trueExpression;
         private static Expression falseExpression;
@@ -446,6 +446,9 @@ namespace CasualConsole.Interpreter
                 ("var total = 0; for(var x of [1,2,3,4,5]) total += x; total", 15),
                 ("var scopevar1 = 2; { var scopevar1 = 3; } scopevar1", 3),
                 ("let scopelet1 = 2; { let scopelet1 = 3; } scopelet1", 2),
+                ("const scopeconst1 = 2; { const scopeconst1 = 3; } scopeconst1", 2),
+                ("for(const i = 0; i < 0; i++){}", null),
+                ("for(const i of [1,2,3,4]){}", null),
                 ("var scopevar2 = 5; (function(){ var scopevar2 = 8; })(); scopevar2", 5),
                 ("for(var i = 0, j = 0; i < 5; i++){} i", 5),
                 ("let li = 6; for(let li = 0; li < 5; li++){} li", 6),
@@ -541,6 +544,8 @@ namespace CasualConsole.Interpreter
                 "let l11 = 1; let l11 = 1;",
                 "var l12 = 1; let l12 = 1;",
                 "let l21 = 1; var l21 = 1;",
+                "const c21 = 1; c21 = 2;",
+                "for(const i = 0; i < 1; i++){}",
                 "var var = 1",
                 "var let = 1",
                 "let var = 1",
@@ -1191,6 +1196,9 @@ namespace CasualConsole.Interpreter
                 case "let":
                     type = AssignmentType.Let;
                     return true;
+                case "const":
+                    type = AssignmentType.Const;
+                    return true;
                 default:
                     break;
             }
@@ -1596,6 +1604,7 @@ namespace CasualConsole.Interpreter
             None,
             Var,
             Let,
+            Const,
         }
 
         enum Operator
@@ -1722,6 +1731,8 @@ namespace CasualConsole.Interpreter
                 if (variables.TryGetValue(variableName, out var res))
                 {
                     var (_, type) = res;
+                    if (type == AssignmentType.Const)
+                        throw new Exception();
                     variables[variableName] = (value, type);
                 }
                 else if (innerScope != null)
@@ -1762,6 +1773,15 @@ namespace CasualConsole.Interpreter
 
                 var scope = this;
                 scope.variables.Add(variableName, (value, AssignmentType.Let));
+            }
+
+            public void AddConstVariable(string variableName, CustomValue value)
+            {
+                if (keywords.Contains(variableName))
+                    throw new Exception();
+
+                var scope = this;
+                scope.variables.Add(variableName, (value, AssignmentType.Const));
             }
 
             public static VariableScope NewDefault(Dictionary<string, (CustomValue, AssignmentType)> variables, bool isFunctionScope)
@@ -1805,11 +1825,8 @@ namespace CasualConsole.Interpreter
                             return scope;
                         }
                     case AssignmentType.Var:
-                        {
-                            var newScope = VariableScope.NewWithInner(scope, isFunctionScope: false);
-                            return newScope;
-                        }
                     case AssignmentType.Let:
+                    case AssignmentType.Const:
                         {
                             var newScope = VariableScope.NewWithInner(scope, isFunctionScope: false);
                             return newScope;
@@ -1830,6 +1847,9 @@ namespace CasualConsole.Interpreter
                         break;
                     case AssignmentType.Let:
                         scope.AddLetVariable(variableName, variableValue);
+                        break;
+                    case AssignmentType.Const:
+                        scope.AddConstVariable(variableName, variableValue);
                         break;
                     default:
                         break;
@@ -2696,6 +2716,9 @@ namespace CasualConsole.Interpreter
                             break;
                         case AssignmentType.Let:
                             context.variableScope.AddLetVariable(variableName, value);
+                            break;
+                        case AssignmentType.Const:
+                            context.variableScope.AddConstVariable(variableName, value);
                             break;
                         default:
                             throw new Exception();
