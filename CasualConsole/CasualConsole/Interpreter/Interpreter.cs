@@ -503,6 +503,7 @@ namespace CasualConsole.Interpreter
                 ("var arr = [1,2,3]; var arr2 = [...arr]; arr.push(6); arr2.length", 3),
                 ("(function(){ var total = 0; for(var x of arguments) total += x; return total; })(1,2,3,4)", 10),
                 ("(function(){ var total = 0; for(var x of arguments) total += x; return total; })(2, ...[1,2,3,4,5], 1)", 18),
+                ("(function(x,y,...rest){ var total = 0; for(var x of rest) total+=x; return total })(1,2,3,4,5)", 12),
             };
 
             var interpreter = new Interpreter();
@@ -555,6 +556,10 @@ namespace CasualConsole.Interpreter
                 "var a = 0; a++++",
                 "function(){}",
                 "...[1,2,3]",
+                "function(x,,x2){}",
+                "function(x,x,x){}",
+                ("(function(...rest1, rest2){})"),
+                ("(function(...rest1, ...rest2){})"),
             };
             var interpreter = new Interpreter();
             foreach (var code in testCases)
@@ -764,9 +769,23 @@ namespace CasualConsole.Interpreter
             var functionParameterArguments = new Dictionary<string, (CustomValue, AssignmentType)>();
             for (int i = 0; i < function.Parameters.Count; i++)
             {
-                var argName = function.Parameters[i];
-                var value = i < arguments.Count ? arguments[i] : CustomValue.Null;
-                functionParameterArguments[argName] = (value, AssignmentType.Var);
+                var (argName, isRest) = function.Parameters[i];
+                if (isRest)
+                {
+                    var restArrayCount = arguments.Count - i;
+                    var restArray = new CustomValue[restArrayCount];
+                    for (int j = 0; j < restArrayCount; j++)
+                    {
+                        restArray[j] = arguments[i + j];
+                    }
+                    functionParameterArguments[argName] = (CustomValue.FromArray(new CustomArray(restArray)), AssignmentType.Var);
+                    break;
+                }
+                else
+                {
+                    var value = i < arguments.Count ? arguments[i] : CustomValue.Null;
+                    functionParameterArguments[argName] = (value, AssignmentType.Var);
+                }
             }
             functionParameterArguments["arguments"] = (CustomValue.FromArray(new CustomArray(arguments)), AssignmentType.Var);
             var newScope = VariableScope.NewWithInner(function.Scope, functionParameterArguments, isFunctionScope: true);
@@ -1285,18 +1304,18 @@ namespace CasualConsole.Interpreter
 
         interface FunctionObject : Statement
         {
-            IReadOnlyList<string> Parameters { get; }
+            IReadOnlyList<(string paramName, bool isRest)> Parameters { get; }
             VariableScope Scope { get; }
             bool IsLambda { get; }
         }
         class CustomFunction : FunctionObject
         {
-            private IReadOnlyList<string> parameters;
+            private IReadOnlyList<(string paramName, bool isRest)> parameters;
             private Statement body;
             private VariableScope scope;
             private bool isLambda;
 
-            public CustomFunction(IReadOnlyList<string> parameters, Statement body, VariableScope scope, bool isLambda)
+            public CustomFunction(IReadOnlyList<(string paramName, bool isRest)> parameters, Statement body, VariableScope scope, bool isLambda)
             {
                 this.parameters = parameters;
                 this.body = body;
@@ -1304,7 +1323,7 @@ namespace CasualConsole.Interpreter
                 this.isLambda = isLambda;
             }
 
-            public IReadOnlyList<string> Parameters => parameters;
+            public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
 
             public VariableScope Scope => scope;
 
@@ -1326,7 +1345,7 @@ namespace CasualConsole.Interpreter
                 this.functionName = functionName;
             }
 
-            public IReadOnlyList<string> Parameters => new[] { "x" };
+            public IReadOnlyList<(string paramName, bool isRest)> Parameters => new[] { ("x", false) };
 
             public VariableScope Scope => null;
 
@@ -1347,7 +1366,7 @@ namespace CasualConsole.Interpreter
 
             private CustomValue HandlePrint(Context context)
             {
-                var printValue = context.variableScope.GetVariable(Parameters[0]);
+                var printValue = context.variableScope.GetVariable(Parameters[0].paramName);
                 if (printValue.type != ValueType.Null)
                     Console.WriteLine(printValue.ToString());
                 return CustomValue.Null;
@@ -1355,7 +1374,7 @@ namespace CasualConsole.Interpreter
         }
         class ArrayPushFunction : FunctionObject
         {
-            public IReadOnlyList<string> Parameters => new[] { "x" };
+            public IReadOnlyList<(string paramName, bool isRest)> Parameters => new[] { ("x", false) };
 
             public StatementType Type => throw new Exception();
 
@@ -1369,14 +1388,14 @@ namespace CasualConsole.Interpreter
                 if (thisArray.type != ValueType.Array)
                     throw new Exception();
                 var array = (CustomArray)thisArray.value;
-                var pushValue = context.variableScope.GetVariable(Parameters[0]);
+                var pushValue = context.variableScope.GetVariable(Parameters[0].paramName);
                 array.list.Add(pushValue);
                 return (CustomValue.FromNumber(array.list.Count), false, false, false);
             }
         }
         class ArrayPopFunction : FunctionObject
         {
-            public IReadOnlyList<string> Parameters => new string[] { };
+            public IReadOnlyList<(string paramName, bool isRest)> Parameters => new (string, bool)[] { };
 
             public StatementType Type => throw new Exception();
 
@@ -3222,7 +3241,7 @@ namespace CasualConsole.Interpreter
         }
         class FunctionStatement : Statement, Expression
         {
-            List<string> parametersList;
+            List<(string paramName, bool isRest)> parametersList;
             Statement body;
             bool isLambda;
 
@@ -3234,21 +3253,33 @@ namespace CasualConsole.Interpreter
                 this.isLambda = isLambda;
 
                 // Prepare parameters
-                var parametersMap = new Dictionary<string, int>(); // Map is used to ensure uniqueness
-                this.parametersList = new List<string>();
-                for (int i = 0; i < parameters.Count; i++)
+                var parametersSet = new HashSet<string>(); // Set is used to ensure uniqueness
+                this.parametersList = new List<(string, bool)>();
+
+                var parameterGroups = SplitBy(parameters, commaSet).ToList();
+                for (int parameterIndex = 0; parameterIndex < parameterGroups.Count; parameterIndex++)
                 {
-                    if (i % 2 == 1)
+                    var parameterGroup = parameterGroups[parameterIndex];
+
+                    string parameter;
+                    bool isRest;
+                    if (parameterGroup.Count == 1)
                     {
-                        if (parameters[i] != ",")
+                        parameter = parameterGroup[0];
+                        isRest = false;
+                    }
+                    else if (parameterGroup.Count == 2 && parameterGroup[0] == "...")
+                    {
+                        parameter = parameterGroup[1];
+                        isRest = true;
+                        if (parameterIndex != parameterGroups.Count - 1)
                             throw new Exception();
                     }
                     else
-                    {
-                        var parameterIndex = i / 2;
-                        parametersMap.Add(parameters[i], parameterIndex);
-                        this.parametersList.Add(parameters[i]);
-                    }
+                        throw new Exception();
+                    if (!parametersSet.Add(parameter))
+                        throw new Exception();
+                    this.parametersList.Add((parameter, isRest));
                 }
             }
 
