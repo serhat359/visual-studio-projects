@@ -196,7 +196,7 @@ namespace CasualConsole.Interpreter
                 ("1 + (2 - 3)", 0),
                 ("1 - (2 + 5)", -6),
                 ("'' + 2 + 3", "23"),
-                ("2 + 3 + ''", "23"),
+                ("2 + 3 + ''", "5"),
                 ("'' + (2 + 3)", "5"),
                 ("(2 + 3) + ''", "5"),
                 ("returnValue(2) + returnValue(3)", 5),
@@ -971,48 +971,38 @@ namespace CasualConsole.Interpreter
 
         private static CustomValue AddOrSubtract(CustomValue firstValue, IReadOnlyList<(Operator operatorType, CustomValue value)> values)
         {
-            bool hasMinus = false;
-            bool hasString = false;
+            var totalValue = firstValue;
 
-            if (firstValue.type == ValueType.String)
-                hasString = true;
-
-            foreach (var value in values)
+            foreach (var (type, value) in values)
             {
-                var valueType = value.value.type;
-
-                if (value.operatorType == Operator.Minus)
-                    hasMinus = true;
-                if (valueType == ValueType.String)
-                    hasString = true;
-            }
-
-            if (hasMinus && hasString)
-                throw new Exception();
-
-            if (!hasString)
-            {
-                double total = (double)firstValue.value;
-                foreach (var value in values)
+                if (type == Operator.Plus)
                 {
-                    if (value.operatorType == Operator.Minus)
-                        total -= (double)value.value.value;
+                    if (totalValue.type == ValueType.Number && value.type == ValueType.Number)
+                    {
+                        double totalNumber = (double)totalValue.value + (double)value.value;
+                        totalValue = CustomValue.FromNumber(totalNumber);
+                    }
                     else
-                        total += (double)value.value.value;
+                    {
+                        string totalString = totalValue.ToString() + value.ToString();
+                        totalValue = CustomValue.FromParsedString(totalString);
+                    }
                 }
-                return CustomValue.FromNumber(total);
-            }
-            else
-            {
-                // String concat
-                var sb = new StringBuilder();
-                sb.Append(firstValue.ToString());
-                foreach (var value in values)
+                else if (type == Operator.Minus)
                 {
-                    sb.Append(value.value.ToString());
+                    if (totalValue.type == ValueType.Number && value.type == ValueType.Number)
+                    {
+                        double totalNumber = (double)totalValue.value - (double)value.value;
+                        totalValue = CustomValue.FromNumber(totalNumber);
+                    }
+                    else
+                        throw new Exception();
                 }
-                return CustomValue.FromParsedString(sb.ToString());
+                else
+                    throw new Exception();
             }
+
+            return totalValue;
         }
 
         private static CustomValue GetValueFromExpression(IReadOnlyList<string> expressionTokens, Context context)
