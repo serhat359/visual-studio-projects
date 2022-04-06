@@ -15,7 +15,7 @@ namespace CasualConsole.Interpreter
         private static readonly HashSet<string> semicolonSet = new HashSet<string>() { ";" };
         private static readonly HashSet<string> plusMinusSet = new HashSet<string>() { "+", "-" };
         private static readonly HashSet<string> comparisonSet = new HashSet<string>() { "==", "!=", "<", ">", "<=", ">=" };
-        private static readonly HashSet<string> andOrSet = new HashSet<string>() { "&&", "||" };
+        private static readonly HashSet<string> andOrSet = new HashSet<string>() { "&&", "||", "??" };
         private static readonly HashSet<string> asteriskSlashSet = new HashSet<string>() { "*", "/", "%" };
         private static readonly HashSet<string> keywords = new HashSet<string>() { "this", "var", "let", "const", "if", "while", "for", "break", "continue", "function", "return", "true", "false", "null" };
 
@@ -1899,8 +1899,7 @@ namespace CasualConsole.Interpreter
                         if (plusMinusSet.Contains(newToken)
                             || asteriskSlashSet.Contains(newToken)
                             || comparisonSet.Contains(newToken)
-                            || andOrSet.Contains(newToken)
-                            || newToken == "??")
+                            || andOrSet.Contains(newToken))
                         {
                             var newPrecedence = TreeExpression.GetPrecedence(newToken);
 
