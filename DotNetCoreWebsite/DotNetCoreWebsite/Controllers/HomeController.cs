@@ -10,6 +10,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace DotNetCoreWebsite.Controllers
 {
@@ -20,19 +21,89 @@ namespace DotNetCoreWebsite.Controllers
         private IConfiguration configuration;
         private FileNameHelper fileNameHelper;
         private CoreEncryption coreEncryption;
-        private HttpClient httpClient;
+        private IHttpClientFactory httpClientFactory;
 
-        public HomeController(IConfiguration configuration, FileNameHelper fileNameHelper, CoreEncryption coreEncryption, HttpClient httpClient)
+        public HomeController(IConfiguration configuration, FileNameHelper fileNameHelper, CoreEncryption coreEncryption, IHttpClientFactory httpClientFactory)
         {
             this.configuration = configuration;
             this.fileNameHelper = fileNameHelper;
             this.coreEncryption = coreEncryption;
-            this.httpClient = httpClient;
+            this.httpClientFactory = httpClientFactory;
         }
 
         public IActionResult Index()
         {
             return View();
+        }
+
+        [ActionName("1337")]
+        public async Task<IActionResult> Simple1337(string query)
+        {
+            string tableData = null;
+            if (query != null)
+            {
+                var link = $"https://1337x.to/search/{Uri.EscapeDataString(query)}/1/";
+
+                var httpClient = httpClientFactory.CreateClient();
+                using var response = await httpClient.GetAsync(link);
+                string responseContent = await response.Content.ReadAsStringAsync();
+
+                var indexBegin = responseContent.IndexOf("<table class=\"table-list table table-responsive table-striped\">");
+                if (indexBegin < 0)
+                    throw new Exception();
+                var endPattern = "</table>";
+                var indexEnd = responseContent.IndexOf(endPattern, indexBegin);
+                if (indexEnd < 0)
+                    throw new Exception();
+                tableData = responseContent.Substring(indexBegin, length: indexEnd - indexBegin + endPattern.Length);
+                tableData = tableData.Replace("<i class=\"flaticon-message\"></i>", "💬");
+            }
+
+            var model = new Simple1337Model
+            {
+                Query = query,
+                TableData = tableData
+            };
+            return View(model);
+        }
+
+        public async Task<IActionResult> Torrent(string id1, string id2)
+        {
+            var path = Request.Path.ToString();
+            var link = "https://1337x.to" + path;
+
+            var httpClient = httpClientFactory.CreateClient();
+            using var response = await httpClient.GetAsync(link);
+            string responseContent = await response.Content.ReadAsStringAsync();
+
+            var ulPart = GetULPart(responseContent);
+
+            var regex = new Regex("href=\"([^\"]+)\"", RegexOptions.Compiled);
+
+            var matches = regex.Matches(ulPart);
+
+            foreach (Match match in matches)
+            {
+                var torrentLink = match.Groups[1].Value;
+                using var torrentResponse = await httpClient.GetAsync(torrentLink);
+                var torrentBytes = await torrentResponse.Content.ReadAsByteArrayAsync();
+                return File(torrentBytes, "application/x-bittorrent", "torrent.torrent");
+            }
+
+            return null;
+        }
+
+        private static string GetULPart(string responseContent)
+        {
+            var indexBegin = responseContent.IndexOf("<ul class=\"dropdown-menu\" aria-labelledby=\"dropdownMenu1\">");
+            if (indexBegin < 0)
+                throw new Exception();
+            var endPattern = "</ul>";
+            var indexEnd = responseContent.IndexOf(endPattern, indexBegin);
+            if (indexEnd < 0)
+                throw new Exception();
+            var data = responseContent.Substring(indexBegin, length: indexEnd - indexBegin + endPattern.Length);
+            return data;
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]

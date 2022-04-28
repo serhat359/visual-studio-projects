@@ -23,14 +23,14 @@ namespace DotNetCoreWebsite
         {
             services.AddSingleton<FileNameHelper>();
             services.AddSingleton<CoreEncryption>((serviceProvider) => new CoreEncryption(Configuration.GetSection("EncryptionKey").Value));
-            services.AddSingleton<HttpClient>((serviceProvider) =>
-            {
-                HttpClientHandler handler = new HttpClientHandler()
-                {
-                    AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
-                };
-                return new HttpClient(handler);
-            });
+            services.AddHttpClient("")
+                .ConfigurePrimaryHttpMessageHandler(messageHandler =>
+                    new HttpClientHandler
+                    {
+                        AllowAutoRedirect = true,
+                        UseDefaultCredentials = true,
+                        AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
+                    });
 
             services.AddResponseCompression(options =>
             {
@@ -75,6 +75,10 @@ namespace DotNetCoreWebsite
 
             app.UseEndpoints(endpoints =>
             {
+                endpoints.MapControllerRoute(
+                    name: "torrent",
+                    pattern: "torrent/{id1}/{id2}/",
+                    defaults: new { controller = "Home", action = "Torrent" });
                 endpoints.MapControllerRoute(
                     name: "default",
                     pattern: "{controller=Home}/{action=Index}/{id?}");

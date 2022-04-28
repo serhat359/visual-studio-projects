@@ -1,0 +1,20 @@
+﻿@model Simple1337Model
+
+@{
+    ViewData["Title"] = "x1337";
+}
+
+<h1>x1337</h1>
+
+<form method="get">
+    @Html.TextBoxFor(x => x.Query, null, new { placeholder = "Search" } )
+    <button>Go</button>
+</form>
+
+@Html.Raw(Model.TableData)
+
+<style>
+    span.seeds {
+        display: none;
+    }
+</style>
