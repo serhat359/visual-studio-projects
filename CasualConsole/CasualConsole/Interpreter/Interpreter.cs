@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace CasualConsole.Interpreter
 {
@@ -17,7 +18,7 @@ namespace CasualConsole.Interpreter
         private static readonly HashSet<string> comparisonSet = new HashSet<string>() { "==", "!=", "<", ">", "<=", ">=" };
         private static readonly HashSet<string> andOrSet = new HashSet<string>() { "&&", "||", "??" };
         private static readonly HashSet<string> asteriskSlashSet = new HashSet<string>() { "*", "/", "%" };
-        private static readonly HashSet<string> keywords = new HashSet<string>() { "this", "var", "let", "const", "if", "while", "for", "break", "continue", "function", "return", "true", "false", "null" };
+        private static readonly HashSet<string> keywords = new HashSet<string>() { "this", "var", "let", "const", "if", "while", "for", "break", "continue", "function", "async", "await", "return", "true", "false", "null" };
 
         private static Expression trueExpression;
         private static Expression falseExpression;
@@ -510,6 +511,23 @@ namespace CasualConsole.Interpreter
                 ("var o = { age: 26 }; -o.age", -26),
                 ("var o = { age: 27 }; -o[`age`]", -27),
                 ("-(x => x)(2)", -2),
+                ("(function(){ return null; })() == null", true),
+                ("(async function(){ return null; })() == null", false),
+                ("(() => null)() == null", true),
+                ("(async () => null)() == null", false),
+                ("(async x => null)() == null", false),
+                ("(async (x) => null)() == null", false),
+                ("(async (x,y) => null)() == null", false),
+                ("(() => null) == null", false),
+                ("(x => null) == null", false),
+                ("((x,y) => null) == null", false),
+                ("(async () => null) == null", false),
+                ("(async x => null) == null", false),
+                ("(async (x,y) => null) == null", false),
+                ("var asyncFunc1 = async x => x; var prom1 = asyncFunc1(2); await prom1", 2),
+                ("await (async x => x)(2)", 2),
+                ("await 2", 2),
+                ("await await 2", 2),
             };
 
             var interpreter = new Interpreter();
@@ -562,12 +580,21 @@ namespace CasualConsole.Interpreter
                 "var a = 0; ++++a",
                 "var a = 0; ++a++",
                 "var a = 0; a++++",
+                "var a =0 ;(++a)++",
+                "var a =0 ;(a++)++",
                 "function(){}",
+                "x,y => {}",
+                "x => ",
                 "...[1,2,3]",
                 "function(x,,x2){}",
                 "function(x,x,x){}",
                 "(function(...rest1, rest2){})",
                 "(function(...rest1, ...rest2){})",
+                "var async = 1;",
+                "async function(){}",
+                "async",
+                "async 2",
+                "async ()",
             };
             var interpreter = new Interpreter();
             foreach (var code in testCases)
@@ -1315,13 +1342,15 @@ namespace CasualConsole.Interpreter
             private Statement body;
             private VariableScope scope;
             private bool isLambda;
+            private bool isAsync;
 
-            public CustomFunction(IReadOnlyList<(string paramName, bool isRest)> parameters, Statement body, VariableScope scope, bool isLambda)
+            public CustomFunction(IReadOnlyList<(string paramName, bool isRest)> parameters, Statement body, VariableScope scope, bool isLambda, bool isAsync)
             {
                 this.parameters = parameters;
                 this.body = body;
                 this.scope = scope;
                 this.isLambda = isLambda;
+                this.isAsync = isAsync;
             }
 
             public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
@@ -1334,7 +1363,16 @@ namespace CasualConsole.Interpreter
 
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
-                return body.EvaluateStatement(context);
+                if (!isAsync)
+                {
+                    return body.EvaluateStatement(context);
+                }
+                else
+                {
+                    Task<(CustomValue value, bool isReturn, bool isBreak, bool isContinue)> promiseTask = Task.Run(() => body.EvaluateStatement(context));
+                    CustomValue promise = CustomValue.FromPromise(promiseTask);
+                    return (promise, false, false, false);
+                }
             }
         }
         class InternalFunction : FunctionObject
@@ -1514,6 +1552,11 @@ namespace CasualConsole.Interpreter
                 return new CustomValue(array, ValueType.Array);
             }
 
+            internal static CustomValue FromPromise(Task<(CustomValue value, bool isReturn, bool isBreak, bool isContinue)> promise)
+            {
+                return new CustomValue(promise, ValueType.Promise);
+            }
+
             internal bool IsTruthy()
             {
                 switch (type)
@@ -1531,6 +1574,8 @@ namespace CasualConsole.Interpreter
                     case ValueType.Function:
                         return true;
                     case ValueType.Array:
+                        return true;
+                    case ValueType.Promise:
                         return true;
                     default:
                         throw new Exception();
@@ -1590,6 +1635,7 @@ namespace CasualConsole.Interpreter
             Function,
             Map,
             Array,
+            Promise,
         }
 
         enum AssignmentType
@@ -1966,7 +2012,7 @@ namespace CasualConsole.Interpreter
                                 if (expression is SingleTokenVariableExpression singleTokenVariableExpression)
                                 {
                                     var parameterTokens = new string[] { singleTokenVariableExpression.token };
-                                    return FunctionStatement.FromParametersAndBody(parameterTokens, functionBodyTokens, isLambda: true);
+                                    return FunctionStatement.FromParametersAndBody(parameterTokens, functionBodyTokens, isLambda: true, false);
                                 }
                                 else
                                     throw new Exception();
@@ -2072,6 +2118,12 @@ namespace CasualConsole.Interpreter
             public static (Expression, int) ReadExpression(IReadOnlyList<string> tokens, int index)
             {
                 var token = tokens[index];
+                if (token == "await")
+                {
+                    var (expressionRest, lastIndex) = ReadExpression(tokens, index + 1);
+                    var newExpression = new AwaitExpression(expressionRest);
+                    return (newExpression, lastIndex);
+                }
                 if (token == "-" || token == "+")
                 {
                     var (expressionRest, lastIndex) = ReadExpression(tokens, index + 1);
@@ -2110,7 +2162,7 @@ namespace CasualConsole.Interpreter
                         var (functionBodyTokens, end) = ReadBodyTokensAndEnd(tokens, newend + 1);
 
                         var parameterTokens = new CustomRange<string>(tokens, index + 1, newend);
-                        var functionExpression = FunctionStatement.FromParametersAndBody(parameterTokens, functionBodyTokens, isLambda);
+                        var functionExpression = FunctionStatement.FromParametersAndBody(parameterTokens, functionBodyTokens, isLambda, false);
 
                         return (functionExpression, end + 1);
                     }
@@ -2148,8 +2200,14 @@ namespace CasualConsole.Interpreter
                 {
                     return (nullExpression, index + 1);
                 }
-                if (token == "function")
+                if (tokens[index] == "function" || (tokens[index] == "async" && tokens[index + 1] == "function"))
                 {
+                    bool isAsync = token == "async";
+                    if (isAsync)
+                    {
+                        tokens = new CustomRange<string>(tokens, 1, tokens.Count);
+                    }
+
                     if (tokens[index + 1] != "(")
                         throw new Exception();
                     var parenthesesEnd = tokens.IndexOfParenthesesEnd(index + 2);
@@ -2162,8 +2220,40 @@ namespace CasualConsole.Interpreter
                         throw new Exception();
 
                     var functionExpressionTokens = new CustomRange<string>(tokens, index, bracesEnd + 1);
-                    var functionExpression = FunctionStatement.FromTokens(functionExpressionTokens, isLambda: false);
-                    return (functionExpression, bracesEnd + 1);
+                    var functionExpression = FunctionStatement.FromTokens(functionExpressionTokens, isLambda: false, isAsync);
+                    return (functionExpression, isAsync ? bracesEnd + 2 : bracesEnd + 1);
+                }
+                if (token == "async")
+                {
+                    // Async lambda here
+
+                    var lambdaIndex = tokens.IndexOf("=>", 1);
+                    if (lambdaIndex < 0)
+                        throw new Exception();
+
+                    var paramTokens = new CustomRange<string>(tokens, index + 1, lambdaIndex);
+                    if (paramTokens.Count <= 0)
+                        throw new Exception();
+
+                    IReadOnlyList<string> parameters;
+                    if (paramTokens[0] == "(")
+                    {
+                        if (paramTokens[paramTokens.Count - 1] != ")")
+                            throw new Exception();
+
+                        parameters = new CustomRange<string>(paramTokens, 1, paramTokens.Count - 1);
+                    }
+                    else if (paramTokens.Count == 1)
+                    {
+                        parameters = paramTokens;
+                    }
+                    else
+                        throw new Exception();
+
+                    var (body, end) = ReadBodyTokensAndEnd(tokens, lambdaIndex);
+                    var function = FunctionStatement.FromParametersAndBody(parameters, body, isLambda: true, isAsync: true);
+
+                    return (function, end + 1);
                 }
                 if (IsNumber(token))
                 {
@@ -2687,6 +2777,31 @@ namespace CasualConsole.Interpreter
                 return isPre ? newValue : oldValue;
             }
         }
+        class AwaitExpression : HasRestExpression
+        {
+            private Expression expressionRest;
+
+            public Expression ExpressionRest { get { return expressionRest; } set { expressionRest = value; } }
+
+            public AwaitExpression(Expression expressionRest)
+            {
+                this.expressionRest = expressionRest;
+            }
+
+            public CustomValue EvaluateExpression(Context context)
+            {
+                var rest = expressionRest.EvaluateExpression(context);
+
+                while (rest.type == ValueType.Promise)
+                {
+                    var task = (Task<(CustomValue value, bool isReturn, bool isBreak, bool isContinue)>)rest.value;
+                    var (restValue, isReturn, isBreak, isContinue) = task.Result;
+                    rest = restValue;
+                }
+
+                return rest;
+            }
+        }
         class AssignmentExpression : Expression
         {
             public Expression lValue;
@@ -2912,13 +3027,17 @@ namespace CasualConsole.Interpreter
                 {
                     eval = context => (CustomValue.Null, false, false, true);
                 }
-                else if (tokens[0] == "function")
+                else if (tokens[0] == "function" || (tokens[0] == "async" && tokens[1] == "function"))
                 {
+                    bool isAsync = tokens[0] == "async";
+                    if (isAsync)
+                        tokens = new CustomRange<string>(tokens, 1, tokens.Count);
+
                     if (!IsVariableName(tokens[1]))
                         throw new Exception();
 
                     var variableName = tokens[1];
-                    var functionStatement = FunctionStatement.FromTokens(tokens, isLambda: false);
+                    var functionStatement = FunctionStatement.FromTokens(tokens, isLambda: false, isAsync: isAsync);
 
                     eval = context =>
                     {
@@ -3304,13 +3423,15 @@ namespace CasualConsole.Interpreter
             List<(string paramName, bool isRest)> parametersList;
             Statement body;
             bool isLambda;
+            bool isAsync;
 
-            private FunctionStatement(IReadOnlyList<string> parameters, Statement body, bool isLambda)
+            private FunctionStatement(IReadOnlyList<string> parameters, Statement body, bool isLambda, bool isAsync)
             {
                 if (parameters.Count > 0 && parameters[0] == "(")
                     throw new Exception();
                 this.body = body;
                 this.isLambda = isLambda;
+                this.isAsync = isAsync;
 
                 // Prepare parameters
                 var parametersSet = new HashSet<string>(); // Set is used to ensure uniqueness
@@ -3345,23 +3466,23 @@ namespace CasualConsole.Interpreter
 
             public StatementType Type => StatementType.FunctionStatement;
 
-            public static FunctionStatement FromParametersAndBody(IReadOnlyList<string> parameterTokens, IReadOnlyList<string> bodyTokens, bool isLambda)
+            public static FunctionStatement FromParametersAndBody(IReadOnlyList<string> parameterTokens, IReadOnlyList<string> bodyTokens, bool isLambda, bool isAsync)
             {
                 var body = StatementMethods.New(bodyTokens);
-                return new FunctionStatement(parameterTokens, body, isLambda);
+                return new FunctionStatement(parameterTokens, body, isLambda, isAsync);
             }
 
-            public static FunctionStatement FromTokens(IReadOnlyList<string> tokens, bool isLambda)
+            public static FunctionStatement FromTokens(IReadOnlyList<string> tokens, bool isLambda, bool isAsync)
             {
                 var parenthesesIndex = tokens.IndexOf("(", 0);
                 var (parameters, bodyTokens) = StatementMethods.GetTokensConditionAndBody(tokens, parenthesesIndex + 1);
                 var body = StatementMethods.New(bodyTokens);
-                return new FunctionStatement(parameters, body, isLambda);
+                return new FunctionStatement(parameters, body, isLambda, isAsync);
             }
 
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
-                var function = new CustomFunction(parametersList, body, context.variableScope, isLambda);
+                var function = new CustomFunction(parametersList, body, context.variableScope, isLambda, isAsync);
                 return (CustomValue.FromFunction(function), false, false, false);
             }
 
