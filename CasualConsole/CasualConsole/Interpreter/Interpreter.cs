@@ -507,6 +507,9 @@ namespace CasualConsole.Interpreter
                 ("(function(){ var total = 0; for(var x of arguments) total += x; return total; })(1,2,3,4)", 10),
                 ("(function(){ var total = 0; for(var x of arguments) total += x; return total; })(2, ...[1,2,3,4,5], 1)", 18),
                 ("(function(x,y,...rest){ var total = 0; for(var x of rest) total+=x; return total })(1,2,3,4,5)", 12),
+                ("var o = { age: 26 }; -o.age", -26),
+                ("var o = { age: 27 }; -o[`age`]", -27),
+                ("-(x => x)(2)", -2),
             };
 
             var interpreter = new Interpreter();
@@ -563,8 +566,8 @@ namespace CasualConsole.Interpreter
                 "...[1,2,3]",
                 "function(x,,x2){}",
                 "function(x,x,x){}",
-                ("(function(...rest1, rest2){})"),
-                ("(function(...rest1, ...rest2){})"),
+                "(function(...rest1, rest2){})",
+                "(function(...rest1, ...rest2){})",
             };
             var interpreter = new Interpreter();
             foreach (var code in testCases)
@@ -1628,11 +1631,11 @@ namespace CasualConsole.Interpreter
             Comparison = 10,
             AddSubtract = 12,
             MultiplyDivide = 13,
+            Increment = 16,
             FunctionCall = 9999,
             Indexing = 9999,
             DotAccess = 9999,
             LambdaExpression = 9999,
-            Increment = 9999,
         }
 
         private class CustomRange<T> : IReadOnlyList<T>
@@ -1858,6 +1861,10 @@ namespace CasualConsole.Interpreter
             }
         }
 
+        interface HasRestExpression : Expression
+        {
+            Expression ExpressionRest { get; set; }
+        }
         interface Expression
         {
             CustomValue EvaluateExpression(Context context);
@@ -1979,7 +1986,15 @@ namespace CasualConsole.Interpreter
 
                             AddToLastNode(ref previousExpression, Precedence.FunctionCall, (expression, p) =>
                             {
-                                return new FunctionCallExpression(expression, parameters);
+                                if (expression is HasRestExpression hasRestExpression)
+                                {
+                                    hasRestExpression.ExpressionRest = new FunctionCallExpression(hasRestExpression.ExpressionRest, parameters);
+                                    return hasRestExpression;
+                                }
+                                else
+                                {
+                                    return new FunctionCallExpression(expression, parameters);
+                                }
                             });
 
                             index = end + 1;
@@ -2008,10 +2023,10 @@ namespace CasualConsole.Interpreter
 
                             AddToLastNode(ref previousExpression, Precedence.Indexing, (expression, p) =>
                             {
-                                if (expression is PrePostIncDecExpression prePostIncDecExpression)
+                                if (expression is HasRestExpression hasRestExpression)
                                 {
-                                    prePostIncDecExpression.expressionRest = new IndexingExpression(prePostIncDecExpression.expressionRest, keyExpressionTokens);
-                                    return prePostIncDecExpression;
+                                    hasRestExpression.ExpressionRest = new IndexingExpression(hasRestExpression.ExpressionRest, keyExpressionTokens);
+                                    return hasRestExpression;
                                 }
                                 else
                                 {
@@ -2032,10 +2047,10 @@ namespace CasualConsole.Interpreter
 
                             AddToLastNode(ref previousExpression, Precedence.DotAccess, (expression, p) =>
                             {
-                                if (expression is PrePostIncDecExpression prePostIncDecExpression)
+                                if (expression is HasRestExpression hasRestExpression)
                                 {
-                                    prePostIncDecExpression.expressionRest = new DotAccessExpression(prePostIncDecExpression.expressionRest, fieldName);
-                                    return prePostIncDecExpression;
+                                    hasRestExpression.ExpressionRest = new DotAccessExpression(hasRestExpression.ExpressionRest, fieldName);
+                                    return hasRestExpression;
                                 }
                                 else
                                 {
@@ -2226,6 +2241,8 @@ namespace CasualConsole.Interpreter
             internal Precedence precedence;
             private Expression firstExpression;
             internal List<(Operator operatorToken, Expression)> nextValues;
+
+            public Precedence Precedence => precedence;
 
             public TreeExpression(Precedence precedence, Expression firstExpression)
             {
@@ -2596,10 +2613,12 @@ namespace CasualConsole.Interpreter
                 return value;
             }
         }
-        class SinglePlusMinusExpression : Expression
+        class SinglePlusMinusExpression : HasRestExpression
         {
             private bool isMinus;
             private Expression expressionRest;
+
+            public Expression ExpressionRest { get { return expressionRest; } set { expressionRest = value; } }
 
             public SinglePlusMinusExpression(string token, Expression expressionRest)
             {
@@ -2625,9 +2644,11 @@ namespace CasualConsole.Interpreter
                     return CustomValue.FromNumber((double)rest.value);
             }
         }
-        class NotExpression : Expression
+        class NotExpression : HasRestExpression
         {
             private Expression expressionRest;
+
+            public Expression ExpressionRest { get { return expressionRest; } set { expressionRest = value; } }
 
             public NotExpression(Expression expressionRest)
             {
@@ -2641,11 +2662,13 @@ namespace CasualConsole.Interpreter
                 return restValue ? CustomValue.False : CustomValue.True;
             }
         }
-        class PrePostIncDecExpression : Expression
+        class PrePostIncDecExpression : HasRestExpression
         {
-            internal Expression expressionRest;
+            private Expression expressionRest;
             bool isPre;
             bool isInc;
+
+            public Expression ExpressionRest { get { return expressionRest; } set { expressionRest = value; } }
 
             public PrePostIncDecExpression(Expression expressionRest, bool isPre, bool isInc)
             {
