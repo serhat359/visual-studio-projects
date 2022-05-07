@@ -1005,13 +1005,13 @@ namespace CasualConsole.Interpreter
             return totalValue;
         }
 
-        private static CustomValue GetValueFromExpression(IReadOnlyList<string> expressionTokens, Context context)
+        private static Expression GetExpression(IReadOnlyList<string> expressionTokens)
         {
             if (expressionTokens.Count == 0)
                 throw new Exception();
 
             var expressionTree = ExpressionMethods.New(expressionTokens);
-            return expressionTree.EvaluateExpression(context);
+            return expressionTree;
         }
 
         private static CustomValue DoIndexingGet(CustomValue baseExpressionValue, CustomValue keyExpressionValue, Context context)
@@ -2839,48 +2839,55 @@ namespace CasualConsole.Interpreter
         }
         class LineStatement : Statement
         {
-            IReadOnlyList<string> tokens;
-            bool hasSemiColon;
+            Func<Context, (CustomValue value, bool isReturn, bool isBreak, bool isContinue)> eval;
 
             public LineStatement(IReadOnlyList<string> tokens)
             {
+                var hasSemiColon = false;
                 if (tokens[tokens.Count - 1] == ";")
                 {
                     hasSemiColon = true;
                     tokens = new CustomRange<string>(tokens, 0, tokens.Count - 1);
                 }
 
-                this.tokens = tokens;
-            }
-
-            public StatementType Type => StatementType.LineStatement;
-
-            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
-            {
-                if (tokens.Count == 0) return (CustomValue.Null, false, false, false);
-
-                if (IsAssignmentType(tokens[0], out var assignmentType))
+                if (tokens.Count == 0)
+                {
+                    eval = context => (CustomValue.Null, false, false, false);
+                }
+                else if (IsAssignmentType(tokens[0], out var assignmentType))
                 {
                     // Assignment to new variable
                     var assignmentTree = AssignmentExpression.FromVarStatement(new CustomRange<string>(tokens, 1, tokens.Count), assignmentType);
-                    var value = assignmentTree.EvaluateExpression(context);
-                    return (CustomValue.Null, false, false, false);
+
+                    eval = context =>
+                    {
+                        var value = assignmentTree.EvaluateExpression(context);
+                        return (CustomValue.Null, false, false, false);
+                    };
                 }
                 else if (tokens[0] == "return")
                 {
                     if (tokens.Count == 1)
-                        return (CustomValue.Null, true, false, false);
-                    var returnExpression = ExpressionMethods.New(new CustomRange<string>(tokens, 1, tokens.Count));
-                    var returnValue = returnExpression.EvaluateExpression(context);
-                    return (returnValue, true, false, false);
+                    {
+                        eval = context => (CustomValue.Null, true, false, false);
+                    }
+                    else
+                    {
+                        var returnExpression = ExpressionMethods.New(new CustomRange<string>(tokens, 1, tokens.Count));
+                        eval = context =>
+                        {
+                            var returnValue = returnExpression.EvaluateExpression(context);
+                            return (returnValue, true, false, false);
+                        };
+                    }
                 }
                 else if (tokens[0] == "break")
                 {
-                    return (CustomValue.Null, false, true, false);
+                    eval = context => (CustomValue.Null, false, true, false);
                 }
                 else if (tokens[0] == "continue")
                 {
-                    return (CustomValue.Null, false, false, true);
+                    eval = context => (CustomValue.Null, false, false, true);
                 }
                 else if (tokens[0] == "function")
                 {
@@ -2889,16 +2896,34 @@ namespace CasualConsole.Interpreter
 
                     var variableName = tokens[1];
                     var functionStatement = FunctionStatement.FromTokens(tokens, isLambda: false);
-                    var function = functionStatement.EvaluateExpression(context);
 
-                    context.variableScope.AddVarVariable(variableName, function);
-                    return (CustomValue.Null, false, false, false);
+                    eval = context =>
+                    {
+                        var function = functionStatement.EvaluateExpression(context);
+                        context.variableScope.AddVarVariable(variableName, function);
+                        return (CustomValue.Null, false, false, false);
+                    };
                 }
+                else
+                {
+                    var expression = GetExpression(tokens);
 
-                CustomValue expressionValue = GetValueFromExpression(tokens, context);
-                if (hasSemiColon)
-                    return (CustomValue.Null, false, false, false);
-                return (expressionValue, false, false, false);
+                    eval = context =>
+                    {
+                        var expressionValue = expression.EvaluateExpression(context);
+                        if (hasSemiColon)
+                            return (CustomValue.Null, false, false, false);
+                        else
+                            return (expressionValue, false, false, false);
+                    };
+                }
+            }
+
+            public StatementType Type => StatementType.LineStatement;
+
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+            {
+                return eval(context);
             }
         }
         class BlockStatement : Statement
