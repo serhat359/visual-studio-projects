@@ -19,6 +19,7 @@ namespace CasualConsole.Interpreter
         private static readonly HashSet<string> andOrSet = new HashSet<string>() { "&&", "||", "??" };
         private static readonly HashSet<string> asteriskSlashSet = new HashSet<string>() { "*", "/", "%" };
         private static readonly HashSet<string> keywords = new HashSet<string>() { "this", "var", "let", "const", "if", "while", "for", "break", "continue", "function", "async", "await", "return", "true", "false", "null" };
+        private static readonly HashSet<string> varLetConst = new HashSet<string>() { "var", "let", "const" };
 
         private static Expression trueExpression;
         private static Expression falseExpression;
@@ -84,6 +85,7 @@ namespace CasualConsole.Interpreter
                 ("function customReturnConstant(){ return -8; } customReturnConstant()",new []{ "function customReturnConstant(){ return -8; }", "customReturnConstant()" }),
                 ("for(;;){}", new[]{ "for(;;){}" }),
                 ("while(){}", new[]{ "while(){}" }),
+                ("var { a } = {}", new[]{ "var { a } = {}" }),
             };
 
             foreach (var testCase in testCases)
@@ -528,6 +530,7 @@ namespace CasualConsole.Interpreter
                 ("await (async x => x)(2)", 2),
                 ("await 2", 2),
                 ("await await 2", 2),
+                ("var { name1, age1 } = { name1:'serhat', age1: 25 }; name1 == 'serhat' && age1 == 25", true),
             };
 
             var interpreter = new Interpreter();
@@ -737,7 +740,7 @@ namespace CasualConsole.Interpreter
                     if (tokens[i + 1] == "(")
                         hasFunction = true;
                 }
-                else if (tokens[i] == "{")
+                else if (tokens[i] == "{" && !(i - 1 >= 0 && varLetConst.Contains(tokens[i - 1])))
                 {
                     int braceCount = 1;
                     i++;
@@ -1839,7 +1842,7 @@ namespace CasualConsole.Interpreter
             public static VariableScope GetNewLoopScope(VariableScope scope, AssignmentType assignmentType, string variableName, CustomValue variableValue)
             {
                 var loopScope = ScopeForLoop(scope, assignmentType);
-                AssignVariable(loopScope, assignmentType, variableName, variableValue);
+                loopScope.AssignVariable(assignmentType, variableName, variableValue);
                 return loopScope;
             }
             public static VariableScope GetNewLoopScopeCopy(VariableScope scope, AssignmentType assignmentType)
@@ -1850,7 +1853,7 @@ namespace CasualConsole.Interpreter
                 {
                     var variableName = variable.Key;
                     var (variableValue, _) = variable.Value;
-                    AssignVariable(newScope, assignmentType, variableName, variableValue);
+                    newScope.AssignVariable(assignmentType, variableName, variableValue);
                 }
 
                 return newScope;
@@ -1874,21 +1877,21 @@ namespace CasualConsole.Interpreter
                         throw new Exception();
                 }
             }
-            private static void AssignVariable(VariableScope scope, AssignmentType assignmentType, string variableName, CustomValue variableValue)
+            public void AssignVariable(AssignmentType assignmentType, string variableName, CustomValue variableValue)
             {
                 switch (assignmentType)
                 {
                     case AssignmentType.None:
-                        scope.SetVariable(variableName, variableValue);
+                        this.SetVariable(variableName, variableValue);
                         break;
                     case AssignmentType.Var:
-                        scope.AddVarVariable(variableName, variableValue);
+                        this.AddVarVariable(variableName, variableValue);
                         break;
                     case AssignmentType.Let:
-                        scope.AddLetVariable(variableName, variableValue);
+                        this.AddLetVariable(variableName, variableValue);
                         break;
                     case AssignmentType.Const:
-                        scope.AddConstVariable(variableName, variableValue);
+                        this.AddConstVariable(variableName, variableValue);
                         break;
                     default:
                         break;
@@ -2802,6 +2805,36 @@ namespace CasualConsole.Interpreter
                 return rest;
             }
         }
+        class MapAssignmentExpression : Expression
+        {
+            public IReadOnlyList<string> variableNames;
+            public Expression rValue;
+            public AssignmentType assignmentType;
+
+            public MapAssignmentExpression(IReadOnlyList<string> variableNames, Expression rValue, AssignmentType assignmentType)
+            {
+                this.variableNames = variableNames;
+                this.rValue = rValue;
+                this.assignmentType = assignmentType;
+            }
+
+            public CustomValue EvaluateExpression(Context context)
+            {
+                CustomValue mapValue = rValue.EvaluateExpression(context);
+                if (mapValue.type != ValueType.Map)
+                    throw new Exception();
+                var underlyingMap = (Dictionary<string, CustomValue>)mapValue.value;
+                foreach (var variableName in variableNames)
+                {
+                    if (!underlyingMap.TryGetValue(variableName, out var value))
+                        value = CustomValue.Null;
+
+                    context.variableScope.AssignVariable(assignmentType, variableName, value);
+                }
+
+                return CustomValue.Null;
+            }
+        }
         class AssignmentExpression : Expression
         {
             public Expression lValue;
@@ -2887,10 +2920,37 @@ namespace CasualConsole.Interpreter
                 }
             }
 
-            public static AssignmentExpression FromVarStatement(IReadOnlyList<string> tokens, AssignmentType assignmentType)
+            public static Expression FromVarStatement(IReadOnlyList<string> tokens, AssignmentType assignmentType)
             {
-                var variableName = tokens[0];
-                return new AssignmentExpression(variableName, tokens[1], new CustomRange<string>(tokens, 2, tokens.Count), assignmentType);
+                if (tokens.Count == 1 || tokens[1] == "=")
+                {
+                    var variableName = tokens[0];
+                    return new AssignmentExpression(variableName, tokens[1], new CustomRange<string>(tokens, 2, tokens.Count), assignmentType);
+                }
+                else if (tokens[0] == "{")
+                {
+                    var braceIndex = tokens.IndexOf("}", 1);
+                    if (braceIndex < 1)
+                        throw new Exception();
+                    if (tokens[braceIndex + 1] != "=")
+                        throw new Exception();
+
+                    var variableGroups = SplitBy(new CustomRange<string>(tokens, 1, braceIndex), commaSet);
+                    var variableNames = variableGroups.Select(x =>
+                    {
+                        if (x.Count != 1)
+                            throw new Exception();
+                        return x[0];
+                    }).ToList();
+
+                    var rValueTokens = new CustomRange<string>(tokens, braceIndex + 2, tokens.Count);
+                    var rvalueExpression = ExpressionMethods.New(rValueTokens);
+                    return new MapAssignmentExpression(variableNames, rvalueExpression, assignmentType);
+                }
+                else
+                {
+                    throw new Exception();
+                }
             }
         }
         class TernaryExpression : Expression
