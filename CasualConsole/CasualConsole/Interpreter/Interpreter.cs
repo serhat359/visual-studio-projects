@@ -531,6 +531,7 @@ namespace CasualConsole.Interpreter
                 ("await 2", 2),
                 ("await await 2", 2),
                 ("var { name1, age1 } = { name1:'serhat', age1: 25 }; name1 == 'serhat' && age1 == 25", true),
+                ("var [ n1, n2, n3, n4, n5 ] = [ 5,6,7 ]; n1 == 5 && n2 == 6 && n3 == 7 && n4 == null && n5 == null", true),
             };
 
             var interpreter = new Interpreter();
@@ -2835,6 +2836,35 @@ namespace CasualConsole.Interpreter
                 return CustomValue.Null;
             }
         }
+        class ArrayAssignmentExpression : Expression
+        {
+            public IReadOnlyList<string> variableNames;
+            public Expression rValue;
+            public AssignmentType assignmentType;
+
+            public ArrayAssignmentExpression(IReadOnlyList<string> variableNames, Expression rValue, AssignmentType assignmentType)
+            {
+                this.variableNames = variableNames;
+                this.rValue = rValue;
+                this.assignmentType = assignmentType;
+            }
+
+            public CustomValue EvaluateExpression(Context context)
+            {
+                CustomValue mapValue = rValue.EvaluateExpression(context);
+                if (mapValue.type != ValueType.Array)
+                    throw new Exception();
+                var underlyingArray = ((CustomArray)mapValue.value).list;
+
+                for (int i = 0; i < variableNames.Count; i++)
+                {
+                    var value = i < underlyingArray.Count ? underlyingArray[i] : CustomValue.Null;
+                    context.variableScope.AssignVariable(assignmentType, variableNames[i], value);
+                }
+
+                return CustomValue.Null;
+            }
+        }
         class AssignmentExpression : Expression
         {
             public Expression lValue;
@@ -2946,6 +2976,26 @@ namespace CasualConsole.Interpreter
                     var rValueTokens = new CustomRange<string>(tokens, braceIndex + 2, tokens.Count);
                     var rvalueExpression = ExpressionMethods.New(rValueTokens);
                     return new MapAssignmentExpression(variableNames, rvalueExpression, assignmentType);
+                }
+                else if (tokens[0] == "[")
+                {
+                    var braceIndex = tokens.IndexOf("]", 1);
+                    if (braceIndex < 1)
+                        throw new Exception();
+                    if (tokens[braceIndex + 1] != "=")
+                        throw new Exception();
+
+                    var variableGroups = SplitBy(new CustomRange<string>(tokens, 1, braceIndex), commaSet);
+                    var variableNames = variableGroups.Select(x =>
+                    {
+                        if (x.Count != 1)
+                            throw new Exception();
+                        return x[0];
+                    }).ToList();
+
+                    var rValueTokens = new CustomRange<string>(tokens, braceIndex + 2, tokens.Count);
+                    var rvalueExpression = ExpressionMethods.New(rValueTokens);
+                    return new ArrayAssignmentExpression(variableNames, rvalueExpression, assignmentType);
                 }
                 else
                 {
