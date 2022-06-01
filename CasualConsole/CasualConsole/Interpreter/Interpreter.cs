@@ -156,6 +156,8 @@ namespace CasualConsole.Interpreter
                 ("\"Hello world\"", "Hello world"),
                 ("'Hello world'", "Hello world"),
                 ("('Hello world')", "Hello world"),
+                ("var aaa;", null),
+                ("aaa == null", true),
                 ("var aaa = 2", null),
                 ("var aa = 2;", null),
                 ("var a = 2; a", 2),
@@ -2872,21 +2874,30 @@ namespace CasualConsole.Interpreter
             public Expression rValue;
             public AssignmentType assignmentType;
 
-            public AssignmentExpression(Expression lValue, string assignmentOperator, IReadOnlyList<string> rValueTokens, AssignmentType assignmentType)
+            public AssignmentExpression(Expression lValue, string assignmentOperator, Expression valueExpression, AssignmentType assignmentType)
             {
                 if (!assignmentSet.Contains(assignmentOperator))
                     throw new Exception();
 
                 this.lValue = lValue;
                 this.assignmentOperator = assignmentOperator;
-                this.rValue = ExpressionMethods.New(rValueTokens);
+                this.rValue = valueExpression;
                 this.assignmentType = assignmentType;
+            }
+
+            public AssignmentExpression(Expression lValue, string assignmentOperator, IReadOnlyList<string> rValueTokens, AssignmentType assignmentType)
+                : this(lValue, assignmentOperator, ExpressionMethods.New(rValueTokens), assignmentType)
+            {
+            }
+
+            public AssignmentExpression(string variableName, string assignmentOperator, Expression valueExpression, AssignmentType assignmentType)
+                : this(new SingleTokenVariableExpression(variableName), assignmentOperator, valueExpression, assignmentType)
+            {
             }
 
             public AssignmentExpression(string variableName, string assignmentOperator, IReadOnlyList<string> rValueTokens, AssignmentType assignmentType)
                 : this(new SingleTokenVariableExpression(variableName), assignmentOperator, rValueTokens, assignmentType)
             {
-
             }
 
             public CustomValue EvaluateExpression(Context context)
@@ -2955,7 +2966,10 @@ namespace CasualConsole.Interpreter
                 if (tokens.Count == 1 || tokens[1] == "=")
                 {
                     var variableName = tokens[0];
-                    return new AssignmentExpression(variableName, tokens[1], new CustomRange<string>(tokens, 2, tokens.Count), assignmentType);
+                    if (tokens.Count == 1)
+                        return new AssignmentExpression(variableName, "=", nullExpression, assignmentType);
+                    else
+                        return new AssignmentExpression(variableName, tokens[1], new CustomRange<string>(tokens, 2, tokens.Count), assignmentType);
                 }
                 else if (tokens[0] == "{")
                 {
