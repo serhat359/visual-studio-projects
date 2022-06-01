@@ -601,6 +601,7 @@ namespace CasualConsole.Interpreter
                 "async",
                 "async 2",
                 "async ()",
+                "var i = 12; var o = null; o.i",
             };
             var interpreter = new Interpreter();
             foreach (var code in testCases)
@@ -1050,7 +1051,12 @@ namespace CasualConsole.Interpreter
             return expressionTree;
         }
 
-        private static CustomValue DoIndexingGet(CustomValue baseExpressionValue, CustomValue keyExpressionValue, Context context)
+        private static bool IsThisExpression(Expression baseExpression)
+        {
+            return baseExpression is SingleTokenVariableExpression ex && ex.token == "this";
+        }
+
+        private static CustomValue DoIndexingGet(CustomValue baseExpressionValue, CustomValue keyExpressionValue, Context context, bool isThisToken)
         {
             if (baseExpressionValue.type == ValueType.Map && keyExpressionValue.type == ValueType.String)
             {
@@ -1085,7 +1091,7 @@ namespace CasualConsole.Interpreter
                         return CustomValue.Null;
                 }
             }
-            else if (baseExpressionValue.type == ValueType.Null)
+            else if (isThisToken && baseExpressionValue.type == ValueType.Null)
             {
                 var variableName = (string)keyExpressionValue.value;
                 return context.variableScope.GetVariable(variableName);
@@ -1094,7 +1100,7 @@ namespace CasualConsole.Interpreter
             throw new Exception();
         }
 
-        private static CustomValue DoIndexingSet(CustomValue value, CustomValue baseExpressionValue, CustomValue keyExpressionValue, Context context)
+        private static CustomValue DoIndexingSet(CustomValue value, CustomValue baseExpressionValue, CustomValue keyExpressionValue, Context context, bool isThisToken)
         {
             if (baseExpressionValue.type == ValueType.Map && keyExpressionValue.type == ValueType.String)
             {
@@ -1128,7 +1134,7 @@ namespace CasualConsole.Interpreter
                     }
                 }
             }
-            else if (baseExpressionValue.type == ValueType.Null)
+            else if (isThisToken && baseExpressionValue.type == ValueType.Null)
             {
                 var variableName = (string)keyExpressionValue.value;
                 context.variableScope.SetVariable(variableName, value);
@@ -1152,19 +1158,21 @@ namespace CasualConsole.Interpreter
             {
                 var baseExpressionValue = indexingExpression.baseExpression.EvaluateExpression(context);
                 var keyExpressionValue = indexingExpression.keyExpression.EvaluateExpression(context);
+                var isThis = IsThisExpression(indexingExpression.baseExpression);
 
-                oldValue = DoIndexingGet(baseExpressionValue, keyExpressionValue, context);
+                oldValue = DoIndexingGet(baseExpressionValue, keyExpressionValue, context, isThis);
                 var newValue = operation(oldValue);
-                return DoIndexingSet(newValue, baseExpressionValue, keyExpressionValue, context);
+                return DoIndexingSet(newValue, baseExpressionValue, keyExpressionValue, context, isThis);
             }
             else if (lValue is DotAccessExpression dotAccessExpression)
             {
                 var baseExpressionValue = dotAccessExpression.baseExpression.EvaluateExpression(context);
                 var keyExpressionValue = dotAccessExpression.keyExpressionValue;
+                var isThis = IsThisExpression(dotAccessExpression.baseExpression);
 
-                oldValue = DoIndexingGet(baseExpressionValue, keyExpressionValue, context);
+                oldValue = DoIndexingGet(baseExpressionValue, keyExpressionValue, context, isThis);
                 var newValue = operation(oldValue);
-                return DoIndexingSet(newValue, baseExpressionValue, keyExpressionValue, context);
+                return DoIndexingSet(newValue, baseExpressionValue, keyExpressionValue, context, isThis);
             }
             else
             {
@@ -2486,7 +2494,7 @@ namespace CasualConsole.Interpreter
                 var ownerExpressionValue = baseExpression.EvaluateExpression(context);
                 var keyExpressionValue = keyExpression.EvaluateExpression(context);
 
-                return DoIndexingGet(ownerExpressionValue, keyExpressionValue, context);
+                return DoIndexingGet(ownerExpressionValue, keyExpressionValue, context, IsThisExpression(baseExpression));
             }
         }
         class DotAccessExpression : Expression
@@ -2503,7 +2511,7 @@ namespace CasualConsole.Interpreter
             public CustomValue EvaluateExpression(Context context)
             {
                 var ownerExpressionValue = baseExpression.EvaluateExpression(context);
-                return DoIndexingGet(ownerExpressionValue, keyExpressionValue, context);
+                return DoIndexingGet(ownerExpressionValue, keyExpressionValue, context, IsThisExpression(baseExpression));
             }
         }
         class MapExpression : Expression
