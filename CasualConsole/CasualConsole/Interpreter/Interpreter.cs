@@ -10,7 +10,7 @@ namespace CasualConsole.Interpreter
     public class Interpreter
     {
         private static readonly HashSet<char> onlyChars = new HashSet<char>() { '(', ')', ',', ';', '{', '}', '[', ']' };
-        private static readonly HashSet<char> multiChars = new HashSet<char>() { '+', '-', '*', '/', '%', '=', '?', ':', '<', '>', '&', '|', '!', '.' };
+        private static readonly HashSet<string> operators = new HashSet<string>() { "+", "-", "*", "/", "%", "=", "?", ":", "<", ">", "<=", ">=", "&&", "||", "??", "!", "!=", ".", "==", "+=", "-=", "*=", "/=", "%=", "=>", "++", "--", "..." };
         private static readonly HashSet<string> assignmentSet = new HashSet<string>() { "=", "+=", "-=", "*=", "/=", "%=" };
         private static readonly HashSet<string> commaSet = new HashSet<string>() { "," };
         private static readonly HashSet<string> semicolonSet = new HashSet<string>() { ";" };
@@ -20,6 +20,7 @@ namespace CasualConsole.Interpreter
         private static readonly HashSet<string> asteriskSlashSet = new HashSet<string>() { "*", "/", "%" };
         private static readonly HashSet<string> keywords = new HashSet<string>() { "this", "var", "let", "const", "if", "while", "for", "break", "continue", "function", "async", "await", "return", "true", "false", "null" };
         private static readonly HashSet<string> varLetConst = new HashSet<string>() { "var", "let", "const" };
+        private static readonly Dictionary<char, Dictionary<char, HashSet<char>>> operatorsCompiled;
 
         private static Expression trueExpression;
         private static Expression falseExpression;
@@ -37,6 +38,15 @@ namespace CasualConsole.Interpreter
             var func = new ArrayPopFunction();
             return CustomValue.FromFunction(func);
         });
+
+        static Interpreter()
+        {
+            operatorsCompiled = operators.GroupBy(x => x[0]).ToDictionary(x => x.Key, x =>
+            {
+                var innerMap = new Dictionary<char, HashSet<char>>();
+                return x.Where(y => y.Length > 1).GroupBy(y => y[1]).ToDictionary(y => y.Key, y => y.Where(z => z.Length > 2).Select(z => z[2]).ToHashSet());
+            });
+        }
 
         private Context defaultContext;
 
@@ -534,6 +544,7 @@ namespace CasualConsole.Interpreter
                 ("await await 2", 2),
                 ("var { name1, age1 } = { name1:'serhat', age1: 25 }; name1 == 'serhat' && age1 == 25", true),
                 ("var [ n1, n2, n3, n4, n5 ] = [ 5,6,7 ]; n1 == 5 && n2 == 6 && n3 == 7 && n4 == null && n5 == null", true),
+                ("(()=>-2)()", -2),
             };
 
             var interpreter = new Interpreter();
@@ -1293,19 +1304,24 @@ namespace CasualConsole.Interpreter
                         throw new Exception();
                     }
                 }
-                else if (c == '!' && content[i + 1] == '!')
-                {
-                    i++;
-                    yield return c.ToString();
-                }
-                else if (multiChars.Contains(c))
+                else if (operatorsCompiled.TryGetValue(c, out var level1Map))
                 {
                     int start = i;
                     i++;
-                    while (i < content.Length && multiChars.Contains(content[i]))
+
+                    if (i < content.Length && level1Map.TryGetValue(content[i], out var level2Set))
+                    {
                         i++;
-                    string token = content.Substring(start, i - start);
-                    yield return token;
+                        if (i < content.Length && level2Set.Contains(content[i]))
+                        {
+                            i++;
+                            yield return content.Substring(start, i - start);
+                        }
+                        else
+                            yield return content.Substring(start, i - start);
+                    }
+                    else
+                        yield return content.Substring(start, i - start);
                 }
                 else if (onlyChars.Contains(c))
                 {
