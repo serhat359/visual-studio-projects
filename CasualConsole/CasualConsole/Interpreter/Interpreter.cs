@@ -22,11 +22,9 @@ namespace CasualConsole.Interpreter
         private static readonly HashSet<string> varLetConst = new HashSet<string>() { "var", "let", "const" };
         private static readonly Dictionary<char, Dictionary<char, HashSet<char>>> operatorsCompiled;
 
-        private static Expression trueExpression;
-        private static Expression falseExpression;
-        private static Expression nullExpression;
-
-        private static InternalFunction printFunction;
+        private static readonly Expression trueExpression;
+        private static readonly Expression falseExpression;
+        private static readonly Expression nullExpression;
 
         private static readonly Lazy<CustomValue> arrayPushFunction = new Lazy<CustomValue>(() =>
         {
@@ -41,6 +39,10 @@ namespace CasualConsole.Interpreter
 
         static Interpreter()
         {
+            trueExpression = new CustomValueExpression(CustomValue.True);
+            falseExpression = new CustomValueExpression(CustomValue.False);
+            nullExpression = new CustomValueExpression(CustomValue.Null);
+
             operatorsCompiled = operators.GroupBy(x => x[0]).ToDictionary(x => x.Key, x =>
             {
                 var innerMap = new Dictionary<char, HashSet<char>>();
@@ -57,11 +59,8 @@ namespace CasualConsole.Interpreter
             var defaultThisOwner = CustomValue.Null;
             defaultContext = new Context(defaultVariableScope, defaultThisOwner);
 
-            trueExpression = new CustomValueExpression(CustomValue.True);
-            falseExpression = new CustomValueExpression(CustomValue.False);
-            nullExpression = new CustomValueExpression(CustomValue.Null);
-
-            printFunction = new InternalFunction("print");
+            var printFunction = new InternalFunction("print");
+            defaultvariables["print"] = (CustomValue.FromFunction(printFunction), AssignmentType.Const);
         }
 
         public object InterpretCode(string code)
@@ -852,24 +851,18 @@ namespace CasualConsole.Interpreter
         private static FunctionObject GetFunctionObject(CustomValue f)
         {
             if (f.type != ValueType.Function)
-                throw new Exception();
+                throw new Exception("variable is not a function");
             return (FunctionObject)f.value;
         }
 
         private static FunctionObject GetFunctionObject(string functionName, VariableScope variableScope)
         {
-            switch (functionName)
-            {
-                case "print":
-                    return printFunction;
-            }
-
             if (variableScope.TryGetVariable(functionName, out var f))
             {
                 return GetFunctionObject(f);
             }
 
-            throw new Exception();
+            throw new Exception($"function not defined: {functionName}");
         }
 
         private static bool Compare(CustomValue first, CustomValue second, Operator operatorType)
@@ -1708,9 +1701,9 @@ namespace CasualConsole.Interpreter
             AddSubtract = 12,
             MultiplyDivide = 13,
             Increment = 16,
-            FunctionCall = 9999,
-            Indexing = 9999,
-            DotAccess = 9999,
+            FunctionCall = 18,
+            Indexing = 18,
+            DotAccess = 18,
             LambdaExpression = 9999,
         }
 
@@ -2035,6 +2028,8 @@ namespace CasualConsole.Interpreter
 
                         if (newToken == "=>")
                         {
+                            // Read operator
+                            // Handle lambda, async: false
                             var (functionBodyTokens, end) = ReadBodyTokensAndEnd(tokens, index);
 
                             AddToLastNode(ref previousExpression, Precedence.LambdaExpression, (expression, p) =>
@@ -2042,7 +2037,7 @@ namespace CasualConsole.Interpreter
                                 if (expression is SingleTokenVariableExpression singleTokenVariableExpression)
                                 {
                                     var parameterTokens = new string[] { singleTokenVariableExpression.token };
-                                    return FunctionStatement.FromParametersAndBody(parameterTokens, functionBodyTokens, isLambda: true, false);
+                                    return FunctionStatement.FromParametersAndBody(parameterTokens, functionBodyTokens, isLambda: true, isAsync: false);
                                 }
                                 else
                                     throw new Exception();
@@ -2079,6 +2074,7 @@ namespace CasualConsole.Interpreter
 
                         if (newToken == "++" || newToken == "--")
                         {
+                            // Postfix increment
                             var isInc = newToken == "++";
                             AddToLastNode(ref previousExpression, Precedence.Indexing, (expression, p) =>
                             {
@@ -2168,6 +2164,7 @@ namespace CasualConsole.Interpreter
                 }
                 if (token == "++" || token == "--")
                 {
+                    // Prefix increment
                     var isInc = token == "++";
                     var (expressionRest, lastIndex) = ReadExpression(tokens, index + 1);
                     var newExpression = new PrePostIncDecExpression(expressionRest, isPre: true, isInc: isInc);
@@ -2189,10 +2186,12 @@ namespace CasualConsole.Interpreter
                     }
                     else
                     {
+                        // Read expression
+                        // Lambda, async: false
                         var (functionBodyTokens, end) = ReadBodyTokensAndEnd(tokens, newend + 1);
 
                         var parameterTokens = new CustomRange<string>(tokens, index + 1, newend);
-                        var functionExpression = FunctionStatement.FromParametersAndBody(parameterTokens, functionBodyTokens, isLambda, false);
+                        var functionExpression = FunctionStatement.FromParametersAndBody(parameterTokens, functionBodyTokens, isLambda, isAsync: false);
 
                         return (functionExpression, end + 1);
                     }
