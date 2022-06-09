@@ -1701,7 +1701,7 @@ namespace CasualConsole.Interpreter
             Comparison = 10,
             AddSubtract = 12,
             MultiplyDivide = 13,
-            Increment = 16,
+            PostfixIncrement = 16,
             FunctionCall = 18,
             Indexing = 18,
             DotAccess = 18,
@@ -2077,7 +2077,7 @@ namespace CasualConsole.Interpreter
                         {
                             // Postfix increment
                             var isInc = newToken == "++";
-                            AddToLastNode(ref previousExpression, Precedence.Indexing, (expression, p) =>
+                            AddToLastNode(ref previousExpression, Precedence.PostfixIncrement, (expression, p) =>
                             {
                                 return new PrePostIncDecExpression(expression, isPre: false, isInc: isInc);
                             });
