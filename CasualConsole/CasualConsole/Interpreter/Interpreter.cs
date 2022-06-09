@@ -612,6 +612,7 @@ namespace CasualConsole.Interpreter
                 "async 2",
                 "async ()",
                 "var i = 12; var o = null; o.i",
+                "function vvv() print('hello')",
             };
             var interpreter = new Interpreter();
             foreach (var code in testCases)
@@ -3575,6 +3576,8 @@ namespace CasualConsole.Interpreter
             private FunctionStatement(IReadOnlyList<string> parameters, Statement body, bool isLambda, bool isAsync)
             {
                 if (parameters.Count > 0 && parameters[0] == "(")
+                    throw new Exception();
+                if (!isLambda && body is LineStatement)
                     throw new Exception();
                 this.body = body;
                 this.isLambda = isLambda;
