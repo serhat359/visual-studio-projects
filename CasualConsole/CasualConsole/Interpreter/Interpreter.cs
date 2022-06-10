@@ -67,7 +67,20 @@ namespace CasualConsole.Interpreter
         {
             var tokens = GetTokens(code).ToList();
 
-            return InterpretTokens(tokens).value;
+            CustomValue value = CustomValue.Null;
+            bool isReturn;
+            bool isBreak;
+            bool isContinue;
+
+            var statements = GetStatements(tokens);
+            foreach (var statement in statements)
+            {
+                (value, isReturn, isBreak, isContinue) = statement.EvaluateStatement(defaultContext);
+                if (isReturn || isBreak || isContinue)
+                    throw new Exception();
+            }
+
+            return value.value;
         }
 
         private static void GetStatementRangesTest(bool verbose)
@@ -544,6 +557,7 @@ namespace CasualConsole.Interpreter
                 ("var { name1, age1 } = { name1:'serhat', age1: 25 }; name1 == 'serhat' && age1 == 25", true),
                 ("var [ n1, n2, n3, n4, n5 ] = [ 5,6,7 ]; n1 == 5 && n2 == 6 && n3 == 7 && n4 == null && n5 == null", true),
                 ("(()=>-2)()", -2),
+                ("var ff = ()=> { var elseif1 = 1; if(false) elseif1 = 10; else if (false) elseif1 = 11; else if (true) elseif1 = 12; else elseif1 = 13; return elseif1; } ff()", 12),
             };
 
             var interpreter = new Interpreter();
@@ -613,6 +627,16 @@ namespace CasualConsole.Interpreter
                 "async ()",
                 "var i = 12; var o = null; o.i",
                 "function vvv() print('hello')",
+                "return 1;",
+                "{ return 1; }",
+                "break;",
+                "{ break; }",
+                "continue;",
+                "{ continue; }",
+                "else if(true) { ; }",
+                "else { ; }",
+                "if(false) {} else {} else {}",
+                "if(false) {} else {} else if(true) {}",
             };
             var interpreter = new Interpreter();
             foreach (var code in testCases)
@@ -647,77 +671,59 @@ namespace CasualConsole.Interpreter
             }
         }
 
-        private CustomValue InterpretTokens(IReadOnlyList<string> tokenSource)
+        private static IEnumerable<Statement> GetStatements(IReadOnlyList<string> tokens)
         {
-            var statementRanges = GetStatementRanges(tokenSource);
-            var statementRangesEnumerator = statementRanges.GetEnumerator();
+            var statementRanges = GetStatementRanges(tokens);
+            var statementEnumerator = statementRanges.Select(range => StatementMethods.New(range)).GetEnumerator();
 
-            while (statementRangesEnumerator.MoveNext())
+            Statement previousStatement;
+
+            if (!statementEnumerator.MoveNext())
+                yield break;
+
+            previousStatement = statementEnumerator.Current;
+            if (previousStatement.Type == StatementType.ElseIfStatement || previousStatement.Type == StatementType.ElseStatement)
+                throw new Exception();
+
+            while (statementEnumerator.MoveNext())
             {
-                var statementRange = statementRangesEnumerator.Current;
-                var statement = StatementMethods.New(statementRange);
+                var currentStatement = statementEnumerator.Current;
 
-                if (statement.Type == StatementType.ElseIfStatement || statement.Type == StatementType.ElseStatement)
-                    throw new Exception();
-
-                if (statement.Type == StatementType.IfStatement)
+                if (currentStatement.Type == StatementType.ElseIfStatement || currentStatement.Type == StatementType.ElseStatement)
                 {
-                    CustomRange<string> nonIfElseStatementRange = null;
-                    Statement nonIfElseStatement = null;
+                    // Handle if scenario
+                    if (previousStatement.Type != StatementType.IfStatement)
+                        throw new Exception();
 
-                    var ifStatement = (IfStatement)statement;
-                    while (ifStatement.statementOfIf.Type == StatementType.IfStatement)
+                    var innermostIfStatement = (IfStatement)previousStatement;
+                    while (innermostIfStatement.statementOfIf.Type == StatementType.IfStatement)
                     {
-                        ifStatement = (IfStatement)ifStatement.statementOfIf;
+                        innermostIfStatement = (IfStatement)innermostIfStatement.statementOfIf;
                     }
 
-                    while (statementRangesEnumerator.MoveNext())
+                    while (currentStatement.Type == StatementType.ElseIfStatement)
                     {
-                        var statementRangeAfterIf = statementRangesEnumerator.Current;
-                        var statementAfterIf = StatementMethods.New(statementRangeAfterIf);
-                        if (statementAfterIf.Type == StatementType.ElseIfStatement)
+                        innermostIfStatement.AddElseIf(currentStatement);
+                        if (!statementEnumerator.MoveNext())
                         {
-                            ifStatement.AddElseIf(statementAfterIf);
+                            yield return previousStatement;
+                            yield break;
                         }
-                        else if (statementAfterIf.Type == StatementType.ElseStatement)
-                        {
-                            ifStatement.SetElse(statementAfterIf);
-                            break;
-                        }
-                        else
-                        {
-                            nonIfElseStatement = statementAfterIf;
-                            nonIfElseStatementRange = statementRangeAfterIf;
-                            break;
-                        }
+                        currentStatement = statementEnumerator.Current;
                     }
 
-                    var value = GetValueFromStatement(ifStatement, defaultContext);
-                    if (statementRange.end == tokenSource.Count)
+                    if (currentStatement.Type == StatementType.ElseStatement)
                     {
-                        return value.Item1;
-                    }
-
-                    if (nonIfElseStatement != null)
-                    {
-                        value = GetValueFromStatement(nonIfElseStatement, defaultContext);
-                        if (nonIfElseStatementRange.end == tokenSource.Count)
-                        {
-                            return value.Item1;
-                        }
+                        innermostIfStatement.SetElse(currentStatement);
+                        continue;
                     }
                 }
-                else
-                {
-                    var value = GetValueFromStatement(statement, defaultContext);
-                    if (statementRange.end == tokenSource.Count)
-                    {
-                        return value.Item1;
-                    }
-                }
+
+                yield return previousStatement;
+                previousStatement = currentStatement;
             }
 
-            return CustomValue.Null;
+            yield return previousStatement;
         }
 
         private static IEnumerable<CustomRange<string>> GetStatementRanges(IReadOnlyList<string> tokens)
@@ -812,7 +818,7 @@ namespace CasualConsole.Interpreter
             yield return new CustomRange<string>(tokens, index, tokens.Count);
         }
 
-        private (CustomValue value, bool isReturn, bool isBreak, bool isContinue) GetValueFromStatement(Statement statement, Context context)
+        private static (CustomValue value, bool isReturn, bool isBreak, bool isContinue) GetValueFromStatement(Statement statement, Context context)
         {
             return statement.EvaluateStatement(context);
         }
@@ -3159,8 +3165,7 @@ namespace CasualConsole.Interpreter
                 if (tokens[0] != "{")
                     throw new Exception();
                 tokens = new CustomRange<string>(tokens, 1, tokens.Count - 1);
-                var statementRanges = GetStatementRanges(tokens);
-                statements = statementRanges.Select(range => StatementMethods.New(range)).ToList();
+                statements = GetStatements(tokens).ToList();
             }
 
             public StatementType Type => StatementType.BlockStatement;
@@ -3415,6 +3420,8 @@ namespace CasualConsole.Interpreter
 
             internal void AddElseIf(Statement statementAfterIf)
             {
+                if (elseStatement != null)
+                    throw new Exception();
                 var elseIf = (ElseIfStatement)statementAfterIf;
                 elseIfStatements.Value.Add((elseIf.condition, elseIf.statement));
             }
