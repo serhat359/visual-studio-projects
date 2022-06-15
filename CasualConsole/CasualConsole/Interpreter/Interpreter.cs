@@ -585,6 +585,7 @@ namespace CasualConsole.Interpreter
                 ("o?.name?.()", null),
                 ("o = {};", null),
                 ("o.name?.()", null),
+                ("var potentiallyNullObj = null; var x = 0; var prop = potentiallyNullObj?.[x++]; x", 0),
             };
 
             var interpreter = new Interpreter();
@@ -664,6 +665,7 @@ namespace CasualConsole.Interpreter
                 "else { ; }",
                 "if(false) {} else {} else {}",
                 "if(false) {} else {} else if(true) {}",
+                "var a = null; a.name?.length",
             };
             var interpreter = new Interpreter();
             foreach (var code in testCases)
@@ -780,12 +782,12 @@ namespace CasualConsole.Interpreter
             {
                 var paranBegin = tokens.IndexOf("(", startingIndex);
                 var paranEnd = tokens.IndexOfParenthesesEnd(paranBegin + 1);
-                var braceBegin = tokens.IndexOf("{", paranEnd+1);
+                var braceBegin = tokens.IndexOf("{", paranEnd + 1);
                 var braceEnd = tokens.IndexOfBracesEnd(braceBegin + 1);
                 return braceEnd + 1;
             }
 
-            if (token == "if" || token == "for"|| token == "while")
+            if (token == "if" || token == "for" || token == "while")
             {
                 var paranBegin = tokens.IndexOf("(", startingIndex);
                 var paranEnd = tokens.IndexOfParenthesesEnd(paranBegin + 1);
