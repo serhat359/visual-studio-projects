@@ -10,7 +10,7 @@ namespace CasualConsole.Interpreter
     public class Interpreter
     {
         private static readonly HashSet<char> onlyChars = new HashSet<char>() { '(', ')', ',', ';', '{', '}', '[', ']' };
-        private static readonly HashSet<string> operators = new HashSet<string>() { "+", "-", "*", "/", "%", "=", "?", ":", "<", ">", "<=", ">=", "&&", "||", "??", "!", "!=", ".", "==", "+=", "-=", "*=", "/=", "%=", "=>", "++", "--", "..." };
+        private static readonly HashSet<string> operators = new HashSet<string>() { "+", "-", "*", "/", "%", "=", "?", ":", "<", ">", "<=", ">=", "&&", "||", "??", "!", "!=", ".", "==", "+=", "-=", "*=", "/=", "%=", "=>", "++", "--", "...", "?.", "?.[", "?.(" };
         private static readonly HashSet<string> assignmentSet = new HashSet<string>() { "=", "+=", "-=", "*=", "/=", "%=" };
         private static readonly HashSet<string> commaSet = new HashSet<string>() { "," };
         private static readonly HashSet<string> semicolonSet = new HashSet<string>() { ";" };
@@ -554,6 +554,29 @@ namespace CasualConsole.Interpreter
                 ("var [ n1, n2, n3, n4, n5 ] = [ 5,6,7 ]; n1 == 5 && n2 == 6 && n3 == 7 && n4 == null && n5 == null", true),
                 ("(()=>-2)()", -2),
                 ("var ff = ()=> { var elseif1 = 1; if(false) elseif1 = 10; else if (false) elseif1 = 11; else if (true) elseif1 = 12; else elseif1 = 13; return elseif1; } ff()", 12),
+                ("var o = null;", null),
+                ("o?.name", null),
+                ("o?.['name']", null),
+                ("o?.name?.name", null),
+                ("o?.['name']?.['name']", null),
+                ("o?.name.name", null),
+                ("o?.['name']['name']", null),
+                ("o?.name.name()", null),
+                ("o?.['name']['name']()", null),
+                ("o?.name.name().name", null),
+                ("o?.['name']['name']()['name']", null),
+                ("o?.[2]", null),
+                ("o = [1,2,3];", null),
+                ("o?.[2]", 3),
+                ("o = { name: 'Serhat' };", null),
+                ("o.name", "Serhat"),
+                ("o?.name", "Serhat"),
+                ("o = null;", null),
+                ("o?.()", null),
+                ("o?.name()", null),
+                ("o?.name?.()", null),
+                ("o = {};", null),
+                ("o.name?.()", null),
             };
 
             var interpreter = new Interpreter();
@@ -1618,6 +1641,9 @@ namespace CasualConsole.Interpreter
             MemberAccess,
             ComputedMemberAccess,
             FunctionCall,
+            ConditionalMemberAccess,
+            ConditionalComputedMemberAccess,
+            ConditionalFunctionCall,
         }
 
         enum Precedence : int
@@ -1989,9 +2015,12 @@ namespace CasualConsole.Interpreter
                             continue;
                         }
 
-                        if (newToken == "(")
+                        if (newToken == "(" || newToken == "?.(")
                         {
                             // Function call
+                            var isConditional = newToken == "?.(";
+                            var @operator = isConditional ? Operator.ConditionalFunctionCall : Operator.FunctionCall;
+
                             var end = tokens.IndexOfParenthesesEnd(index + 1);
                             if (end < 0)
                                 throw new Exception();
@@ -2008,24 +2037,24 @@ namespace CasualConsole.Interpreter
                                     else
                                         expressionList.Add((false, ExpressionMethods.New(item)));
                                 }
-                                
+
                                 if (expression is HasRestExpression hasRestExpression)
                                 {
                                     var newExpression = new Op18Expression(hasRestExpression.ExpressionRest);
-                                    newExpression.AddExpression(Operator.FunctionCall, expressionList);
+                                    newExpression.AddExpression(@operator, expressionList);
 
                                     hasRestExpression.ExpressionRest = newExpression;
                                     return hasRestExpression;
                                 }
                                 else if (expression is Op18Expression op18)
                                 {
-                                    op18.AddExpression(Operator.FunctionCall, expressionList);
+                                    op18.AddExpression(@operator, expressionList);
                                     return expression;
                                 }
                                 else
                                 {
                                     var newExpression = new Op18Expression(expression);
-                                    newExpression.AddExpression(Operator.FunctionCall, expressionList);
+                                    newExpression.AddExpression(@operator, expressionList);
                                     return newExpression;
                                 }
                             });
@@ -2034,9 +2063,12 @@ namespace CasualConsole.Interpreter
                             continue;
                         }
 
-                        if (newToken == "[")
+                        if (newToken == "[" || newToken == "?.[")
                         {
                             // Indexing
+                            var isConditional = newToken == "?.[";
+                            var @operator = isConditional ? Operator.ConditionalComputedMemberAccess : Operator.ComputedMemberAccess;
+
                             var end = tokens.IndexOfBracketsEnd(index + 1);
                             if (end < 0)
                                 throw new Exception();
@@ -2049,20 +2081,20 @@ namespace CasualConsole.Interpreter
                                 if (expression is HasRestExpression hasRestExpression)
                                 {
                                     var newExpression = new Op18Expression(hasRestExpression.ExpressionRest);
-                                    newExpression.AddExpression(Operator.ComputedMemberAccess, keyExpression);
+                                    newExpression.AddExpression(@operator, keyExpression);
 
                                     hasRestExpression.ExpressionRest = newExpression;
                                     return hasRestExpression;
                                 }
                                 else if (expression is Op18Expression op18)
                                 {
-                                    op18.AddExpression(Operator.ComputedMemberAccess, keyExpression);
+                                    op18.AddExpression(@operator, keyExpression);
                                     return expression;
                                 }
                                 else
                                 {
                                     var newExpression = new Op18Expression(expression);
-                                    newExpression.AddExpression(Operator.ComputedMemberAccess, keyExpression);
+                                    newExpression.AddExpression(@operator, keyExpression);
                                     return newExpression;
                                 }
                             });
@@ -2071,13 +2103,16 @@ namespace CasualConsole.Interpreter
                             continue;
                         }
 
-                        if (newToken == ".")
+                        if (newToken == "." || newToken == "?.")
                         {
                             // Dot access
+                            var isConditional = newToken == "?.";
+                            var @operator = isConditional ? Operator.ConditionalMemberAccess : Operator.MemberAccess;
+
                             var fieldName = tokens[index + 1];
                             if (!IsVariableName(fieldName))
                                 throw new Exception();
-                            
+
                             AddToLastNode(ref previousExpression, Precedence.DotAccess, (expression, p) =>
                             {
                                 var nextExpression = new CustomValueExpression(CustomValue.FromParsedString(fieldName));
@@ -2085,20 +2120,20 @@ namespace CasualConsole.Interpreter
                                 if (expression is HasRestExpression hasRestExpression)
                                 {
                                     var newExpression = new Op18Expression(hasRestExpression.ExpressionRest);
-                                    newExpression.AddExpression(Operator.MemberAccess, nextExpression);
+                                    newExpression.AddExpression(@operator, nextExpression);
 
                                     hasRestExpression.ExpressionRest = newExpression;
                                     return hasRestExpression;
                                 }
                                 else if (expression is Op18Expression op18)
                                 {
-                                    op18.AddExpression(Operator.MemberAccess, nextExpression);
+                                    op18.AddExpression(@operator, nextExpression);
                                     return expression;
                                 }
                                 else
                                 {
                                     var newExpression = new Op18Expression(expression);
-                                    newExpression.AddExpression(Operator.MemberAccess, nextExpression);
+                                    newExpression.AddExpression(@operator, nextExpression);
                                     return newExpression;
                                 }
                             });
@@ -2455,7 +2490,7 @@ namespace CasualConsole.Interpreter
 
             public CustomValue EvaluateAllButLast(Context context)
             {
-                return Evaluate(context, nextValues.Count-1);
+                return Evaluate(context, nextValues.Count - 1);
             }
 
             public CustomValue EvaluateExpression(Context context)
@@ -2470,6 +2505,34 @@ namespace CasualConsole.Interpreter
                 for (int i = 0; i < count; i++)
                 {
                     var (op, expressions) = nextValues[i];
+                    switch (op)
+                    {
+                        case Operator.ConditionalMemberAccess:
+                            {
+                                if (lastValue.type == ValueType.Null)
+                                    return CustomValue.Null;
+                                else
+                                    op = Operator.MemberAccess;
+                            }
+                            break;
+                        case Operator.ConditionalComputedMemberAccess:
+                            {
+                                if (lastValue.type == ValueType.Null)
+                                    return CustomValue.Null;
+                                else
+                                    op = Operator.ComputedMemberAccess;
+                            }
+                            break;
+                        case Operator.ConditionalFunctionCall:
+                            {
+                                if (lastValue.type == ValueType.Null)
+                                    return CustomValue.Null;
+                                else
+                                    op = Operator.FunctionCall;
+                            }
+                            break;
+                    }
+
                     switch (op)
                     {
                         case Operator.MemberAccess:
