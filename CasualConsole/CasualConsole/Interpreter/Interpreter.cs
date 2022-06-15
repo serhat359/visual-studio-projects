@@ -43,11 +43,7 @@ namespace CasualConsole.Interpreter
             falseExpression = new CustomValueExpression(CustomValue.False);
             nullExpression = new CustomValueExpression(CustomValue.Null);
 
-            operatorsCompiled = operators.GroupBy(x => x[0]).ToDictionary(x => x.Key, x =>
-            {
-                var innerMap = new Dictionary<char, HashSet<char>>();
-                return x.Where(y => y.Length > 1).GroupBy(y => y[1]).ToDictionary(y => y.Key, y => y.Where(z => z.Length > 2).Select(z => z[2]).ToHashSet());
-            });
+            operatorsCompiled = operators.GroupBy(x => x[0]).ToDictionary(x => x.Key, x => x.Where(y => y.Length > 1).GroupBy(y => y[1]).ToDictionary(y => y.Key, y => y.Where(z => z.Length > 2).Select(z => z[2]).ToHashSet()));
         }
 
         private Context defaultContext;
@@ -872,7 +868,7 @@ namespace CasualConsole.Interpreter
             throw new Exception($"function not defined: {functionName}");
         }
 
-        private static bool Compare(CustomValue first, CustomValue second, Operator operatorType)
+        private static bool Compare(CustomValue first, Operator operatorType, CustomValue second)
         {
             if (first.type != second.type)
                 throw new Exception();
@@ -948,7 +944,7 @@ namespace CasualConsole.Interpreter
                 || operatorType == Operator.GreaterThan
                 || operatorType == Operator.LessThanOrEqual
                 || operatorType == Operator.GreaterThanOrEqual)
-                result = Compare(firstValue, value, operatorType);
+                result = Compare(firstValue, operatorType, value);
             else
                 throw new Exception();
 
