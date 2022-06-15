@@ -96,14 +96,22 @@ namespace CasualConsole.Interpreter
                 ("function () {}", new[]{ "function () {}" }),
                 ("() => {}", new[]{ "() => {}" }),
                 ("(x,y) => {}", new[]{ "(x,y) => {}" }),
-                ("function(){} + 1", new[]{ "function(){} + 1" }),
-                ("function(){} + function(){} + function(){}", new[]{ "function(){} + function(){} + function(){}" }),
-                ("function(){};function(){};", new[]{ "function(){};", "function(){};" }),
+                ("() => {};", new[]{ "() => {};" }),
+                ("() => {}; () => {};", new[]{ "() => {};", "() => {};" }),
+                ("function(){};function(){};", new[]{ "function(){}", ";", "function(){}", ";" }),
                 ("var func2 = true ? function(){ return '1'; } : function(){ return '2'; }; func2()", new[]{ "var func2 = true ? function(){ return '1'; } : function(){ return '2'; };", "func2()" }),
                 ("function customReturnConstant(){ return -8; } customReturnConstant()", new[]{ "function customReturnConstant(){ return -8; }", "customReturnConstant()" }),
                 ("for(;;){}", new[]{ "for(;;){}" }),
+                ("for(var x in {}){}", new[]{ "for(var x in {}){}" }),
+                ("for(var x of []){}", new[]{ "for(var x of []){}" }),
                 ("while(){}", new[]{ "while(){}" }),
+                ("while(){} aa", new[]{ "while(){}", "aa" }),
+                ("while(){} var x; aa", new[]{ "while(){}", "var x;", "aa" }),
+                ("if(){} aa", new[]{ "if(){} ", "aa" }),
+                ("else if(){} aa", new[]{ "else if(){} ", "aa" }),
+                ("else{} aa", new[]{ "else{}", "aa" }),
                 ("var { a } = {}", new[]{ "var { a } = {}" }),
+                ("var a = {};", new[]{ "var a = {};" }),
             };
 
             foreach (var testCase in testCases)
@@ -553,7 +561,7 @@ namespace CasualConsole.Interpreter
                 ("var { name1, age1 } = { name1:'serhat', age1: 25 }; name1 == 'serhat' && age1 == 25", true),
                 ("var [ n1, n2, n3, n4, n5 ] = [ 5,6,7 ]; n1 == 5 && n2 == 6 && n3 == 7 && n4 == null && n5 == null", true),
                 ("(()=>-2)()", -2),
-                ("var ff = ()=> { var elseif1 = 1; if(false) elseif1 = 10; else if (false) elseif1 = 11; else if (true) elseif1 = 12; else elseif1 = 13; return elseif1; } ff()", 12),
+                ("var ff = ()=> { var elseif1 = 1; if(false) elseif1 = 10; else if (false) elseif1 = 11; else if (true) elseif1 = 12; else elseif1 = 13; return elseif1; }; ff()", 12),
                 ("var o = null;", null),
                 ("o?.name", null),
                 ("o?.['name']", null),
@@ -761,51 +769,52 @@ namespace CasualConsole.Interpreter
 
         private static int GetStatementEndIndex(IReadOnlyList<string> tokens, int startingIndex)
         {
-            bool hasFunction = false;
-            for (int i = startingIndex; i < tokens.Count; i++)
+            var token = tokens[startingIndex];
+            if (token == "{")
             {
-                if (tokens[i] == "(")
-                {
-                    var newIndex = tokens.IndexOfParenthesesEnd(i + 1);
-                    i = newIndex;
-                }
-
-                if (tokens[i] == ";")
-                {
-                    i++;
-                    return i;
-                }
-                else if (tokens[i] == "function")
-                {
-                    if (tokens[i + 1] == "(")
-                        hasFunction = true;
-                }
-                else if (tokens[i] == "{" && !(i - 1 >= 0 && varLetConst.Contains(tokens[i - 1])))
-                {
-                    int braceCount = 1;
-                    i++;
-                    while (true)
-                    {
-                        if (tokens[i] == "{") braceCount++;
-                        else if (tokens[i] == "}") braceCount--;
-
-                        if (braceCount == 0)
-                        {
-                            if (!hasFunction)
-                            {
-                                return i + 1;
-                            }
-                            else
-                            {
-                                break;
-                            }
-                        }
-
-                        i++;
-                    }
-                }
+                var newIndex = tokens.IndexOfBracesEnd(startingIndex + 1);
+                return newIndex + 1;
             }
-            return tokens.Count;
+
+            if (token == "function")
+            {
+                var paranBegin = tokens.IndexOf("(", startingIndex);
+                var paranEnd = tokens.IndexOfParenthesesEnd(paranBegin + 1);
+                var braceBegin = tokens.IndexOf("{", paranEnd+1);
+                var braceEnd = tokens.IndexOfBracesEnd(braceBegin + 1);
+                return braceEnd + 1;
+            }
+
+            if (token == "if" || token == "for"|| token == "while")
+            {
+                var paranBegin = tokens.IndexOf("(", startingIndex);
+                var paranEnd = tokens.IndexOfParenthesesEnd(paranBegin + 1);
+                return GetStatementEndIndex(tokens, paranEnd + 1);
+            }
+
+            if (token == "else")
+            {
+                return GetStatementEndIndex(tokens, startingIndex + 1);
+            }
+
+            while (true)
+            {
+                if (startingIndex == tokens.Count)
+                    return startingIndex;
+                if (tokens[startingIndex] == ";")
+                    return startingIndex + 1;
+                if (tokens[startingIndex] == "(")
+                {
+                    startingIndex = tokens.IndexOfParenthesesEnd(startingIndex + 1);
+                    continue;
+                }
+                if (tokens[startingIndex] == "{")
+                {
+                    startingIndex = tokens.IndexOfBracesEnd(startingIndex + 1);
+                    continue;
+                }
+                startingIndex++;
+            }
         }
 
         private static IEnumerable<IReadOnlyList<string>> SplitBy(IReadOnlyList<string> tokens, HashSet<string> separator)
