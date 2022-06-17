@@ -1159,7 +1159,13 @@ namespace CasualConsole.Interpreter
         private static bool IsStaticString(string token)
         {
             char firstChar = token[0];
-            return firstChar == '"' || firstChar == '\'' || firstChar == '`';
+            return firstChar == '"' || firstChar == '\'';
+        }
+
+        private static bool IsStaticTemplateString(string token)
+        {
+            char firstChar = token[0];
+            return firstChar == '`';
         }
 
         private static Operator ParseOperator(string token)
@@ -1511,7 +1517,7 @@ namespace CasualConsole.Interpreter
 
             public static CustomValue FromStaticString(string s)
             {
-                var parsedString = SingleTokenStringExpression.ParseString(s, null);
+                var parsedString = SingleTokenStringExpression.ParseStaticString(s);
                 return FromParsedString(parsedString);
             }
 
@@ -2311,6 +2317,10 @@ namespace CasualConsole.Interpreter
                 {
                     return (new SingleTokenStringExpression(token), index + 1);
                 }
+                if (IsStaticTemplateString(token))
+                {
+                    return (new SingleTokenStringTemplateExpression(token), index + 1);
+                }
                 if (IsVariableName(token))
                 {
                     return (new SingleTokenVariableExpression(token), index + 1);
@@ -2714,29 +2724,21 @@ namespace CasualConsole.Interpreter
         }
         class SingleTokenStringExpression : Expression
         {
-            private string token;
+            private CustomValue value;
 
             public SingleTokenStringExpression(string token)
-            {
-                this.token = token;
+{
+                var parsedString = ParseStaticString(token);
+                this.value = CustomValue.FromParsedString(parsedString);
             }
 
             public CustomValue EvaluateExpression(Context context)
             {
-                var parsedString = ParseString(token, context);
-                return CustomValue.FromParsedString(parsedString);
+                return value;
             }
 
-            public static string ParseString(string s, Context context)
+            public static string ParseStaticString(string s)
             {
-                if (s[0] != '"' && s[0] != '\'' && s[0] != '`')
-                    throw new Exception();
-
-                var isBacktickString = s[0] == '`';
-
-                if (isBacktickString && context == null)
-                    throw new Exception();
-
                 char firstChar = s[0];
 
                 var sb = new StringBuilder();
@@ -2745,7 +2747,7 @@ namespace CasualConsole.Interpreter
                     char c = s[i];
                     if (c == firstChar)
                         break;
-                    else if ((c == '\r' || c == '\n') && !isBacktickString)
+                    else if (c == '\r' || c == '\n')
                         throw new Exception();
                     else if (c == '\\')
                     {
@@ -2759,7 +2761,47 @@ namespace CasualConsole.Interpreter
                             case 't': sb.Append('\t'); break;
                             case 'r': sb.Append('\r'); break;
                             case 'n': sb.Append('\n'); break;
-                            case '$': sb.Append(isBacktickString ? c2 : throw new Exception()); break;
+                            default: throw new Exception();
+                        }
+                    }
+                    else
+                        sb.Append(c);
+                }
+                return sb.ToString();
+            }
+        }
+        class SingleTokenStringTemplateExpression : Expression
+        {
+            private string token;
+
+            public SingleTokenStringTemplateExpression(string token)
+            {
+                this.token = token;
+            }
+
+            public static string ParseTemplateLiteralString(string s, Context context)
+            {
+                char firstChar = s[0];
+
+                var sb = new StringBuilder();
+                for (int i = 1; i < s.Length; i++)
+                {
+                    char c = s[i];
+                    if (c == firstChar)
+                        break;
+                    else if (c == '\\')
+                    {
+                        i++;
+                        char c2 = s[i];
+                        switch (c2)
+                        {
+                            case '"': sb.Append(c2); break;
+                            case '\'': sb.Append(c2); break;
+                            case '\\': sb.Append(c2); break;
+                            case 't': sb.Append('\t'); break;
+                            case 'r': sb.Append('\r'); break;
+                            case 'n': sb.Append('\n'); break;
+                            case '$': sb.Append(c2); break;
                             default: throw new Exception();
                         }
                     }
@@ -2778,6 +2820,12 @@ namespace CasualConsole.Interpreter
                         sb.Append(c);
                 }
                 return sb.ToString();
+            }
+
+            public CustomValue EvaluateExpression(Context context)
+            {
+                var parsedString = ParseTemplateLiteralString(token, context);
+                return CustomValue.FromParsedString(parsedString);
             }
         }
         class SingleTokenVariableExpression : Expression
