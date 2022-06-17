@@ -19,7 +19,6 @@ namespace CasualConsole.Interpreter
         private static readonly HashSet<string> andOrSet = new HashSet<string>() { "&&", "||", "??" };
         private static readonly HashSet<string> asteriskSlashSet = new HashSet<string>() { "*", "/", "%" };
         private static readonly HashSet<string> keywords = new HashSet<string>() { "this", "var", "let", "const", "if", "while", "for", "break", "continue", "function", "async", "await", "return", "true", "false", "null" };
-        private static readonly HashSet<string> varLetConst = new HashSet<string>() { "var", "let", "const" };
         private static readonly Dictionary<char, Dictionary<char, HashSet<char>>> operatorsCompiled;
 
         private static readonly Expression trueExpression;
@@ -675,7 +674,7 @@ namespace CasualConsole.Interpreter
                 {
                     var result = interpreter.InterpretCode(code);
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     continue;
                 }
@@ -1572,7 +1571,7 @@ namespace CasualConsole.Interpreter
                 }
             }
 
-            internal string ToString()
+            public override string ToString()
             {
                 if (value == null)
                     return "null";
@@ -3870,7 +3869,7 @@ static class InterpreterExtensions
         return newArr;
     }
 
-    public static bool Equals(object result, object expected)
+    public static new bool Equals(object result, object expected)
     {
         if (result == null)
             return expected == null;
