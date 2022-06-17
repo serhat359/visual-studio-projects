@@ -586,6 +586,7 @@ namespace CasualConsole.Interpreter
                 ("o = {};", null),
                 ("o.name?.()", null),
                 ("var potentiallyNullObj = null; var x = 0; var prop = potentiallyNullObj?.[x++]; x", 0),
+                ("var f = x => `asd${x}asd`; var arr = [f(1),f(2),f(3)]; arr[0] == 'asd1asd' && arr[1] == 'asd2asd' && arr[2] == 'asd3asd'", true),
             };
 
             var interpreter = new Interpreter();
@@ -2772,60 +2773,70 @@ namespace CasualConsole.Interpreter
         }
         class SingleTokenStringTemplateExpression : Expression
         {
-            private string token;
+            private List<object> parts; // Each part can be either a String or an Expression
 
             public SingleTokenStringTemplateExpression(string token)
             {
-                this.token = token;
-            }
+                parts = new List<object>();
 
-            public static string ParseTemplateLiteralString(string s, Context context)
-            {
-                char firstChar = s[0];
-
-                var sb = new StringBuilder();
-                for (int i = 1; i < s.Length; i++)
+                for (int i = 1; i < token.Length; )
                 {
-                    char c = s[i];
-                    if (c == firstChar)
+                    if (token[i] == '`')
                         break;
-                    else if (c == '\\')
+                    else if (token[i] == '$' && token[i + 1] == '{')
                     {
-                        i++;
-                        char c2 = s[i];
-                        switch (c2)
-                        {
-                            case '"': sb.Append(c2); break;
-                            case '\'': sb.Append(c2); break;
-                            case '\\': sb.Append(c2); break;
-                            case 't': sb.Append('\t'); break;
-                            case 'r': sb.Append('\r'); break;
-                            case 'n': sb.Append('\n'); break;
-                            case '$': sb.Append(c2); break;
-                            default: throw new Exception();
-                        }
-                    }
-                    else if (c == '$' && s[i + 1] == '{')
-                    {
-                        var end = s.IndexOfBracesEnd(i + 2);
-                        var substring = s.Substring(i + 2, end - (i + 2));
+                        var end = token.IndexOfBracesEnd(i + 2);
+                        var substring = token.Substring(i + 2, end - (i + 2));
                         var subtokens = GetTokens(substring).ToList();
                         var subExpression = ExpressionMethods.New(subtokens);
-                        var subExpressionValue = subExpression.EvaluateExpression(context);
-                        var subExpressionString = subExpressionValue.ToString();
-                        sb.Append(subExpressionString);
-                        i = end;
+                        parts.Add(subExpression);
+                        i = end + 1;
+                        continue;
                     }
-                    else
-                        sb.Append(c);
+
+                    var sb = new StringBuilder();
+                    while (token[i] != '`' && !(token[i] == '$' && token[i + 1] == '{'))
+                    {
+                        if (token[i] == '\\')
+                        {
+                            i++;
+                            char c2 = token[i];
+                            switch (c2)
+                            {
+                                case '"': sb.Append(c2); break;
+                                case '\'': sb.Append(c2); break;
+                                case '\\': sb.Append(c2); break;
+                                case 't': sb.Append('\t'); break;
+                                case 'r': sb.Append('\r'); break;
+                                case 'n': sb.Append('\n'); break;
+                                case '$': sb.Append(c2); break;
+                                default: throw new Exception();
+                            }
+                        }
+                        else
+                            sb.Append(token[i]);
+                        i++;
+                    }
+                    parts.Add(sb.ToString());
                 }
-                return sb.ToString();
             }
 
             public CustomValue EvaluateExpression(Context context)
             {
-                var parsedString = ParseTemplateLiteralString(token, context);
-                return CustomValue.FromParsedString(parsedString);
+                var sb = new StringBuilder();
+                foreach (var item in parts)
+                {
+                    if (item is string s)
+                    {
+                        sb.Append(s);
+                    }
+                    else
+                    {
+                        var value = ((Expression)item).EvaluateExpression(context);
+                        sb.Append(value.ToString());
+                    }
+                }
+                return CustomValue.FromParsedString(sb.ToString());
             }
         }
         class SingleTokenVariableExpression : Expression
