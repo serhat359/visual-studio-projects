@@ -256,28 +256,9 @@ namespace CasualConsole
             return newArray;
         }
 
-        public static T[] AddSizeWithNew<T>(this T[] array, int increment) where T : new()
-        {
-            T[] newArray = AddSize(array, increment);
-
-            for (int i = array.Length; i < array.Length + increment; i++)
-            {
-                newArray[i] = new T();
-            }
-
-            return newArray;
-        }
-
         public static XmlNode GetChildNamed(this XmlNode node, string name)
         {
             return node.ChildNodes.Cast<XmlNode>().FirstOrDefault(x => x.Name == name);
-        }
-
-        public static bool ContainsCaseInsensitive(this string whole, string substring)
-        {
-            bool contains = whole.IndexOf(substring, StringComparison.OrdinalIgnoreCase) >= 0;
-
-            return contains;
         }
 
         public static void SortBy<T, E>(this List<T> list, Func<T, E> selector)
@@ -323,16 +304,6 @@ namespace CasualConsole
             return System.Collections.Generic.Comparer<T>.Create((x, y) => func(x).CompareTo(func(y)));
         }
 
-        public static bool IsLessThan<E>(this E first, E second) where E : IComparable<E>
-        {
-            return first.CompareTo(second) < 0;
-        }
-
-        public static bool IsGreaterThan<E>(this E first, E second) where E : IComparable<E>
-        {
-            return first.CompareTo(second) > 0;
-        }
-
         public static T ParseJson<T>(this Stream stream)
         {
             using (var otherstream = stream)
@@ -365,6 +336,8 @@ namespace CasualConsole
         {
             using (var response = await client.GetAsync(url))
             {
+                response.EnsureSuccessStatusCode();
+
                 return await response.Content.ReadAsStringAsync();
             }
         }

@@ -1,11 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
-namespace CasualConsole.Interpreter
+namespace CasualConsoleCore.Interpreter
 {
     public class Interpreter
     {
@@ -60,7 +56,7 @@ namespace CasualConsole.Interpreter
 
         public object InterpretCode(string code)
         {
-            var tokens = GetTokens(code).ToList();
+            var tokens = GetTokens(code).ToArray();
 
             CustomValue value = CustomValue.Null;
             bool isReturn;
@@ -115,7 +111,7 @@ namespace CasualConsole.Interpreter
 
             foreach (var testCase in testCases)
             {
-                var tokens = GetTokens(testCase.code).ToList();
+                var tokens = GetTokens(testCase.code).ToArray();
                 var statements = GetStatementRanges(tokens).ToList();
                 if (statements.Count != testCase.statements.Length)
                     throw new Exception();
@@ -700,7 +696,7 @@ namespace CasualConsole.Interpreter
             }
         }
 
-        private static IEnumerable<Statement> GetStatements(IReadOnlyList<string> tokens)
+        private static IEnumerable<Statement> GetStatements(ArraySegment<string> tokens)
         {
             var statementRanges = GetStatementRanges(tokens);
             var statementEnumerator = statementRanges.Select(range => StatementMethods.New(range)).GetEnumerator();
@@ -755,7 +751,7 @@ namespace CasualConsole.Interpreter
             yield return previousStatement;
         }
 
-        private static IEnumerable<CustomRange<string>> GetStatementRanges(IReadOnlyList<string> tokens)
+        private static IEnumerable<ArraySegment<string>> GetStatementRanges(ArraySegment<string> tokens)
         {
             int index = 0;
             while (index < tokens.Count)
@@ -763,13 +759,13 @@ namespace CasualConsole.Interpreter
                 var newIndex = GetStatementEndIndex(tokens, index);
                 if (newIndex <= index)
                     throw new Exception();
-                yield return new CustomRange<string>(tokens, index, newIndex);
+                yield return tokens[index..newIndex];
                 index = newIndex;
             }
             yield break;
         }
 
-        private static int GetStatementEndIndex(IReadOnlyList<string> tokens, int startingIndex)
+        private static int GetStatementEndIndex(ArraySegment<string> tokens, int startingIndex)
         {
             var token = tokens[startingIndex];
             if (token == "{")
@@ -819,7 +815,7 @@ namespace CasualConsole.Interpreter
             }
         }
 
-        private static IEnumerable<IReadOnlyList<string>> SplitBy(IReadOnlyList<string> tokens, HashSet<string> separator)
+        private static IEnumerable<ArraySegment<string>> SplitBy(ArraySegment<string> tokens, HashSet<string> separator)
         {
             if (tokens.Count == 0)
                 yield break;
@@ -841,11 +837,11 @@ namespace CasualConsole.Interpreter
 
                 if (parenthesesCount == 0 && bracketsCount == 0 && bracesCount == 0 && separator.Contains(token))
                 {
-                    yield return new CustomRange<string>(tokens, index, i);
+                    yield return tokens[index..i];
                     index = i + 1;
                 }
             }
-            yield return new CustomRange<string>(tokens, index, tokens.Count);
+            yield return tokens[index..tokens.Count];
         }
 
         private static CustomValue CallFunction(FunctionObject function, IReadOnlyList<CustomValue> arguments, Context context)
@@ -1010,7 +1006,7 @@ namespace CasualConsole.Interpreter
                 throw new Exception();
         }
 
-        private static Expression GetExpression(IReadOnlyList<string> expressionTokens)
+        private static Expression GetExpression(ArraySegment<string> expressionTokens)
         {
             if (expressionTokens.Count == 0)
                 throw new Exception();
@@ -1679,46 +1675,6 @@ namespace CasualConsole.Interpreter
             LambdaExpression = 9999,
         }
 
-        private class CustomRange<T> : IReadOnlyList<T>
-        {
-            public readonly IReadOnlyList<T> array;
-            public readonly int start;
-            public readonly int end;
-
-            public CustomRange(IReadOnlyList<T> array, int start, int end)
-            {
-                if (array is CustomRange<T> range)
-                {
-                    this.array = (List<T>)range.array;
-                    this.start = range.start + start;
-                    this.end = this.start + (end - start);
-                }
-                else
-                {
-                    this.array = array;
-                    this.start = start;
-                    this.end = end;
-                }
-            }
-
-            public T this[int index] => array[start + index];
-
-            public int Count => end - start;
-
-            public IEnumerator<T> GetEnumerator()
-            {
-                for (int i = start; i < end; i++)
-                {
-                    yield return array[i];
-                }
-            }
-
-            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-            {
-                return GetEnumerator();
-            }
-        }
-
         class VariableScope
         {
             private Dictionary<string, (CustomValue, AssignmentType)> variables;
@@ -1912,7 +1868,7 @@ namespace CasualConsole.Interpreter
         }
         static class ExpressionMethods
         {
-            public static Expression New(IReadOnlyList<string> tokens)
+            public static Expression New(ArraySegment<string> tokens)
             {
                 Expression previousExpression = null;
                 var index = 0;
@@ -1940,7 +1896,7 @@ namespace CasualConsole.Interpreter
 
                         if (assignmentSet.Contains(newToken))
                         {
-                            var restTokens = new CustomRange<string>(tokens, index + 1, tokens.Count);
+                            var restTokens = tokens[(index + 1)..tokens.Count];
                             return new AssignmentExpression(previousExpression, newToken, restTokens, AssignmentType.None);
                         }
 
@@ -1989,9 +1945,9 @@ namespace CasualConsole.Interpreter
                                     break;
                             }
 
-                            var questionMarkExpressionTokens = new CustomRange<string>(tokens, questionMarkIndex + 1, colonIndex);
+                            var questionMarkExpressionTokens = tokens[(questionMarkIndex + 1)..colonIndex];
                             var questionMarkExpression = ExpressionMethods.New(questionMarkExpressionTokens);
-                            var colonExpressionTokens = new CustomRange<string>(tokens, colonIndex + 1, tokens.Count);
+                            var colonExpressionTokens = tokens[(colonIndex + 1)..tokens.Count];
                             var colonExpression = ExpressionMethods.New(colonExpressionTokens);
 
                             var ternaryExpression = new TernaryExpression(previousExpression, questionMarkExpression, colonExpression);
@@ -2041,7 +1997,7 @@ namespace CasualConsole.Interpreter
                             var end = tokens.IndexOfParenthesesEnd(index + 1);
                             if (end < 0)
                                 throw new Exception();
-                            var parameters = new CustomRange<string>(tokens, index + 1, end);
+                            var parameters = tokens[(index + 1)..end];
 
                             AddToLastNode(ref previousExpression, Precedence.FunctionCall, (expression, p) =>
                             {
@@ -2050,7 +2006,7 @@ namespace CasualConsole.Interpreter
                                 foreach (var item in paramsSplit)
                                 {
                                     if (item[0] == "...")
-                                        expressionList.Add((true, ExpressionMethods.New(new CustomRange<string>(item, 1, item.Count))));
+                                        expressionList.Add((true, ExpressionMethods.New(item[1..item.Count])));
                                     else
                                         expressionList.Add((false, ExpressionMethods.New(item)));
                                 }
@@ -2089,7 +2045,7 @@ namespace CasualConsole.Interpreter
                             var end = tokens.IndexOfBracketsEnd(index + 1);
                             if (end < 0)
                                 throw new Exception();
-                            var keyExpressionTokens = new CustomRange<string>(tokens, index + 1, end);
+                            var keyExpressionTokens = tokens[(index + 1)..end];
 
                             AddToLastNode(ref previousExpression, Precedence.Indexing, (expression, p) =>
                             {
@@ -2166,7 +2122,7 @@ namespace CasualConsole.Interpreter
                 throw new Exception();
             }
 
-            public static (Expression, int) ReadExpression(IReadOnlyList<string> tokens, int index)
+            public static (Expression, int) ReadExpression(ArraySegment<string> tokens, int index)
             {
                 var token = tokens[index];
                 if (token == "await")
@@ -2205,7 +2161,7 @@ namespace CasualConsole.Interpreter
                     bool isLambda = newend + 1 < tokens.Count && tokens[newend + 1] == "=>";
                     if (!isLambda)
                     {
-                        var parenthesesTokens = new CustomRange<string>(tokens, index, newend + 1);
+                        var parenthesesTokens = tokens[index..(newend + 1)];
                         var newExpression = new ParenthesesExpression(parenthesesTokens);
                         return (newExpression, newend + 1);
                     }
@@ -2215,7 +2171,7 @@ namespace CasualConsole.Interpreter
                         // Lambda, async: false
                         var (functionBodyTokens, end) = ReadBodyTokensAndEnd(tokens, newend + 1);
 
-                        var parameterTokens = new CustomRange<string>(tokens, index + 1, newend);
+                        var parameterTokens = tokens[(index + 1)..newend];
                         var functionExpression = FunctionStatement.FromParametersAndBody(parameterTokens, functionBodyTokens, isLambda, isAsync: false);
 
                         return (functionExpression, end + 1);
@@ -2227,7 +2183,7 @@ namespace CasualConsole.Interpreter
                     if (bracesEnd < 0)
                         throw new Exception();
 
-                    var mapExpressionTokens = new CustomRange<string>(tokens, index, bracesEnd + 1);
+                    var mapExpressionTokens = tokens[index..(bracesEnd + 1)];
                     var mapExpression = new MapExpression(mapExpressionTokens);
                     return (mapExpression, bracesEnd + 1);
                 }
@@ -2237,7 +2193,7 @@ namespace CasualConsole.Interpreter
                     if (bracketsEnd < 0)
                         throw new Exception();
 
-                    var arrayTokens = new CustomRange<string>(tokens, index, bracketsEnd + 1);
+                    var arrayTokens = tokens[index..(bracketsEnd + 1)];
                     var arrayExpression = new ArrayExpression(arrayTokens);
                     return (arrayExpression, bracketsEnd + 1);
                 }
@@ -2259,7 +2215,7 @@ namespace CasualConsole.Interpreter
                     bool isAsync = token == "async";
                     if (isAsync)
                     {
-                        tokens = new CustomRange<string>(tokens, 1, tokens.Count);
+                        tokens = tokens[1..tokens.Count];
                     }
 
                     if (tokens[index + 1] != "(")
@@ -2273,7 +2229,7 @@ namespace CasualConsole.Interpreter
                     if (bracesEnd < 0)
                         throw new Exception();
 
-                    var functionExpressionTokens = new CustomRange<string>(tokens, index, bracesEnd + 1);
+                    var functionExpressionTokens = tokens[index..(bracesEnd + 1)];
                     var functionExpression = FunctionStatement.FromTokens(functionExpressionTokens, isLambda: false, isAsync);
                     return (functionExpression, isAsync ? bracesEnd + 2 : bracesEnd + 1);
                 }
@@ -2285,17 +2241,17 @@ namespace CasualConsole.Interpreter
                     if (lambdaIndex < 0)
                         throw new Exception();
 
-                    var paramTokens = new CustomRange<string>(tokens, index + 1, lambdaIndex);
+                    var paramTokens = tokens[(index + 1)..lambdaIndex];
                     if (paramTokens.Count <= 0)
                         throw new Exception();
 
-                    IReadOnlyList<string> parameters;
+                    ArraySegment<string> parameters;
                     if (paramTokens[0] == "(")
                     {
                         if (paramTokens[paramTokens.Count - 1] != ")")
                             throw new Exception();
 
-                        parameters = new CustomRange<string>(paramTokens, 1, paramTokens.Count - 1);
+                        parameters = paramTokens[1..(paramTokens.Count - 1)];
                     }
                     else if (paramTokens.Count == 1)
                     {
@@ -2329,11 +2285,11 @@ namespace CasualConsole.Interpreter
                 throw new Exception();
             }
 
-            private static (IReadOnlyList<string>, int) ReadBodyTokensAndEnd(IReadOnlyList<string> tokens, int index)
+            private static (ArraySegment<string>, int) ReadBodyTokensAndEnd(ArraySegment<string> tokens, int index)
             {
                 var nextToken = tokens[index + 1];
 
-                IReadOnlyList<string> functionBodyTokens;
+                ArraySegment<string> functionBodyTokens;
                 int end;
                 if (nextToken == "{")
                 {
@@ -2341,11 +2297,11 @@ namespace CasualConsole.Interpreter
                     if (end < 0)
                         throw new Exception();
 
-                    functionBodyTokens = new CustomRange<string>(tokens, index + 1, end + 1);
+                    functionBodyTokens = tokens[(index + 1)..(end + 1)];
                 }
                 else
                 {
-                    functionBodyTokens = new CustomRange<string>(tokens, index + 1, tokens.Count);
+                    functionBodyTokens = tokens[(index + 1)..tokens.Count];
                     end = tokens.Count - 1;
                 }
 
@@ -2621,9 +2577,9 @@ namespace CasualConsole.Interpreter
         {
             List<(string fieldName, Expression expression)> fieldExpressions;
 
-            public MapExpression(IReadOnlyList<string> tokens)
+            public MapExpression(ArraySegment<string> tokens)
             {
-                tokens = new CustomRange<string>(tokens, 1, tokens.Count - 1);
+                tokens = tokens[1..(tokens.Count - 1)];
                 var res = SplitBy(tokens, commaSet);
                 this.fieldExpressions = new List<(string fieldName, Expression expression)>();
                 foreach (var item in res)
@@ -2635,7 +2591,7 @@ namespace CasualConsole.Interpreter
                     if (item.Count == 1)
                         expression = ExpressionMethods.New(item);
                     else if (item[1] == ":")
-                        expression = ExpressionMethods.New(new CustomRange<string>(item, 2, item.Count));
+                        expression = ExpressionMethods.New(item[2..item.Count]);
                     else
                         throw new Exception();
 
@@ -2658,15 +2614,15 @@ namespace CasualConsole.Interpreter
         {
             private List<(bool hasThreeDot, Expression expression)> expressionList;
 
-            public ArrayExpression(CustomRange<string> tokens)
+            public ArrayExpression(ArraySegment<string> tokens)
             {
-                tokens = new CustomRange<string>(tokens, 1, tokens.Count - 1);
+                tokens = tokens[1..(tokens.Count - 1)];
                 var res = SplitBy(tokens, commaSet);
                 expressionList = new List<(bool, Expression)>();
                 foreach (var item in res)
                 {
                     if (item[0] == "...")
-                        expressionList.Add((true, ExpressionMethods.New(new CustomRange<string>(item, 1, item.Count))));
+                        expressionList.Add((true, ExpressionMethods.New(item[1..item.Count])));
                     else
                         expressionList.Add((false, ExpressionMethods.New(item)));
                 }
@@ -2696,11 +2652,11 @@ namespace CasualConsole.Interpreter
         {
             private Expression insideExpression;
 
-            public ParenthesesExpression(IReadOnlyList<string> parenthesesTokens)
+            public ParenthesesExpression(ArraySegment<string> parenthesesTokens)
             {
                 if (parenthesesTokens[0] != "(")
                     throw new Exception();
-                this.insideExpression = ExpressionMethods.New(new CustomRange<string>(parenthesesTokens, 1, parenthesesTokens.Count - 1));
+                this.insideExpression = ExpressionMethods.New(parenthesesTokens[1..(parenthesesTokens.Count - 1)]);
             }
 
             public CustomValue EvaluateExpression(Context context)
@@ -2786,7 +2742,7 @@ namespace CasualConsole.Interpreter
                     {
                         var end = token.IndexOfBracesEnd(i + 2);
                         var substring = token.Substring(i + 2, end - (i + 2));
-                        var subtokens = GetTokens(substring).ToList();
+                        var subtokens = GetTokens(substring).ToArray();
                         var subExpression = ExpressionMethods.New(subtokens);
                         parts.Add(subExpression);
                         i = end + 1;
@@ -2969,11 +2925,11 @@ namespace CasualConsole.Interpreter
         }
         class MapAssignmentExpression : Expression
         {
-            public IReadOnlyList<string> variableNames;
+            public ArraySegment<string> variableNames;
             public Expression rValue;
             public AssignmentType assignmentType;
 
-            public MapAssignmentExpression(IReadOnlyList<string> variableNames, Expression rValue, AssignmentType assignmentType)
+            public MapAssignmentExpression(ArraySegment<string> variableNames, Expression rValue, AssignmentType assignmentType)
             {
                 this.variableNames = variableNames;
                 this.rValue = rValue;
@@ -2999,11 +2955,11 @@ namespace CasualConsole.Interpreter
         }
         class ArrayAssignmentExpression : Expression
         {
-            public IReadOnlyList<string> variableNames;
+            public ArraySegment<string> variableNames;
             public Expression rValue;
             public AssignmentType assignmentType;
 
-            public ArrayAssignmentExpression(IReadOnlyList<string> variableNames, Expression rValue, AssignmentType assignmentType)
+            public ArrayAssignmentExpression(ArraySegment<string> variableNames, Expression rValue, AssignmentType assignmentType)
             {
                 this.variableNames = variableNames;
                 this.rValue = rValue;
@@ -3044,7 +3000,7 @@ namespace CasualConsole.Interpreter
                 this.assignmentType = assignmentType;
             }
 
-            public AssignmentExpression(Expression lValue, string assignmentOperator, IReadOnlyList<string> rValueTokens, AssignmentType assignmentType)
+            public AssignmentExpression(Expression lValue, string assignmentOperator, ArraySegment<string> rValueTokens, AssignmentType assignmentType)
                 : this(lValue, assignmentOperator, ExpressionMethods.New(rValueTokens), assignmentType)
             {
             }
@@ -3054,7 +3010,7 @@ namespace CasualConsole.Interpreter
             {
             }
 
-            public AssignmentExpression(string variableName, string assignmentOperator, IReadOnlyList<string> rValueTokens, AssignmentType assignmentType)
+            public AssignmentExpression(string variableName, string assignmentOperator, ArraySegment<string> rValueTokens, AssignmentType assignmentType)
                 : this(new SingleTokenVariableExpression(variableName), assignmentOperator, rValueTokens, assignmentType)
             {
             }
@@ -3120,7 +3076,7 @@ namespace CasualConsole.Interpreter
                 }
             }
 
-            public static Expression FromVarStatement(IReadOnlyList<string> tokens, AssignmentType assignmentType)
+            public static Expression FromVarStatement(ArraySegment<string> tokens, AssignmentType assignmentType)
             {
                 if (tokens.Count == 1 || tokens[1] == "=")
                 {
@@ -3128,7 +3084,7 @@ namespace CasualConsole.Interpreter
                     if (tokens.Count == 1)
                         return new AssignmentExpression(variableName, "=", nullExpression, assignmentType);
                     else
-                        return new AssignmentExpression(variableName, tokens[1], new CustomRange<string>(tokens, 2, tokens.Count), assignmentType);
+                        return new AssignmentExpression(variableName, tokens[1], tokens[2..tokens.Count], assignmentType);
                 }
                 else if (tokens[0] == "{")
                 {
@@ -3138,15 +3094,15 @@ namespace CasualConsole.Interpreter
                     if (tokens[braceIndex + 1] != "=")
                         throw new Exception();
 
-                    var variableGroups = SplitBy(new CustomRange<string>(tokens, 1, braceIndex), commaSet);
+                    var variableGroups = SplitBy(tokens[1..braceIndex], commaSet);
                     var variableNames = variableGroups.Select(x =>
                     {
                         if (x.Count != 1)
                             throw new Exception();
                         return x[0];
-                    }).ToList();
+                    }).ToArray();
 
-                    var rValueTokens = new CustomRange<string>(tokens, braceIndex + 2, tokens.Count);
+                    var rValueTokens = tokens[(braceIndex + 2)..tokens.Count];
                     var rvalueExpression = ExpressionMethods.New(rValueTokens);
                     return new MapAssignmentExpression(variableNames, rvalueExpression, assignmentType);
                 }
@@ -3158,15 +3114,15 @@ namespace CasualConsole.Interpreter
                     if (tokens[braceIndex + 1] != "=")
                         throw new Exception();
 
-                    var variableGroups = SplitBy(new CustomRange<string>(tokens, 1, braceIndex), commaSet);
+                    var variableGroups = SplitBy(tokens[1..braceIndex], commaSet);
                     var variableNames = variableGroups.Select(x =>
                     {
                         if (x.Count != 1)
                             throw new Exception();
                         return x[0];
-                    }).ToList();
+                    }).ToArray();
 
-                    var rValueTokens = new CustomRange<string>(tokens, braceIndex + 2, tokens.Count);
+                    var rValueTokens = tokens[(braceIndex + 2)..tokens.Count];
                     var rvalueExpression = ExpressionMethods.New(rValueTokens);
                     return new ArrayAssignmentExpression(variableNames, rvalueExpression, assignmentType);
                 }
@@ -3208,7 +3164,7 @@ namespace CasualConsole.Interpreter
         }
         static class StatementMethods
         {
-            public static Statement New(IReadOnlyList<string> tokens)
+            public static Statement New(ArraySegment<string> tokens)
             {
                 if (tokens[0] == "{")
                 {
@@ -3238,18 +3194,18 @@ namespace CasualConsole.Interpreter
                 else
                     return new LineStatement(tokens);
             }
-            internal static (IReadOnlyList<string>, IReadOnlyList<string>) GetTokensConditionAndBody(IReadOnlyList<string> tokens, int conditionStartIndex)
+            internal static (ArraySegment<string>, ArraySegment<string>) GetTokensConditionAndBody(ArraySegment<string> tokens, int conditionStartIndex)
             {
                 var endOfParentheses = tokens.IndexOfParenthesesEnd(conditionStartIndex);
                 if (endOfParentheses < 0)
                     throw new Exception();
-                var conditionTokens = new CustomRange<string>(tokens, conditionStartIndex, endOfParentheses);
+                var conditionTokens = tokens[conditionStartIndex..endOfParentheses];
 
-                var statementTokens = new CustomRange<string>(tokens, endOfParentheses + 1, tokens.Count);
+                var statementTokens = tokens[(endOfParentheses + 1)..tokens.Count];
 
                 return (conditionTokens, statementTokens);
             }
-            internal static (Expression, Statement) GetConditionAndBody(IReadOnlyList<string> tokens, int conditionStartIndex)
+            internal static (Expression, Statement) GetConditionAndBody(ArraySegment<string> tokens, int conditionStartIndex)
             {
                 var (conditionTokens, statementTokens) = GetTokensConditionAndBody(tokens, conditionStartIndex);
                 var conditionExpression = ExpressionMethods.New(conditionTokens);
@@ -3262,13 +3218,13 @@ namespace CasualConsole.Interpreter
         {
             Func<Context, (CustomValue value, bool isReturn, bool isBreak, bool isContinue)> eval;
 
-            public LineStatement(IReadOnlyList<string> tokens)
+            public LineStatement(ArraySegment<string> tokens)
             {
                 var hasSemiColon = false;
                 if (tokens[tokens.Count - 1] == ";")
                 {
                     hasSemiColon = true;
-                    tokens = new CustomRange<string>(tokens, 0, tokens.Count - 1);
+                    tokens = tokens[0..(tokens.Count - 1)];
                 }
 
                 if (tokens.Count == 0)
@@ -3278,7 +3234,7 @@ namespace CasualConsole.Interpreter
                 else if (IsAssignmentType(tokens[0], out var assignmentType))
                 {
                     // Assignment to new variable
-                    var assignmentTree = AssignmentExpression.FromVarStatement(new CustomRange<string>(tokens, 1, tokens.Count), assignmentType);
+                    var assignmentTree = AssignmentExpression.FromVarStatement(tokens[1..tokens.Count], assignmentType);
 
                     eval = context =>
                     {
@@ -3294,7 +3250,7 @@ namespace CasualConsole.Interpreter
                     }
                     else
                     {
-                        var returnExpression = ExpressionMethods.New(new CustomRange<string>(tokens, 1, tokens.Count));
+                        var returnExpression = ExpressionMethods.New(tokens[1..tokens.Count]);
                         eval = context =>
                         {
                             var returnValue = returnExpression.EvaluateExpression(context);
@@ -3314,7 +3270,7 @@ namespace CasualConsole.Interpreter
                 {
                     bool isAsync = tokens[0] == "async";
                     if (isAsync)
-                        tokens = new CustomRange<string>(tokens, 1, tokens.Count);
+                        tokens = tokens[1..tokens.Count];
 
                     if (!IsVariableName(tokens[1]))
                         throw new Exception();
@@ -3355,11 +3311,11 @@ namespace CasualConsole.Interpreter
         {
             List<Statement> statements;
 
-            public BlockStatement(IReadOnlyList<string> tokens)
+            public BlockStatement(ArraySegment<string> tokens)
             {
                 if (tokens[0] != "{")
                     throw new Exception();
-                tokens = new CustomRange<string>(tokens, 1, tokens.Count - 1);
+                tokens = tokens[1..(tokens.Count - 1)];
                 statements = GetStatements(tokens).ToList();
             }
 
@@ -3387,7 +3343,7 @@ namespace CasualConsole.Interpreter
             Expression conditionExpression;
             Statement statement;
 
-            public WhileStatement(IReadOnlyList<string> tokens)
+            public WhileStatement(ArraySegment<string> tokens)
             {
                 if (tokens[1] != "(")
                     throw new Exception();
@@ -3483,7 +3439,7 @@ namespace CasualConsole.Interpreter
                 }
             }
 
-            public static Statement FromTokens(IReadOnlyList<string> tokens)
+            public static Statement FromTokens(ArraySegment<string> tokens)
             {
                 if (tokens[1] != "(")
                     throw new Exception();
@@ -3494,8 +3450,9 @@ namespace CasualConsole.Interpreter
                 {
                     // Normal for loop
                     var allInitializationTokens = expressions[0];
-                    var isNewAssignment = IsAssignmentType(allInitializationTokens[0], out var assignmentType);
-                    var assignmentTokens = isNewAssignment ? new CustomRange<string>(allInitializationTokens, 1, allInitializationTokens.Count) : allInitializationTokens;
+                    AssignmentType assignmentType = AssignmentType.None;
+                    var isNewAssignment = allInitializationTokens.Count > 0 && IsAssignmentType(allInitializationTokens[0], out assignmentType);
+                    var assignmentTokens = isNewAssignment ? allInitializationTokens[1..allInitializationTokens.Count] : allInitializationTokens;
                     var initializationTokenGroup = SplitBy(assignmentTokens, commaSet).ToList();
                     var initializationStatements = initializationTokenGroup.SelectFast(x => AssignmentExpression.FromVarStatement(x, assignmentType));
 
@@ -3517,7 +3474,7 @@ namespace CasualConsole.Interpreter
                     var index = isNewAssignment ? 1 : 0;
                     var variableName = parenthesesTokens[index];
                     var operationType = parenthesesTokens[index + 1];
-                    var restTokens = new CustomRange<string>(parenthesesTokens, index + 2, parenthesesTokens.Count);
+                    var restTokens = parenthesesTokens[(index + 2)..parenthesesTokens.Count];
                     var restExpression = ExpressionMethods.New(restTokens);
                     var bodyStatement = StatementMethods.New(statementTokens);
 
@@ -3601,7 +3558,7 @@ namespace CasualConsole.Interpreter
             internal Lazy<List<(Expression condition, Statement statement)>> elseIfStatements = new Lazy<List<(Expression, Statement)>>(() => new List<(Expression, Statement)>());
             Statement elseStatement;
 
-            public IfStatement(IReadOnlyList<string> tokens)
+            public IfStatement(ArraySegment<string> tokens)
             {
                 if (tokens[1] != "(")
                     throw new Exception();
@@ -3667,7 +3624,7 @@ namespace CasualConsole.Interpreter
             internal Expression condition;
             internal Statement statement;
 
-            public ElseIfStatement(IReadOnlyList<string> tokens)
+            public ElseIfStatement(ArraySegment<string> tokens)
             {
                 if (tokens[2] != "(")
                     throw new Exception();
@@ -3688,11 +3645,11 @@ namespace CasualConsole.Interpreter
         {
             Statement statement;
 
-            public ElseStatement(IReadOnlyList<string> tokens)
+            public ElseStatement(ArraySegment<string> tokens)
             {
                 if (tokens[0] != "else")
                     throw new Exception();
-                statement = StatementMethods.New(new CustomRange<string>(tokens, 1, tokens.Count));
+                statement = StatementMethods.New(tokens[1..tokens.Count]);
             }
 
             public StatementType Type => StatementType.ElseStatement;
@@ -3709,7 +3666,7 @@ namespace CasualConsole.Interpreter
             bool isLambda;
             bool isAsync;
 
-            private FunctionStatement(IReadOnlyList<string> parameters, Statement body, bool isLambda, bool isAsync)
+            private FunctionStatement(ArraySegment<string> parameters, Statement body, bool isLambda, bool isAsync)
             {
                 if (parameters.Count > 0 && parameters[0] == "(")
                     throw new Exception();
@@ -3752,13 +3709,13 @@ namespace CasualConsole.Interpreter
 
             public StatementType Type => StatementType.FunctionStatement;
 
-            public static FunctionStatement FromParametersAndBody(IReadOnlyList<string> parameterTokens, IReadOnlyList<string> bodyTokens, bool isLambda, bool isAsync)
+            public static FunctionStatement FromParametersAndBody(ArraySegment<string> parameterTokens, ArraySegment<string> bodyTokens, bool isLambda, bool isAsync)
             {
                 var body = StatementMethods.New(bodyTokens);
                 return new FunctionStatement(parameterTokens, body, isLambda, isAsync);
             }
 
-            public static FunctionStatement FromTokens(IReadOnlyList<string> tokens, bool isLambda, bool isAsync)
+            public static FunctionStatement FromTokens(ArraySegment<string> tokens, bool isLambda, bool isAsync)
             {
                 var parenthesesIndex = tokens.IndexOf("(", 0);
                 var (parameters, bodyTokens) = StatementMethods.GetTokensConditionAndBody(tokens, parenthesesIndex + 1);
@@ -3793,12 +3750,12 @@ static class InterpreterExtensions
         return -1;
     }
 
-    public static int IndexOfParenthesesEnd(this IReadOnlyList<string> source, int startIndex)
+    public static int IndexOfParenthesesEnd(this ArraySegment<string> source, int startIndex)
     {
         return IndexOfPairsEnd(source, startIndex, "(", ")");
     }
 
-    public static int IndexOfBracesEnd(this IReadOnlyList<string> source, int startIndex)
+    public static int IndexOfBracesEnd(this ArraySegment<string> source, int startIndex)
     {
         return IndexOfPairsEnd(source, startIndex, "{", "}");
     }
@@ -3808,12 +3765,12 @@ static class InterpreterExtensions
         return IndexOfPairsEnd(source, startIndex, '{', '}');
     }
 
-    public static int IndexOfBracketsEnd(this IReadOnlyList<string> source, int startIndex)
+    public static int IndexOfBracketsEnd(this ArraySegment<string> source, int startIndex)
     {
         return IndexOfPairsEnd(source, startIndex, "[", "]");
     }
 
-    private static int IndexOfPairsEnd(this IReadOnlyList<string> source, int startIndex, string first, string last)
+    private static int IndexOfPairsEnd(this ArraySegment<string> source, int startIndex, string first, string last)
     {
         int count = 0;
         for (int i = startIndex; i < source.Count; i++)

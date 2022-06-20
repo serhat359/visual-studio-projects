@@ -27,19 +27,14 @@ namespace CasualConsole
 {
     public class Program
     {
-        static HttpClient client = new HttpClient();
+        static HttpClient client = new HttpClient(new HttpClientHandler()
+        {
+            AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
+        });
 
         public static void Main(string[] args)
         {
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 | SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
-
-            Interpreter.Interpreter.Test();
-            //Interpreter.Interpreter.Benchmark();
-
-            //StartInterpreterConsole();
-
-            var code = File.ReadAllText(@"C:\Users\Xhertas\Desktop\program.txt");
-            var result = new Interpreter.Interpreter().InterpretCode(code);
 
             Console.ReadLine();
 
@@ -124,29 +119,6 @@ namespace CasualConsole
             Console.WriteLine();
             Console.WriteLine("Program has terminated, press a key to exit");
             Console.ReadKey();
-        }
-
-        private static void StartInterpreterConsole()
-        {
-            Console.WriteLine("Welcome to Serhat's Interpreter!");
-            var consoleInterpreter = new Interpreter.Interpreter();
-            while (true)
-            {
-                Console.Write("$: ");
-                string line = Console.ReadLine();
-                try
-                {
-                    var val = consoleInterpreter.InterpretCode(line);
-                    if (val is bool valbool)
-                        Console.WriteLine(valbool ? "true" : "false");
-                    else
-                        Console.WriteLine(val?.ToString() ?? "(null)");
-                }
-                catch (Exception e)
-                {
-                    Console.Error.WriteLine(e);
-                }
-            }
         }
 
         private static void FixAndroidPhotos()
@@ -474,7 +446,6 @@ namespace CasualConsole
         {
             char c = str[i];
 
-            bool foundOne = false;
             string foundMax = null;
             for (int j = str.Length - 1; j > i; j--)
             {
@@ -500,7 +471,6 @@ namespace CasualConsole
                     if (isSuccess)
                     {
                         // YAY !
-                        foundOne = true;
                         var foundStringLength = j - i + 1;
                         if (foundStringLength > (foundMax?.Length ?? 0))
                         {
@@ -1754,82 +1724,6 @@ namespace CasualConsole
             }
 
             string allResults = string.Join("\n", results);
-        }
-
-        private static int Fib(int x)
-        {
-            switch (x)
-            {
-                case 0:
-                case 1:
-                    return x;
-                default:
-                    return Fib(x - 1) + Fib(x - 2);
-            }
-
-        }
-
-        private static void PrintArray<T>(IEnumerable<T> arr)
-        {
-            foreach (var item in arr)
-            {
-                Console.Write(item + "/");
-            }
-        }
-
-        private static void Dump<T>(T obj)
-        {
-            DumpProperties(obj);
-            Console.WriteLine();
-
-            DumpFields(obj);
-            Console.WriteLine();
-
-            DumpMethods(obj);
-            Console.WriteLine();
-        }
-
-        private static void DumpProperties<T>(T obj)
-        {
-            var properties = typeof(T).GetProperties();
-
-            Console.WriteLine("Properties: ");
-            foreach (var prop in properties)
-            {
-                Console.WriteLine(prop.Name + ": " + prop.PropertyType.Name + " " + prop.GetValue(obj, null));
-            }
-        }
-
-        private static void DumpFields<T>(T obj)
-        {
-            var fields = typeof(T).GetFields();
-
-            Console.WriteLine("Fields: ");
-            foreach (var field in fields)
-            {
-                Console.WriteLine(field.Name + ": " + field.FieldType.Name + " " + field.GetValue(obj));
-            }
-        }
-
-        private static void DumpMethods<T>(T obj)
-        {
-            var methods = typeof(T).GetMethods();
-
-            Console.WriteLine("Methods: ");
-            foreach (var method in methods)
-            {
-                if (method.GetParameters().Length == 0)
-                {
-                    try
-                    {
-                        Console.WriteLine(method.Name + ": " + method.Invoke(obj, null));
-                    }
-                    catch (Exception)
-                    {
-
-                    }
-                }
-            }
         }
 
         private static void TestSplitWithCondition()

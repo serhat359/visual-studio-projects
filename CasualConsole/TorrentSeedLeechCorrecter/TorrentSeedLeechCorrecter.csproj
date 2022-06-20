@@ -53,10 +53,6 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CasualConsole\CasualConsole.csproj">
-      <Project>{94279bab-f62c-4d42-bba5-a6f03cead7b0}</Project>
-      <Name>CasualConsole</Name>
-    </ProjectReference>
     <ProjectReference Include="..\TorrentSeedLeechCounter\TorrentSeedLeechCounter.csproj">
       <Project>{3a8dd977-4954-4cff-b8dc-52d7bb131b99}</Project>
       <Name>TorrentSeedLeechCounter</Name>

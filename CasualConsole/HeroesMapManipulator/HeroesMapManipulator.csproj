@@ -93,12 +93,6 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CasualConsole\CasualConsole.csproj">
-      <Project>{94279bab-f62c-4d42-bba5-a6f03cead7b0}</Project>
-      <Name>CasualConsole</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <WCFMetadata Include="Service References\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
