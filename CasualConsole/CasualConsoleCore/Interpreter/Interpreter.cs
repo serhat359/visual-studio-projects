@@ -154,7 +154,7 @@ namespace CasualConsoleCore.Interpreter
 
         private static void DoPositiveTests()
         {
-            var testCases = new List<(string code, object value)>()
+            var testCases = new List<(string code, object? value)>()
             {
                 ("var returnValue = function(x){ return x; };", null),
                 ("", null),
@@ -1318,7 +1318,7 @@ namespace CasualConsoleCore.Interpreter
         interface FunctionObject : Statement
         {
             IReadOnlyList<(string paramName, bool isRest)> Parameters { get; }
-            VariableScope Scope { get; }
+            VariableScope? Scope { get; }
             bool IsLambda { get; }
         }
         class CustomFunction : FunctionObject
@@ -1371,7 +1371,7 @@ namespace CasualConsoleCore.Interpreter
 
             public IReadOnlyList<(string paramName, bool isRest)> Parameters => new[] { ("x", false) };
 
-            public VariableScope Scope => null;
+            public VariableScope? Scope => null;
 
             public bool IsLambda => false;
 
@@ -1402,7 +1402,7 @@ namespace CasualConsoleCore.Interpreter
 
             public StatementType Type => throw new Exception();
 
-            public VariableScope Scope => null;
+            public VariableScope? Scope => null;
 
             public bool IsLambda => false;
 
@@ -1423,7 +1423,7 @@ namespace CasualConsoleCore.Interpreter
 
             public StatementType Type => throw new Exception();
 
-            public VariableScope Scope => null;
+            public VariableScope? Scope => null;
 
             public bool IsLambda => false;
 
@@ -1491,7 +1491,7 @@ namespace CasualConsoleCore.Interpreter
             public object value;
             public ValueType type;
 
-            public static readonly CustomValue Null = new CustomValue(null, ValueType.Null);
+            public static readonly CustomValue Null = new CustomValue(null!, ValueType.Null);
             public static readonly CustomValue True = new CustomValue(true, ValueType.Bool);
             public static readonly CustomValue False = new CustomValue(false, ValueType.Bool);
 
@@ -1573,7 +1573,7 @@ namespace CasualConsoleCore.Interpreter
                     return "null";
                 if (value is bool b)
                     return b ? "true" : "false";
-                return value.ToString();
+                return value.ToString()!;
             }
 
             internal static void Test()
@@ -1678,10 +1678,10 @@ namespace CasualConsoleCore.Interpreter
         class VariableScope
         {
             private Dictionary<string, (CustomValue, AssignmentType)> variables;
-            private VariableScope innerScope;
+            private VariableScope? innerScope;
             private bool isFunctionScope;
 
-            private VariableScope(Dictionary<string, (CustomValue, AssignmentType)> variables, VariableScope innerScope, bool isFunctionScope)
+            private VariableScope(Dictionary<string, (CustomValue, AssignmentType)> variables, VariableScope? innerScope, bool isFunctionScope)
             {
                 this.variables = variables;
                 this.innerScope = innerScope;
@@ -1739,7 +1739,7 @@ namespace CasualConsoleCore.Interpreter
                     throw new Exception();
 
                 var scope = this;
-                while (!scope.isFunctionScope)
+                while (!scope!.isFunctionScope)
                     scope = scope.innerScope;
 
                 if (scope.variables.TryGetValue(variableName, out var res))
@@ -1783,7 +1783,7 @@ namespace CasualConsoleCore.Interpreter
                 var newVariables = new Dictionary<string, (CustomValue, AssignmentType)>();
                 return NewWithInner(innerScope, newVariables, isFunctionScope);
             }
-            public static VariableScope NewWithInner(VariableScope innerScope, Dictionary<string, (CustomValue, AssignmentType)> values, bool isFunctionScope)
+            public static VariableScope NewWithInner(VariableScope? innerScope, Dictionary<string, (CustomValue, AssignmentType)> values, bool isFunctionScope)
             {
                 return new VariableScope(values, innerScope, isFunctionScope);
             }
@@ -1870,253 +1870,242 @@ namespace CasualConsoleCore.Interpreter
         {
             public static Expression New(ArraySegment<string> tokens)
             {
-                Expression previousExpression = null;
-                var index = 0;
+                var (previousExpression, index) = ReadExpression(tokens, 0);
+                if (index <= 0)
+                    throw new Exception();
 
                 while (true)
                 {
                     if (index == tokens.Count)
                         return previousExpression;
 
-                    if (previousExpression == null)
-                    {
-                        var (expression, newIndex) = ReadExpression(tokens, index);
-                        if (newIndex <= index)
-                            throw new Exception();
+                    var newToken = tokens[index];
 
-                        index = newIndex;
-                        previousExpression = expression;
+                    if (newToken == ";")
+                        return previousExpression;
+
+                    if (assignmentSet.Contains(newToken))
+                    {
+                        var restTokens = tokens[(index + 1)..tokens.Count];
+                        return new AssignmentExpression(previousExpression, newToken, restTokens, AssignmentType.None);
                     }
-                    else
+
+                    if (plusMinusSet.Contains(newToken)
+                        || asteriskSlashSet.Contains(newToken)
+                        || comparisonSet.Contains(newToken)
+                        || andOrSet.Contains(newToken))
                     {
-                        var newToken = tokens[index];
+                        var newPrecedence = TreeExpression.GetPrecedence(newToken);
 
-                        if (newToken == ";")
-                            return previousExpression;
+                        Expression nextExpression;
+                        (nextExpression, index) = ReadExpression(tokens, index + 1);
 
-                        if (assignmentSet.Contains(newToken))
+                        AddToLastNode(ref previousExpression, newPrecedence, (expression, precedence) =>
                         {
-                            var restTokens = tokens[(index + 1)..tokens.Count];
-                            return new AssignmentExpression(previousExpression, newToken, restTokens, AssignmentType.None);
+                            if (precedence == null || !(precedence == newPrecedence))
+                            {
+                                var newTree = new TreeExpression(newPrecedence, expression);
+                                newTree.AddExpression(newToken, nextExpression);
+                                return newTree;
+                            }
+                            else
+                            {
+                                ((TreeExpression)expression).AddExpression(newToken, nextExpression);
+                                return null!;
+                            }
+                        });
+
+                        continue;
+                    }
+
+                    if (newToken == "?")
+                    {
+                        var questionMarkIndex = index;
+                        var count = 1;
+                        int colonIndex = index + 1;
+                        for (; colonIndex < tokens.Count; colonIndex++)
+                        {
+                            var ternaryToken = tokens[colonIndex];
+                            if (ternaryToken == "?")
+                                count++;
+                            if (ternaryToken == ":")
+                                count--;
+
+                            if (count == 0)
+                                break;
                         }
 
-                        if (plusMinusSet.Contains(newToken)
-                            || asteriskSlashSet.Contains(newToken)
-                            || comparisonSet.Contains(newToken)
-                            || andOrSet.Contains(newToken))
+                        var questionMarkExpressionTokens = tokens[(questionMarkIndex + 1)..colonIndex];
+                        var questionMarkExpression = ExpressionMethods.New(questionMarkExpressionTokens);
+                        var colonExpressionTokens = tokens[(colonIndex + 1)..tokens.Count];
+                        var colonExpression = ExpressionMethods.New(colonExpressionTokens);
+
+                        var ternaryExpression = new TernaryExpression(previousExpression, questionMarkExpression, colonExpression);
+                        return ternaryExpression;
+                    }
+
+                    if (newToken == "=>")
+                    {
+                        // Read operator
+                        // Handle lambda, async: false
+                        var (functionBodyTokens, end) = ReadBodyTokensAndEnd(tokens, index);
+
+                        AddToLastNode(ref previousExpression, Precedence.LambdaExpression, (expression, p) =>
                         {
-                            var newPrecedence = TreeExpression.GetPrecedence(newToken);
-
-                            Expression nextExpression;
-                            (nextExpression, index) = ReadExpression(tokens, index + 1);
-
-                            AddToLastNode(ref previousExpression, newPrecedence, (expression, precedence) =>
+                            if (expression is SingleTokenVariableExpression singleTokenVariableExpression)
                             {
-                                if (precedence == null || !(precedence == newPrecedence))
-                                {
-                                    var newTree = new TreeExpression(newPrecedence, expression);
-                                    newTree.AddExpression(newToken, nextExpression);
-                                    return newTree;
-                                }
+                                var parameterTokens = new string[] { singleTokenVariableExpression.token };
+                                return FunctionStatement.FromParametersAndBody(parameterTokens, functionBodyTokens, isLambda: true, isAsync: false);
+                            }
+                            else
+                                throw new Exception();
+                        });
+
+                        index = end + 1;
+                        continue;
+                    }
+
+                    if (newToken == "++" || newToken == "--")
+                    {
+                        // Postfix increment
+                        var isInc = newToken == "++";
+                        AddToLastNode(ref previousExpression, Precedence.PostfixIncrement, (expression, p) =>
+                        {
+                            return new PrePostIncDecExpression(expression, isPre: false, isInc: isInc);
+                        });
+
+                        index += 1;
+                        continue;
+                    }
+
+                    if (newToken == "(" || newToken == "?.(")
+                    {
+                        // Function call
+                        var isConditional = newToken == "?.(";
+                        var @operator = isConditional ? Operator.ConditionalFunctionCall : Operator.FunctionCall;
+
+                        var end = tokens.IndexOfParenthesesEnd(index + 1);
+                        if (end < 0)
+                            throw new Exception();
+                        var parameters = tokens[(index + 1)..end];
+
+                        AddToLastNode(ref previousExpression, Precedence.FunctionCall, (expression, p) =>
+                        {
+                            var paramsSplit = SplitBy(parameters, commaSet);
+                            var expressionList = new List<(bool hasThreeDot, Expression expression)>();
+                            foreach (var item in paramsSplit)
+                            {
+                                if (item[0] == "...")
+                                    expressionList.Add((true, ExpressionMethods.New(item[1..item.Count])));
                                 else
-                                {
-                                    ((TreeExpression)expression).AddExpression(newToken, nextExpression);
-                                    return null;
-                                }
-                            });
-
-                            continue;
-                        }
-
-                        if (newToken == "?")
-                        {
-                            var questionMarkIndex = index;
-                            var count = 1;
-                            int colonIndex = index + 1;
-                            for (; colonIndex < tokens.Count; colonIndex++)
-                            {
-                                var ternaryToken = tokens[colonIndex];
-                                if (ternaryToken == "?")
-                                    count++;
-                                if (ternaryToken == ":")
-                                    count--;
-
-                                if (count == 0)
-                                    break;
+                                    expressionList.Add((false, ExpressionMethods.New(item)));
                             }
 
-                            var questionMarkExpressionTokens = tokens[(questionMarkIndex + 1)..colonIndex];
-                            var questionMarkExpression = ExpressionMethods.New(questionMarkExpressionTokens);
-                            var colonExpressionTokens = tokens[(colonIndex + 1)..tokens.Count];
-                            var colonExpression = ExpressionMethods.New(colonExpressionTokens);
-
-                            var ternaryExpression = new TernaryExpression(previousExpression, questionMarkExpression, colonExpression);
-                            return ternaryExpression;
-                        }
-
-                        if (newToken == "=>")
-                        {
-                            // Read operator
-                            // Handle lambda, async: false
-                            var (functionBodyTokens, end) = ReadBodyTokensAndEnd(tokens, index);
-
-                            AddToLastNode(ref previousExpression, Precedence.LambdaExpression, (expression, p) =>
+                            if (expression is HasRestExpression hasRestExpression)
                             {
-                                if (expression is SingleTokenVariableExpression singleTokenVariableExpression)
-                                {
-                                    var parameterTokens = new string[] { singleTokenVariableExpression.token };
-                                    return FunctionStatement.FromParametersAndBody(parameterTokens, functionBodyTokens, isLambda: true, isAsync: false);
-                                }
-                                else
-                                    throw new Exception();
-                            });
+                                var newExpression = new Op18Expression(hasRestExpression.ExpressionRest);
+                                newExpression.AddExpression(@operator, expressionList);
 
-                            index = end + 1;
-                            continue;
-                        }
-
-                        if (newToken == "++" || newToken == "--")
-                        {
-                            // Postfix increment
-                            var isInc = newToken == "++";
-                            AddToLastNode(ref previousExpression, Precedence.PostfixIncrement, (expression, p) =>
+                                hasRestExpression.ExpressionRest = newExpression;
+                                return hasRestExpression;
+                            }
+                            else if (expression is Op18Expression op18)
                             {
-                                return new PrePostIncDecExpression(expression, isPre: false, isInc: isInc);
-                            });
-
-                            index += 1;
-                            continue;
-                        }
-
-                        if (newToken == "(" || newToken == "?.(")
-                        {
-                            // Function call
-                            var isConditional = newToken == "?.(";
-                            var @operator = isConditional ? Operator.ConditionalFunctionCall : Operator.FunctionCall;
-
-                            var end = tokens.IndexOfParenthesesEnd(index + 1);
-                            if (end < 0)
-                                throw new Exception();
-                            var parameters = tokens[(index + 1)..end];
-
-                            AddToLastNode(ref previousExpression, Precedence.FunctionCall, (expression, p) =>
+                                op18.AddExpression(@operator, expressionList);
+                                return expression;
+                            }
+                            else
                             {
-                                var paramsSplit = SplitBy(parameters, commaSet);
-                                var expressionList = new List<(bool hasThreeDot, Expression expression)>();
-                                foreach (var item in paramsSplit)
-                                {
-                                    if (item[0] == "...")
-                                        expressionList.Add((true, ExpressionMethods.New(item[1..item.Count])));
-                                    else
-                                        expressionList.Add((false, ExpressionMethods.New(item)));
-                                }
+                                var newExpression = new Op18Expression(expression);
+                                newExpression.AddExpression(@operator, expressionList);
+                                return newExpression;
+                            }
+                        });
 
-                                if (expression is HasRestExpression hasRestExpression)
-                                {
-                                    var newExpression = new Op18Expression(hasRestExpression.ExpressionRest);
-                                    newExpression.AddExpression(@operator, expressionList);
-
-                                    hasRestExpression.ExpressionRest = newExpression;
-                                    return hasRestExpression;
-                                }
-                                else if (expression is Op18Expression op18)
-                                {
-                                    op18.AddExpression(@operator, expressionList);
-                                    return expression;
-                                }
-                                else
-                                {
-                                    var newExpression = new Op18Expression(expression);
-                                    newExpression.AddExpression(@operator, expressionList);
-                                    return newExpression;
-                                }
-                            });
-
-                            index = end + 1;
-                            continue;
-                        }
-
-                        if (newToken == "[" || newToken == "?.[")
-                        {
-                            // Indexing
-                            var isConditional = newToken == "?.[";
-                            var @operator = isConditional ? Operator.ConditionalComputedMemberAccess : Operator.ComputedMemberAccess;
-
-                            var end = tokens.IndexOfBracketsEnd(index + 1);
-                            if (end < 0)
-                                throw new Exception();
-                            var keyExpressionTokens = tokens[(index + 1)..end];
-
-                            AddToLastNode(ref previousExpression, Precedence.Indexing, (expression, p) =>
-                            {
-                                var keyExpression = ExpressionMethods.New(keyExpressionTokens);
-
-                                if (expression is HasRestExpression hasRestExpression)
-                                {
-                                    var newExpression = new Op18Expression(hasRestExpression.ExpressionRest);
-                                    newExpression.AddExpression(@operator, keyExpression);
-
-                                    hasRestExpression.ExpressionRest = newExpression;
-                                    return hasRestExpression;
-                                }
-                                else if (expression is Op18Expression op18)
-                                {
-                                    op18.AddExpression(@operator, keyExpression);
-                                    return expression;
-                                }
-                                else
-                                {
-                                    var newExpression = new Op18Expression(expression);
-                                    newExpression.AddExpression(@operator, keyExpression);
-                                    return newExpression;
-                                }
-                            });
-
-                            index = end + 1;
-                            continue;
-                        }
-
-                        if (newToken == "." || newToken == "?.")
-                        {
-                            // Dot access
-                            var isConditional = newToken == "?.";
-                            var @operator = isConditional ? Operator.ConditionalMemberAccess : Operator.MemberAccess;
-
-                            var fieldName = tokens[index + 1];
-                            if (!IsVariableName(fieldName))
-                                throw new Exception();
-
-                            AddToLastNode(ref previousExpression, Precedence.DotAccess, (expression, p) =>
-                            {
-                                var nextExpression = new CustomValueExpression(CustomValue.FromParsedString(fieldName));
-
-                                if (expression is HasRestExpression hasRestExpression)
-                                {
-                                    var newExpression = new Op18Expression(hasRestExpression.ExpressionRest);
-                                    newExpression.AddExpression(@operator, nextExpression);
-
-                                    hasRestExpression.ExpressionRest = newExpression;
-                                    return hasRestExpression;
-                                }
-                                else if (expression is Op18Expression op18)
-                                {
-                                    op18.AddExpression(@operator, nextExpression);
-                                    return expression;
-                                }
-                                else
-                                {
-                                    var newExpression = new Op18Expression(expression);
-                                    newExpression.AddExpression(@operator, nextExpression);
-                                    return newExpression;
-                                }
-                            });
-
-                            index += 2;
-                            continue;
-                        }
-
-                        throw new Exception();
+                        index = end + 1;
+                        continue;
                     }
+
+                    if (newToken == "[" || newToken == "?.[")
+                    {
+                        // Indexing
+                        var isConditional = newToken == "?.[";
+                        var @operator = isConditional ? Operator.ConditionalComputedMemberAccess : Operator.ComputedMemberAccess;
+
+                        var end = tokens.IndexOfBracketsEnd(index + 1);
+                        if (end < 0)
+                            throw new Exception();
+                        var keyExpressionTokens = tokens[(index + 1)..end];
+
+                        AddToLastNode(ref previousExpression, Precedence.Indexing, (expression, p) =>
+                        {
+                            var keyExpression = ExpressionMethods.New(keyExpressionTokens);
+
+                            if (expression is HasRestExpression hasRestExpression)
+                            {
+                                var newExpression = new Op18Expression(hasRestExpression.ExpressionRest);
+                                newExpression.AddExpression(@operator, keyExpression);
+
+                                hasRestExpression.ExpressionRest = newExpression;
+                                return hasRestExpression;
+                            }
+                            else if (expression is Op18Expression op18)
+                            {
+                                op18.AddExpression(@operator, keyExpression);
+                                return expression;
+                            }
+                            else
+                            {
+                                var newExpression = new Op18Expression(expression);
+                                newExpression.AddExpression(@operator, keyExpression);
+                                return newExpression;
+                            }
+                        });
+
+                        index = end + 1;
+                        continue;
+                    }
+
+                    if (newToken == "." || newToken == "?.")
+                    {
+                        // Dot access
+                        var isConditional = newToken == "?.";
+                        var @operator = isConditional ? Operator.ConditionalMemberAccess : Operator.MemberAccess;
+
+                        var fieldName = tokens[index + 1];
+                        if (!IsVariableName(fieldName))
+                            throw new Exception();
+
+                        AddToLastNode(ref previousExpression, Precedence.DotAccess, (expression, p) =>
+                        {
+                            var nextExpression = new CustomValueExpression(CustomValue.FromParsedString(fieldName));
+
+                            if (expression is HasRestExpression hasRestExpression)
+                            {
+                                var newExpression = new Op18Expression(hasRestExpression.ExpressionRest);
+                                newExpression.AddExpression(@operator, nextExpression);
+
+                                hasRestExpression.ExpressionRest = newExpression;
+                                return hasRestExpression;
+                            }
+                            else if (expression is Op18Expression op18)
+                            {
+                                op18.AddExpression(@operator, nextExpression);
+                                return expression;
+                            }
+                            else
+                            {
+                                var newExpression = new Op18Expression(expression);
+                                newExpression.AddExpression(@operator, nextExpression);
+                                return newExpression;
+                            }
+                        });
+
+                        index += 2;
+                        continue;
+                    }
+
+                    throw new Exception();
                 }
 
                 throw new Exception();
@@ -2683,7 +2672,7 @@ namespace CasualConsoleCore.Interpreter
             private CustomValue value;
 
             public SingleTokenStringExpression(string token)
-{
+            {
                 var parsedString = ParseStaticString(token);
                 this.value = CustomValue.FromParsedString(parsedString);
             }
@@ -2734,7 +2723,7 @@ namespace CasualConsoleCore.Interpreter
             {
                 parts = new List<object>();
 
-                for (int i = 1; i < token.Length; )
+                for (int i = 1; i < token.Length;)
                 {
                     if (token[i] == '`')
                         break;
@@ -3556,7 +3545,7 @@ namespace CasualConsoleCore.Interpreter
             Expression conditionExpression;
             internal Statement statementOfIf;
             internal Lazy<List<(Expression condition, Statement statement)>> elseIfStatements = new Lazy<List<(Expression, Statement)>>(() => new List<(Expression, Statement)>());
-            Statement elseStatement;
+            Statement? elseStatement;
 
             public IfStatement(ArraySegment<string> tokens)
             {
@@ -3826,7 +3815,7 @@ static class InterpreterExtensions
         return newArr;
     }
 
-    public static new bool Equals(object result, object expected)
+    public static new bool Equals(object? result, object? expected)
     {
         if (result == null)
             return expected == null;
