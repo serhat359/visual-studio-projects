@@ -21,17 +21,6 @@ namespace CasualConsoleCore.Interpreter
         private static readonly Expression falseExpression;
         private static readonly Expression nullExpression;
 
-        private static readonly Lazy<CustomValue> arrayPushFunction = new Lazy<CustomValue>(() =>
-        {
-            var func = new ArrayPushFunction();
-            return CustomValue.FromFunction(func);
-        });
-        private static readonly Lazy<CustomValue> arrayPopFunction = new Lazy<CustomValue>(() =>
-        {
-            var func = new ArrayPopFunction();
-            return CustomValue.FromFunction(func);
-        });
-
         static Interpreter()
         {
             trueExpression = new CustomValueExpression(CustomValue.True);
@@ -52,6 +41,16 @@ namespace CasualConsoleCore.Interpreter
 
             var printFunction = new InternalFunction("print");
             defaultvariables["print"] = (CustomValue.FromFunction(printFunction), AssignmentType.Const);
+
+            var arrayPrototype = CustomValue.FromMap(new Dictionary<string, CustomValue>()
+            {
+                { "push", CustomValue.FromFunction(new ArrayPushFunction()) },
+                { "pop", CustomValue.FromFunction(new ArrayPopFunction()) },
+            });
+
+            defaultvariables["Array"] = (CustomValue.FromMap(new Dictionary<string, CustomValue> {
+                { "prototype", arrayPrototype },
+            }), AssignmentType.Const);
         }
 
         public object InterpretCode(string code)
@@ -582,6 +581,8 @@ namespace CasualConsoleCore.Interpreter
                 ("o.name?.()", null),
                 ("var potentiallyNullObj = null; var x = 0; var prop = potentiallyNullObj?.[x++]; x", 0),
                 ("var f = x => `asd${x}asd`; var arr = [f(1),f(2),f(3)]; arr[0] == 'asd1asd' && arr[1] == 'asd2asd' && arr[2] == 'asd3asd'", true),
+                ("Array.prototype.popTwice = function(){ this.pop(); this.pop(); }; var arr = [1,2,3]; arr.popTwice(); arr.length", 1),
+                ("Array.prototype.pushTwice = function(x){ this.push(x); this.push(x); }; var arr = [1,2,3]; arr.pushTwice(9); arr.length == 5 && arr[3] == 9 && arr[4] == 9", true),
             };
 
             var interpreter = new Interpreter();
@@ -1022,6 +1023,19 @@ namespace CasualConsoleCore.Interpreter
 
         private static CustomValue DoIndexingGet(CustomValue baseExpressionValue, CustomValue keyExpressionValue, Context context, bool isThisToken)
         {
+            if (keyExpressionValue.type == ValueType.String)
+            {
+                var prototype = GetPrototype(baseExpressionValue.type, context);
+                if (prototype.type != ValueType.Null)
+                {
+                    var prototypeMap = (Dictionary<string, CustomValue>)prototype.value;
+                    if (prototypeMap.TryGetValue((string)keyExpressionValue.value, out var value))
+                    {
+                        return value;
+                    }
+                }
+            }
+
             if (baseExpressionValue.type == ValueType.Map && keyExpressionValue.type == ValueType.String)
             {
                 var map = (Dictionary<string, CustomValue>)baseExpressionValue.value;
@@ -1062,6 +1076,20 @@ namespace CasualConsoleCore.Interpreter
             }
 
             throw new Exception();
+        }
+
+        private static CustomValue GetPrototype(ValueType type, Context context)
+        {
+            switch (type)
+            {
+                case ValueType.Array:
+                    {
+                        var arrayObject = context.variableScope.GetVariable("Array");
+                        return ((Dictionary<string, CustomValue>)arrayObject.value).TryGetValue("prototype", out var value) ? value : CustomValue.Null;
+                    }
+                default:
+                    return CustomValue.Null;
+            }
         }
 
         private static CustomValue DoIndexingSet(CustomValue value, CustomValue baseExpressionValue, CustomValue keyExpressionValue, Context context, bool isThisToken)
@@ -1481,8 +1509,6 @@ namespace CasualConsoleCore.Interpreter
             {
                 this.list = list;
                 this.map = new Dictionary<string, CustomValue>();
-                this.map["push"] = arrayPushFunction.Value;
-                this.map["pop"] = arrayPopFunction.Value;
             }
         }
 
