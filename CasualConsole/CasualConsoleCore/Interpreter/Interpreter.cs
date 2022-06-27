@@ -39,8 +39,7 @@ namespace CasualConsoleCore.Interpreter
             var defaultThisOwner = CustomValue.Null;
             defaultContext = new Context(defaultVariableScope, defaultThisOwner);
 
-            var printFunction = new InternalFunction("print");
-            defaultvariables["print"] = (CustomValue.FromFunction(printFunction), AssignmentType.Const);
+            defaultvariables["print"] = (CustomValue.FromFunction(new PrintFunction()), AssignmentType.Const);
 
             var arrayPrototype = CustomValue.FromMap(new Dictionary<string, CustomValue>()
             {
@@ -48,8 +47,17 @@ namespace CasualConsoleCore.Interpreter
                 { "pop", CustomValue.FromFunction(new ArrayPopFunction()) },
             });
 
+            var functionPrototype = CustomValue.FromMap(new Dictionary<string, CustomValue>()
+            {
+                { "call", CustomValue.FromFunction(new FunctionCallFunction()) },
+            });
+
             defaultvariables["Array"] = (CustomValue.FromMap(new Dictionary<string, CustomValue> {
                 { "prototype", arrayPrototype },
+            }), AssignmentType.Const);
+
+            defaultvariables["Function"] = (CustomValue.FromMap(new Dictionary<string, CustomValue> {
+                { "prototype", functionPrototype },
             }), AssignmentType.Const);
         }
 
@@ -583,6 +591,7 @@ namespace CasualConsoleCore.Interpreter
                 ("var f = x => `asd${x}asd`; var arr = [f(1),f(2),f(3)]; arr[0] == 'asd1asd' && arr[1] == 'asd2asd' && arr[2] == 'asd3asd'", true),
                 ("Array.prototype.popTwice = function(){ this.pop(); this.pop(); }; var arr = [1,2,3]; arr.popTwice(); arr.length", 1),
                 ("Array.prototype.pushTwice = function(x){ this.push(x); this.push(x); }; var arr = [1,2,3]; arr.pushTwice(9); arr.length == 5 && arr[3] == 9 && arr[4] == 9", true),
+                ("var f = function(x, y, z){ return this.name + (x + y); }; var o = { name: 'Serhat' }; f.call(o, 1, 2)", "Serhat3"),
             };
 
             var interpreter = new Interpreter();
@@ -845,7 +854,7 @@ namespace CasualConsoleCore.Interpreter
             yield return tokens[index..tokens.Count];
         }
 
-        private static CustomValue CallFunction(FunctionObject function, IReadOnlyList<CustomValue> arguments, Context context)
+        private static CustomValue CallFunction(FunctionObject function, IReadOnlyList<CustomValue> arguments, CustomValue thisOwner)
         {
             var functionParameterArguments = new Dictionary<string, (CustomValue, AssignmentType)>();
             for (int i = 0; i < function.Parameters.Count; i++)
@@ -870,18 +879,11 @@ namespace CasualConsoleCore.Interpreter
             }
             functionParameterArguments["arguments"] = (CustomValue.FromArray(new CustomArray(arguments)), AssignmentType.Var);
             var newScope = VariableScope.NewWithInner(function.Scope, functionParameterArguments, isFunctionScope: true);
-            var newContext = new Context(newScope, context.thisOwner);
+            var newContext = new Context(newScope, thisOwner);
             var (result, isReturn, isBreak, isContinue) = function.EvaluateStatement(newContext);
             if (isBreak || isContinue)
                 throw new Exception();
             return result;
-        }
-
-        private static FunctionObject GetFunctionObject(CustomValue f)
-        {
-            if (f.type != ValueType.Function)
-                throw new Exception("variable is not a function");
-            return (FunctionObject)f.value;
         }
 
         private static bool Compare(CustomValue first, Operator operatorType, CustomValue second)
@@ -1086,6 +1088,11 @@ namespace CasualConsoleCore.Interpreter
                     {
                         var arrayObject = context.variableScope.GetVariable("Array");
                         return ((Dictionary<string, CustomValue>)arrayObject.value).TryGetValue("prototype", out var value) ? value : CustomValue.Null;
+                    }
+                case ValueType.Function:
+                    {
+                        var functionObject = context.variableScope.GetVariable("Function");
+                        return ((Dictionary<string, CustomValue>)functionObject.value).TryGetValue("prototype", out var value) ? value : CustomValue.Null;
                     }
                 default:
                     return CustomValue.Null;
@@ -1388,15 +1395,8 @@ namespace CasualConsoleCore.Interpreter
                 }
             }
         }
-        class InternalFunction : FunctionObject
+        class PrintFunction : FunctionObject
         {
-            private string functionName;
-
-            public InternalFunction(string functionName)
-            {
-                this.functionName = functionName;
-            }
-
             public IReadOnlyList<(string paramName, bool isRest)> Parameters => new[] { ("x", false) };
 
             public VariableScope? Scope => null;
@@ -1407,21 +1407,31 @@ namespace CasualConsoleCore.Interpreter
 
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
-                switch (functionName)
-                {
-                    case "print":
-                        return (HandlePrint(context), false, false, false);
-                }
-
-                throw new Exception();
-            }
-
-            private CustomValue HandlePrint(Context context)
-            {
                 var printValue = context.variableScope.GetVariable(Parameters[0].paramName);
                 if (printValue.type != ValueType.Null)
                     Console.WriteLine(printValue.ToString());
-                return CustomValue.Null;
+                return (CustomValue.Null, false, false, false);
+            }
+        }
+        class FunctionCallFunction : FunctionObject
+        {
+            public IReadOnlyList<(string paramName, bool isRest)> Parameters => new[] { ("thisOwner", false), ("args", true) };
+
+            public VariableScope? Scope => null;
+
+            public bool IsLambda => false;
+
+            public StatementType Type => throw new NotImplementedException();
+
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+            {
+                var thisOwner = context.variableScope.GetVariable(Parameters[0].paramName);
+                var args = context.variableScope.GetVariable(Parameters[1].paramName);
+                var argsList = ((CustomArray)args.value).list;
+
+                var returnValue = CallFunction((FunctionObject)context.thisOwner.value, argsList, thisOwner);
+
+                return (returnValue, false, false, false);
             }
         }
         class ArrayPushFunction : FunctionObject
@@ -2559,7 +2569,9 @@ namespace CasualConsoleCore.Interpreter
 
             private static CustomValue EvaluateFunctionCall(Context context, CustomValue functionValue, List<(bool hasThreeDot, Expression expression)> expressionList, CustomValue newOwner)
             {
-                FunctionObject function = GetFunctionObject(functionValue);
+                if (functionValue.type != ValueType.Function)
+                    throw new Exception("variable is not a function");
+                FunctionObject function = (FunctionObject)functionValue.value;
 
                 var arguments = new List<CustomValue>();
                 foreach (var (hasThreeDot, expression) in expressionList)
@@ -2577,9 +2589,9 @@ namespace CasualConsoleCore.Interpreter
                         arguments.Add(expression.EvaluateExpression(context));
                 }
 
-                Context newContext = function.IsLambda ? context : new Context(context.variableScope, newOwner);
+                CustomValue owner = function.IsLambda ? context.thisOwner : newOwner;
 
-                return CallFunction(function, arguments, newContext);
+                return CallFunction(function, arguments, owner);
             }
 
             public Expression GetSecondLastExpression()
