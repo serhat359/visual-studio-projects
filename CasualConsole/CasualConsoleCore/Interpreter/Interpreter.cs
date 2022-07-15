@@ -52,12 +52,21 @@ namespace CasualConsoleCore.Interpreter
                 { "call", CustomValue.FromFunction(new FunctionCallFunction()) },
             });
 
+            var stringPrototype = CustomValue.FromMap(new Dictionary<string, CustomValue>()
+            {
+                { "charAt", CustomValue.FromFunction(new CharAtFunction()) },
+            });
+
             defaultvariables["Array"] = (CustomValue.FromMap(new Dictionary<string, CustomValue> {
                 { "prototype", arrayPrototype },
             }), AssignmentType.Const);
 
             defaultvariables["Function"] = (CustomValue.FromMap(new Dictionary<string, CustomValue> {
                 { "prototype", functionPrototype },
+            }), AssignmentType.Const);
+
+            defaultvariables["String"] = (CustomValue.FromMap(new Dictionary<string, CustomValue> {
+                { "prototype", stringPrototype },
             }), AssignmentType.Const);
         }
 
@@ -592,6 +601,8 @@ namespace CasualConsoleCore.Interpreter
                 ("Array.prototype.popTwice = function(){ this.pop(); this.pop(); }; var arr = [1,2,3]; arr.popTwice(); arr.length", 1),
                 ("Array.prototype.pushTwice = function(x){ this.push(x); this.push(x); }; var arr = [1,2,3]; arr.pushTwice(9); arr.length == 5 && arr[3] == 9 && arr[4] == 9", true),
                 ("var f = function(x, y, z){ return this.name + (x + y); }; var o = { name: 'Serhat' }; f.call(o, 1, 2)", "Serhat3"),
+                ("'hello'.charAt(0)", "h"),
+                ("'hello'.charAt(2)", "l"),
             };
 
             var interpreter = new Interpreter();
@@ -711,12 +722,10 @@ namespace CasualConsoleCore.Interpreter
             var statementRanges = GetStatementRanges(tokens);
             var statementEnumerator = statementRanges.Select(range => StatementMethods.New(range)).GetEnumerator();
 
-            Statement previousStatement;
-
             if (!statementEnumerator.MoveNext())
                 yield break;
 
-            previousStatement = statementEnumerator.Current;
+            Statement previousStatement = statementEnumerator.Current;
             if (previousStatement.Type == StatementType.ElseIfStatement || previousStatement.Type == StatementType.ElseStatement)
                 throw new Exception();
 
@@ -1094,6 +1103,11 @@ namespace CasualConsoleCore.Interpreter
                         var functionObject = context.variableScope.GetVariable("Function");
                         return ((Dictionary<string, CustomValue>)functionObject.value).TryGetValue("prototype", out var value) ? value : CustomValue.Null;
                     }
+                case ValueType.String:
+                    {
+                        var stringObject = context.variableScope.GetVariable("String");
+                        return ((Dictionary<string, CustomValue>)stringObject.value).TryGetValue("prototype", out var value) ? value : CustomValue.Null;
+                    }
                 default:
                     return CustomValue.Null;
             }
@@ -1432,6 +1446,34 @@ namespace CasualConsoleCore.Interpreter
                 var returnValue = CallFunction((FunctionObject)context.thisOwner.value, argsList, thisOwner);
 
                 return (returnValue, false, false, false);
+            }
+        }
+        class CharAtFunction : FunctionObject
+        {
+            public IReadOnlyList<(string paramName, bool isRest)> Parameters => new[] { ("x", false) };
+
+            public StatementType Type => throw new Exception();
+
+            public VariableScope? Scope => null;
+
+            public bool IsLambda => false;
+
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+            {
+                var thisString = context.thisOwner;
+                if (thisString.type != ValueType.String)
+                    throw new Exception();
+
+                var str = (string)thisString.value;
+
+                var indexValue = context.variableScope.GetVariable(Parameters[0].paramName);
+                if (indexValue.type != ValueType.Number)
+                    throw new Exception();
+
+                int index = (int)(double)indexValue.value;
+
+                var newValue = CustomValue.FromParsedString(str[index].ToString());
+                return (newValue, false, false, false);
             }
         }
         class ArrayPushFunction : FunctionObject
