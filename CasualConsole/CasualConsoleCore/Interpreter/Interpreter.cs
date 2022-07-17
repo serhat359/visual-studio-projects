@@ -1924,7 +1924,7 @@ namespace CasualConsoleCore.Interpreter
                 }
             }
         }
-        class Context
+        record Context
         {
             public readonly VariableScope variableScope;
             public readonly CustomValue thisOwner;
