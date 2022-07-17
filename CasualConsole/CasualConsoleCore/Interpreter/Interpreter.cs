@@ -3716,8 +3716,6 @@ namespace CasualConsoleCore.Interpreter
 
             public ElseStatement(ArraySegment<string> tokens)
             {
-                if (tokens[0] != "else")
-                    throw new Exception();
                 statement = StatementMethods.New(tokens[1..tokens.Count]);
             }
 
