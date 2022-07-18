@@ -860,7 +860,7 @@ namespace CasualConsoleCore.Interpreter
                     index = i + 1;
                 }
             }
-            yield return tokens[index..tokens.Count];
+            yield return tokens[index..];
         }
 
         private static CustomValue CallFunction(FunctionObject function, IReadOnlyList<CustomValue> arguments, CustomValue thisOwner)
@@ -1964,7 +1964,7 @@ namespace CasualConsoleCore.Interpreter
 
                     if (assignmentSet.Contains(newToken))
                     {
-                        var restTokens = tokens[(index + 1)..tokens.Count];
+                        var restTokens = tokens[(index + 1)..];
                         return new AssignmentExpression(previousExpression, newToken, restTokens, AssignmentType.None);
                     }
 
@@ -2015,7 +2015,7 @@ namespace CasualConsoleCore.Interpreter
 
                         var questionMarkExpressionTokens = tokens[(questionMarkIndex + 1)..colonIndex];
                         var questionMarkExpression = ExpressionMethods.New(questionMarkExpressionTokens);
-                        var colonExpressionTokens = tokens[(colonIndex + 1)..tokens.Count];
+                        var colonExpressionTokens = tokens[(colonIndex + 1)..];
                         var colonExpression = ExpressionMethods.New(colonExpressionTokens);
 
                         var ternaryExpression = new TernaryExpression(previousExpression, questionMarkExpression, colonExpression);
@@ -2282,7 +2282,7 @@ namespace CasualConsoleCore.Interpreter
                     bool isAsync = token == "async";
                     if (isAsync)
                     {
-                        tokens = tokens[1..tokens.Count];
+                        tokens = tokens[1..];
                     }
 
                     if (tokens[index + 1] != "(")
@@ -2368,7 +2368,7 @@ namespace CasualConsoleCore.Interpreter
                 }
                 else
                 {
-                    functionBodyTokens = tokens[(index + 1)..tokens.Count];
+                    functionBodyTokens = tokens[(index + 1)..];
                     end = tokens.Count - 1;
                 }
 
@@ -3153,7 +3153,7 @@ namespace CasualConsoleCore.Interpreter
                     if (tokens.Count == 1)
                         return new AssignmentExpression(variableName, "=", nullExpression, assignmentType);
                     else
-                        return new AssignmentExpression(variableName, tokens[1], tokens[2..tokens.Count], assignmentType);
+                        return new AssignmentExpression(variableName, tokens[1], tokens[2..], assignmentType);
                 }
                 else if (tokens[0] == "{")
                 {
@@ -3171,7 +3171,7 @@ namespace CasualConsoleCore.Interpreter
                         return x[0];
                     }).ToArray();
 
-                    var rValueTokens = tokens[(braceIndex + 2)..tokens.Count];
+                    var rValueTokens = tokens[(braceIndex + 2)..];
                     var rvalueExpression = ExpressionMethods.New(rValueTokens);
                     return new MapAssignmentExpression(variableNames, rvalueExpression, assignmentType);
                 }
@@ -3191,7 +3191,7 @@ namespace CasualConsoleCore.Interpreter
                         return x[0];
                     }).ToArray();
 
-                    var rValueTokens = tokens[(braceIndex + 2)..tokens.Count];
+                    var rValueTokens = tokens[(braceIndex + 2)..];
                     var rvalueExpression = ExpressionMethods.New(rValueTokens);
                     return new ArrayAssignmentExpression(variableNames, rvalueExpression, assignmentType);
                 }
@@ -3270,7 +3270,7 @@ namespace CasualConsoleCore.Interpreter
                     throw new Exception();
                 var conditionTokens = tokens[conditionStartIndex..endOfParentheses];
 
-                var statementTokens = tokens[(endOfParentheses + 1)..tokens.Count];
+                var statementTokens = tokens[(endOfParentheses + 1)..];
 
                 return (conditionTokens, statementTokens);
             }
@@ -3303,7 +3303,7 @@ namespace CasualConsoleCore.Interpreter
                 else if (IsAssignmentType(tokens[0], out var assignmentType))
                 {
                     // Assignment to new variable
-                    var assignmentTree = AssignmentExpression.FromVarStatement(tokens[1..tokens.Count], assignmentType);
+                    var assignmentTree = AssignmentExpression.FromVarStatement(tokens[1..], assignmentType);
 
                     eval = context =>
                     {
@@ -3319,7 +3319,7 @@ namespace CasualConsoleCore.Interpreter
                     }
                     else
                     {
-                        var returnExpression = ExpressionMethods.New(tokens[1..tokens.Count]);
+                        var returnExpression = ExpressionMethods.New(tokens[1..]);
                         eval = context =>
                         {
                             var returnValue = returnExpression.EvaluateExpression(context);
@@ -3339,7 +3339,7 @@ namespace CasualConsoleCore.Interpreter
                 {
                     bool isAsync = tokens[0] == "async";
                     if (isAsync)
-                        tokens = tokens[1..tokens.Count];
+                        tokens = tokens[1..];
 
                     if (!IsVariableName(tokens[1]))
                         throw new Exception();
@@ -3716,7 +3716,7 @@ namespace CasualConsoleCore.Interpreter
 
             public ElseStatement(ArraySegment<string> tokens)
             {
-                statement = StatementMethods.New(tokens[1..tokens.Count]);
+                statement = StatementMethods.New(tokens[1..]);
             }
 
             public StatementType Type => StatementType.ElseStatement;
