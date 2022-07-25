@@ -1,5 +1,4 @@
-﻿using CasualConsole;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -2165,7 +2164,7 @@ namespace PicrossSolver
 
                     forwardFilledCandidates = newRes;
 
-                    filledRangeIndex = filledRanges.Select((x, index) => new { index = index, v = x }).Where(x => x.v.start >= i).Select(x => x.index).FirstOrCustom(filledRanges.Count);
+                    filledRangeIndex = filledRanges.Select((x, index) => new { index = index, v = x }).Where(x => x.v.start >= i).Select(x => (int?)x.index).FirstOrDefault() ?? filledRanges.Count;
                 }
 
                 while (true)
