@@ -1,5 +1,9 @@
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace CasualConsoleCore.Interpreter
 {
@@ -14,7 +18,7 @@ namespace CasualConsoleCore.Interpreter
         private static readonly HashSet<string> comparisonSet = new HashSet<string>() { "==", "!=", "<", ">", "<=", ">=" };
         private static readonly HashSet<string> andOrSet = new HashSet<string>() { "&&", "||", "??" };
         private static readonly HashSet<string> asteriskSlashSet = new HashSet<string>() { "*", "/", "%" };
-        private static readonly HashSet<string> keywords = new HashSet<string>() { "this", "var", "let", "const", "if", "while", "for", "break", "continue", "function", "async", "await", "return", "true", "false", "null" };
+        private static readonly HashSet<string> keywords = new HashSet<string>() { "this", "var", "let", "const", "if", "else", "while", "for", "break", "continue", "function", "async", "await", "return", "true", "false", "null" };
         private static readonly Dictionary<char, Dictionary<char, HashSet<char>>> operatorsCompiled;
 
         private static readonly Expression trueExpression;
@@ -603,6 +607,8 @@ namespace CasualConsoleCore.Interpreter
                 ("var f = function(x, y, z){ return this.name + (x + y); }; var o = { name: 'Serhat' }; f.call(o, 1, 2)", "Serhat3"),
                 ("'hello'.charAt(0)", "h"),
                 ("'hello'.charAt(2)", "l"),
+                ("var o = { name: 'Serhat', age: 30 }; var name; var age; ({ name, age } = o); name == 'Serhat' && age == 30", true),
+                ("var xx1; var xx2; ([xx1, xx2] = [5,6]); xx1 == 5 && xx2 == 6", true),
             };
 
             var interpreter = new Interpreter();
@@ -790,22 +796,36 @@ namespace CasualConsoleCore.Interpreter
             if (token == "{")
             {
                 var newIndex = tokens.IndexOfBracesEnd(startingIndex + 1);
+                if (newIndex < 0)
+                    throw new Exception();
                 return newIndex + 1;
             }
 
             if (token == "function")
             {
                 var paranBegin = tokens.IndexOf("(", startingIndex);
+                if (paranBegin < 0)
+                    throw new Exception();
                 var paranEnd = tokens.IndexOfParenthesesEnd(paranBegin + 1);
+                if (paranEnd < 0)
+                    throw new Exception();
                 var braceBegin = tokens.IndexOf("{", paranEnd + 1);
+                if (braceBegin < 0)
+                    throw new Exception();
                 var braceEnd = tokens.IndexOfBracesEnd(braceBegin + 1);
+                if (braceEnd < 0)
+                    throw new Exception();
                 return braceEnd + 1;
             }
 
             if (token == "if" || token == "for" || token == "while")
             {
                 var paranBegin = tokens.IndexOf("(", startingIndex);
+                if (paranBegin < 0)
+                    throw new Exception();
                 var paranEnd = tokens.IndexOfParenthesesEnd(paranBegin + 1);
+                if (paranEnd < 0)
+                    throw new Exception();
                 return GetStatementEndIndex(tokens, paranEnd + 1);
             }
 
@@ -823,11 +843,15 @@ namespace CasualConsoleCore.Interpreter
                 if (tokens[startingIndex] == "(")
                 {
                     startingIndex = tokens.IndexOfParenthesesEnd(startingIndex + 1);
+                    if (startingIndex < 0)
+                        throw new Exception();
                     continue;
                 }
                 if (tokens[startingIndex] == "{")
                 {
                     startingIndex = tokens.IndexOfBracesEnd(startingIndex + 1);
+                    if (startingIndex < 0)
+                        throw new Exception();
                     continue;
                 }
                 startingIndex++;
@@ -2246,23 +2270,41 @@ namespace CasualConsoleCore.Interpreter
                 }
                 if (token == "{")
                 {
-                    var bracesEnd = tokens.IndexOfBracesEnd(index + 1);
-                    if (bracesEnd < 0)
+                    var braceEndIndex = tokens.IndexOfBracesEnd(index + 1);
+                    if (braceEndIndex < 0)
                         throw new Exception();
 
-                    var mapExpressionTokens = tokens[index..(bracesEnd + 1)];
-                    var mapExpression = new MapExpression(mapExpressionTokens);
-                    return (mapExpression, bracesEnd + 1);
+                    if (braceEndIndex + 1 < tokens.Count && tokens[braceEndIndex + 1] == "=")
+                    {
+                        // Map assignment without var, let or const
+                        var mapExpression = MapAssignmentExpression.FromBody(tokens, braceEndIndex, AssignmentType.None);
+                        return (mapExpression, tokens.Count);
+                    }
+                    else
+                    {
+                        var mapExpressionTokens = tokens[index..(braceEndIndex + 1)];
+                        var mapExpression = new MapExpression(mapExpressionTokens);
+                        return (mapExpression, braceEndIndex + 1);
+                    }
                 }
                 if (token == "[")
                 {
-                    var bracketsEnd = tokens.IndexOfBracketsEnd(index + 1);
-                    if (bracketsEnd < 0)
+                    var bracketsEndIndex = tokens.IndexOfBracketsEnd(index + 1);
+                    if (bracketsEndIndex < 0)
                         throw new Exception();
 
-                    var arrayTokens = tokens[index..(bracketsEnd + 1)];
-                    var arrayExpression = new ArrayExpression(arrayTokens);
-                    return (arrayExpression, bracketsEnd + 1);
+                    if (bracketsEndIndex + 1 < tokens.Count && tokens[bracketsEndIndex + 1] == "=")
+                    {
+                        // Array assignment without var, let or const
+                        var arrayExpression = ArrayAssignmentExpression.FromBody(tokens, bracketsEndIndex, AssignmentType.None);
+                        return (arrayExpression, tokens.Count);
+                    }
+                    else
+                    {
+                        var arrayTokens = tokens[index..(bracketsEndIndex + 1)];
+                        var arrayExpression = new ArrayExpression(arrayTokens);
+                        return (arrayExpression, bracketsEndIndex + 1);
+                    }
                 }
 
                 if (token == "true")
@@ -2810,6 +2852,8 @@ namespace CasualConsoleCore.Interpreter
                     else if (token[i] == '$' && token[i + 1] == '{')
                     {
                         var end = token.IndexOfBracesEnd(i + 2);
+                        if (end < 0)
+                            throw new Exception();
                         var substring = token.Substring(i + 2, end - (i + 2));
                         var subtokens = GetTokens(substring).ToArray();
                         var subExpression = ExpressionMethods.New(subtokens);
@@ -3021,6 +3065,21 @@ namespace CasualConsoleCore.Interpreter
 
                 return CustomValue.Null;
             }
+
+            public static MapAssignmentExpression FromBody(ArraySegment<string> tokens, int braceEndIndex, AssignmentType assignmentType)
+            {
+                var variableGroups = SplitBy(tokens[1..braceEndIndex], commaSet);
+                var variableNames = variableGroups.Select(x =>
+                {
+                    if (x.Count != 1)
+                        throw new Exception();
+                    return x[0];
+                }).ToArray();
+
+                var rValueTokens = tokens[(braceEndIndex + 2)..];
+                var rvalueExpression = ExpressionMethods.New(rValueTokens);
+                return new MapAssignmentExpression(variableNames, rvalueExpression, assignmentType);
+            }
         }
         class ArrayAssignmentExpression : Expression
         {
@@ -3049,6 +3108,21 @@ namespace CasualConsoleCore.Interpreter
                 }
 
                 return CustomValue.Null;
+            }
+
+            public static ArrayAssignmentExpression FromBody(ArraySegment<string> tokens, int bracketsEndIndex, AssignmentType assignmentType)
+            {
+                var variableGroups = SplitBy(tokens[1..bracketsEndIndex], commaSet);
+                var variableNames = variableGroups.Select(x =>
+                {
+                    if (x.Count != 1)
+                        throw new Exception();
+                    return x[0];
+                }).ToArray();
+
+                var rValueTokens = tokens[(bracketsEndIndex + 2)..];
+                var rvalueExpression = ExpressionMethods.New(rValueTokens);
+                return new ArrayAssignmentExpression(variableNames, rvalueExpression, assignmentType);
             }
         }
         class AssignmentExpression : Expression
@@ -3157,43 +3231,23 @@ namespace CasualConsoleCore.Interpreter
                 }
                 else if (tokens[0] == "{")
                 {
-                    var braceIndex = tokens.IndexOf("}", 1);
-                    if (braceIndex < 1)
+                    var braceEndIndex = tokens.IndexOf("}", 1);
+                    if (braceEndIndex < 1)
                         throw new Exception();
-                    if (tokens[braceIndex + 1] != "=")
+                    if (tokens[braceEndIndex + 1] != "=")
                         throw new Exception();
 
-                    var variableGroups = SplitBy(tokens[1..braceIndex], commaSet);
-                    var variableNames = variableGroups.Select(x =>
-                    {
-                        if (x.Count != 1)
-                            throw new Exception();
-                        return x[0];
-                    }).ToArray();
-
-                    var rValueTokens = tokens[(braceIndex + 2)..];
-                    var rvalueExpression = ExpressionMethods.New(rValueTokens);
-                    return new MapAssignmentExpression(variableNames, rvalueExpression, assignmentType);
+                    return MapAssignmentExpression.FromBody(tokens, braceEndIndex, assignmentType);
                 }
                 else if (tokens[0] == "[")
                 {
-                    var braceIndex = tokens.IndexOf("]", 1);
-                    if (braceIndex < 1)
+                    var bracketEndIndex = tokens.IndexOf("]", 1);
+                    if (bracketEndIndex < 1)
                         throw new Exception();
-                    if (tokens[braceIndex + 1] != "=")
+                    if (tokens[bracketEndIndex + 1] != "=")
                         throw new Exception();
 
-                    var variableGroups = SplitBy(tokens[1..braceIndex], commaSet);
-                    var variableNames = variableGroups.Select(x =>
-                    {
-                        if (x.Count != 1)
-                            throw new Exception();
-                        return x[0];
-                    }).ToArray();
-
-                    var rValueTokens = tokens[(braceIndex + 2)..];
-                    var rvalueExpression = ExpressionMethods.New(rValueTokens);
-                    return new ArrayAssignmentExpression(variableNames, rvalueExpression, assignmentType);
+                    return ArrayAssignmentExpression.FromBody(tokens, bracketEndIndex, assignmentType);
                 }
                 else
                 {
@@ -3785,6 +3839,8 @@ namespace CasualConsoleCore.Interpreter
             public static FunctionStatement FromTokens(ArraySegment<string> tokens, bool isLambda, bool isAsync)
             {
                 var parenthesesIndex = tokens.IndexOf("(", 0);
+                if (parenthesesIndex < 0)
+                    throw new Exception();
                 var (parameters, bodyTokens) = StatementMethods.GetTokensConditionAndBody(tokens, parenthesesIndex + 1);
                 var body = StatementMethods.New(bodyTokens);
                 return new FunctionStatement(parameters, body, isLambda, isAsync);
