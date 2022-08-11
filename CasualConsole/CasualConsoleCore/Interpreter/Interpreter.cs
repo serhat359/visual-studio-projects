@@ -609,6 +609,8 @@ namespace CasualConsoleCore.Interpreter
                 ("'hello'.charAt(2)", "l"),
                 ("var o = { name: 'Serhat', age: 30 }; var name; var age; ({ name, age } = o); name == 'Serhat' && age == 30", true),
                 ("var xx1; var xx2; ([xx1, xx2] = [5,6]); xx1 == 5 && xx2 == 6", true),
+                ("var o1 = { i1: 1 }; var o2 = { i2: 2, i3: 3 }; var o3 = { ...o1, ...o2 }; o3.i1 == 1 && o3.i2 == 2 && o3.i3 == 3", true),
+                ("({ key: 1, key: 2 }).key", 2),
             };
 
             var interpreter = new Interpreter();
@@ -2686,37 +2688,52 @@ namespace CasualConsoleCore.Interpreter
         }
         class MapExpression : Expression
         {
-            List<(string fieldName, Expression expression)> fieldExpressions;
+            List<(string fieldName, Expression expression, bool hasThreeDot)> fieldExpressions;
 
             public MapExpression(ArraySegment<string> tokens)
             {
                 tokens = tokens[1..(tokens.Count - 1)];
                 var res = SplitBy(tokens, commaSet);
-                this.fieldExpressions = new List<(string fieldName, Expression expression)>();
+                this.fieldExpressions = new List<(string fieldName, Expression expression, bool hasThreeDot)>();
                 foreach (var item in res)
                 {
                     var firstToken = item[0];
                     var fieldName = IsVariableName(firstToken) ? firstToken : (string)CustomValue.FromStaticString(firstToken).value;
 
                     Expression expression;
+                    bool hasThreeDot = false;
                     if (item.Count == 1)
                         expression = ExpressionMethods.New(item);
                     else if (item[1] == ":")
                         expression = ExpressionMethods.New(item[2..item.Count]);
+                    else if (item[0] == "...")
+                    {
+                        hasThreeDot = true;
+                        expression = ExpressionMethods.New(item[1..]);
+                    }
                     else
                         throw new Exception();
 
-                    this.fieldExpressions.Add((fieldName, expression));
+                    this.fieldExpressions.Add((fieldName, expression, hasThreeDot));
                 }
             }
 
             public CustomValue EvaluateExpression(Context context)
             {
                 var map = new Dictionary<string, CustomValue>();
-                foreach (var (fieldName, expression) in fieldExpressions)
+                foreach (var (fieldName, expression, hasThreeDot) in fieldExpressions)
                 {
                     var fieldValue = expression.EvaluateExpression(context);
-                    map.Add(fieldName, fieldValue);
+                    if (!hasThreeDot)
+                        map[fieldName] = fieldValue;
+                    else
+                    {
+                        if (fieldValue.type != ValueType.Map)
+                            throw new Exception();
+                        var valueMap = (Dictionary<string, CustomValue>)fieldValue.value;
+                        foreach (var pair in valueMap)
+                            map[pair.Key] = pair.Value;
+                    }
                 }
                 return CustomValue.FromMap(map);
             }
