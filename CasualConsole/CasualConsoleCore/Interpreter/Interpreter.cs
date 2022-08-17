@@ -611,6 +611,7 @@ namespace CasualConsoleCore.Interpreter
                 ("var xx1; var xx2; ([xx1, xx2] = [5,6]); xx1 == 5 && xx2 == 6", true),
                 ("var o1 = { i1: 1 }; var o2 = { i2: 2, i3: 3 }; var o3 = { ...o1, ...o2 }; o3.i1 == 1 && o3.i2 == 2 && o3.i3 == 3", true),
                 ("({ key: 1, key: 2 }).key", 2),
+                ("var o = { name: \"Serhat\", age: 30 }; var { age: agenew } = o; agenew", 30),
             };
 
             var interpreter = new Interpreter();
@@ -3055,11 +3056,11 @@ namespace CasualConsoleCore.Interpreter
         }
         class MapAssignmentExpression : Expression
         {
-            public ArraySegment<string> variableNames;
+            public (string sourceName, string targetName)[] variableNames;
             public Expression rValue;
             public AssignmentType assignmentType;
 
-            public MapAssignmentExpression(ArraySegment<string> variableNames, Expression rValue, AssignmentType assignmentType)
+            public MapAssignmentExpression((string sourceName, string targetName)[] variableNames, Expression rValue, AssignmentType assignmentType)
             {
                 this.variableNames = variableNames;
                 this.rValue = rValue;
@@ -3072,12 +3073,12 @@ namespace CasualConsoleCore.Interpreter
                 if (mapValue.type != ValueType.Map)
                     throw new Exception();
                 var underlyingMap = (Dictionary<string, CustomValue>)mapValue.value;
-                foreach (var variableName in variableNames)
+                foreach (var (sourceName, targetName) in variableNames)
                 {
-                    if (!underlyingMap.TryGetValue(variableName, out var value))
+                    if (!underlyingMap.TryGetValue(sourceName, out var value))
                         value = CustomValue.Null;
 
-                    context.variableScope.AssignVariable(assignmentType, variableName, value);
+                    context.variableScope.AssignVariable(assignmentType, targetName, value);
                 }
 
                 return CustomValue.Null;
@@ -3088,9 +3089,11 @@ namespace CasualConsoleCore.Interpreter
                 var variableGroups = SplitBy(tokens[1..braceEndIndex], commaSet);
                 var variableNames = variableGroups.Select(x =>
                 {
-                    if (x.Count != 1)
-                        throw new Exception();
-                    return x[0];
+                    if (x.Count == 1)
+                        return (x[0], x[0]);
+                    if (x.Count == 3 && x[1] == ":")
+                        return (x[0], x[2]);
+                    throw new Exception();
                 }).ToArray();
 
                 var rValueTokens = tokens[(braceEndIndex + 2)..];
