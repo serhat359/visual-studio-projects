@@ -458,6 +458,7 @@ namespace CasualConsoleCore.Interpreter
                 ("arr1.length = 4", 4),
                 ("arr1.length", 4),
                 ("arr1[3]", null),
+                ("arr1[4]", null),
                 ("arr1.name", null),
                 ("arr1.name = 'hello'", "hello"),
                 ("arr1.name", "hello"),
@@ -1089,8 +1090,6 @@ namespace CasualConsoleCore.Interpreter
                 {
                     var index = (int)(double)keyExpressionValue.value;
                     if (index >= array.Length)
-                        throw new Exception();
-                    else if (index >= array.list.Count)
                         return CustomValue.Null;
                     else
                         return array.list[index];
