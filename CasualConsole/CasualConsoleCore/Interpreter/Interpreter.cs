@@ -613,6 +613,8 @@ namespace CasualConsoleCore.Interpreter
                 ("var o1 = { i1: 1 }; var o2 = { i2: 2, i3: 3 }; var o3 = { ...o1, ...o2 }; o3.i1 == 1 && o3.i2 == 2 && o3.i3 == 3", true),
                 ("({ key: 1, key: 2 }).key", 2),
                 ("var o = { name: \"Serhat\", age: 30 }; var { age: agenew } = o; agenew", 30),
+                ("function f(x,x,x){ return x; } ", null),
+                ("f(1,2,3)", 3),
             };
 
             var interpreter = new Interpreter();
@@ -3817,7 +3819,6 @@ namespace CasualConsoleCore.Interpreter
                 this.isAsync = isAsync;
 
                 // Prepare parameters
-                var parametersSet = new HashSet<string>(); // Set is used to ensure uniqueness
                 this.parametersList = new List<(string, bool)>();
 
                 var parameterGroups = SplitBy(parameters, commaSet).ToList();
@@ -3840,8 +3841,6 @@ namespace CasualConsoleCore.Interpreter
                             throw new Exception();
                     }
                     else
-                        throw new Exception();
-                    if (!parametersSet.Add(parameter))
                         throw new Exception();
                     this.parametersList.Add((parameter, isRest));
                 }
