@@ -893,7 +893,7 @@ namespace CasualConsoleCore.Interpreter
             yield return tokens[index..];
         }
 
-        private static CustomValue CallFunction(FunctionObject function, IReadOnlyList<CustomValue> arguments, CustomValue thisOwner)
+        private static CustomValue CallFunction(FunctionObject function, List<CustomValue> arguments, CustomValue thisOwner)
         {
             var functionParameterArguments = new Dictionary<string, (CustomValue, AssignmentType)>();
             for (int i = 0; i < function.Parameters.Count; i++)
@@ -902,10 +902,10 @@ namespace CasualConsoleCore.Interpreter
                 if (isRest)
                 {
                     var restArrayCount = arguments.Count - i;
-                    var restArray = new CustomValue[restArrayCount];
+                    var restArray = new List<CustomValue>(restArrayCount);
                     for (int j = 0; j < restArrayCount; j++)
                     {
-                        restArray[j] = arguments[i + j];
+                        restArray.Add(arguments[i + j]);
                     }
                     functionParameterArguments[argName] = (CustomValue.FromArray(new CustomArray(restArray)), AssignmentType.Var);
                     break;
@@ -916,7 +916,8 @@ namespace CasualConsoleCore.Interpreter
                     functionParameterArguments[argName] = (value, AssignmentType.Var);
                 }
             }
-            functionParameterArguments["arguments"] = (CustomValue.FromArray(new CustomArray(arguments)), AssignmentType.Var);
+            if (!function.IsLambda)
+                functionParameterArguments["arguments"] = (CustomValue.FromArray(new CustomArray(arguments)), AssignmentType.Var);
             var newScope = VariableScope.NewWithInner(function.Scope, functionParameterArguments, isFunctionScope: true);
             var newContext = new Context(newScope, thisOwner);
             var (result, isReturn, isBreak, isContinue) = function.EvaluateStatement(newContext);
@@ -1577,12 +1578,6 @@ namespace CasualConsoleCore.Interpreter
                         }
                     }
                 }
-            }
-
-            public CustomArray(IReadOnlyList<CustomValue> list)
-            {
-                this.list = list.ToList(); // TODO fix this later
-                this.map = new Dictionary<string, CustomValue>();
             }
 
             public CustomArray(List<CustomValue> list)
