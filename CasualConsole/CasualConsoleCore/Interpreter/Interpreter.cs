@@ -617,6 +617,8 @@ namespace CasualConsoleCore.Interpreter
                 ("var o = { name: \"Serhat\", age: 30 }; var { age: agenew } = o; agenew", 30),
                 ("function f(x,x,x){ return x; } ", null),
                 ("f(1,2,3)", 3),
+                ("var o = { name: 'Serhat', getName(){ return this.name; } }; o.getName()", "Serhat"),
+                ("var o = { async n(){ return 2; } }; await o.n()", 2),
             };
 
             var interpreter = new Interpreter();
@@ -2701,6 +2703,13 @@ namespace CasualConsoleCore.Interpreter
                     {
                         hasThreeDot = true;
                         expression = ExpressionMethods.New(item[1..]);
+                    }
+                    else if (item[1] == "(")
+                        expression = FunctionStatement.FromTokens(item, isLambda: false, isAsync: false);
+                    else if (item[0] == "async" && item[2] == "(")
+                    {
+                        expression = FunctionStatement.FromTokens(item, isLambda: false, isAsync: true);
+                        fieldName = item[1];
                     }
                     else
                         throw new Exception();
