@@ -2353,7 +2353,7 @@ namespace CasualConsoleCore.Interpreter
                         if (paramTokens[paramTokens.Count - 1] != ")")
                             throw new Exception();
 
-                        parameters = paramTokens[1..(paramTokens.Count - 1)];
+                        parameters = paramTokens[1..^1];
                     }
                     else if (paramTokens.Count == 1)
                     {
@@ -2683,7 +2683,7 @@ namespace CasualConsoleCore.Interpreter
 
             public MapExpression(ArraySegment<string> tokens)
             {
-                tokens = tokens[1..(tokens.Count - 1)];
+                tokens = tokens[1..^1];
                 var res = SplitBy(tokens, commaSet);
                 this.fieldExpressions = new List<(string fieldName, Expression expression, bool hasThreeDot)>();
                 foreach (var item in res)
@@ -2735,7 +2735,7 @@ namespace CasualConsoleCore.Interpreter
 
             public ArrayExpression(ArraySegment<string> tokens)
             {
-                tokens = tokens[1..(tokens.Count - 1)];
+                tokens = tokens[1..^1];
                 var res = SplitBy(tokens, commaSet);
                 expressionList = new List<(bool, Expression)>();
                 foreach (var item in res)
@@ -2775,7 +2775,7 @@ namespace CasualConsoleCore.Interpreter
             {
                 if (parenthesesTokens[0] != "(")
                     throw new Exception();
-                this.insideExpression = ExpressionMethods.New(parenthesesTokens[1..(parenthesesTokens.Count - 1)]);
+                this.insideExpression = ExpressionMethods.New(parenthesesTokens[1..^1]);
             }
 
             public CustomValue EvaluateExpression(Context context)
@@ -3357,7 +3357,7 @@ namespace CasualConsoleCore.Interpreter
                 if (tokens[tokens.Count - 1] == ";")
                 {
                     hasSemiColon = true;
-                    tokens = tokens[0..(tokens.Count - 1)];
+                    tokens = tokens[..^1];
                 }
 
                 if (tokens.Count == 0)
@@ -3448,7 +3448,7 @@ namespace CasualConsoleCore.Interpreter
             {
                 if (tokens[0] != "{")
                     throw new Exception();
-                tokens = tokens[1..(tokens.Count - 1)];
+                tokens = tokens[1..^1];
                 statements = GetStatements(tokens).ToList();
             }
 
