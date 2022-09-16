@@ -513,6 +513,8 @@ namespace CasualConsoleCore.Interpreter
                 ("`\\$`", "$"),
                 ("`\\${number}`", "${number}"),
                 ("`${2}`", "2"),
+                ("`$${2}`", "$2"),
+                ("`\\$${2}`", "$2"),
                 ("`${2+3}`", "5"),
                 ("`${(2+3)}`", "5"),
                 ("`\n`", "\n"), // Allow new lines for backtick strings
@@ -1655,16 +1657,8 @@ namespace CasualConsoleCore.Interpreter
                         return !string.IsNullOrEmpty((string)value);
                     case ValueType.Bool:
                         return (bool)value;
-                    case ValueType.Map:
-                        return true;
-                    case ValueType.Function:
-                        return true;
-                    case ValueType.Array:
-                        return true;
-                    case ValueType.Promise:
-                        return true;
                     default:
-                        throw new Exception();
+                        return true;
                 }
             }
 
