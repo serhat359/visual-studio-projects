@@ -14,10 +14,7 @@ namespace CasualConsoleCore.Interpreter
         private static readonly HashSet<string> assignmentSet = new HashSet<string>() { "=", "+=", "-=", "*=", "/=", "%=" };
         private static readonly HashSet<string> commaSet = new HashSet<string>() { "," };
         private static readonly HashSet<string> semicolonSet = new HashSet<string>() { ";" };
-        private static readonly HashSet<string> plusMinusSet = new HashSet<string>() { "+", "-" };
-        private static readonly HashSet<string> comparisonSet = new HashSet<string>() { "==", "!=", "<", ">", "<=", ">=" };
-        private static readonly HashSet<string> andOrSet = new HashSet<string>() { "&&", "||", "??" };
-        private static readonly HashSet<string> asteriskSlashSet = new HashSet<string>() { "*", "/", "%" };
+        private static readonly HashSet<string> regularOperatorSet = new HashSet<string>() { "+", "-", "*", "/", "%", "==", "!=", "<", ">", "<=", ">=", "&&", "||", "??" };
         private static readonly HashSet<string> keywords = new HashSet<string>() { "this", "var", "let", "const", "if", "else", "while", "for", "break", "continue", "function", "async", "await", "return", "true", "false", "null" };
         private static readonly Dictionary<char, Dictionary<char, HashSet<char>>> operatorsCompiled;
 
@@ -43,34 +40,36 @@ namespace CasualConsoleCore.Interpreter
             var defaultThisOwner = CustomValue.Null;
             defaultContext = new Context(defaultVariableScope, defaultThisOwner);
 
-            defaultvariables["print"] = (CustomValue.FromFunction(new PrintFunction()), AssignmentType.Const);
-
-            var arrayPrototype = CustomValue.FromMap(new Dictionary<string, CustomValue>()
+            CustomValue printFunctionCustomValue = CustomValue.FromFunction(new PrintFunction());
+            defaultvariables["console"] = (CustomValue.FromMap(new Dictionary<string, CustomValue>()
             {
-                { "push", CustomValue.FromFunction(new ArrayPushFunction()) },
-                { "pop", CustomValue.FromFunction(new ArrayPopFunction()) },
-            });
-
-            var functionPrototype = CustomValue.FromMap(new Dictionary<string, CustomValue>()
-            {
-                { "call", CustomValue.FromFunction(new FunctionCallFunction()) },
-            });
-
-            var stringPrototype = CustomValue.FromMap(new Dictionary<string, CustomValue>()
-            {
-                { "charAt", CustomValue.FromFunction(new CharAtFunction()) },
-            });
+                { "log", printFunctionCustomValue },
+            }), AssignmentType.Const);
+            defaultvariables["print"] = (printFunctionCustomValue, AssignmentType.Const);
 
             defaultvariables["Array"] = (CustomValue.FromMap(new Dictionary<string, CustomValue> {
-                { "prototype", arrayPrototype },
+                { "prototype", CustomValue.FromMap(new Dictionary<string, CustomValue>()
+                    {
+                        { "push", CustomValue.FromFunction(new ArrayPushFunction()) },
+                        { "pop", CustomValue.FromFunction(new ArrayPopFunction()) },
+                    })
+                },
             }), AssignmentType.Const);
 
             defaultvariables["Function"] = (CustomValue.FromMap(new Dictionary<string, CustomValue> {
-                { "prototype", functionPrototype },
+                { "prototype", CustomValue.FromMap(new Dictionary<string, CustomValue>()
+                    {
+                        { "call", CustomValue.FromFunction(new FunctionCallFunction()) },
+                    })
+                },
             }), AssignmentType.Const);
 
             defaultvariables["String"] = (CustomValue.FromMap(new Dictionary<string, CustomValue> {
-                { "prototype", stringPrototype },
+                { "prototype", CustomValue.FromMap(new Dictionary<string, CustomValue>()
+                    {
+                        { "charAt", CustomValue.FromFunction(new CharAtFunction()) },
+                    })
+                },
             }), AssignmentType.Const);
         }
 
@@ -1202,7 +1201,7 @@ namespace CasualConsoleCore.Interpreter
             }
             else if (lValue is Op18Expression op18)
             {
-                var (lastOperator, expressions) = op18.nextValues[op18.nextValues.Count - 1];
+                var (lastOperator, expressions) = op18.nextValues[^1];
                 if (lastOperator == Operator.MemberAccess || lastOperator == Operator.ComputedMemberAccess)
                 {
                     var baseExpressionValue = op18.EvaluateAllButLast(context);
@@ -1546,7 +1545,7 @@ namespace CasualConsoleCore.Interpreter
                 if (thisArray.type != ValueType.Array)
                     throw new Exception();
                 var array = (CustomArray)thisArray.value;
-                var returnValue = array.list[array.list.Count - 1];
+                var returnValue = array.list[^1];
                 array.list.RemoveAt(array.list.Count - 1);
                 return (returnValue, false, false, false);
             }
@@ -1666,7 +1665,7 @@ namespace CasualConsoleCore.Interpreter
 
             public override string ToString()
             {
-                if (value == null)
+                if (value is null)
                     return "null";
                 if (value is bool b)
                     return b ? "true" : "false";
@@ -1978,19 +1977,13 @@ namespace CasualConsoleCore.Interpreter
 
                     var newToken = tokens[index];
 
-                    if (newToken == ";")
-                        return previousExpression;
-
                     if (assignmentSet.Contains(newToken))
                     {
                         var restTokens = tokens[(index + 1)..];
                         return new AssignmentExpression(previousExpression, newToken, restTokens, AssignmentType.None);
                     }
 
-                    if (plusMinusSet.Contains(newToken)
-                        || asteriskSlashSet.Contains(newToken)
-                        || comparisonSet.Contains(newToken)
-                        || andOrSet.Contains(newToken))
+                    if (regularOperatorSet.Contains(newToken))
                     {
                         var newPrecedence = TreeExpression.GetPrecedence(newToken);
 
@@ -1999,7 +1992,7 @@ namespace CasualConsoleCore.Interpreter
 
                         AddToLastNode(ref previousExpression, newPrecedence, (expression, precedence) =>
                         {
-                            if (precedence == null || !(precedence == newPrecedence))
+                            if (precedence != newPrecedence)
                             {
                                 var newTree = new TreeExpression(newPrecedence, expression);
                                 newTree.AddExpression(newToken, nextExpression);
@@ -2050,10 +2043,7 @@ namespace CasualConsoleCore.Interpreter
                         AddToLastNode(ref previousExpression, Precedence.LambdaExpression, (expression, p) =>
                         {
                             if (expression is SingleTokenVariableExpression singleTokenVariableExpression)
-                            {
-                                var parameterTokens = new string[] { singleTokenVariableExpression.token };
-                                return FunctionStatement.FromParametersAndBody(parameterTokens, functionBodyTokens, isLambda: true, isAsync: false);
-                            }
+                                return FunctionStatement.FromParametersAndBody(singleTokenVariableExpression.token, functionBodyTokens, isLambda: true, isAsync: false);
                             else
                                 throw new Exception();
                         });
@@ -2093,7 +2083,7 @@ namespace CasualConsoleCore.Interpreter
                             foreach (var item in paramsSplit)
                             {
                                 if (item[0] == "...")
-                                    expressionList.Add((true, ExpressionMethods.New(item[1..item.Count])));
+                                    expressionList.Add((true, ExpressionMethods.New(item[1..])));
                                 else
                                     expressionList.Add((false, ExpressionMethods.New(item)));
                             }
@@ -2352,7 +2342,7 @@ namespace CasualConsoleCore.Interpreter
                     ArraySegment<string> parameters;
                     if (paramTokens[0] == "(")
                     {
-                        if (paramTokens[paramTokens.Count - 1] != ")")
+                        if (paramTokens[^1] != ")")
                             throw new Exception();
 
                         parameters = paramTokens[1..^1];
@@ -2418,14 +2408,12 @@ namespace CasualConsoleCore.Interpreter
                 {
                     TreeExpression lowestTreeExpression = treeExpression;
 
-                    while (lowestTreeExpression.nextValues[lowestTreeExpression.nextValues.Count - 1].Item2 is TreeExpression subTree
-                        && precedence > subTree.precedence)
+                    while (lowestTreeExpression.nextValues[^1].expression is TreeExpression subTree && precedence > subTree.precedence)
                     {
                         lowestTreeExpression = subTree;
                     }
 
-                    var treeElementIndex = lowestTreeExpression.nextValues.Count - 1;
-                    var (treeLastElementOperator, treeLastElementExpression) = lowestTreeExpression.nextValues[treeElementIndex];
+                    var (treeLastElementOperator, treeLastElementExpression) = lowestTreeExpression.nextValues[^1];
 
                     if (precedence == treeExpression.precedence)
                     {
@@ -2434,7 +2422,7 @@ namespace CasualConsoleCore.Interpreter
                     else
                     {
                         var newExpression = handler(treeLastElementExpression, lowestTreeExpression.precedence);
-                        lowestTreeExpression.nextValues[treeElementIndex] = (treeLastElementOperator, newExpression);
+                        lowestTreeExpression.nextValues[^1] = (treeLastElementOperator, newExpression);
                     }
                 }
                 else
@@ -2447,7 +2435,7 @@ namespace CasualConsoleCore.Interpreter
         {
             internal Precedence precedence;
             private Expression firstExpression;
-            internal List<(Operator operatorToken, Expression)> nextValues;
+            internal List<(Operator operatorToken, Expression expression)> nextValues;
 
             public TreeExpression(Precedence precedence, Expression firstExpression)
             {
@@ -2698,7 +2686,7 @@ namespace CasualConsoleCore.Interpreter
                     if (item.Count == 1)
                         expression = ExpressionMethods.New(item);
                     else if (item[1] == ":")
-                        expression = ExpressionMethods.New(item[2..item.Count]);
+                        expression = ExpressionMethods.New(item[2..]);
                     else if (item[0] == "...")
                     {
                         hasThreeDot = true;
@@ -2750,7 +2738,7 @@ namespace CasualConsoleCore.Interpreter
                 foreach (var item in res)
                 {
                     if (item[0] == "...")
-                        expressionList.Add((true, ExpressionMethods.New(item[1..item.Count])));
+                        expressionList.Add((true, ExpressionMethods.New(item[1..])));
                     else
                         expressionList.Add((false, ExpressionMethods.New(item)));
                 }
@@ -3310,7 +3298,7 @@ namespace CasualConsoleCore.Interpreter
             {
                 if (tokens[0] == "{")
                 {
-                    if (tokens[tokens.Count - 1] != "}")
+                    if (tokens[^1] != "}")
                         throw new Exception();
                     return new BlockStatement(tokens);
                 }
@@ -3363,7 +3351,7 @@ namespace CasualConsoleCore.Interpreter
             public LineStatement(ArraySegment<string> tokens)
             {
                 var hasSemiColon = false;
-                if (tokens[tokens.Count - 1] == ";")
+                if (tokens[^1] == ";")
                 {
                     hasSemiColon = true;
                     tokens = tokens[..^1];
@@ -3594,7 +3582,7 @@ namespace CasualConsoleCore.Interpreter
                     var allInitializationTokens = expressions[0];
                     AssignmentType assignmentType = AssignmentType.None;
                     var isNewAssignment = allInitializationTokens.Count > 0 && IsAssignmentType(allInitializationTokens[0], out assignmentType);
-                    var assignmentTokens = isNewAssignment ? allInitializationTokens[1..allInitializationTokens.Count] : allInitializationTokens;
+                    var assignmentTokens = isNewAssignment ? allInitializationTokens[1..] : allInitializationTokens;
                     var initializationTokenGroup = SplitBy(assignmentTokens, commaSet).ToList();
                     var initializationStatements = initializationTokenGroup.SelectFast(x => AssignmentExpression.FromVarStatement(x, assignmentType));
 
@@ -3616,7 +3604,7 @@ namespace CasualConsoleCore.Interpreter
                     var index = isNewAssignment ? 1 : 0;
                     var variableName = parenthesesTokens[index];
                     var operationType = parenthesesTokens[index + 1];
-                    var restTokens = parenthesesTokens[(index + 2)..parenthesesTokens.Count];
+                    var restTokens = parenthesesTokens[(index + 2)..];
                     var restExpression = ExpressionMethods.New(restTokens);
                     var bodyStatement = StatementMethods.New(statementTokens);
 
@@ -3806,18 +3794,41 @@ namespace CasualConsoleCore.Interpreter
             bool isLambda;
             bool isAsync;
 
-            private FunctionStatement(ArraySegment<string> parameters, Statement body, bool isLambda, bool isAsync)
+            private FunctionStatement(List<(string paramName, bool isRest)> parametersList, Statement body, bool isLambda, bool isAsync)
             {
-                if (parameters.Count > 0 && parameters[0] == "(")
-                    throw new Exception();
                 if (!isLambda && body is LineStatement)
                     throw new Exception();
                 this.body = body;
                 this.isLambda = isLambda;
                 this.isAsync = isAsync;
+                this.parametersList = parametersList;
+            }
+
+            private FunctionStatement(string singleParameter, Statement body, bool isLambda, bool isAsync) :
+                this(GetParameterList(singleParameter), body, isLambda, isAsync)
+            {
+            }
+
+            private FunctionStatement(ArraySegment<string> parameters, Statement body, bool isLambda, bool isAsync) : 
+                this(GetParameterList(parameters), body, isLambda, isAsync)
+            {
+            }
+
+            private static List<(string paramName, bool isRest)> GetParameterList(string singleParameter)
+            {
+                // Prepare parameters
+                var parametersList = new List<(string, bool)>();
+                parametersList.Add((singleParameter, false));
+                return parametersList;
+            }
+
+            private static List<(string paramName, bool isRest)> GetParameterList(ArraySegment<string> parameters)
+            {
+                if (parameters.Count > 0 && parameters[0] == "(")
+                    throw new Exception();
 
                 // Prepare parameters
-                this.parametersList = new List<(string, bool)>();
+                var parametersList = new List<(string, bool)>();
 
                 var parameterGroups = SplitBy(parameters, commaSet).ToList();
                 for (int parameterIndex = 0; parameterIndex < parameterGroups.Count; parameterIndex++)
@@ -3840,11 +3851,18 @@ namespace CasualConsoleCore.Interpreter
                     }
                     else
                         throw new Exception();
-                    this.parametersList.Add((parameter, isRest));
+                    parametersList.Add((parameter, isRest));
                 }
+                return parametersList;
             }
 
             public StatementType Type => StatementType.FunctionStatement;
+
+            public static FunctionStatement FromParametersAndBody(string singleParameter, ArraySegment<string> bodyTokens, bool isLambda, bool isAsync)
+            {
+                var body = StatementMethods.New(bodyTokens);
+                return new FunctionStatement(singleParameter, body, isLambda, isAsync);
+            }
 
             public static FunctionStatement FromParametersAndBody(ArraySegment<string> parameterTokens, ArraySegment<string> bodyTokens, bool isLambda, bool isAsync)
             {
@@ -3967,9 +3985,9 @@ static class InterpreterExtensions
 
     public static new bool Equals(object? result, object? expected)
     {
-        if (result == null)
-            return expected == null;
-        if (expected == null)
+        if (result is null)
+            return expected is null;
+        if (expected is null)
             return false;
 
         Type resultType = result.GetType();
