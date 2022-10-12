@@ -1,0 +1,83 @@
+﻿@model YtsModel
+
+@{
+    ViewData["Title"] = (!string.IsNullOrEmpty(Model.Query) ? Model.Query + " - " : "") + "YTS";
+}
+
+<h1>YTS</h1>
+
+<form method="get">
+    @Html.TextBoxFor(x => x.Query, null, new { placeholder = "Search" } )
+    <button>Go</button>
+</form>
+
+@if (Model.ResponseData.Any())
+{
+    <table class="table table-bordered">
+        @foreach (var item in Model.ResponseData)
+        {
+            <tr>
+                <td style="max-width: 15px"><img src="@item.img" /></td>
+                <td><a data-href="@WebUtility.UrlEncode(item.urlStripped)" href="#" onclick="getDetails(this);return false;">@item.title<br />@item.year</a></td>
+            </tr>
+        }
+    </table>
+}
+
+<div id="responseModalContent">
+</div>
+
+<script type="text/javascript">
+    // /home/ytsdetails?path=
+    async function getDetails(obj){
+        var urlPart = obj.dataset["href"];
+        var url = "/home/ytsdetails?path="+urlPart;
+        var response = await httpcallAsync(url);
+        document.querySelector("#responseModalContent").innerHTML = response;
+    }
+
+    function httpcallAsync(url, headers) {
+        return new Promise((resolve, reject) => {
+            var xmlhttp = new XMLHttpRequest();
+
+            xmlhttp.onreadystatechange = function () {
+                if (xmlhttp.readyState == XMLHttpRequest.DONE) {
+                    if (xmlhttp.status == 200) {
+                        try {
+                            resolve(xmlhttp.responseText);
+                        }
+                        catch (err) {
+                            reject(err);
+                        }
+                    }
+                    else if (xmlhttp.status == 400) {
+                        reject('There was an error 400');
+                    }
+                    else {
+                        reject('something else other than 200 was returned');
+                    }
+                }
+            };
+
+            xmlhttp.open("GET", url, true);
+
+            if (headers) {
+                for (var key in headers) {
+                    xmlhttp.setRequestHeader(key, headers[key]);
+                }
+            }
+
+            xmlhttp.send();
+        })
+    }
+</script>
+
+<style>
+    .modal-content {
+        display: inline-block;
+    }
+    .modal-torrent{
+        display: inline-block;
+        margin-right: 50px;
+    }
+</style>

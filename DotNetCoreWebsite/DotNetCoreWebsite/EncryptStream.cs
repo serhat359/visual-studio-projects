@@ -12,9 +12,9 @@ namespace DotNetCoreWebsite
         Action onClose = null;
         bool isOnCloseExecuted = false;
 
-        public EncryptStream(Func<Stream> streamer, CoreEncryption coreEncryption, long misalignment, Action onClose = null)
+        public EncryptStream(Stream stream, CoreEncryption coreEncryption, long misalignment, Action onClose = null)
         {
-            stream = streamer();
+            this.stream = stream;
             this.coreEncryption = coreEncryption;
             this.misalignment = misalignment;
             this.onClose = onClose;

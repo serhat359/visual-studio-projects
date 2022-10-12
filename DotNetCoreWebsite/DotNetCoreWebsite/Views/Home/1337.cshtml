@@ -1,7 +1,7 @@
 ﻿@model Simple1337Model
 
 @{
-    ViewData["Title"] = "x1337";
+    ViewData["Title"] = (!string.IsNullOrEmpty(Model.Query) ? Model.Query + " - " : "") + "x1337";
 }
 
 <h1>x1337</h1>

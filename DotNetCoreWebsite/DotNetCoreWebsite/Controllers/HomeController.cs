@@ -1,6 +1,7 @@
 ﻿using DotNetCoreWebsite.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -14,7 +15,7 @@ using System.Threading.Tasks;
 
 namespace DotNetCoreWebsite.Controllers
 {
-    public class HomeController : BaseController
+    public class HomeController : Controller
     {
         private readonly string extension = ".serhatCustom";
 
@@ -67,6 +68,55 @@ namespace DotNetCoreWebsite.Controllers
             return View(model);
         }
 
+        public async Task<IActionResult> Yts(string query)
+        {
+            var model = new YtsModel { Query = query };
+
+            var baseUrl = "https://yts.mx/ajax/search?query=";
+
+            if (!string.IsNullOrEmpty(query))
+            {
+                var link = baseUrl + Uri.EscapeDataString(query);
+
+                var httpClient = httpClientFactory.CreateClient();
+                using var response = await httpClient.GetAsync(link);
+                if (response.IsSuccessStatusCode)
+                {
+                    var responseParsed = JsonConvert.DeserializeObject<YtsResponseModel>(await response.Content.ReadAsStringAsync());
+                    if (responseParsed.status == "ok")
+                    {
+                        model.ResponseData = responseParsed.data;
+                    }
+                }
+            }
+
+            return View(model);
+        }
+
+        public async Task<IActionResult> YtsDetails(string path)
+        {
+            if (!string.IsNullOrEmpty(path))
+            {
+                var link = "https://yts.mx" + path;
+
+                var httpClient = httpClientFactory.CreateClient();
+                using var response = await httpClient.GetAsync(link);
+                if (response.IsSuccessStatusCode)
+                {
+                    var responseContent = await response.Content.ReadAsStringAsync();
+                    var beginPart = "<div class=\"modal-content\">";
+                    var beginIndex = responseContent.IndexOf(beginPart, responseContent.IndexOf("<div class=\"modal-title\"> Select movie quality </div>"));
+
+                    var beginParticle = "<div ";
+                    var endPart = "/div>";
+                    var endIndex = FindMatchingEnd(responseContent, beginIndex + beginPart.Length, beginParticle, endPart);
+                    return Content(responseContent.Substring(beginIndex, length: endIndex - beginIndex + endPart.Length));
+                }
+            }
+
+            return Content("");
+        }
+
         public async Task<IActionResult> Torrent(string id1, string id2)
         {
             var path = Request.Path.ToString();
@@ -91,19 +141,6 @@ namespace DotNetCoreWebsite.Controllers
             }
 
             return null;
-        }
-
-        private static string GetULPart(string responseContent)
-        {
-            var indexBegin = responseContent.IndexOf("<ul class=\"dropdown-menu\" aria-labelledby=\"dropdownMenu1\">");
-            if (indexBegin < 0)
-                throw new Exception();
-            var endPattern = "</ul>";
-            var indexEnd = responseContent.IndexOf(endPattern, indexBegin);
-            if (indexEnd < 0)
-                throw new Exception();
-            var data = responseContent.Substring(indexBegin, length: indexEnd - indexBegin + endPattern.Length);
-            return data;
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
@@ -167,7 +204,7 @@ namespace DotNetCoreWebsite.Controllers
             var rangeStart = GetByteOffset();
 
             long fileLength = new FileInfo(fullPath).Length;
-            var fileStream = new EncryptStream(() => new FileStream(fullPath, FileMode.Open), this.coreEncryption, (rangeStart ?? 0) % 512);
+            var fileStream = new EncryptStream(System.IO.File.OpenRead(fullPath), this.coreEncryption, (rangeStart ?? 0) % 512);
 
             if (rangeStart == null)
             {
@@ -207,38 +244,16 @@ namespace DotNetCoreWebsite.Controllers
                 }
             }
 
-            var fileStream = new EncryptStream(() => new FileStream(tempFullPath, FileMode.Open), this.coreEncryption, 0, () => System.IO.File.Delete(tempFullPath));
+            var fileStream = new EncryptStream(System.IO.File.OpenRead(tempFullPath), this.coreEncryption, 0, onClose: () => System.IO.File.Delete(tempFullPath));
 
             return File(fileStream, "application/unknown", fileNameHelper.CreateAlternativeFileName(newGuidFileName) + extension);
-        }
-
-        public void AddFilesRecursively(ZipArchive zip, string folderHeader, string filePath)
-        {
-            var attr = System.IO.File.GetAttributes(filePath);
-            var isfile = !attr.HasFlag(FileAttributes.Directory);
-
-            if (isfile)
-            {
-                var entryName = folderHeader + GetShortFileName(filePath);
-                zip.CreateEntryFromFile(sourceFileName: filePath, entryName: entryName);
-            }
-            else
-            {
-                var folderName = GetShortFileName(filePath);
-                var filesAndFolders = Directory.EnumerateDirectories(filePath).Concat(Directory.EnumerateFiles(filePath));
-                foreach (var subPath in filesAndFolders)
-                {
-                    AddFilesRecursively(zip, folderHeader + folderName + "/", subPath);
-                }
-            }
         }
 
         public IActionResult GetFolderSize(string q = null)
         {
             var rootPath = GetSafePath(q);
 
-            var rootInfo = new DirectoryInfo(rootPath);
-            var rootSystemInfos = rootInfo.GetDirectories();
+            var rootSystemInfos = new DirectoryInfo(rootPath).GetDirectories();
 
             var results = rootSystemInfos.ToDictionary(folder => folder.Name, folder =>
             {
@@ -336,11 +351,70 @@ namespace DotNetCoreWebsite.Controllers
             return fileName;
         }
 
+        private static string GetULPart(string responseContent)
+        {
+            var indexBegin = responseContent.IndexOf("<ul class=\"dropdown-menu\" aria-labelledby=\"dropdownMenu1\">");
+            if (indexBegin < 0)
+                throw new Exception();
+            var endPattern = "</ul>";
+            var indexEnd = responseContent.IndexOf(endPattern, indexBegin);
+            if (indexEnd < 0)
+                throw new Exception();
+            var data = responseContent.Substring(indexBegin, length: indexEnd - indexBegin + endPattern.Length);
+            return data;
+        }
+
+        private void AddFilesRecursively(ZipArchive zip, string folderHeader, string filePath)
+        {
+            var attr = System.IO.File.GetAttributes(filePath);
+            var isfile = !attr.HasFlag(FileAttributes.Directory);
+
+            if (isfile)
+            {
+                var entryName = folderHeader + GetShortFileName(filePath);
+                zip.CreateEntryFromFile(sourceFileName: filePath, entryName: entryName);
+            }
+            else
+            {
+                var folderName = GetShortFileName(filePath);
+                var filesAndFolders = Directory.EnumerateDirectories(filePath).Concat(Directory.EnumerateFiles(filePath));
+                foreach (var subPath in filesAndFolders)
+                {
+                    AddFilesRecursively(zip, folderHeader + folderName + "/", subPath);
+                }
+            }
+        }
+
         private static string SafeCombine(string param1, string param2)
         {
             if (param1 == null) return param2;
             if (param2 == null) return param1;
             return Path.Combine(param1, param2);
+        }
+
+        private static int FindMatchingEnd(string text, int startingPoint, string beginTag, string endTag)
+        {
+            int SafeIndex(int index) => index < 0 ? text.Length : index;
+
+            int counter = 0;
+
+            while (true)
+            {
+                int beginFound = SafeIndex(text.IndexOf(beginTag, startingPoint));
+                int endFound = SafeIndex(text.IndexOf(endTag, startingPoint));
+
+                if (endFound < beginFound)
+                {
+                    if (counter == 0)
+                        return endFound;
+                    else
+                        counter--;
+                }
+                else
+                    counter++;
+
+                startingPoint = Math.Min(beginFound, endFound) + beginTag.Length;
+            }
         }
         #endregion
     }
