@@ -133,7 +133,7 @@ namespace CasualConsoleCore.XmlParser
                 while (s[i] != '=' && s[i] != ' ' && s[i] != '>')
                     i++;
                 var attrName = s[start..i];
-                var attrValue = "";
+                string attrValue = null;
                 if (s[i] == '=')
                 {
                     if (s[i + 1] != '"')

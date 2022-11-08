@@ -6,12 +6,13 @@ namespace CasualConsoleCore.XmlParser
     {
         public static void Test()
         {
-            Test1();
-            Test2();
-            Test3();
+            SimplestTest();
+            RecursiveTest();
+            BasicAttributeTest();
+            CustomAttributeTest();
         }
 
-        private static void Test1()
+        private static void SimplestTest()
         {
             var text = @"
 <node>Data</node>
@@ -28,7 +29,7 @@ namespace CasualConsoleCore.XmlParser
             if (myData != regularData) throw new System.Exception();
         }
 
-        private static void Test2()
+        private static void RecursiveTest()
         {
             var text = @"
 <nodes>
@@ -48,7 +49,7 @@ namespace CasualConsoleCore.XmlParser
             if (doc.ChildNodes[0].ChildNodes[2].InnerText != mydoc.ChildNodes[0].ChildNodes[2].InnerText) throw new System.Exception();
         }
 
-        private static void Test3()
+        private static void BasicAttributeTest()
         {
             var text = @"
 <nodes text=""somedata"" text2=""somedata2"">
@@ -59,13 +60,28 @@ namespace CasualConsoleCore.XmlParser
             doc.LoadXml(text);
 
             var data = doc.ChildNodes[0].Attributes["text"];
-            if(data.Name != "text") throw new System.Exception();
+            if (data.Name != "text") throw new System.Exception();
             if (data.Value != "somedata") throw new System.Exception();
 
             var mydoc = XmlParser.Parse(text);
             var attributes = mydoc.ChildNodes[0].Attributes;
             if (attributes["text"] != "somedata") throw new System.Exception();
             if (attributes["text2"] != "somedata2") throw new System.Exception();
+        }
+
+        private static void CustomAttributeTest()
+        {
+            var text = @"
+<nodes text=""somedata"" text2="""" text3 text4>
+</nodes>
+";
+
+            var mydoc = XmlParser.Parse(text);
+            var attributes = mydoc.ChildNodes[0].Attributes;
+            if (attributes["text"] != "somedata") throw new System.Exception();
+            if (attributes["text2"] != "") throw new System.Exception();
+            if (attributes["text3"] != null) throw new System.Exception();
+            if (attributes["text4"] != null) throw new System.Exception();
         }
     }
 }
