@@ -17,6 +17,7 @@ namespace CasualConsoleCore.XmlParser
             CDataTest();
             DataLengthTest();
             TrimTest();
+            BeautifyTest();
         }
 
         private static void SimplestTest()
@@ -115,7 +116,7 @@ namespace CasualConsoleCore.XmlParser
 
             XmlDocument doc = new XmlDocument();
             doc.LoadXml(text);
-            if(doc.ChildNodes[0].Attributes["text"].Value != "R&D") throw new System.Exception();
+            if (doc.ChildNodes[0].Attributes["text"].Value != "R&D") throw new System.Exception();
 
             var mydoc = XmlParser.Parse(text);
             var attributes = mydoc.ChildNodes[0].Attributes;
@@ -182,6 +183,19 @@ e
 
             var mydoc = XmlParser.Parse(text);
             if (mydoc.ChildNodes[0].ChildNodes[0].InnerText != "e") throw new System.Exception();
+        }
+
+        private static void BeautifyTest()
+        {
+            var text = @"<nodes text=""R&amp;D"" data="""" checked><node><age>23</age></node></nodes>";
+            var textIndented = "<nodes text=\"R&amp;D\" data=\"\" checked>\r\n  <node>\r\n    <age>23</age>\r\n  </node>\r\n</nodes>";
+
+            var mydoc = XmlParser.Parse(text);
+            var beautified = mydoc.Beautify(indentChars: "", newLineChars: "");
+            var beautifiedIndented = mydoc.Beautify();
+
+            if (text != beautified) throw new System.Exception();
+            if (textIndented != beautifiedIndented) throw new System.Exception();
         }
     }
 }

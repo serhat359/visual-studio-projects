@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Web;
 
@@ -89,7 +90,7 @@ namespace CasualConsoleCore.XmlParser
                             throw new Exception();
 
                         i = cdataEndIndex + 3;
-                        var cdataToken = xml[(lookupIndex-3)..i];
+                        var cdataToken = xml[(lookupIndex - 3)..i];
                         yield return cdataToken;
                     }
                     else
@@ -178,6 +179,65 @@ namespace CasualConsoleCore.XmlParser
         public string TagName { get { return tagName ?? throw new Exception(); } set { tagName = value; } }
         public NameValueCollection Attributes { get; set; }
         public List<MyXmlNode> ChildNodes { get; set; } = new List<MyXmlNode>();
+        public bool IsRoot => tagName == null;
+
+        public void AppendChild(MyXmlNode node)
+        {
+            ChildNodes.Add(node);
+        }
+
+        public string Beautify(string indentChars = "  ", string newLineChars = "\r\n")
+        {
+            var node = this;
+            if (node.IsRoot)
+                node = node.ChildNodes[0];
+
+            var sb = new StringBuilder();
+
+            void Write(MyXmlNode node, int level)
+            {
+                for (int i = 0; i < level; i++)
+                    sb.Append(indentChars);
+
+                sb.Append("<");
+                sb.Append(node.tagName);
+                foreach (string key in node.Attributes)
+                {
+                    sb.Append(" ");
+                    sb.Append(key);
+                    var value = node.Attributes[key];
+                    if (value != null)
+                    {
+                        sb.Append("=");
+                        sb.Append("\"");
+                        sb.Append(HttpUtility.HtmlAttributeEncode(value));
+                        sb.Append("\"");
+                    }
+                }
+                sb.Append(">");
+
+                sb.Append(HttpUtility.HtmlEncode(node.InnerText));
+
+                foreach (var item in node.ChildNodes)
+                {
+                    sb.Append(newLineChars);
+                    Write(item, level + 1);
+                }
+                if (node.ChildNodes.Any())
+                    sb.Append(newLineChars);
+
+                if (node.ChildNodes.Any())
+                    for (int i = 0; i < level; i++)
+                        sb.Append(indentChars);
+                sb.Append("</");
+                sb.Append(node.tagName);
+                sb.Append(">");
+            }
+
+            Write(node, 0);
+
+            return sb.ToString();
+        }
     }
 
     public static class Extensions
