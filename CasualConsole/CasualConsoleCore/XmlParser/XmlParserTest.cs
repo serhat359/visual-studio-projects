@@ -8,6 +8,7 @@ namespace CasualConsoleCore.XmlParser
         {
             SimplestTest();
             RecursiveTest();
+            InnerTextNormalizeTest();
             BasicAttributeTest();
             CustomAttributeTest();
             AttributeNormalizeTest();
@@ -48,6 +49,21 @@ namespace CasualConsoleCore.XmlParser
             if (doc.ChildNodes[0].ChildNodes[0].InnerText != mydoc.ChildNodes[0].ChildNodes[0].InnerText) throw new System.Exception();
             if (doc.ChildNodes[0].ChildNodes[1].InnerText != mydoc.ChildNodes[0].ChildNodes[1].InnerText) throw new System.Exception();
             if (doc.ChildNodes[0].ChildNodes[2].InnerText != mydoc.ChildNodes[0].ChildNodes[2].InnerText) throw new System.Exception();
+        }
+
+        private static void InnerTextNormalizeTest()
+        {
+            var text = @"
+<nodes>R&amp;D</nodes>
+";
+
+            XmlDocument doc = new XmlDocument();
+            doc.LoadXml(text);
+
+            var mydoc = XmlParser.Parse(text);
+
+            if (doc.ChildNodes[0].InnerText != "R&D") throw new System.Exception();
+            if (mydoc.ChildNodes[0].InnerText != "R&D") throw new System.Exception();
         }
 
         private static void BasicAttributeTest()

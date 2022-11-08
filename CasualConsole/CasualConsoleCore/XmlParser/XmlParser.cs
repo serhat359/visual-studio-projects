@@ -36,7 +36,7 @@ namespace CasualConsoleCore.XmlParser
 
             var parent = new MyXmlNode();
 
-            var (tagName, attributes) = tokens[0].GetTagAndAttributes();
+            var (tagName, attributes) = GetTagAndAttributes(tokens[0]);
             parent.TagName = tagName;
             parent.Attributes = attributes;
             var index = 1;
@@ -50,7 +50,7 @@ namespace CasualConsoleCore.XmlParser
             if (!tokens[index].IsTag())
             {
                 var text = tokens[index];
-                parent.InnerText = text;
+                parent.InnerText = NormalizeXml(text);
                 index++;
             }
             if (tokens[index] != "</" + tagName + ">")
@@ -89,36 +89,8 @@ namespace CasualConsoleCore.XmlParser
                 }
             }
         }
-    }
 
-    public class MyXmlNode
-    {
-        private string? tagName;
-
-        public string InnerText { get; set; } = "";
-        public string TagName { get { return tagName ?? throw new Exception(); } set { tagName = value; } }
-        public NameValueCollection Attributes { get; set; }
-        public List<MyXmlNode> ChildNodes { get; set; } = new List<MyXmlNode>();
-    }
-
-    public static class Extensions
-    {
-        public static bool IsTag(this string s)
-        {
-            return s[0] == '<';
-        }
-
-        public static bool IsBeginTag(this string s)
-        {
-            return s[0] == '<' && s[1] != '/';
-        }
-
-        public static bool IsEndTag(this string s)
-        {
-            return s[0] == '<' && s[1] == '/';
-        }
-
-        public static (string, NameValueCollection) GetTagAndAttributes(this string s)
+        private static (string, NameValueCollection) GetTagAndAttributes(string s)
         {
             var attributes = new NameValueCollection();
             int i = 1;
@@ -161,6 +133,34 @@ namespace CasualConsoleCore.XmlParser
                 var unicode = HttpUtility.HtmlDecode(m.Value);
                 return unicode;
             });
+        }
+    }
+
+    public class MyXmlNode
+    {
+        private string? tagName;
+
+        public string InnerText { get; set; } = "";
+        public string TagName { get { return tagName ?? throw new Exception(); } set { tagName = value; } }
+        public NameValueCollection Attributes { get; set; }
+        public List<MyXmlNode> ChildNodes { get; set; } = new List<MyXmlNode>();
+    }
+
+    public static class Extensions
+    {
+        public static bool IsTag(this string s)
+        {
+            return s[0] == '<';
+        }
+
+        public static bool IsBeginTag(this string s)
+        {
+            return s[0] == '<' && s[1] != '/';
+        }
+
+        public static bool IsEndTag(this string s)
+        {
+            return s[0] == '<' && s[1] == '/';
         }
     }
 }
