@@ -108,7 +108,12 @@ namespace CasualConsoleCore.XmlParser
                     int start = i;
                     while (xml[i] != '<')
                         i++;
-                    var token = xml[start..i];
+
+                    var end = i;
+                    while (char.IsWhiteSpace(xml[end - 1]))
+                        end--;
+
+                    var token = xml[start..end];
                     yield return token;
                 }
             }

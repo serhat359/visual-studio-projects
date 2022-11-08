@@ -15,6 +15,8 @@ namespace CasualConsoleCore.XmlParser
             AttributeNormalizeTest();
             HtmlNodeTest();
             CDataTest();
+            DataLengthTest();
+            TrimTest();
         }
 
         private static void SimplestTest()
@@ -152,6 +154,34 @@ namespace CasualConsoleCore.XmlParser
             var mydoc = XmlParser.Parse(text);
             if (mydoc.ChildNodes[0].ChildNodes[0].InnerText != "some data that contains < and >") throw new System.Exception();
             if (mydoc.ChildNodes[0].ChildNodes[1].InnerText != "<some xml data></sss>") throw new System.Exception();
+        }
+
+        private static void DataLengthTest()
+        {
+            var text = @"
+<a>
+<b c=""d"">
+e
+</b>
+</a>
+";
+
+            // Test successfully parse
+            var mydoc = XmlParser.Parse(text);
+        }
+
+        private static void TrimTest()
+        {
+            var text = @"
+<a>
+<b c=""d"">
+e
+</b>
+</a>
+";
+
+            var mydoc = XmlParser.Parse(text);
+            if (mydoc.ChildNodes[0].ChildNodes[0].InnerText != "e") throw new System.Exception();
         }
     }
 }
