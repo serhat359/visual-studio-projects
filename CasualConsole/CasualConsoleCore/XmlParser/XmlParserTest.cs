@@ -10,6 +10,7 @@ namespace CasualConsoleCore.XmlParser
             RecursiveTest();
             BasicAttributeTest();
             CustomAttributeTest();
+            AttributeNormalizeTest();
         }
 
         private static void SimplestTest()
@@ -82,6 +83,22 @@ namespace CasualConsoleCore.XmlParser
             if (attributes["text2"] != "") throw new System.Exception();
             if (attributes["text3"] != null) throw new System.Exception();
             if (attributes["text4"] != null) throw new System.Exception();
+        }
+
+        private static void AttributeNormalizeTest()
+        {
+            var text = @"
+<nodes text=""R&amp;D"">
+</nodes>
+";
+
+            XmlDocument doc = new XmlDocument();
+            doc.LoadXml(text);
+            if(doc.ChildNodes[0].Attributes["text"].Value != "R&D") throw new System.Exception();
+
+            var mydoc = XmlParser.Parse(text);
+            var attributes = mydoc.ChildNodes[0].Attributes;
+            if (attributes["text"] != "R&D") throw new System.Exception();
         }
     }
 }

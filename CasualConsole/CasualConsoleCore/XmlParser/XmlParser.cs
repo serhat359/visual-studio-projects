@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
+using System.Text.RegularExpressions;
+using System.Web;
 
 namespace CasualConsoleCore.XmlParser
 {
@@ -91,8 +93,10 @@ namespace CasualConsoleCore.XmlParser
 
     public class MyXmlNode
     {
-        public string InnerText { get; set; }
-        public string TagName { get; set; }
+        private string? tagName;
+
+        public string InnerText { get; set; } = "";
+        public string TagName { get { return tagName ?? throw new Exception(); } set { tagName = value; } }
         public NameValueCollection Attributes { get; set; }
         public List<MyXmlNode> ChildNodes { get; set; } = new List<MyXmlNode>();
     }
@@ -133,7 +137,7 @@ namespace CasualConsoleCore.XmlParser
                 while (s[i] != '=' && s[i] != ' ' && s[i] != '>')
                     i++;
                 var attrName = s[start..i];
-                string attrValue = null;
+                string? attrValue = null;
                 if (s[i] == '=')
                 {
                     if (s[i + 1] != '"')
@@ -142,10 +146,21 @@ namespace CasualConsoleCore.XmlParser
                     while (s[i] != '"')
                         i++;
                     attrValue = s[attrValueStart..i];
+                    attrValue = NormalizeXml(attrValue);
                     i++;
                 }
                 attributes[attrName] = attrValue;
             }
+        }
+
+        private static readonly Regex htmlEncodedRegex = new Regex(@"&[0-9a-zA-Z]{3,7};", RegexOptions.Compiled);
+        private static string NormalizeXml(string s)
+        {
+            return htmlEncodedRegex.Replace(s, m =>
+            {
+                var unicode = HttpUtility.HtmlDecode(m.Value);
+                return unicode;
+            });
         }
     }
 }
