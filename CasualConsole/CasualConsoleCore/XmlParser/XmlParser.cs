@@ -34,6 +34,8 @@ namespace CasualConsoleCore.XmlParser
         {
             if (!tokens[0].IsBeginTag()) throw new Exception(); // TODO remove later
 
+            var isSingleTag = tokens[0].IsSingleTag();
+
             var parent = new MyXmlNode();
 
             var (tagName, attributes) = GetTagAndAttributes(tokens[0]);
@@ -41,22 +43,25 @@ namespace CasualConsoleCore.XmlParser
             parent.Attributes = attributes;
             var index = 1;
 
-            while (tokens[index].IsBeginTag())
+            if (!isSingleTag)
             {
-                var (node, endIndex) = ReadNode(tokens[index..]);
-                index += endIndex;
-                parent.ChildNodes.Add(node);
+                while (tokens[index].IsBeginTag())
+                {
+                    var (node, endIndex) = ReadNode(tokens[index..]);
+                    index += endIndex;
+                    parent.ChildNodes.Add(node);
+                }
+                if (!tokens[index].IsTag())
+                {
+                    var text = tokens[index];
+                    parent.InnerText = NormalizeXml(text);
+                    index++;
+                }
+                if (tokens[index] != "</" + tagName + ">")
+                    throw new Exception();
             }
-            if (!tokens[index].IsTag())
-            {
-                var text = tokens[index];
-                parent.InnerText = NormalizeXml(text);
-                index++;
-            }
-            if (tokens[index] != "</" + tagName + ">")
-                throw new Exception();
 
-            return (parent, index + 1);
+            return (parent, isSingleTag ? index : index + 1);
         }
 
         private static IEnumerable<string> GetParts(string xml)
@@ -103,7 +108,7 @@ namespace CasualConsoleCore.XmlParser
             {
                 if (s[i] == ' ')
                     i++;
-                if (s[i] == '>')
+                if (s[i] == '>' || s[i] == '/')
                     return (tagName, attributes);
                 int start = i;
                 while (s[i] != '=' && s[i] != ' ' && s[i] != '>')
@@ -161,6 +166,11 @@ namespace CasualConsoleCore.XmlParser
         public static bool IsEndTag(this string s)
         {
             return s[0] == '<' && s[1] == '/';
+        }
+
+        public static bool IsSingleTag(this string s)
+        {
+            return s[^1] == '>' && s[^2] == '/';
         }
     }
 }

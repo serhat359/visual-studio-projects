@@ -12,6 +12,7 @@ namespace CasualConsoleCore.XmlParser
             BasicAttributeTest();
             CustomAttributeTest();
             AttributeNormalizeTest();
+            HtmlNodeTest();
         }
 
         private static void SimplestTest()
@@ -115,6 +116,26 @@ namespace CasualConsoleCore.XmlParser
             var mydoc = XmlParser.Parse(text);
             var attributes = mydoc.ChildNodes[0].Attributes;
             if (attributes["text"] != "R&D") throw new System.Exception();
+        }
+
+        private static void HtmlNodeTest()
+        {
+            var text = @"
+<some>
+    <img src=""source1"" />
+    <img src=""source2"" />
+    <img src=""source3"" />
+</some>
+";
+
+            var mydoc = XmlParser.Parse(text);
+            var baseNode = mydoc.ChildNodes[0];
+            var firstImgNode = baseNode.ChildNodes[0];
+
+            if (baseNode.ChildNodes.Count != 3) throw new System.Exception();
+            if (firstImgNode.TagName != "img") throw new System.Exception();
+            if (firstImgNode.Attributes.Count != 1) throw new System.Exception();
+            if (firstImgNode.Attributes["src"] != "source1") throw new System.Exception();
         }
     }
 }
