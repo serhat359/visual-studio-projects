@@ -76,13 +76,32 @@ namespace CasualConsoleCore.XmlParser
 
                 if (xml[i] == '<')
                 {
-                    int start = i;
-                    while (xml[i] != '>')
-                        i++;
+                    if (xml[i + 1] == '!' && xml[i + 2] == '[')
+                    {
+                        var lookupIndex = i + 3;
+                        var cdataIndex = xml.IndexOf("CDATA[", lookupIndex);
+                        if (cdataIndex != lookupIndex)
+                            throw new Exception();
 
-                    i++;
-                    var token = xml[start..i];
-                    yield return token;
+                        var cdataStartIndex = cdataIndex + "CDATA[".Length;
+                        var cdataEndIndex = xml.IndexOf("]]>", cdataStartIndex);
+                        if (cdataEndIndex < 0)
+                            throw new Exception();
+
+                        i = cdataEndIndex + 3;
+                        var cdataToken = xml[(lookupIndex-3)..i];
+                        yield return cdataToken;
+                    }
+                    else
+                    {
+                        int start = i;
+                        while (xml[i] != '>')
+                            i++;
+
+                        i++;
+                        var token = xml[start..i];
+                        yield return token;
+                    }
                 }
                 else
                 {
@@ -133,6 +152,11 @@ namespace CasualConsoleCore.XmlParser
         private static readonly Regex htmlEncodedRegex = new Regex(@"&[0-9a-zA-Z]{3,7};", RegexOptions.Compiled);
         private static string NormalizeXml(string s)
         {
+            if (s.Length >= 2 && s[0] == '<' && s[1] == '!')
+            {
+                return s[9..^3];
+            }
+
             return htmlEncodedRegex.Replace(s, m =>
             {
                 var unicode = HttpUtility.HtmlDecode(m.Value);
@@ -155,12 +179,12 @@ namespace CasualConsoleCore.XmlParser
     {
         public static bool IsTag(this string s)
         {
-            return s[0] == '<';
+            return s[0] == '<' && s[1] != '!';
         }
 
         public static bool IsBeginTag(this string s)
         {
-            return s[0] == '<' && s[1] != '/';
+            return s[0] == '<' && s[1] != '/' && s[1] != '!';
         }
 
         public static bool IsEndTag(this string s)

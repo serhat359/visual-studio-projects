@@ -1,4 +1,5 @@
 ﻿using System.Xml;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace CasualConsoleCore.XmlParser
 {
@@ -13,6 +14,7 @@ namespace CasualConsoleCore.XmlParser
             CustomAttributeTest();
             AttributeNormalizeTest();
             HtmlNodeTest();
+            CDataTest();
         }
 
         private static void SimplestTest()
@@ -136,6 +138,20 @@ namespace CasualConsoleCore.XmlParser
             if (firstImgNode.TagName != "img") throw new System.Exception();
             if (firstImgNode.Attributes.Count != 1) throw new System.Exception();
             if (firstImgNode.Attributes["src"] != "source1") throw new System.Exception();
+        }
+
+        private static void CDataTest()
+        {
+            var text = @"
+<description>
+  <node><![CDATA[some data that contains < and >]]></node>
+<node><![CDATA[<some xml data></sss>]]></node>
+</description>
+";
+
+            var mydoc = XmlParser.Parse(text);
+            if (mydoc.ChildNodes[0].ChildNodes[0].InnerText != "some data that contains < and >") throw new System.Exception();
+            if (mydoc.ChildNodes[0].ChildNodes[1].InnerText != "<some xml data></sss>") throw new System.Exception();
         }
     }
 }
