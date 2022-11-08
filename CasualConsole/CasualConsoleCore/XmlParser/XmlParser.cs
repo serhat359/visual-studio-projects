@@ -12,7 +12,7 @@ namespace CasualConsoleCore.XmlParser
     {
         public static MyXmlNode Parse(string xml)
         {
-            ArraySegment<string> parts = GetParts(xml).ToArray();
+            ArraySegment<(string, int)> parts = GetParts(xml).ToArray();
 
             var topDocument = new MyXmlNode();
 
@@ -31,52 +31,53 @@ namespace CasualConsoleCore.XmlParser
             return topDocument;
         }
 
-        private static (MyXmlNode, int) ReadNode(ArraySegment<string> tokens)
+        private static (MyXmlNode, int) ReadNode(ArraySegment<(string token, int lineNumber)> tokens)
         {
-            if (!tokens[0].IsBeginTag()) throw new Exception(); // TODO remove later
+            if (!tokens[0].token.IsBeginTag()) throw new Exception(); // TODO remove later
 
-            var isSingleTag = tokens[0].IsSingleTag();
+            var isSingleTag = tokens[0].token.IsSingleTag();
 
             var parent = new MyXmlNode();
 
-            var (tagName, attributes) = GetTagAndAttributes(tokens[0]);
+            var (tagName, attributes) = GetTagAndAttributes(tokens[0].token);
             parent.TagName = tagName;
             parent.Attributes = attributes;
             var index = 1;
 
             if (!isSingleTag)
             {
-                while (tokens[index].IsBeginTag())
+                while (tokens[index].token.IsBeginTag())
                 {
                     var (node, endIndex) = ReadNode(tokens[index..]);
                     index += endIndex;
                     parent.ChildNodes.Add(node);
                 }
-                if (!tokens[index].IsTag())
+                if (!tokens[index].token.IsTag())
                 {
                     var text = tokens[index];
-                    parent.InnerText = NormalizeXml(text);
+                    parent.InnerText = NormalizeXml(text.token);
                     index++;
                 }
-                while (tokens[index].IsBeginTag())
+                while (tokens[index].token.IsBeginTag())
                 {
                     var (node, endIndex) = ReadNode(tokens[index..]);
                     index += endIndex;
                     parent.ChildNodes.Add(node);
                 }
-                if (tokens[index] != "</" + tagName + ">")
-                    throw new Exception();
+                if (tokens[index].token != "</" + tagName + ">")
+                    throw new Exception($"Error on line: {tokens[index].lineNumber}. Expected '{"</" + tagName + ">"}' but encountered '{tokens[index].token}'");
             }
 
             return (parent, isSingleTag ? index : index + 1);
         }
 
-        private static IEnumerable<string> GetParts(string xml)
+        private static IEnumerable<(string, int)> GetParts(string xml)
         {
             int i = 0;
+            int lineNumber = 1;
             while (true)
             {
-                while (i < xml.Length && char.IsWhiteSpace(xml[i]))
+                while (i < xml.Length && IsWhiteSpace(xml[i], ref lineNumber))
                     i++;
                 if (i == xml.Length)
                     break;
@@ -97,7 +98,7 @@ namespace CasualConsoleCore.XmlParser
 
                         i = cdataEndIndex + 3;
                         var cdataToken = xml[(lookupIndex - 3)..i];
-                        yield return cdataToken;
+                        yield return (cdataToken, lineNumber);
                     }
                     else
                     {
@@ -107,7 +108,7 @@ namespace CasualConsoleCore.XmlParser
 
                         i++;
                         var token = xml[start..i];
-                        yield return token;
+                        yield return (token, lineNumber);
                     }
                 }
                 else
@@ -117,13 +118,19 @@ namespace CasualConsoleCore.XmlParser
                         i++;
 
                     var end = i;
-                    while (char.IsWhiteSpace(xml[end - 1]))
+                    while (IsWhiteSpace(xml[end - 1], ref lineNumber))
                         end--;
 
                     var token = xml[start..end];
-                    yield return token;
+                    yield return (token, lineNumber);
                 }
             }
+        }
+
+        private static bool IsWhiteSpace(char c, ref int lineNumber)
+        {
+            if (c == '\n') lineNumber++;
+            return char.IsWhiteSpace(c);
         }
 
         private static (string, NameValueCollection) GetTagAndAttributes(string s)
