@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.31911.196
+# Visual Studio Version 17
+VisualStudioVersion = 17.3.32929.385
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebModelFactory", "WebModelFactory\WebModelFactory.csproj", "{0C1E467A-8226-494D-9A25-EF2511F7DF0E}"
 EndProject
@@ -16,6 +16,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapperTextlibrary", "MapperTextlibrary\MapperTextlibrary.csproj", "{96C15EBF-BF2A-4235-9D22-D002EAFFB841}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharePointMvc", "SharePointMvc\SharePointMvc.csproj", "{0845AC87-7E06-42EF-A7C9-A2F4591966A4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MVCCore", "MVCCore\MVCCore.csproj", "{FD9612BE-0C6E-4EA9-B2BD-7F5C93733B1A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -99,6 +101,18 @@ Global
 		{0845AC87-7E06-42EF-A7C9-A2F4591966A4}.Release|Mixed Platforms.Build.0 = Release|Any CPU
 		{0845AC87-7E06-42EF-A7C9-A2F4591966A4}.Release|x86.ActiveCfg = Release|Any CPU
 		{0845AC87-7E06-42EF-A7C9-A2F4591966A4}.Release|x86.Build.0 = Release|Any CPU
+		{FD9612BE-0C6E-4EA9-B2BD-7F5C93733B1A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FD9612BE-0C6E-4EA9-B2BD-7F5C93733B1A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FD9612BE-0C6E-4EA9-B2BD-7F5C93733B1A}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
+		{FD9612BE-0C6E-4EA9-B2BD-7F5C93733B1A}.Debug|Mixed Platforms.Build.0 = Debug|Any CPU
+		{FD9612BE-0C6E-4EA9-B2BD-7F5C93733B1A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{FD9612BE-0C6E-4EA9-B2BD-7F5C93733B1A}.Debug|x86.Build.0 = Debug|Any CPU
+		{FD9612BE-0C6E-4EA9-B2BD-7F5C93733B1A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FD9612BE-0C6E-4EA9-B2BD-7F5C93733B1A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FD9612BE-0C6E-4EA9-B2BD-7F5C93733B1A}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
+		{FD9612BE-0C6E-4EA9-B2BD-7F5C93733B1A}.Release|Mixed Platforms.Build.0 = Release|Any CPU
+		{FD9612BE-0C6E-4EA9-B2BD-7F5C93733B1A}.Release|x86.ActiveCfg = Release|Any CPU
+		{FD9612BE-0C6E-4EA9-B2BD-7F5C93733B1A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

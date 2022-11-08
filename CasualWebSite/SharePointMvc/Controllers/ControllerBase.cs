@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Web.Mvc;
 
 namespace SharePointMvc.Controllers
@@ -12,19 +13,19 @@ namespace SharePointMvc.Controllers
         {
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
 
-            HttpClientHandler handler = new HttpClientHandler()
+            this.Client = new HttpClient(new HttpClientHandler()
             {
                 AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
-            };
-
-            this.Client = new HttpClient(handler);
+            });
         }
 
         protected ActionResult Xml<E>(E obj, bool igroneXmlVersion = false)
         {
             string xml = new MyXmlSerializer().Serialize(obj, igroneXmlVersion);
 
-            return Content(xml, "application/xml");
+            ContentResult content = Content(xml, "application/xml");
+            content.ContentEncoding = Encoding.UTF8;
+            return content;
         }
 
         protected ActionResult ExcelFile(byte[] byteArray, string fileNameWithExtension)

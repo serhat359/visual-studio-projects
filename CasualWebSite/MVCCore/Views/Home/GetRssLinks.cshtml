@@ -1,0 +1,42 @@
+﻿@model System.Collections.Generic.Dictionary<string, string>
+
+@{
+    ViewBag.Title = "GetRssLinks";
+}
+
+<h2>GetRssLinks</h2>
+
+<form action="AddRssLink" method="post">
+    <input placeholder="Name" name="name" />
+    <input placeholder="New Link" name="link" />
+    <button class="button">Add New Link</button>
+</form>
+
+<br />
+<br />
+<br />
+
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Link</th>
+            <th>Delete Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var pair in Model)
+        {
+            <tr>
+                <td><a href="@pair.Key">@pair.Value</a></td>
+                <td><a href="DeleteRssLink?link=@System.Web.HttpUtility.UrlEncode(pair.Key)">Delete</a></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<br />
+<br />
+<br />
+
+<a href="/Home/GenerateRssResult">GenerateRssResult</a>

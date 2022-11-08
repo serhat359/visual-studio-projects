@@ -14,7 +14,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>SharePointMvc</RootNamespace>
     <AssemblyName>SharePointMvc</AssemblyName>
-    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <MvcBuildViews>false</MvcBuildViews>
     <UseIISExpress>true</UseIISExpress>
     <Use64BitIISExpress />
@@ -46,9 +46,6 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="EPPlus, Version=4.5.3.2, Culture=neutral, PublicKeyToken=ea159fdaa78159a1, processorArchitecture=MSIL">
-      <HintPath>..\packages\EPPlus.4.5.3.2\lib\net40\EPPlus.dll</HintPath>
-    </Reference>
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="Newtonsoft.Json, Version=11.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.11.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
@@ -163,13 +160,10 @@
     <Compile Include="Helpers\CacheHelper.cs" />
     <Compile Include="Helpers\Encryption.cs" />
     <Compile Include="Helpers\EncryptStream.cs" />
-    <Compile Include="Helpers\ExcelHelper.cs" />
     <Compile Include="Helpers\Extensions.cs" />
     <Compile Include="Helpers\MyTorrentRssHelper.cs" />
     <Compile Include="Helpers\MyXmlSerializer.cs" />
     <Compile Include="Models\AccountModels.cs" />
-    <Compile Include="Models\Category.cs" />
-    <Compile Include="Models\Discussion.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Resource1.Designer.cs">
       <AutoGen>True</AutoGen>
@@ -209,6 +203,12 @@
     <Content Include="Views\Home\GetAnimeNewsCookie.cshtml" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Resource1.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resource1.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Business\Business.csproj">
       <Project>{47208df9-e68c-4837-ba66-1d3a397d9448}</Project>
       <Name>Business</Name>
@@ -217,12 +217,6 @@
       <Project>{ee7f0a07-998e-4644-97ec-cc8b230c10e6}</Project>
       <Name>Model</Name>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Resource1.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resource1.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>

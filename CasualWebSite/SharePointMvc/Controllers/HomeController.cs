@@ -14,6 +14,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
+using System.Web.Caching;
 using System.Web.Mvc;
 using System.Xml;
 
@@ -188,7 +189,7 @@ namespace SharePointMvc.Controllers
         [HttpGet]
         public async Task<ActionResult> GetAnimeNewsCookie()
         {
-            object cookieValue = CacheHelper.Get<string>(CacheHelper.MALCookie, () => "", CacheHelper.MALCookieTimeSpan);
+            object cookieValue = CacheHelper.Get(CacheHelper.MALCookie, () => "", CacheHelper.MALCookieTimeSpan);
 
             return View(cookieValue);
         }
@@ -256,9 +257,9 @@ namespace SharePointMvc.Controllers
                               "https://www.tomshardware.com/best-picks",
                              };
 
-                var threads = urls.Select(url => GetRssObjectFromTomsUrlNew(url)).ToList();
+                var threads = urls.Select(url => GetUrlTextData(url)).ToList();
 
-                var elements = (await threads.AwaitAllAsync()).SelectMany(x => x);
+                var elements = (await threads.AwaitAllAsync()).Select(GetRssObjectFromTomsContent).SelectMany(x => x);
 
                 var rssObject = new RssResult(elements.Where(x => !x.Link.Contains("/news/")).OrderByDescending(x => x.PubDate));
 
@@ -285,10 +286,36 @@ namespace SharePointMvc.Controllers
         {
             string[] urls = { "https://www.tomshardware.com/news", "https://www.tomshardware.com/news/page/2" };
 
-            var threads = urls.Select(url => GetRssObjectFromTomsUrlNew(url)).ToList();
+            var threads = urls.Select(url => GetUrlTextData(url)).ToList();
 
-            var elements = (await threads.AwaitAllAsync()).SelectMany(x => x);
-            var rssObject = new RssResult(elements.OrderByDescending(c => c.PubDate));
+            var elements = (await threads.AwaitAllAsync()).Select(GetRssObjectFromTomsContent).SelectMany(x => x);
+            var newData = elements.OrderByDescending(c => c.PubDate).ToList();
+
+            var cacheKey = CacheHelper.TomsNewsKey;
+            var oldData = CacheHelper.Cache[cacheKey] as List<RssResultItem>;
+
+            List<RssResultItem> data;
+            if (oldData == null || oldData.Count == 0)
+            {
+                data = newData;
+            }
+            else if (newData == null || newData.Count == 0)
+            {
+                data = oldData;
+            }
+            else
+            {
+                var oldDate = oldData[0].PubDate;
+                var newDate = newData[0].PubDate;
+
+                if (newDate > oldDate)
+                    data = newData;
+                else
+                    data = oldData;
+            }
+
+            CacheHelper.Cache.Insert(cacheKey, data, null, Cache.NoAbsoluteExpiration, TimeSpan.FromHours(12));
+            var rssObject = new RssResult(data);
 
             return this.Xml(rssObject);
         }
@@ -474,7 +501,7 @@ namespace SharePointMvc.Controllers
                         int days = parseToDays(parts[1]);
                         return num * days;
                     }
-                    catch (Exception e)
+                    catch (Exception)
                     {
                         return 0;
                     }
@@ -506,7 +533,7 @@ namespace SharePointMvc.Controllers
 
             string contents = await GetUrlTextData(url);
 
-            string startTag = "<ul class=\"su-posts su-posts-list-loop\">";
+            string startTag = "<ul class=\"su-posts su-posts-list-loop \">";
             string endTag = "</ul>";
 
             int indexOfStart = contents.IndexOf(startTag);
@@ -873,7 +900,7 @@ namespace SharePointMvc.Controllers
                             allLinks.Add((date, itemNode));
                         }
                     }
-                    catch (Exception e)
+                    catch (Exception)
                     {
                         throw;
                     }
@@ -1142,7 +1169,7 @@ namespace SharePointMvc.Controllers
                     return await content.ReadAsByteArrayAsync();
                 }
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 throw;
             }
@@ -1170,11 +1197,11 @@ namespace SharePointMvc.Controllers
                         }
                     }
                 }
-                catch (WebException e)
+                catch (WebException)
                 {
                     throw;
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     throw;
                 }
@@ -1324,10 +1351,8 @@ namespace SharePointMvc.Controllers
             }
         }
 
-        private async Task<IEnumerable<RssResultItem>> GetRssObjectFromTomsUrlNew(string url)
+        private IEnumerable<RssResultItem> GetRssObjectFromTomsContent(string contents)
         {
-            string contents = await GetUrlTextData(url);
-
             var htmlEncodedRegex = new Regex(@"&[0-9a-zA-Z]{3,7};");
 
             string startTag = "<section data-next=\"latest\"";
@@ -1348,13 +1373,18 @@ namespace SharePointMvc.Controllers
             sectionPart = FixTomsHardwareBrokenXml(sectionPart);
             sectionPart = FixOnErrorAttribute(sectionPart);
 
+            if (sectionPart.Contains("p&pi"))
+                sectionPart = sectionPart.Replace("p&pi", "");
+
             XmlDocument document = new XmlDocument();
             document.LoadXml(sectionPart);
 
             var divs = document.GetAllNodes().Where(c =>
             {
                 var classValue = c.Attributes?["class"]?.Value;
+                var dataPageValue = c.Attributes?["data-page"]?.Value;
                 return classValue?.Contains("listingResult small") == true
+                    && dataPageValue != null
                     && classValue?.Contains("sponsored") != true;
             }).ToList();
 

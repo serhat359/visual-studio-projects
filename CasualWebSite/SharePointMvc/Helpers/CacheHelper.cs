@@ -7,6 +7,7 @@ namespace SharePointMvc.Helpers
     public class CacheHelper
     {
         public const string TomsArticlesKey = nameof(TomsArticlesKey);
+        public const string TomsNewsKey = nameof(TomsNewsKey);
         public const string MyRssKey = nameof(MyRssKey);
         public const string MyTorrentRssKey = nameof(MyTorrentRssKey);
         public const string MALCookie = nameof(MALCookie);

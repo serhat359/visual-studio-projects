@@ -21,12 +21,12 @@ namespace WebModelFactory
 
                 model.StatList = statList;
             }
-            catch(Exception e)
+            catch(Exception)
             {
                 model.StatList = new List<Stat>();
                 model.ErrorExecutingSql = true;
             }
-
+            
             return model;
         }
     }

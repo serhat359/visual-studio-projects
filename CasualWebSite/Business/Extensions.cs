@@ -53,10 +53,11 @@ namespace Extensions
 
         public static XmlNode SearchByTag(this XmlNode node, string name, string @class = null)
         {
+            var allNodes = node.GetAllNodes();
             if (@class == null)
-                return node.GetAllNodes().First(c => c.Name == name);
+                return allNodes.FirstOrDefault(c => c.Name == name);
             else
-                return node.GetAllNodes().First(c => c.Name == name && c.Attributes?["class"]?.Value == @class);
+                return allNodes.FirstOrDefault(c => c.Name == name && c.Attributes?["class"]?.Value == @class);
         }
 
         public static int IndexOfFirst<T>(this IEnumerable<T> source, Func<T, bool> predicate)

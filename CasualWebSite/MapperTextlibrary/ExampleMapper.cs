@@ -4,8 +4,6 @@ using System.Linq;
 using System.Text;
 using Model.Data;
 using System.Data;
-using MapperTextlibrary;
-using MySql.Data.Types;
 
 namespace MapperTextlibrary
 {
