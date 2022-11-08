@@ -18,6 +18,7 @@ namespace CasualConsoleCore.XmlParser
             DataLengthTest();
             TrimTest();
             BeautifyTest();
+            InnerXmlAndNodeTest();
         }
 
         private static void SimplestTest()
@@ -196,6 +197,21 @@ e
 
             if (text != beautified) throw new System.Exception();
             if (textIndented != beautifiedIndented) throw new System.Exception();
+        }
+
+        private static void InnerXmlAndNodeTest()
+        {
+            var text = @"
+<a>
+<b>
+e
+<c>DData</c>
+</b>
+</a>
+";
+            var mydoc = XmlParser.Parse(text);
+            var node = mydoc.ChildNodes[0].ChildNodes[0];
+            if (!(node.InnerText == "e" && node.ChildNodes.Count == 1)) throw new System.Exception();
         }
     }
 }

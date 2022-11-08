@@ -58,6 +58,12 @@ namespace CasualConsoleCore.XmlParser
                     parent.InnerText = NormalizeXml(text);
                     index++;
                 }
+                while (tokens[index].IsBeginTag())
+                {
+                    var (node, endIndex) = ReadNode(tokens[index..]);
+                    index += endIndex;
+                    parent.ChildNodes.Add(node);
+                }
                 if (tokens[index] != "</" + tagName + ">")
                     throw new Exception();
             }
