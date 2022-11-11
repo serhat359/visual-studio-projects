@@ -155,10 +155,15 @@ namespace CasualConsoleCore.XmlParser
                 string? attrValue = null;
                 if (s[i] == '=')
                 {
-                    if (s[i + 1] != '"')
-                        throw new Exception();
+                    char startCharacter = s[i + 1] switch
+                    {
+                        '"' => '"',
+                        '\'' => '\'',
+                        _ => throw new Exception(),
+                    };
+
                     var attrValueStart = i += 2;
-                    while (s[i] != '"')
+                    while (s[i] != startCharacter)
                         i++;
                     attrValue = s[attrValueStart..i];
                     attrValue = NormalizeXml(attrValue);

@@ -19,6 +19,7 @@ namespace CasualConsoleCore.XmlParser
             TrimTest();
             BeautifyTest();
             InnerXmlAndNodeTest();
+            SingleQuoteTest();
         }
 
         private static void SimplestTest()
@@ -212,6 +213,15 @@ e
             var mydoc = XmlParser.Parse(text);
             var node = mydoc.ChildNodes[0].ChildNodes[0];
             if (!(node.InnerText == "e" && node.ChildNodes.Count == 1)) throw new System.Exception();
+        }
+
+        private static void SingleQuoteTest()
+        {
+            var text = @"<node attr1=""somedata1"" attr2='somedata2'></node>";
+
+            var mydoc = XmlParser.Parse(text);
+            if (mydoc.ChildNodes[0].Attributes["attr1"] != "somedata1") throw new System.Exception();
+            if (mydoc.ChildNodes[0].Attributes["attr2"] != "somedata2") throw new System.Exception();
         }
     }
 }
