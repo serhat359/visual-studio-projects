@@ -20,6 +20,7 @@ namespace CasualConsoleCore.XmlParser
             BeautifyTest();
             InnerXmlAndNodeTest();
             SingleQuoteTest();
+            HandleComments();
         }
 
         private static void SimplestTest()
@@ -222,6 +223,13 @@ e
             var mydoc = XmlParser.Parse(text);
             if (mydoc.ChildNodes[0].Attributes["attr1"] != "somedata1") throw new System.Exception();
             if (mydoc.ChildNodes[0].Attributes["attr2"] != "somedata2") throw new System.Exception();
+        }
+
+        private static void HandleComments()
+        {
+            var text = "<node><!--this is some comment, I can write whatever I wanna write here such as: >>>>>--></node>";
+
+            XmlParser.Parse(text);
         }
     }
 }

@@ -75,62 +75,112 @@ namespace CasualConsoleCore.XmlParser
         {
             int i = 0;
             int lineNumber = 1;
+
+            bool IsWhiteSpace(char c)
+            {
+                if (c == '\n') lineNumber++;
+                return char.IsWhiteSpace(c);
+            }
+            static bool IsWhiteSpaceNoIncrement(char c)
+            {
+                return char.IsWhiteSpace(c);
+            }
+            static bool ContinuesWith(string s, string text, int index)
+            {
+                for (int i = 0; i < text.Length; i++)
+                {
+                    if (text[i] != s[index + i])
+                        return false;
+                }
+                return true;
+            }
+            int IndexOf(string s, string smallText, int startLocation)
+            {
+                for (int i = startLocation; i <= s.Length - smallText.Length; i++)
+                {
+                    if (s[i] == '\n') lineNumber++;
+                    for (int j = 0; j < smallText.Length; j++)
+                    {
+                        if (smallText[j] != s[i + j])
+                            goto notfound;
+                    }
+                    return i;
+                notfound:;
+                }
+                return -1;
+            }
+
             while (true)
             {
-                while (i < xml.Length && IsWhiteSpace(xml[i], ref lineNumber))
+                while (i < xml.Length && IsWhiteSpace(xml[i]))
                     i++;
                 if (i == xml.Length)
                     break;
 
                 if (xml[i] == '<')
                 {
+                    int lineNumberStart = lineNumber;
+                    if (xml[i + 1] == '!' && xml[i + 2] == '-' && xml[i + 3] == '-')
+                    {
+                        var commentEndIndex = IndexOf(xml, "-->", i + 3);
+                        if (commentEndIndex < 0)
+                            throw new Exception();
+                        i = commentEndIndex + 3;
+                        continue;
+                    }
+
                     if (xml[i + 1] == '!' && xml[i + 2] == '[')
                     {
                         var lookupIndex = i + 3;
-                        var cdataIndex = xml.IndexOf("CDATA[", lookupIndex);
-                        if (cdataIndex != lookupIndex)
+                        if (!ContinuesWith(xml, "CDATA[", lookupIndex))
                             throw new Exception();
 
-                        var cdataStartIndex = cdataIndex + "CDATA[".Length;
-                        var cdataEndIndex = xml.IndexOf("]]>", cdataStartIndex);
+                        var cdataStartIndex = lookupIndex + "CDATA[".Length;
+                        var cdataEndIndex = IndexOf(xml, "]]>", cdataStartIndex);
                         if (cdataEndIndex < 0)
                             throw new Exception();
 
                         i = cdataEndIndex + 3;
                         var cdataToken = xml[(lookupIndex - 3)..i];
-                        yield return (cdataToken, lineNumber);
+                        yield return (cdataToken, lineNumberStart);
                     }
                     else
                     {
                         int start = i;
-                        while (xml[i] != '>')
+                        while (true)
+                        {
+                            if (xml[i] == '\n') lineNumber++;
+                            if (xml[i] == '>')
+                                break;
                             i++;
+                        }
 
+                        if (xml[i] == '\n') lineNumber++;
                         i++;
                         var token = xml[start..i];
-                        yield return (token, lineNumber);
+                        yield return (token, lineNumberStart);
                     }
                 }
                 else
                 {
+                    int lineNumberStart = lineNumber;
                     int start = i;
-                    while (xml[i] != '<')
+                    while (true)
+                    {
+                        if (xml[i] == '\n') lineNumber++;
+                        if (xml[i] == '<')
+                            break;
                         i++;
+                    }
 
                     var end = i;
-                    while (IsWhiteSpace(xml[end - 1], ref lineNumber))
+                    while (IsWhiteSpaceNoIncrement(xml[end - 1]))
                         end--;
 
                     var token = xml[start..end];
-                    yield return (token, lineNumber);
+                    yield return (token, lineNumberStart);
                 }
             }
-        }
-
-        private static bool IsWhiteSpace(char c, ref int lineNumber)
-        {
-            if (c == '\n') lineNumber++;
-            return char.IsWhiteSpace(c);
         }
 
         private static (string, NameValueCollection) GetTagAndAttributes(string s)
