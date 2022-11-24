@@ -21,6 +21,7 @@ namespace CasualConsoleCore.XmlParser
             InnerXmlAndNodeTest();
             SingleQuoteTest();
             HandleComments();
+            MultiRootTest();
         }
 
         private static void SimplestTest()
@@ -228,6 +229,13 @@ e
         private static void HandleComments()
         {
             var text = "<node><!--this is some comment, I can write whatever I wanna write here such as: >>>>>--></node>";
+
+            XmlParser.Parse(text);
+        }
+
+        private static void MultiRootTest()
+        {
+            var text = "<node>1</node><node>2</node><node>3</node>";
 
             XmlParser.Parse(text);
         }

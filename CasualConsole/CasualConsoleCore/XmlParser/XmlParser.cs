@@ -24,8 +24,10 @@ namespace CasualConsoleCore.XmlParser
 
                 if (endIndex < 0)
                     throw new Exception();
-                if (endIndex == parts.Count)
+                if (endIndex + index == parts.Count)
                     break;
+
+                index += endIndex;
             }
 
             return topDocument;
