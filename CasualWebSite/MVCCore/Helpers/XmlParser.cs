@@ -1,5 +1,4 @@
-﻿using Newtonsoft.Json.Linq;
-using System.Collections.Specialized;
+﻿using System.Collections.Specialized;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Web;
@@ -153,10 +152,15 @@ namespace MVCCore.Helpers
                 string? attrValue = null;
                 if (s[i] == '=')
                 {
-                    if (s[i + 1] != '"')
-                        throw new Exception();
+                    char startCharacter = s[i + 1] switch
+                    {
+                        '"' => '"',
+                        '\'' => '\'',
+                        _ => throw new Exception(),
+                    };
+
                     var attrValueStart = i += 2;
-                    while (s[i] != '"')
+                    while (s[i] != startCharacter)
                         i++;
                     attrValue = s[attrValueStart..i];
                     attrValue = NormalizeXml(attrValue);
@@ -209,22 +213,22 @@ namespace MVCCore.Helpers
                 for (int i = 0; i < level; i++)
                     sb.Append(indentChars);
 
-                sb.Append("<");
+                sb.Append('<');
                 sb.Append(node.tagName);
                 foreach (string key in node.Attributes)
                 {
-                    sb.Append(" ");
+                    sb.Append(' ');
                     sb.Append(key);
                     var value = node.Attributes[key];
                     if (value != null)
                     {
-                        sb.Append("=");
-                        sb.Append("\"");
+                        sb.Append('=');
+                        sb.Append('\"');
                         sb.Append(HttpUtility.HtmlAttributeEncode(value));
-                        sb.Append("\"");
+                        sb.Append('\"');
                     }
                 }
-                sb.Append(">");
+                sb.Append('>');
 
                 sb.Append(HttpUtility.HtmlEncode(node.InnerText));
 
@@ -241,7 +245,7 @@ namespace MVCCore.Helpers
                         sb.Append(indentChars);
                 sb.Append("</");
                 sb.Append(node.tagName);
-                sb.Append(">");
+                sb.Append('>');
             }
 
             Write(node, 0);

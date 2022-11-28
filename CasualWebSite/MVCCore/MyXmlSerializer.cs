@@ -82,8 +82,8 @@ namespace MVCCore
 
                 XmlElementAttribute elementAttribute = GetAttribute<XmlElementAttribute>(customAttributes);
                 XmlTagAttribute tagAttribute = GetAttribute<XmlTagAttribute>(customAttributes);
-                string xmlNodeRestylized = tagAttribute?.Format(xmlNodeName);
-                string xmlNodeClassRestylized = classTagAttribute?.Format(xmlNodeName);
+                string? xmlNodeRestylized = tagAttribute?.Format(xmlNodeName);
+                string? xmlNodeClassRestylized = classTagAttribute?.Format(xmlNodeName);
                 xmlNodeName = elementAttribute?.ElementName ?? xmlNodeRestylized ?? xmlNodeClassRestylized ?? xmlNodeName;
 
                 string formattedNode = xmlNodeName != null
@@ -165,11 +165,11 @@ namespace MVCCore
                     if (xmlAttribute != null)
                     {
                         string name = xmlAttribute.AttributeName.Length != 0 ? xmlAttribute.AttributeName : property.Name;
-                        xmlAttributes.Add(name, property.GetValue(obj, null).ToString());
+                        xmlAttributes.Add(name, property.GetValue(obj).ToString());
                     }
                     else
                     {
-                        SerializeElement(property.GetValue(obj, null), propertyAttributes, property.Name, tagAttribute ?? classTagAttribute);
+                        SerializeElement(property.GetValue(obj), propertyAttributes, property.Name, tagAttribute ?? classTagAttribute);
                     }
                 }
 

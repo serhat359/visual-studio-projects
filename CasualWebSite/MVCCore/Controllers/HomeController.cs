@@ -3,8 +3,6 @@ using MVCCore.Helpers;
 using MVCCore.Models;
 using System.Diagnostics;
 using System.Text;
-using System.Text.RegularExpressions;
-using System.Web;
 
 namespace MVCCore.Controllers
 {
@@ -254,7 +252,7 @@ namespace MVCCore.Controllers
                 var tasks = links.Select(url => Task.Run(async () =>
                 {
                     var key = CacheHelper.MyRssKey + ":" + url;
-                    var val = await _cacheHelper.GetAsync(key, () => GetUrlTextData(url, throwException: true), cacheTimespan);
+                    var val = await _cacheHelper.GetAsync(key, () => GetUrlTextData(url), cacheTimespan);
                     return val;
                 })).ToArray();
 
@@ -339,13 +337,13 @@ namespace MVCCore.Controllers
         }
 
         #region Private Methods
-        private async Task<string> GetUrlTextData(string url, Action<HttpRequestMessage>? extraAction = null, bool throwException = false)
+        private async Task<string> GetUrlTextData(string url, Action<HttpRequestMessage>? extraAction = null)
         {
             using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
             extraAction?.Invoke(requestMessage);
 
             using var response = await Client.SendAsync(requestMessage);
-            if (throwException && !response.IsSuccessStatusCode)
+            if (!response.IsSuccessStatusCode)
                 throw new Exception($"Error status code: {(int)response.StatusCode}");
 
             using var content = response.Content;
@@ -410,15 +408,15 @@ namespace MVCCore.Controllers
 
                 var containsSlash = sectionPart[ii - 1] == '/';
 
-                ss.Append(sectionPart.Substring(lastIndex, ii - lastIndex));
+                ss.Append(sectionPart.AsSpan(lastIndex, ii - lastIndex));
                 if (!containsSlash)
-                    ss.Append("/");
+                    ss.Append('/');
                 lastIndex = ii;
             }
 
             if (lastIndex > 0)
             {
-                ss.Append(sectionPart.Substring(lastIndex));
+                ss.Append(sectionPart.AsSpan(lastIndex));
                 return ss.ToString();
             }
             else
