@@ -76,8 +76,6 @@ namespace SharePointMvc.Controllers
 
             var items = document.GetElementsByTagName("item");
 
-            var host = ((System.Web.HttpRequestWrapper)Request).Url.Authority;
-
             RssResult rssObject = new RssResult(items.Cast<XmlNode>().Select(x => new RssResultItem
             {
                 Description = x.GetChildNamed("description").InnerText,
@@ -220,30 +218,6 @@ namespace SharePointMvc.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult> FixTomsNewsAlternative()
-        {
-            string url = "https://www.tomshardware.com/feeds/rss2/all.xml";
-
-            return await FixToms(url, "/news/");
-        }
-
-        [HttpGet]
-        public async Task<ActionResult> FixTomsArticles()
-        {
-            string url = "https://www.tomshardware.com/feeds/rss2/articles.xml";
-
-            return await FixToms(url);
-        }
-
-        [HttpGet]
-        public async Task<ActionResult> FixTomsArticlesAlternative()
-        {
-            string url = "https://www.tomshardware.com/feeds/rss2/all.xml";
-
-            return await FixToms(url, "/reviews/");
-        }
-
-        [HttpGet]
         public async Task<ActionResult> FixTomsArticlesManual()
         {
             Func<Task<ActionResult>> initializer = async () =>
@@ -271,14 +245,6 @@ namespace SharePointMvc.Controllers
             var xmlResultResult = await CacheHelper.GetAsync<ActionResult>(CacheHelper.TomsArticlesKey, initializer, TimeSpan.FromHours(2));
 
             return xmlResultResult;
-        }
-
-        [HttpGet]
-        public async Task<ActionResult> FixTomsAll()
-        {
-            string url = "https://www.tomshardware.com/feeds/rss2/all.xml";
-
-            return await FixToms(url);
         }
 
         [HttpGet]
@@ -1072,73 +1038,6 @@ namespace SharePointMvc.Controllers
             }));
 
             return this.Xml(rssObject);
-        }
-
-        private async Task<ActionResult> FixToms(string url, string linkContains = null)
-        {
-            string contents = await GetUrlTextData(url);
-
-            contents = contents.Replace(".co.uk", ".com");
-
-            //contents = IndentXml(contents);
-
-            XmlDocument document = new XmlDocument();
-
-            document.LoadXml(contents);
-
-            var items = document.GetElementsByTagName("item").Cast<XmlNode>();
-
-            items.Where(x => x.GetChildNamed("link").InnerXml.Contains("tomshardware.co.uk")).ToList().ForEach(node =>
-            {
-                node.ParentNode.RemoveChild(node);
-            });
-
-            if (linkContains != null)
-            {
-                items.Where(x => !x.GetChildNamed("link").InnerXml.Contains(linkContains)).ToList().ForEach(node =>
-                {
-                    node.ParentNode.RemoveChild(node);
-                });
-            }
-
-            items = document.GetElementsByTagName("item").Cast<XmlNode>();
-
-            var iterator = items.GetEnumerator();
-
-            List<XmlNode> invalidNodes = new List<XmlNode>();
-
-            XmlNode oldOne = null;
-            while (iterator.MoveNext())
-            {
-                var curr = iterator.Current;
-
-                if (oldOne != null)
-                {
-                    var oldTitle = oldOne.GetChildNamed("title").InnerText;
-                    var currTitle = curr.GetChildNamed("title").InnerText;
-
-                    if (oldTitle.Equals(currTitle))
-                    {
-                        invalidNodes.Add(oldOne);
-                    }
-                }
-
-                var link = curr.GetChildNamed("link");
-                link.InnerText = link.InnerText.Replace("#xtor=RSS-5", "");
-
-                oldOne = curr;
-            }
-
-            foreach (var node in invalidNodes)
-            {
-                node.ParentNode.RemoveChild(node);
-            }
-
-            contents = XmlToString(document);
-
-            contents = contents.Replace("&#039;", "'");
-
-            return Content(contents, "application/xml; charset=UTF-8", Encoding.UTF8);
         }
 
         private async Task<string> GetJsonSearchResult(string q, string channelId)
