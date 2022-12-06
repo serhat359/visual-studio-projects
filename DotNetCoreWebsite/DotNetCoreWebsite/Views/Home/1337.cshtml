@@ -7,7 +7,7 @@
 <h1>x1337</h1>
 
 <form method="get">
-    @Html.TextBoxFor(x => x.Query, null, new { placeholder = "Search" } )
+    <input asp-for="Query" placeholder="Search" />
     <button>Go</button>
 </form>
 
