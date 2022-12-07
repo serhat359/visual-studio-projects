@@ -635,6 +635,7 @@ namespace CasualConsoleCore.Interpreter
                 ("function* f(){ yield 1; yield 2; } var arr = []; for(var x of f()) arr.push(x); arr.length", 2),
                 ("function* f(){ yield 1; yield 2; } [...f()].length", 2),
                 ("function* f(){ yield 1; yield 2; } function c(){ return arguments.length; } c(...f()) ", 2),
+                ("function* f(){ yield 1; yield 2; } function* c(){ yield* f(); yield* [1,2,3]; } [...c()].length", 5),
             };
 
             var interpreter = new Interpreter();
@@ -1802,6 +1803,16 @@ namespace CasualConsoleCore.Interpreter
                 }
             }
 
+            internal IEnumerable<CustomValue> AsMultiValue()
+            {
+                if (this.type == ValueType.Array)
+                    return ((CustomArray)this.value).list;
+                else if (this.type == ValueType.Generator)
+                    return (Generator)this.value;
+                else
+                    throw new Exception();
+            }
+
             public override string ToString()
             {
                 if (value is null)
@@ -2793,16 +2804,8 @@ namespace CasualConsoleCore.Interpreter
                 {
                     if (hasThreeDot)
                     {
-                        IEnumerable<CustomValue> elements;
                         var value = expression.EvaluateExpression(context);
-                        if (value.type == ValueType.Array)
-                            elements = ((CustomArray)value.value).list;
-                        else if (value.type == ValueType.Generator)
-                            elements = (Generator)value.value;
-                        else
-                            throw new Exception();
-
-                        foreach (var item in elements)
+                        foreach (var item in value.AsMultiValue())
                             arguments.Add(item);
                     }
                     else
@@ -2914,16 +2917,8 @@ namespace CasualConsoleCore.Interpreter
                 {
                     if (hasThreeDot)
                     {
-                        IEnumerable<CustomValue> elements;
                         var value = expression.EvaluateExpression(context);
-                        if (value.type == ValueType.Array)
-                            elements = ((CustomArray)value.value).list;
-                        else if (value.type == ValueType.Generator)
-                            elements = (Generator)value.value;
-                        else
-                            throw new Exception();
-
-                        foreach (var item in elements)
+                        foreach (var item in value.AsMultiValue())
                             list.Add(item);
                     }
                     else
@@ -4187,30 +4182,42 @@ namespace CasualConsoleCore.Interpreter
         class YieldStatement : Statement
         {
             Expression expression;
+            bool isMultiYield = false;
 
             public YieldStatement(ArraySegment<string> tokens)
             {
+                tokens = tokens[1..]; // Remove "yield"
+
                 if (tokens[^1] == ";")
                 {
                     tokens = tokens[..^1];
                 }
+                if (tokens[0] == "*")
+                {
+                    isMultiYield = true;
+                    tokens = tokens[1..];
+                }
 
-                this.expression = ExpressionMethods.New(tokens[1..]);
+                this.expression = ExpressionMethods.New(tokens);
             }
 
             public StatementType Type => StatementType.YieldStatement;
 
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
-                //var value = expression.EvaluateExpression(context);
-                //return (value, false, false, false);
-
                 throw new NotImplementedException();
             }
 
             public IEnumerable<CustomValue> AsEnumerable(Context context)
             {
-                yield return expression.EvaluateExpression(context);
+                if (!isMultiYield)
+                    yield return expression.EvaluateExpression(context);
+                else
+                {
+                    var multiValue = expression.EvaluateExpression(context);
+                    foreach (var value in multiValue.AsMultiValue())
+                        yield return value;
+                }
             }
         }
     }
