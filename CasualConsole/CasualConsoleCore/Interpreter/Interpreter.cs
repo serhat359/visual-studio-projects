@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -631,6 +632,9 @@ namespace CasualConsoleCore.Interpreter
                 ("var { value, done } = numbersGen.next(); value == 2 && done == false", true),
                 ("var { value, done } = numbersGen.next(); value == null && done == true", true),
                 ("var gen = function*(){ for(var i = 0; i < arguments.length; i++) {  yield arguments[i]; yield arguments[i]; } }; var genFirst = gen(1,2,3).next(); genFirst.value == 1", true),
+                ("function* f(){ yield 1; yield 2; } var arr = []; for(var x of f()) arr.push(x); arr.length", 2),
+                ("function* f(){ yield 1; yield 2; } [...f()].length", 2),
+                ("function* f(){ yield 1; yield 2; } function c(){ return arguments.length; } c(...f()) ", 2),
             };
 
             var interpreter = new Interpreter();
@@ -1677,7 +1681,7 @@ namespace CasualConsoleCore.Interpreter
             }
         }
 
-        class Generator
+        class Generator : IEnumerable<CustomValue>
         {
             IEnumerator<CustomValue> enumerator;
 
@@ -1702,6 +1706,16 @@ namespace CasualConsoleCore.Interpreter
                 {
                     return CustomValue.GeneratorDone;
                 }
+            }
+
+            public IEnumerator<CustomValue> GetEnumerator()
+            {
+                return enumerator;
+            }
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return enumerator;
             }
         }
 
@@ -2779,11 +2793,16 @@ namespace CasualConsoleCore.Interpreter
                 {
                     if (hasThreeDot)
                     {
+                        IEnumerable<CustomValue> elements;
                         var value = expression.EvaluateExpression(context);
-                        if (value.type != ValueType.Array)
+                        if (value.type == ValueType.Array)
+                            elements = ((CustomArray)value.value).list;
+                        else if (value.type == ValueType.Generator)
+                            elements = (Generator)value.value;
+                        else
                             throw new Exception();
-                        var array = (CustomArray)value.value;
-                        foreach (var item in array.list)
+
+                        foreach (var item in elements)
                             arguments.Add(item);
                     }
                     else
@@ -2895,11 +2914,16 @@ namespace CasualConsoleCore.Interpreter
                 {
                     if (hasThreeDot)
                     {
+                        IEnumerable<CustomValue> elements;
                         var value = expression.EvaluateExpression(context);
-                        if (value.type != ValueType.Array)
+                        if (value.type == ValueType.Array)
+                            elements = ((CustomArray)value.value).list;
+                        else if (value.type == ValueType.Generator)
+                            elements = (Generator)value.value;
+                        else
                             throw new Exception();
-                        var array = (CustomArray)value.value;
-                        foreach (var item in array.list)
+
+                        foreach (var item in elements)
                             list.Add(item);
                     }
                     else
@@ -3887,10 +3911,6 @@ namespace CasualConsoleCore.Interpreter
                 bool isOfStatement = !isInStatement;
                 scope = context.variableScope;
                 var sourceValue = sourceExpression.EvaluateExpression(context);
-                if (isOfStatement && sourceValue.type != ValueType.Array)
-                    throw new Exception();
-                if (isInStatement && sourceValue.type != ValueType.Map)
-                    throw new Exception();
                 if (isInStatement)
                 {
                     var map = (Dictionary<string, CustomValue>)sourceValue.value;
@@ -3899,8 +3919,18 @@ namespace CasualConsoleCore.Interpreter
                 }
                 else if (isOfStatement)
                 {
-                    var array = (CustomArray)sourceValue.value;
-                    elements = array.list;
+                    if (sourceValue.type == ValueType.Array)
+                    {
+                        var array = (CustomArray)sourceValue.value;
+                        elements = array.list;
+                    }
+                    else if (sourceValue.type == ValueType.Generator)
+                    {
+                        var generator = (Generator)sourceValue.value;
+                        elements = generator;
+                    }
+                    else
+                        throw new Exception();
                 }
                 else
                     throw new Exception();
