@@ -1,13 +1,23 @@
 ﻿using CasualConsoleCore.XmlParser;
 using System;
+using System.Collections.Generic;
 using System.Data;
-using System.Diagnostics;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Threading.Channels;
+using System.Threading.Tasks;
 
 namespace CasualConsoleCore
 {
     public class Program
     {
+        private static HttpClient client = new HttpClient(new HttpClientHandler()
+        {
+            AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
+            ServerCertificateCustomValidationCallback = (httpRequestMessage, cert, cetChain, policyErrors) => true
+        });
+
         static void Main(string[] args)
         {
             //Interpreter.Interpreter.Test();
@@ -107,6 +117,68 @@ namespace CasualConsoleCore
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.Error.WriteLine(e.Message);
                     Console.ForegroundColor = oldColor;
+                }
+            }
+        }
+    }
+
+    public static class AsyncExtensions
+    {
+        public static async IAsyncEnumerable<E> SelectAsync<T, E>(this IEnumerable<T> source, Func<T, Task<E>> converter)
+        {
+            foreach (var item in source)
+                yield return await converter(item);
+        }
+
+        public static async IAsyncEnumerable<E> Select<T, E>(this IAsyncEnumerable<T> source, Func<T, E> converter)
+        {
+            await foreach (var item in source)
+                yield return converter(item);
+        }
+
+        public static async IAsyncEnumerable<T> Where<T>(this IAsyncEnumerable<T> source, Func<T, bool> predicate)
+        {
+            await foreach (var item in source)
+                if (predicate(item))
+                    yield return item;
+        }
+
+        public static async IAsyncEnumerable<T> ParallelSelectAsync<E, T>(this IReadOnlyCollection<E> elements, Func<E, Task<T>> converter, int threadCount)
+        {
+            var channel = Channel.CreateBounded<T>(elements.Count);
+            var enumerator = elements.Select(converter).GetEnumerator();
+
+            var _innerTasks = Enumerable.Range(0, threadCount).Select(async x =>
+            {
+                while (true)
+                {
+                    Task<T> currentTask;
+                    lock (enumerator)
+                    {
+                        if (!enumerator.MoveNext())
+                            return;
+                        currentTask = enumerator.Current;
+                    }
+                    var res = await currentTask;
+                    await channel.Writer.WriteAsync(res);
+                }
+            }).ToList();
+
+            for (int i = 0; i < elements.Count; i++)
+                yield return await channel.Reader.ReadAsync();
+        }
+    }
+
+    public static class XmlExtensions
+    {
+        public static IEnumerable<MyXmlNode> GetAllRecursive(this MyXmlNode node)
+        {
+            yield return node;
+            foreach (var childNode in node.ChildNodes)
+            {
+                foreach (var childChildNode in GetAllRecursive(childNode))
+                {
+                    yield return childChildNode;
                 }
             }
         }

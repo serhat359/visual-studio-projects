@@ -39,9 +39,8 @@ namespace CasualConsoleCore.XmlParser
 
             var isSingleTag = tokens[0].token.IsSingleTag();
 
-            var parent = new MyXmlNode();
-
             var (tagName, attributes) = GetTagAndAttributes(tokens[0].token);
+            var parent = new MyXmlNode();
             parent.TagName = tagName;
             parent.Attributes = attributes;
             var index = 1;
@@ -73,7 +72,7 @@ namespace CasualConsoleCore.XmlParser
             return (parent, isSingleTag ? index : index + 1);
         }
 
-        private static IEnumerable<(string, int)> GetParts(string xml)
+        private static IEnumerable<(string token, int lineNumber)> GetParts(string xml)
         {
             int i = 0;
             int lineNumber = 1;
@@ -244,12 +243,23 @@ namespace CasualConsoleCore.XmlParser
     public class MyXmlNode
     {
         private string? tagName;
+        private NameValueCollection? attributes;
 
         public string InnerText { get; set; } = "";
         public string TagName { get { return tagName ?? throw new Exception(); } set { tagName = value; } }
-        public NameValueCollection Attributes { get; set; }
+        public NameValueCollection Attributes { get { return attributes ?? throw new Exception(); } set { attributes = value; } }
         public List<MyXmlNode> ChildNodes { get; set; } = new List<MyXmlNode>();
         public bool IsRoot => tagName == null;
+
+        public MyXmlNode()
+        {
+        }
+
+        public MyXmlNode(string tagName, NameValueCollection attributes)
+        {
+            this.tagName = tagName;
+            this.attributes = attributes;
+        }
 
         public void AppendChild(MyXmlNode node)
         {
