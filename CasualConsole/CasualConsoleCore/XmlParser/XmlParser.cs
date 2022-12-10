@@ -10,11 +10,11 @@ namespace CasualConsoleCore.XmlParser
 {
     public class XmlParser
     {
-        public static MyXmlNode Parse(string xml)
+        public static XmlNode Parse(string xml)
         {
             ArraySegment<(string, int)> parts = GetParts(xml).ToArray();
 
-            var topDocument = new MyXmlNode();
+            var topDocument = new XmlNode();
 
             int index = 0;
             while (true)
@@ -33,14 +33,14 @@ namespace CasualConsoleCore.XmlParser
             return topDocument;
         }
 
-        private static (MyXmlNode, int) ReadNode(ArraySegment<(string token, int lineNumber)> tokens)
+        private static (XmlNode, int) ReadNode(ArraySegment<(string token, int lineNumber)> tokens)
         {
             if (!tokens[0].token.IsBeginTag()) throw new Exception(); // TODO remove later
 
             var isSingleTag = tokens[0].token.IsSingleTag();
 
             var (tagName, attributes) = GetTagAndAttributes(tokens[0].token);
-            var parent = new MyXmlNode();
+            var parent = new XmlNode();
             parent.TagName = tagName;
             parent.Attributes = attributes;
             var index = 1;
@@ -240,7 +240,7 @@ namespace CasualConsoleCore.XmlParser
         }
     }
 
-    public class MyXmlNode
+    public class XmlNode
     {
         private string? tagName;
         private NameValueCollection? attributes;
@@ -248,20 +248,20 @@ namespace CasualConsoleCore.XmlParser
         public string InnerText { get; set; } = "";
         public string TagName { get { return tagName ?? throw new Exception(); } set { tagName = value; } }
         public NameValueCollection Attributes { get { return attributes ?? throw new Exception(); } set { attributes = value; } }
-        public List<MyXmlNode> ChildNodes { get; set; } = new List<MyXmlNode>();
+        public List<XmlNode> ChildNodes { get; set; } = new List<XmlNode>();
         public bool IsRoot => tagName == null;
 
-        public MyXmlNode()
+        public XmlNode()
         {
         }
 
-        public MyXmlNode(string tagName, NameValueCollection attributes)
+        public XmlNode(string tagName, NameValueCollection attributes)
         {
             this.tagName = tagName;
             this.attributes = attributes;
         }
 
-        public void AppendChild(MyXmlNode node)
+        public void AppendChild(XmlNode node)
         {
             ChildNodes.Add(node);
         }
@@ -274,27 +274,27 @@ namespace CasualConsoleCore.XmlParser
 
             var sb = new StringBuilder();
 
-            void Write(MyXmlNode node, int level)
+            void Write(XmlNode node, int level)
             {
                 for (int i = 0; i < level; i++)
                     sb.Append(indentChars);
 
-                sb.Append("<");
+                sb.Append('<');
                 sb.Append(node.tagName);
                 foreach (string key in node.Attributes)
                 {
-                    sb.Append(" ");
+                    sb.Append(' ');
                     sb.Append(key);
                     var value = node.Attributes[key];
                     if (value != null)
                     {
-                        sb.Append("=");
-                        sb.Append("\"");
+                        sb.Append('=');
+                        sb.Append('\"');
                         sb.Append(HttpUtility.HtmlAttributeEncode(value));
-                        sb.Append("\"");
+                        sb.Append('\"');
                     }
                 }
-                sb.Append(">");
+                sb.Append('>');
 
                 sb.Append(HttpUtility.HtmlEncode(node.InnerText));
 
@@ -311,7 +311,7 @@ namespace CasualConsoleCore.XmlParser
                         sb.Append(indentChars);
                 sb.Append("</");
                 sb.Append(node.tagName);
-                sb.Append(">");
+                sb.Append('>');
             }
 
             Write(node, 0);
@@ -320,7 +320,7 @@ namespace CasualConsoleCore.XmlParser
         }
     }
 
-    public static class Extensions
+    public static class XmlParserExtensions
     {
         public static bool IsTag(this string s)
         {
