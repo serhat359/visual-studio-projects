@@ -29,6 +29,36 @@ namespace MVCCore.Controllers
             return Json(new { message = "this page is empty" });
         }
 
+        [Route("/test")]
+        [HttpGet]
+        public async Task<IActionResult> Test()
+        {
+            var paths = new[]
+            {
+                "/Home/FixAnimeNews",
+                "/Home/FixTomsArticlesManual",
+                "/Home/FixTomsNewsManualParse",
+                "/Home/MangainnParseXml/one-punch-man",
+                "/Home/TalentlessnanaParseXml",
+                "/Home/GenerateRssResult",
+            };
+
+            var baseUrl = "http://" + Request.Host.ToString();
+            var client = Client;
+
+            await Parallel.ForEachAsync(paths, async (path, ct) =>
+            {
+                var url = baseUrl + path;
+                using var response = await client.GetAsync(url);
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new Exception("error for the url: " + url);
+                }
+            });
+
+            return Json(new { message = "All tests successful" });
+        }
+
         [HttpGet]
         public async Task<IActionResult> FixAnimeNews()
         {
@@ -37,7 +67,7 @@ namespace MVCCore.Controllers
             string contents = (await GetUrlTextData(url, x =>
             {
                 x.Headers.Add("Host", "www.animenewsnetwork.com");
-                x.Headers.Add("Cookie", _cacheHelper.Get(CacheHelper.MALCookie, () => "", CacheHelper.MALCookieTimeSpan));
+                //x.Headers.Add("Cookie", _cacheHelper.Get(CacheHelper.MALCookie, () => "", CacheHelper.MALCookieTimeSpan));
                 x.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:87.0) Gecko/20100101 Firefox/87.0");
             }))
                 .Replace("animenewsnetwork.cc", "animenewsnetwork.com")
@@ -363,7 +393,7 @@ namespace MVCCore.Controllers
 
             var document = XmlParser.Parse(sectionPart);
 
-            var divs = document.GetAllNodesRecursive().Where(c =>
+            var divs = document.ChildNodes[0].GetAllNodesRecursive().Where(c =>
             {
                 var classValue = c.Attributes?["class"];
                 var dataPageValue = c.Attributes?["data-page"];
