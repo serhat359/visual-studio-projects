@@ -78,6 +78,14 @@ namespace CasualConsoleCore.Interpreter
                     })
                 },
             }), AssignmentType.Const);
+
+            defaultvariables["AsyncGenerator"] = (CustomValue.FromMap(new Dictionary<string, CustomValue> {
+                { "prototype", CustomValue.FromMap(new Dictionary<string, CustomValue>()
+                    {
+                        { "next", CustomValue.FromFunction(new AsyncGeneratorNextFunction()) },
+                    })
+                },
+            }), AssignmentType.Const);
         }
 
         public object InterpretCode(string code)
@@ -636,6 +644,8 @@ namespace CasualConsoleCore.Interpreter
                 ("function* f(){ yield 1; yield 2; } [...f()].length", 2),
                 ("function* f(){ yield 1; yield 2; } function c(){ return arguments.length; } c(...f()) ", 2),
                 ("function* f(){ yield 1; yield 2; } function* c(){ yield* f(); yield* [1,2,3]; } [...c()].length", 5),
+                ("var f = async function*(){ yield 1; yield 2 }; var gen = f(); var val = gen.next(); (await val).value == 1", true),
+                ("var arr = []; for await (let x of f()) arr.push(x); arr.length", 2),
             };
 
             var interpreter = new Interpreter();
@@ -1145,23 +1155,28 @@ namespace CasualConsoleCore.Interpreter
             {
                 case ValueType.Array:
                     {
-                        var arrayObject = context.variableScope.GetVariable("Array");
-                        return ((Dictionary<string, CustomValue>)arrayObject.value).TryGetValue("prototype", out var value) ? value : CustomValue.Null;
+                        var v = context.variableScope.GetVariable("Array");
+                        return ((Dictionary<string, CustomValue>)v.value).TryGetValue("prototype", out var value) ? value : CustomValue.Null;
                     }
                 case ValueType.Function:
                     {
-                        var functionObject = context.variableScope.GetVariable("Function");
-                        return ((Dictionary<string, CustomValue>)functionObject.value).TryGetValue("prototype", out var value) ? value : CustomValue.Null;
+                        var v = context.variableScope.GetVariable("Function");
+                        return ((Dictionary<string, CustomValue>)v.value).TryGetValue("prototype", out var value) ? value : CustomValue.Null;
                     }
                 case ValueType.String:
                     {
-                        var stringObject = context.variableScope.GetVariable("String");
-                        return ((Dictionary<string, CustomValue>)stringObject.value).TryGetValue("prototype", out var value) ? value : CustomValue.Null;
+                        var v = context.variableScope.GetVariable("String");
+                        return ((Dictionary<string, CustomValue>)v.value).TryGetValue("prototype", out var value) ? value : CustomValue.Null;
                     }
                 case ValueType.Generator:
                     {
-                        var generatorObject = context.variableScope.GetVariable("Generator");
-                        return ((Dictionary<string, CustomValue>)generatorObject.value).TryGetValue("prototype", out var value) ? value : CustomValue.Null;
+                        var v = context.variableScope.GetVariable("Generator");
+                        return ((Dictionary<string, CustomValue>)v.value).TryGetValue("prototype", out var value) ? value : CustomValue.Null;
+                    }
+                case ValueType.AsyncGenerator:
+                    {
+                        var v = context.variableScope.GetVariable("AsyncGenerator");
+                        return ((Dictionary<string, CustomValue>)v.value).TryGetValue("prototype", out var value) ? value : CustomValue.Null;
                     }
                 default:
                     return CustomValue.Null;
@@ -1462,7 +1477,7 @@ namespace CasualConsoleCore.Interpreter
                     }
                     else
                     {
-                        Task<(CustomValue value, bool isReturn, bool isBreak, bool isContinue)> promiseTask = Task.Run(() => body.EvaluateStatement(context));
+                        Task<CustomValue> promiseTask = Task.Run(() => body.EvaluateStatement(context).value);
                         CustomValue promise = CustomValue.FromPromise(promiseTask);
                         return (promise, false, false, false);
                     }
@@ -1476,7 +1491,11 @@ namespace CasualConsoleCore.Interpreter
                         return (generatorValue, false, false, false);
                     }
                     else
-                        throw new Exception();
+                    {
+                        var asyncGenerator = new AsyncGenerator(body, context);
+                        CustomValue asyncGeneratorValue = CustomValue.FromAsyncGenerator(asyncGenerator);
+                        return (asyncGeneratorValue, false, false, false);
+                    }
                 }
             }
 
@@ -1556,6 +1575,31 @@ namespace CasualConsoleCore.Interpreter
                 var generator = (Generator)thisOwner.value;
                 var value = generator.Next();
                 return (value, false, false, false);
+            }
+
+            public IEnumerable<CustomValue> AsEnumerable(Context context)
+            {
+                throw new NotImplementedException();
+            }
+        }
+        class AsyncGeneratorNextFunction : FunctionObject
+        {
+            private static (string paramName, bool isRest)[] parameters = Array.Empty<(string, bool)>();
+
+            public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
+
+            public VariableScope? Scope => null;
+
+            public bool IsLambda => false;
+
+            public StatementType Type => throw new NotImplementedException();
+
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+            {
+                var thisOwner = context.thisOwner;
+                var asyncGenerator = (AsyncGenerator)thisOwner.value;
+                var value = asyncGenerator.Next();
+                return (CustomValue.FromPromise(value), false, false, false);
             }
 
             public IEnumerable<CustomValue> AsEnumerable(Context context)
@@ -1731,6 +1775,67 @@ namespace CasualConsoleCore.Interpreter
                 return enumerator;
             }
         }
+        class AsyncGenerator : IEnumerable<Task<(bool, CustomValue)>>
+        {
+            IEnumerator<Task<(bool, CustomValue)>> enumerator;
+
+            public AsyncGenerator(Statement statement, Context context)
+            {
+                this.enumerator = Promisify(statement.AsEnumerable(context)).GetEnumerator();
+            }
+
+            private static IEnumerable<Task<(bool, CustomValue)>> Promisify(IEnumerable<CustomValue> source)
+            {
+                var enumerator = source.GetEnumerator();
+                while (true)
+                {
+                    yield return Task.Run(() =>
+                    {
+                        var success = enumerator.MoveNext();
+                        if (success)
+                            return (true, enumerator.Current);
+                        else
+                            return (false, CustomValue.Null);
+                    });
+                }
+            }
+
+            internal Task<CustomValue> Next()
+            {
+                if (!enumerator.MoveNext())
+                    throw new Exception();
+
+                var task = enumerator.Current;
+                var newTask = Task.Run(async () =>
+                {
+                    var (success, value) = await task;
+                    if (success)
+                    {
+                        var map = new Dictionary<string, CustomValue>
+                        {
+                            ["value"] = value,
+                            ["done"] = CustomValue.False
+                        };
+                        return CustomValue.FromMap(map);
+                    }
+                    else
+                    {
+                        return CustomValue.GeneratorDone;
+                    }
+                });
+                return newTask;
+            }
+
+            public IEnumerator<Task<(bool, CustomValue)>> GetEnumerator()
+            {
+                return enumerator;
+            }
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return enumerator;
+            }
+        }
 
         private struct CustomValue
         {
@@ -1788,7 +1893,7 @@ namespace CasualConsoleCore.Interpreter
                 return new CustomValue(array, ValueType.Array);
             }
 
-            internal static CustomValue FromPromise(Task<(CustomValue value, bool isReturn, bool isBreak, bool isContinue)> promise)
+            internal static CustomValue FromPromise(Task<CustomValue> promise)
             {
                 return new CustomValue(promise, ValueType.Promise);
             }
@@ -1796,6 +1901,11 @@ namespace CasualConsoleCore.Interpreter
             internal static CustomValue FromGenerator(Generator generator)
             {
                 return new CustomValue(generator, ValueType.Generator);
+            }
+
+            internal static CustomValue FromAsyncGenerator(AsyncGenerator generator)
+            {
+                return new CustomValue(generator, ValueType.AsyncGenerator);
             }
 
             internal bool IsTruthy()
@@ -1881,6 +1991,7 @@ namespace CasualConsoleCore.Interpreter
             Array,
             Promise,
             Generator,
+            AsyncGenerator,
         }
 
         enum AssignmentType
@@ -3208,9 +3319,8 @@ namespace CasualConsoleCore.Interpreter
 
                 while (rest.type == ValueType.Promise)
                 {
-                    var task = (Task<(CustomValue value, bool isReturn, bool isBreak, bool isContinue)>)rest.value;
-                    var (restValue, isReturn, isBreak, isContinue) = task.Result;
-                    rest = restValue;
+                    var task = (Task<CustomValue>)rest.value;
+                    rest = task.Result;
                 }
 
                 return rest;
@@ -3775,6 +3885,13 @@ namespace CasualConsoleCore.Interpreter
 
             public static Statement FromTokens(ArraySegment<string> tokens)
             {
+                bool isAwaitFor = false;
+                if (tokens[1] == "await")
+                {
+                    tokens = tokens[1..];
+                    isAwaitFor = true;
+                }
+
                 if (tokens[1] != "(")
                     throw new Exception();
                 var conditionStartIndex = 2;
@@ -3783,6 +3900,9 @@ namespace CasualConsoleCore.Interpreter
                 if (expressions.Count == 3)
                 {
                     // Normal for loop
+                    if (isAwaitFor)
+                        throw new Exception();
+
                     var allInitializationTokens = expressions[0];
                     AssignmentType assignmentType = AssignmentType.None;
                     var isNewAssignment = allInitializationTokens.Count > 0 && IsAssignmentType(allInitializationTokens[0], out assignmentType);
@@ -3814,11 +3934,11 @@ namespace CasualConsoleCore.Interpreter
 
                     if (operationType == "in")
                     {
-                        return new ForInOfStatement(true, assignmentType, variableName, restExpression, bodyStatement);
+                        return new ForInOfStatement(true, assignmentType, variableName, restExpression, bodyStatement, isAwaitFor);
                     }
                     else if (operationType == "of")
                     {
-                        return new ForInOfStatement(false, assignmentType, variableName, restExpression, bodyStatement);
+                        return new ForInOfStatement(false, assignmentType, variableName, restExpression, bodyStatement, isAwaitFor);
                     }
                     throw new Exception();
                 }
@@ -3863,14 +3983,16 @@ namespace CasualConsoleCore.Interpreter
             Expression sourceExpression;
             Statement bodyStatement;
             bool isInStatement;
+            bool isAwait;
 
-            public ForInOfStatement(bool isInStatement, AssignmentType assignmentType, string variableName, Expression sourceExpression, Statement bodyStatement)
+            public ForInOfStatement(bool isInStatement, AssignmentType assignmentType, string variableName, Expression sourceExpression, Statement bodyStatement, bool isAwait)
             {
                 this.assignmentType = assignmentType;
                 this.variableName = variableName;
                 this.sourceExpression = sourceExpression;
                 this.bodyStatement = bodyStatement;
                 this.isInStatement = isInStatement;
+                this.isAwait = isAwait;
             }
 
             public StatementType Type => StatementType.ForInOfStatement;
@@ -3879,17 +4001,39 @@ namespace CasualConsoleCore.Interpreter
             {
                 var (scope, elements) = GetElementsAndContext(context);
 
-                foreach (var element in elements)
+                if (!isAwait)
                 {
-                    var loopScope = VariableScope.GetNewLoopScope(scope, assignmentType, variableName, element);
+                    foreach (var element in (IEnumerable<CustomValue>)elements)
+                    {
+                        var loopScope = VariableScope.GetNewLoopScope(scope, assignmentType, variableName, element);
 
-                    var (value, isReturn, isBreak, isContinue) = bodyStatement.EvaluateStatement(new Context(loopScope, context.thisOwner));
-                    if (isReturn)
-                        return (value, true, false, false);
-                    if (isBreak)
-                        break;
-                    if (isContinue)
-                        continue;
+                        var (value, isReturn, isBreak, isContinue) = bodyStatement.EvaluateStatement(new Context(loopScope, context.thisOwner));
+                        if (isReturn)
+                            return (value, true, false, false);
+                        if (isBreak)
+                            break;
+                        if (isContinue)
+                            continue;
+                    }
+                }
+                else
+                {
+                    foreach (var task in (IEnumerable<Task<(bool, CustomValue)>>)elements)
+                    {
+                        var (success, element) = task.Result;
+                        if (!success)
+                            break;
+
+                        var loopScope = VariableScope.GetNewLoopScope(scope, assignmentType, variableName, element);
+
+                        var (value, isReturn, isBreak, isContinue) = bodyStatement.EvaluateStatement(new Context(loopScope, context.thisOwner));
+                        if (isReturn)
+                            return (value, true, false, false);
+                        if (isBreak)
+                            break;
+                        if (isContinue)
+                            continue;
+                    }
                 }
 
                 return (CustomValue.Null, false, false, false);
@@ -3899,7 +4043,7 @@ namespace CasualConsoleCore.Interpreter
             {
                 var (scope, elements) = GetElementsAndContext(context);
 
-                foreach (var element in elements)
+                foreach (var element in (IEnumerable<CustomValue>)elements)
                 {
                     var loopScope = VariableScope.GetNewLoopScope(scope, assignmentType, variableName, element);
 
@@ -3910,10 +4054,9 @@ namespace CasualConsoleCore.Interpreter
                 }
             }
 
-            private (VariableScope, IEnumerable<CustomValue>) GetElementsAndContext(Context context)
+            private (VariableScope, object) GetElementsAndContext(Context context)
             {
                 VariableScope scope;
-                IEnumerable<CustomValue> elements;
 
                 bool isOfStatement = !isInStatement;
                 scope = context.variableScope;
@@ -3922,27 +4065,30 @@ namespace CasualConsoleCore.Interpreter
                 {
                     var map = (Dictionary<string, CustomValue>)sourceValue.value;
                     var keys = map.Keys;
-                    elements = keys.Select(key => CustomValue.FromParsedString(key));
+                    return (scope, keys.Select(key => CustomValue.FromParsedString(key)));
                 }
                 else if (isOfStatement)
                 {
-                    if (sourceValue.type == ValueType.Array)
+                    if (sourceValue.type == ValueType.Array && !isAwait)
                     {
                         var array = (CustomArray)sourceValue.value;
-                        elements = array.list;
+                        return (scope, array.list);
                     }
-                    else if (sourceValue.type == ValueType.Generator)
+                    else if (sourceValue.type == ValueType.Generator && !isAwait)
                     {
                         var generator = (Generator)sourceValue.value;
-                        elements = generator;
+                        return (scope, generator);
+                    }
+                    else if (sourceValue.type == ValueType.AsyncGenerator && isAwait)
+                    {
+                        var asyncGenerator = (AsyncGenerator)sourceValue.value;
+                        return (scope, asyncGenerator);
                     }
                     else
                         throw new Exception();
                 }
                 else
                     throw new Exception();
-
-                return (scope, elements);
             }
         }
         class IfStatement : Statement
