@@ -1487,7 +1487,9 @@ namespace CasualConsoleCore.Interpreter
         }
         class PrintFunction : FunctionObject
         {
-            public IReadOnlyList<(string paramName, bool isRest)> Parameters => new[] { ("x", false) };
+            private static (string paramName, bool isRest)[] parameters = new[] { ("x", false) };
+
+            public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
 
             public VariableScope? Scope => null;
 
@@ -1510,7 +1512,9 @@ namespace CasualConsoleCore.Interpreter
         }
         class FunctionCallFunction : FunctionObject
         {
-            public IReadOnlyList<(string paramName, bool isRest)> Parameters => new[] { ("thisOwner", false), ("args", true) };
+            private static (string paramName, bool isRest)[] parameters = new[] { ("thisOwner", false), ("args", true) };
+
+            public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
 
             public VariableScope? Scope => null;
 
@@ -1536,7 +1540,9 @@ namespace CasualConsoleCore.Interpreter
         }
         class GeneratorNextFunction : FunctionObject
         {
-            public IReadOnlyList<(string paramName, bool isRest)> Parameters => new (string, bool)[] { };
+            private static (string paramName, bool isRest)[] parameters = Array.Empty<(string, bool)>();
+
+            public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
 
             public VariableScope? Scope => null;
 
@@ -1559,7 +1565,9 @@ namespace CasualConsoleCore.Interpreter
         }
         class CharAtFunction : FunctionObject
         {
-            public IReadOnlyList<(string paramName, bool isRest)> Parameters => new[] { ("x", false) };
+            private static (string paramName, bool isRest)[] parameters = new[] { ("x", false) };
+
+            public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
 
             public VariableScope? Scope => null;
 
@@ -1592,7 +1600,9 @@ namespace CasualConsoleCore.Interpreter
         }
         class ArrayPushFunction : FunctionObject
         {
-            public IReadOnlyList<(string paramName, bool isRest)> Parameters => new[] { ("x", false) };
+            private static (string paramName, bool isRest)[] parameters = new[] { ("x", false) };
+
+            public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
 
             public VariableScope? Scope => null;
 
@@ -1618,7 +1628,9 @@ namespace CasualConsoleCore.Interpreter
         }
         class ArrayPopFunction : FunctionObject
         {
-            public IReadOnlyList<(string paramName, bool isRest)> Parameters => new (string, bool)[] { };
+            private static (string paramName, bool isRest)[] parameters = Array.Empty<(string, bool)>();
+
+            public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
 
             public VariableScope? Scope => null;
 
