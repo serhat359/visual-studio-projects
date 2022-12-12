@@ -763,7 +763,7 @@ namespace CasualConsoleCore.Interpreter
         private static IEnumerable<Statement> GetStatements(ArraySegment<string> tokens)
         {
             var statementRanges = GetStatementRanges(tokens);
-            var statementEnumerator = statementRanges.Select(range => StatementMethods.New(range)).GetEnumerator();
+            var statementEnumerator = statementRanges.Select(StatementMethods.New).GetEnumerator();
 
             if (!statementEnumerator.MoveNext())
                 yield break;
@@ -3915,7 +3915,7 @@ namespace CasualConsoleCore.Interpreter
 
                     var allIterationTokens = expressions[2];
                     var iterationTokenGroup = SplitBy(allIterationTokens, ",").ToList();
-                    var iterationStatements = iterationTokenGroup.SelectFast(x => StatementMethods.New(x));
+                    var iterationStatements = iterationTokenGroup.SelectFast(StatementMethods.New);
 
                     var bodyStatement = StatementMethods.New(statementTokens);
 
@@ -4065,7 +4065,7 @@ namespace CasualConsoleCore.Interpreter
                 {
                     var map = (Dictionary<string, CustomValue>)sourceValue.value;
                     var keys = map.Keys;
-                    return (scope, keys.Select(key => CustomValue.FromParsedString(key)));
+                    return (scope, keys.Select(CustomValue.FromParsedString));
                 }
                 else if (isOfStatement)
                 {
