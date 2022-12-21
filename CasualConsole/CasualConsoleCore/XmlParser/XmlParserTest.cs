@@ -237,7 +237,8 @@ e
         {
             var text = "<node>1</node><node>2</node><node>3</node>";
 
-            XmlParser.Parse(text);
+            var mydoc = XmlParser.Parse(text);
+            if (mydoc.ChildNodes.Count != 3) throw new System.Exception();
         }
     }
 }
