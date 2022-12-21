@@ -171,7 +171,7 @@ namespace MVCCore.Controllers
 
             var document = XmlParser.Parse(ulPart);
 
-            RssResult rssObject = new RssResult(document.ChildNodes[0].ChildNodes.Cast<XmlNode>().Select(liNode =>
+            var rssObject = new RssResult(document.ChildNodes[0].ChildNodes.Select(liNode =>
             {
                 var aNode = liNode.ChildNodes[0];
                 var span1 = aNode.ChildNodes[0];
@@ -250,7 +250,7 @@ namespace MVCCore.Controllers
 
             var document = XmlParser.Parse(ulPart);
 
-            RssResult rssObject = new RssResult(document.ChildNodes[0].ChildNodes.Cast<XmlNode>().Select(liNode =>
+            RssResult rssObject = new RssResult(document.ChildNodes[0].ChildNodes.Select(liNode =>
             {
                 var aNode = liNode.ChildNodes[0];
 
@@ -293,7 +293,7 @@ namespace MVCCore.Controllers
                         var result = await task;
                         var xml = XmlParser.Parse(result);
 
-                        var itemNodes = xml.ChildNodes[0].ChildNodes[0].ChildNodes.Cast<XmlNode>().Where(x => x.TagName == "item").ToList();
+                        var itemNodes = xml.ChildNodes[0].ChildNodes[0].ChildNodes.Where(x => x.TagName == "item").ToList();
                         foreach (var itemNode in itemNodes)
                         {
                             var date = DateTime.Parse(itemNode.SearchByTag("pubDate").InnerText);
@@ -395,14 +395,14 @@ namespace MVCCore.Controllers
 
             var divs = document.ChildNodes[0].GetAllNodesRecursive().Where(c =>
             {
-                var classValue = c.Attributes?["class"];
-                var dataPageValue = c.Attributes?["data-page"];
+                var classValue = c.Attributes["class"];
+                var dataPageValue = c.Attributes["data-page"];
                 return classValue?.Contains("listingResult small") == true
                     && dataPageValue != null
                     && classValue?.Contains("sponsored") != true;
             }).ToList();
 
-            var elements = divs.Cast<XmlNode>().Select(liNode =>
+            var elements = divs.Select(liNode =>
             {
                 var aNode = liNode.SearchByTag("a");
                 var link = aNode.Attributes["href"];

@@ -7,11 +7,11 @@ namespace MVCCore.Helpers
 {
     public class XmlParser
     {
-        public static XmlNode Parse(string xml)
+        public static XmlRoot Parse(string xml)
         {
             ArraySegment<(string, int)> parts = GetParts(xml).ToArray();
 
-            var topDocument = new XmlNode();
+            var topDocument = new XmlRoot();
 
             int index = 0;
             while (true)
@@ -237,6 +237,23 @@ namespace MVCCore.Helpers
         }
     }
 
+    public class XmlRoot
+    {
+        public List<XmlNode> ChildNodes { get; set; } = new List<XmlNode>();
+
+        public string Beautify(string indentChars = "  ", string newLineChars = "\r\n")
+        {
+            var sb = new StringBuilder();
+
+            foreach (var item in ChildNodes)
+            {
+                item.Beautify(sb, indentChars, newLineChars);
+            }
+
+            return sb.ToString();
+        }
+    }
+
     public class XmlNode
     {
         private string? tagName;
@@ -246,7 +263,6 @@ namespace MVCCore.Helpers
         public string TagName { get { return tagName ?? throw new Exception(); } set { tagName = value; } }
         public NameValueCollection Attributes { get { return attributes ?? throw new Exception(); } set { attributes = value; } }
         public List<XmlNode> ChildNodes { get; set; } = new List<XmlNode>();
-        public bool IsRoot => tagName == null;
 
         public XmlNode()
         {
@@ -263,13 +279,9 @@ namespace MVCCore.Helpers
             ChildNodes.Add(node);
         }
 
-        public string Beautify(string indentChars = "  ", string newLineChars = "\r\n")
+        public void Beautify(StringBuilder sb, string indentChars = "  ", string newLineChars = "\r\n")
         {
             var node = this;
-            if (node.IsRoot)
-                node = node.ChildNodes[0];
-
-            var sb = new StringBuilder();
 
             void Write(XmlNode node, int level)
             {
@@ -312,6 +324,13 @@ namespace MVCCore.Helpers
             }
 
             Write(node, 0);
+        }
+
+        public string Beautify(string indentChars = "  ", string newLineChars = "\r\n")
+        {
+            var sb = new StringBuilder();
+
+            Beautify(sb, indentChars, newLineChars);
 
             return sb.ToString();
         }
