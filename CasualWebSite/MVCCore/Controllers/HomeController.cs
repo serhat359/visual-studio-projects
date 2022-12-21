@@ -282,7 +282,7 @@ namespace MVCCore.Controllers
                 var tasks = links.Select(url => Task.Run(async () =>
                 {
                     var key = CacheHelper.MyRssKey + ":" + url;
-                    var val = await _cacheHelper.GetAsync(key, () => GetUrlTextData(url), cacheTimespan);
+                    var val = await _cacheHelper.GetAsync(key, () => GetUrlTextDataWithRetry(url), cacheTimespan);
                     return val;
                 })).ToArray();
 
@@ -376,8 +376,23 @@ namespace MVCCore.Controllers
             if (!response.IsSuccessStatusCode)
                 throw new Exception($"Error status code: {(int)response.StatusCode}");
 
-            using var content = response.Content;
-            return await content.ReadAsStringAsync();
+            return await response.Content.ReadAsStringAsync();
+        }
+
+        private async Task<string> GetUrlTextDataWithRetry(string url, Action<HttpRequestMessage>? extraAction = null)
+        {
+            Func<HttpRequestMessage> requestMessageCreator = () =>
+            {
+                var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+                extraAction?.Invoke(requestMessage);
+                return requestMessage;
+            };
+
+            using var response = await Client.SendWithRetryAsync(requestMessageCreator);
+            if (!response.IsSuccessStatusCode)
+                throw new Exception($"Error status code: {(int)response.StatusCode}");
+
+            return await response.Content.ReadAsStringAsync();
         }
 
         private IEnumerable<RssResultItem> GetRssObjectFromTomsContent(string contents)

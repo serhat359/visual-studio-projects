@@ -45,5 +45,26 @@
             else
                 return s;
         }
+
+        public static async Task<HttpResponseMessage> SendWithRetryAsync(this HttpClient client, Func<HttpRequestMessage> requestCreator)
+        {
+            int failedCount = 0;
+            while (true)
+            {
+                using var requestMessage = requestCreator();
+                var response = await client.SendAsync(requestMessage);
+                if (response.StatusCode != System.Net.HttpStatusCode.TooManyRequests)
+                {
+                    return response;
+                }
+
+                response?.Dispose();
+
+                failedCount++;
+
+                var millisToBeWaited = Math.Pow(2, failedCount - 1) * 100;
+                await Task.Delay((int)millisToBeWaited);
+            }
+        }
     }
 }
