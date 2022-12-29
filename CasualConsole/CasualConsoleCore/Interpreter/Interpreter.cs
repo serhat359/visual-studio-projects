@@ -90,7 +90,7 @@ namespace CasualConsoleCore.Interpreter
 
         public object InterpretCode(string code)
         {
-            var tokens = GetTokens(code).ToArray();
+            var tokens = GetTokens(code).ToArraySegment(16);
 
             CustomValue value = CustomValue.Null;
             bool isReturn;
@@ -145,7 +145,7 @@ namespace CasualConsoleCore.Interpreter
 
             foreach (var testCase in testCases)
             {
-                var tokens = GetTokens(testCase.code).ToArray();
+                var tokens = GetTokens(testCase.code).ToArraySegment(16);
                 var statements = GetStatementRanges(tokens).ToList();
                 if (statements.Count != testCase.statements.Length)
                     throw new Exception();
@@ -3145,8 +3145,8 @@ namespace CasualConsoleCore.Interpreter
                         var end = token.IndexOfBracesEnd(i + 2);
                         if (end < 0)
                             throw new Exception();
-                        var substring = token.Substring(i + 2, end - (i + 2));
-                        var subtokens = GetTokens(substring).ToArray();
+                        var substring = token[(i + 2)..end];
+                        var subtokens = GetTokens(substring).ToArraySegment(8);
                         var subExpression = ExpressionMethods.New(subtokens);
                         parts.Add(subExpression);
                         i = end + 1;
@@ -4468,6 +4468,25 @@ static class InterpreterExtensions
             newArr[i] = converter(source[i]);
         }
         return newArr;
+    }
+
+    public static ArraySegment<T> ToArraySegment<T>(this IEnumerable<T> source, int initialSize)
+    {
+        int count = 0;
+        var array = new T[initialSize];
+        foreach (var item in source)
+        {
+            if (count == array.Length)
+            {
+                var newArray = new T[array.Length * 2];
+                Array.Copy(array, 0, newArray, 0, array.Length);
+                array = newArray;
+            }
+
+            array[count++] = item;
+        }
+        ArraySegment<T> segment = array;
+        return segment[0..count];
     }
 
     public static new bool Equals(object? result, object? expected)
