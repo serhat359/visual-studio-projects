@@ -9,7 +9,8 @@ namespace MVCCore.Helpers
         public const string MyRssKey = nameof(MyRssKey);
         public const string MyTorrentRssKey = nameof(MyTorrentRssKey);
         public const string MALCookie = nameof(MALCookie);
-        public static TimeSpan MALCookieTimeSpan = TimeSpan.FromDays(364);
+        public const string MALUserAgent = nameof(MALUserAgent);
+        public static TimeSpan MALTimeSpan = TimeSpan.FromDays(364);
 
         private readonly IMemoryCache _cache;
 

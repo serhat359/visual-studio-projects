@@ -1,0 +1,13 @@
+﻿@model MVCCore.Models.Home.GetAnimeNewsCookieModel
+
+@{
+    ViewBag.Title = "GetAnimeNewsCookie";
+}
+
+<h2>GetAnimeNewsCookie</h2>
+
+<form action="GetAnimeNewsCookie" method="post">
+    <input placeholder="Cookie" asp-for="Cookie" /><br />
+    <input placeholder="User-Agent" asp-for="UserAgent" /><br />
+    <button>Set</button>
+</form>

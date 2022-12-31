@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using MVCCore.Helpers;
 using MVCCore.Models;
+using MVCCore.Models.Home;
 using System.Diagnostics;
 using System.Text;
 
@@ -60,6 +61,23 @@ namespace MVCCore.Controllers
         }
 
         [HttpGet]
+        public async Task<ActionResult> GetAnimeNewsCookie()
+        {
+            string cookieValue = _cacheHelper.Get(CacheHelper.MALCookie, () => "", CacheHelper.MALTimeSpan);
+            string userAgentValue = _cacheHelper.Get(CacheHelper.MALUserAgent, () => "", CacheHelper.MALTimeSpan);
+
+            return View(new GetAnimeNewsCookieModel { Cookie = cookieValue, UserAgent = userAgentValue });
+        }
+
+        [HttpPost]
+        public async Task<ActionResult> GetAnimeNewsCookie(GetAnimeNewsCookieModel model)
+        {
+            _cacheHelper.Set(CacheHelper.MALCookie, model.Cookie, CacheHelper.MALTimeSpan);
+            _cacheHelper.Set(CacheHelper.MALUserAgent, model.UserAgent, CacheHelper.MALTimeSpan);
+            return View(model);
+        }
+
+        [HttpGet]
         public async Task<IActionResult> FixAnimeNews()
         {
             string url = "https://www.animenewsnetwork.com/news/rss.xml?ann-edition=us";
@@ -67,8 +85,8 @@ namespace MVCCore.Controllers
             string contents = (await GetUrlTextData(url, x =>
             {
                 x.Headers.Add("Host", "www.animenewsnetwork.com");
-                //x.Headers.Add("Cookie", _cacheHelper.Get(CacheHelper.MALCookie, () => "", CacheHelper.MALCookieTimeSpan));
-                x.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:87.0) Gecko/20100101 Firefox/87.0");
+                x.Headers.Add("Cookie", _cacheHelper.Get(CacheHelper.MALCookie, () => "", CacheHelper.MALTimeSpan));
+                x.Headers.Add("User-Agent", _cacheHelper.Get(CacheHelper.MALUserAgent, () => "", CacheHelper.MALTimeSpan));
             }))
                 .Replace("animenewsnetwork.cc", "animenewsnetwork.com")
                 .Replace("http://", "https://");
