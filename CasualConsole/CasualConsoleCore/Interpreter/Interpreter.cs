@@ -646,6 +646,7 @@ namespace CasualConsoleCore.Interpreter
                 ("function* f(){ yield 1; yield 2; } function* c(){ yield* f(); yield* [1,2,3]; } [...c()].length", 5),
                 ("var f = async function*(){ yield 1; yield 2 }; var gen = f(); var val = gen.next(); (await val).value == 1", true),
                 ("var arr = []; for await (let x of f()) arr.push(x); arr.length", 2),
+                ("var arr = []; for(let i = 0; i < 10; i++){ i++; arr.push(i); } arr.length", 5),
             };
 
             var interpreter = new Interpreter();
@@ -2216,6 +2217,11 @@ namespace CasualConsoleCore.Interpreter
                         break;
                 }
             }
+            public void ApplyToScope(VariableScope scope)
+            {
+                foreach (var item in variables)
+                    scope.variables[item.Key] = item.Value;
+            }
         }
         record Context
         {
@@ -3736,6 +3742,7 @@ namespace CasualConsoleCore.Interpreter
 
             public IEnumerable<CustomValue> AsEnumerable(Context context)
             {
+                eval(context);
                 yield break;
             }
         }
@@ -3868,6 +3875,9 @@ namespace CasualConsoleCore.Interpreter
                     var loopContext = new Context(loopScope, newContext.thisOwner);
 
                     var (value, isReturn, isBreak, isContinue) = bodyStatement.EvaluateStatement(loopContext);
+                    if (assignmentType == AssignmentType.Let)
+                        loopScope.ApplyToScope(newScope);
+
                     if (isReturn)
                         return (value, true, false, false);
                     if (isBreak)
@@ -3967,6 +3977,9 @@ namespace CasualConsoleCore.Interpreter
 
                     foreach (var value in bodyStatement.AsEnumerable(loopContext))
                         yield return value;
+
+                    if (assignmentType == AssignmentType.Let)
+                        loopScope.ApplyToScope(newScope);
 
                     // Do iteration
                     foreach (var iterationStatement in iterationStatements)
