@@ -647,6 +647,7 @@ namespace CasualConsoleCore.Interpreter
                 ("var f = async function*(){ yield 1; yield 2 }; var gen = f(); var val = gen.next(); (await val).value == 1", true),
                 ("var arr = []; for await (let x of f()) arr.push(x); arr.length", 2),
                 ("var arr = []; for(let i = 0; i < 10; i++){ i++; arr.push(i); } arr.length", 5),
+                ("async function* asd1(){ yield 1; yield 2; yield 3; }; async function* asd2(){ yield 1; for await (let x of asd1()) yield x; }; var arr = []; for await (let x of asd2()) arr.push(x); arr.length", 4),
             };
 
             var interpreter = new Interpreter();
@@ -4056,13 +4057,32 @@ namespace CasualConsoleCore.Interpreter
             {
                 var (scope, elements) = GetElementsAndContext(context);
 
-                foreach (var element in (IEnumerable<CustomValue>)elements)
+                if (!isAwait)
                 {
-                    var loopScope = VariableScope.GetNewLoopScope(scope, assignmentType, variableName, element);
-
-                    foreach (var value in bodyStatement.AsEnumerable(new Context(loopScope, context.thisOwner)))
+                    foreach (var element in (IEnumerable<CustomValue>)elements)
                     {
-                        yield return value;
+                        var loopScope = VariableScope.GetNewLoopScope(scope, assignmentType, variableName, element);
+
+                        foreach (var value in bodyStatement.AsEnumerable(new Context(loopScope, context.thisOwner)))
+                        {
+                            yield return value;
+                        }
+                    }
+                }
+                else
+                {
+                    foreach (var task in (IEnumerable<Task<(bool, CustomValue)>>)elements)
+                    {
+                        var (success, element) = task.Result;
+                        if (!success)
+                            break;
+
+                        var loopScope = VariableScope.GetNewLoopScope(scope, assignmentType, variableName, element);
+
+                        foreach (var value in bodyStatement.AsEnumerable(new Context(loopScope, context.thisOwner)))
+                        {
+                            yield return value;
+                        }
                     }
                 }
             }
