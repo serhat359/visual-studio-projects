@@ -4,10 +4,11 @@ using MVCCore.Models;
 using MVCCore.Models.Home;
 using System.Diagnostics;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace MVCCore.Controllers
 {
-    public class HomeController : BaseController
+    public partial class HomeController : BaseController
     {
         private readonly ILogger<HomeController> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
@@ -36,12 +37,13 @@ namespace MVCCore.Controllers
         {
             var paths = new[]
             {
-                "/Home/FixAnimeNews",
+                //"/Home/FixAnimeNews",
                 "/Home/FixTomsArticlesManual",
                 "/Home/FixTomsNewsManualParse",
                 "/Home/MangainnParseXml/one-punch-man",
                 "/Home/TalentlessnanaParseXml",
                 "/Home/GenerateRssResult",
+                "/Home/CurrencyExchangeRatio",
             };
 
             var baseUrl = "http://" + Request.Host.ToString();
@@ -58,6 +60,141 @@ namespace MVCCore.Controllers
             });
 
             return Json(new { message = "All tests successful" });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> CurrencyExchangeRatio()
+        {
+            var client = Client;
+
+            async Task<string> ExtractRatio(string url)
+            {
+                try
+                {
+                    var request = new HttpRequestMessage(HttpMethod.Get, url);
+                    request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/110.0");
+                    using var response = await client.SendAsync(request);
+                    response.EnsureSuccessStatusCode();
+                    var data = await response.Content.ReadAsStringAsync();
+                    var classIndex = data.IndexOf(" fxKbKc");
+                    if (classIndex < 0)
+                        throw new Exception("classIndex");
+                    var beginIndex = data.IndexOf(">", classIndex) + 1;
+                    if (beginIndex < 0)
+                        throw new Exception("beginIndex");
+                    var endIndex = data.IndexOf('<', beginIndex);
+                    if (endIndex < 0)
+                        throw new Exception("endIndex");
+                    var text = data[beginIndex..endIndex];
+                    return text;
+                }
+                catch (Exception e)
+                {
+                    throw new Exception($"Error with the url: {url}", e);
+                }
+            }
+
+            // All urls are EUR based
+            var urls = new List<(string key, string url)>()
+            {
+                { ("USD", "https://www.google.com/finance/quote/EUR-USD") },
+                { ("JPY", "https://www.google.com/finance/quote/EUR-JPY") },
+                { ("TRY", "https://www.google.com/finance/quote/EUR-TRY") },
+            };
+
+            var urlTasks = urls.Select(x => (x.key, data: ExtractRatio(url: x.url))).ToList();
+            var dataRatioEurUsd = decimal.Parse(await urlTasks[0].data);
+
+            var resultData = new Dictionary<string, CurrencyElement>();
+            resultData["EUR"] = new CurrencyElement
+            {
+                code = "EUR",
+                value = Math.Round(1m / dataRatioEurUsd, 6),
+            };
+            foreach (var (key, task) in urlTasks)
+            {
+                resultData[key] = new CurrencyElement
+                {
+                    code = key,
+                    value = Math.Round(decimal.Parse(await task) / dataRatioEurUsd, 6),
+                };
+            }
+
+            return Json(new
+            {
+                meta = new { },
+                data = resultData,
+            });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Bun()
+        {
+            static int ParseMonthName(string s)
+            {
+                switch (s.ToLowerInvariant())
+                {
+                    case "january": return 1;
+                    case "february": return 2;
+                    case "march": return 3;
+                    case "april": return 4;
+                    case "may": return 5;
+                    case "june": return 6;
+                    case "july": return 7;
+                    case "august": return 8;
+                    case "september": return 9;
+                    case "october": return 10;
+                    case "november": return 11;
+                    case "december": return 12;
+                    default:
+                        throw new Exception();
+                }
+            }
+
+            string url = "https://bun.sh/blog";
+            string baseUrl = "https://bun.sh";
+
+            var allContent = await GetUrlTextData(url);
+
+            var start = allContent.IndexOf("<section");
+            if (start < 0)
+                throw new Exception();
+
+            var endPart = "</section>";
+            var end = allContent.IndexOf(endPart, start);
+            if (end < 0)
+                throw new Exception();
+
+            var content = allContent[start..(end + endPart.Length)];
+
+            var parsed = XmlParser.Parse(content);
+
+            var allNodes = parsed.ChildNodes[0].GetAllNodesRecursive();
+            var hrefs = allNodes.Where(x => x.TagName == "a" && (x.Attributes["class"] ?? "").StartsWith("no-underline")).ToList();
+
+            var pubDateRegex = BunPubDateRegex();
+            var data = hrefs.Select(x =>
+            {
+                var pubDateStr = x.GetAllNodesRecursive().Where(x => x.TagName == "span" && (x.Attributes["class"] ?? "").StartsWith("text-gray-600")).Skip(1).First().InnerText;
+                var match = pubDateRegex.Match(pubDateStr);
+                if (!match.Success)
+                    throw new Exception();
+
+                var month = match.Groups[1].Value;
+                var day = match.Groups[2].Value;
+                var year = match.Groups[3].Value;
+
+                return new RssResultItem
+                {
+                    Title = x.GetAllNodesRecursive().First(x => x.TagName == "div" && (x.Attributes["class"] ?? "").StartsWith("mb-1")).InnerText,
+                    Link = baseUrl + x.Attributes["href"],
+                    Description = x.GetAllNodesRecursive().First(x => x.TagName == "p" && (x.Attributes["class"] ?? "").StartsWith("text-lg")).InnerText,
+                    PubDate = new DateTime(year: int.Parse(year), month: ParseMonthName(month), day: int.Parse(day)),
+                };
+            }).ToList();
+
+            var rssObject = new RssResult(data);
+            return Xml(rssObject);
         }
 
         [HttpGet]
@@ -114,7 +251,7 @@ namespace MVCCore.Controllers
 
                 var rssObject = new RssResult(elements.Where(x => !x.Link.Contains("/news/")).OrderByDescending(x => x.PubDate));
 
-                var xmlResult = this.Xml(rssObject);
+                var xmlResult = Xml(rssObject);
 
                 return xmlResult;
             };
@@ -162,7 +299,7 @@ namespace MVCCore.Controllers
             _cacheHelper.Set(cacheKey, data, TimeSpan.FromHours(12));
             var rssObject = new RssResult(data);
 
-            return this.Xml(rssObject);
+            return Xml(rssObject);
         }
 
         [HttpGet]
@@ -246,7 +383,7 @@ namespace MVCCore.Controllers
                 };
             }));
 
-            return this.Xml(rssObject);
+            return Xml(rssObject);
         }
 
         [HttpGet]
@@ -283,7 +420,7 @@ namespace MVCCore.Controllers
                 };
             }));
 
-            return this.Xml(rssObject);
+            return Xml(rssObject);
         }
 
         [HttpGet]
@@ -485,6 +622,15 @@ namespace MVCCore.Controllers
             else
                 return sectionPart;
         }
+
+        [GeneratedRegex("([a-zA-Z]+) ([0-9]+), ([0-9]+)", RegexOptions.Compiled)]
+        private static partial Regex BunPubDateRegex();
         #endregion
+    }
+
+    class CurrencyElement
+    {
+        public string? code { get; set; }
+        public decimal value { get; set; }
     }
 }

@@ -3,12 +3,13 @@ using System.Xml.Serialization;
 using System.Xml;
 using MVCCore.Models.Attributes;
 using System.Collections;
+using System.Text;
 
 namespace MVCCore
 {
     public class MyXmlSerializer
     {
-        private readonly Type[] validTypes = new Type[] { typeof(string), typeof(int), typeof(long), typeof(float),
+        private static readonly Type[] validTypes = new Type[] { typeof(string), typeof(int), typeof(long), typeof(float),
                 typeof(double), typeof(bool), typeof(byte), typeof(char), typeof(DateTime) };
 
         private List<string> stringList = new List<string>();
@@ -22,6 +23,21 @@ namespace MVCCore
             SerializeElement(obj, new List<Attribute>(), xmlNodeName: null);
 
             return string.Concat(stringList);
+        }
+
+        public async Task SerializeToStreamAsync<T>(T obj, Stream stream, bool igroneXmlVersion = false)
+        {
+            if (!igroneXmlVersion)
+                Append("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
+
+            SerializeElement(obj, new List<Attribute>(), xmlNodeName: null);
+
+            var writer = new StreamWriter(stream);
+            foreach (var item in stringList)
+            {
+                await writer.WriteAsync(item);
+            }
+            await writer.FlushAsync();
         }
 
         private static Dictionary<(string, bool), string> dicEscapeXMLValue = new Dictionary<(string, bool), string>();
@@ -58,14 +74,14 @@ namespace MVCCore
             return stringList.Count - 1;
         }
 
-        private T GetAttribute<T>(List<Attribute> customAttributes) where T : Attribute
+        private T? GetAttribute<T>(List<Attribute> customAttributes) where T : Attribute
         {
-            T attrribute = customAttributes.FirstOrDefault(x => x.GetType() == typeof(T)) as T;
+            T? attrribute = customAttributes.FirstOrDefault(x => x.GetType() == typeof(T)) as T;
 
             return attrribute;
         }
 
-        private void SerializeElement<T>(T obj, List<Attribute> customAttributes, string xmlNodeName = null, XmlTagAttribute classTagAttribute = null)
+        private void SerializeElement<T>(T obj, List<Attribute> customAttributes, string? xmlNodeName = null, XmlTagAttribute? classTagAttribute = null)
         {
             if (customAttributes.Any(x => x.GetType() == typeof(XmlIgnoreAttribute)))
                 return;
@@ -74,14 +90,14 @@ namespace MVCCore
 
             if (validTypes.Any(x => x == objType)) // If the type is one of the basics
             {
-                XmlFormatAttribute formatAttribute = GetAttribute<XmlFormatAttribute>(customAttributes);
+                XmlFormatAttribute? formatAttribute = GetAttribute<XmlFormatAttribute>(customAttributes);
 
                 string objToString = string.Format("{0" + (formatAttribute == null ? "" : ":" + formatAttribute.Format) + "}", obj);
                 bool xmlEncode = GetAttribute<XmlCDataAttribute>(customAttributes) == null;
                 objToString = EscapeXMLValue(objToString, xmlEncode);
 
-                XmlElementAttribute elementAttribute = GetAttribute<XmlElementAttribute>(customAttributes);
-                XmlTagAttribute tagAttribute = GetAttribute<XmlTagAttribute>(customAttributes);
+                XmlElementAttribute? elementAttribute = GetAttribute<XmlElementAttribute>(customAttributes);
+                XmlTagAttribute? tagAttribute = GetAttribute<XmlTagAttribute>(customAttributes);
                 string? xmlNodeRestylized = tagAttribute?.Format(xmlNodeName);
                 string? xmlNodeClassRestylized = classTagAttribute?.Format(xmlNodeName);
                 xmlNodeName = elementAttribute?.ElementName ?? xmlNodeRestylized ?? xmlNodeClassRestylized ?? xmlNodeName;
@@ -96,11 +112,11 @@ namespace MVCCore
             {
                 Type underlyingType = objType.GetGenericArguments().FirstOrDefault() ?? objType.GetElementType();
 
-                XmlArrayAttribute arrayAttribute = GetAttribute<XmlArrayAttribute>(customAttributes);
-                XmlArrayItemAttribute arrayItemAttribute = GetAttribute<XmlArrayItemAttribute>(customAttributes);
-                XmlElementAttribute arrayElementAttribute = GetAttribute<XmlElementAttribute>(customAttributes);
+                XmlArrayAttribute? arrayAttribute = GetAttribute<XmlArrayAttribute>(customAttributes);
+                XmlArrayItemAttribute? arrayItemAttribute = GetAttribute<XmlArrayItemAttribute>(customAttributes);
+                XmlElementAttribute? arrayElementAttribute = GetAttribute<XmlElementAttribute>(customAttributes);
 
-                string collectionNodeName;
+                string? collectionNodeName;
                 string itemNodeName;
                 bool indent;
 
@@ -142,9 +158,9 @@ namespace MVCCore
             {
                 customAttributes.AddRange(GetXmlAttributes(objType));
 
-                XmlRootAttribute rootAttribute = GetAttribute<XmlRootAttribute>(customAttributes);
-                XmlElementAttribute elementAttribute = GetAttribute<XmlElementAttribute>(customAttributes);
-                XmlTagAttribute tagAttribute = GetAttribute<XmlTagAttribute>(customAttributes);
+                XmlRootAttribute? rootAttribute = GetAttribute<XmlRootAttribute>(customAttributes);
+                XmlElementAttribute? elementAttribute = GetAttribute<XmlElementAttribute>(customAttributes);
+                XmlTagAttribute? tagAttribute = GetAttribute<XmlTagAttribute>(customAttributes);
 
                 xmlNodeName = elementAttribute?.ElementName ?? rootAttribute?.ElementName ?? xmlNodeName ?? objType.Name;
 
@@ -160,7 +176,7 @@ namespace MVCCore
                 {
                     List<Attribute> propertyAttributes = GetXmlAttributes(property);
 
-                    XmlAttributeAttribute xmlAttribute = GetAttribute<XmlAttributeAttribute>(propertyAttributes);
+                    XmlAttributeAttribute? xmlAttribute = GetAttribute<XmlAttributeAttribute>(propertyAttributes);
 
                     if (xmlAttribute != null)
                     {
@@ -177,7 +193,7 @@ namespace MVCCore
                 {
                     List<Attribute> fieldAttributes = GetXmlAttributes(field);
 
-                    XmlAttributeAttribute xmlAttribute = GetAttribute<XmlAttributeAttribute>(fieldAttributes);
+                    XmlAttributeAttribute? xmlAttribute = GetAttribute<XmlAttributeAttribute>(fieldAttributes);
 
                     if (xmlAttribute != null)
                     {
