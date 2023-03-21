@@ -16,6 +16,7 @@ namespace CasualConsoleCore.Interpreter
         private static readonly HashSet<string> regularOperatorSet = new HashSet<string>() { "+", "-", "*", "/", "%", "==", "!=", "<", ">", "<=", ">=", "&&", "||", "??" };
         private static readonly HashSet<string> keywords = new HashSet<string>() { "this", "var", "let", "const", "if", "else", "while", "for", "break", "continue", "function", "async", "await", "return", "yield", "true", "false", "null" };
         private static readonly Dictionary<char, Dictionary<char, HashSet<char>>> operatorsCompiled;
+        private static readonly Dictionary<char, int> hexToint = new Dictionary<char, int>() { { '0', 0 }, { '1', 1 }, { '2', 2 }, { '3', 3 }, { '4', 4 }, { '5', 5 }, { '6', 6 }, { '7', 7 }, { '8', 8 }, { '9', 9 }, { 'A', 10 }, { 'B', 11 }, { 'C', 12 }, { 'D', 13 }, { 'E', 14 }, { 'F', 15 }, { 'a', 10 }, { 'b', 11 }, { 'c', 12 }, { 'd', 13 }, { 'e', 14 }, { 'f', 15 }, };
 
         private static readonly Expression trueExpression;
         private static readonly Expression falseExpression;
@@ -648,6 +649,12 @@ namespace CasualConsoleCore.Interpreter
                 ("var arr = []; for await (let x of f()) arr.push(x); arr.length", 2),
                 ("var arr = []; for(let i = 0; i < 10; i++){ i++; arr.push(i); } arr.length", 5),
                 ("async function* asd1(){ yield 1; yield 2; yield 3; }; async function* asd2(){ yield 1; for await (let x of asd1()) yield x; }; var arr = []; for await (let x of asd2()) arr.push(x); arr.length", 4),
+                ("\"\\u0041\"", "A"),
+                ("\"\\u0041\\u0041\\u0041\"", "AAA"),
+                ("'\\u0041\\u0041\\u0041'", "AAA"),
+                ("`\\u0041\\u0041\\u0041`", "AAA"),
+                ("\"\\u003C/script\\u003E\"", "</script>"),
+                ("\"\\uD83D\\uDC4C\"", "👌"),
             };
 
             var interpreter = new Interpreter();
@@ -3126,6 +3133,13 @@ namespace CasualConsoleCore.Interpreter
                             case 't': sb.Append('\t'); break;
                             case 'r': sb.Append('\r'); break;
                             case 'n': sb.Append('\n'); break;
+                            case 'u':
+                                {
+                                    int res = (hexToint[s[i + 1]] << 12) + (hexToint[s[i + 2]] << 8) + (hexToint[s[i + 3]] << 4) + hexToint[s[i + 4]];
+                                    sb.Append((char)res);
+                                    i += 4;
+                                }
+                                break;
                             default: throw new Exception();
                         }
                     }
@@ -3176,6 +3190,13 @@ namespace CasualConsoleCore.Interpreter
                                 case 'r': sb.Append('\r'); break;
                                 case 'n': sb.Append('\n'); break;
                                 case '$': sb.Append(c2); break;
+                                case 'u':
+                                    {
+                                        int res = (hexToint[token[i + 1]] << 12) + (hexToint[token[i + 2]] << 8) + (hexToint[token[i + 3]] << 4) + hexToint[token[i + 4]];
+                                        sb.Append((char)res);
+                                        i += 4;
+                                    }
+                                    break;
                                 default: throw new Exception();
                             }
                         }
