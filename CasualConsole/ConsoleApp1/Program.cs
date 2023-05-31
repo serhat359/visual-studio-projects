@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 
@@ -7,6 +8,8 @@ namespace ConsoleApp1
 {
     public class Program
     {
+        const int count = 1000;
+
         public static void Main(string[] args)
         {
             //XorSolution();
@@ -14,10 +17,34 @@ namespace ConsoleApp1
             //Console.WriteLine(solveXorNew(ints, inte));
             //Console.WriteLine(solveXor(ints, inte));
 
-            //InterviewQuestion.SolveInterviewQuestion();
+            InterviewQuestion.SolveInterviewQuestion();
+            InterviewQuestion2.SolveInterviewQuestion();
+
+            var sw = new Stopwatch();
+
+            while (true)
+            {
+                sw.Restart();
+                for (int i = 0; i < count; i++)
+                {
+                    InterviewQuestion.SolveInterviewQuestion();
+                }
+                sw.Stop();
+                Console.WriteLine("Algo 1: " + sw.ElapsedMilliseconds);
+
+                sw.Restart();
+                for (int i = 0; i < count; i++)
+                {
+                    InterviewQuestion2.SolveInterviewQuestion();
+                }
+                sw.Stop();
+                Console.WriteLine("Algo 2: " + sw.ElapsedMilliseconds);
+            }
+
+            return;
 
             //TestGetXResult();
-            
+
             var path = @"C:\Users\Xhertas\Documents\Visual Studio 2017\Projects\CasualConsole\ConsoleApp1\input.txt";
 
             var strList = File.ReadAllLines(path).Select(x => int.Parse(x)).OrderBy(c => c).ToList();

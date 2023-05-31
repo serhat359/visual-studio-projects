@@ -36,7 +36,19 @@ namespace CasualConsole
         {
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 | SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
 
-            Console.ReadLine();
+            //FixIphonePhotos();
+
+            return;
+
+            var window = new TetSystemWindow();
+            window.Show();
+            window.Invalidate();
+            Application.Run(window);
+
+            var gameOfLife = new GameOfLifeWindow();
+            gameOfLife.Show();
+            gameOfLife.Invalidate();
+            Application.Run(gameOfLife);
 
             //FixAndroidPhotos();
 
@@ -116,9 +128,46 @@ namespace CasualConsole
             //LaytonBridgePuzzle.Solve();
 
             // Closing, Do Not Delete!
-            Console.WriteLine();
-            Console.WriteLine("Program has terminated, press a key to exit");
-            Console.ReadKey();
+            //Console.WriteLine();
+            //Console.WriteLine("Program has terminated, press a key to exit");
+            //Console.ReadKey();
+        }
+
+        private static void FixIphonePhotos()
+        {
+            // This code updates 'date modified' values based on 'date taken' values
+
+            var folderPath = @"C:\Users\Xhertas\Downloads\LANDrop";
+            var files = Directory.GetFiles(folderPath);
+
+            Encoding _Encoding = Encoding.UTF8;
+
+            var nullOnes = new List<string>();
+            foreach (var file in files)
+            {
+                Image correctImage = new Bitmap(file);
+                PropertyItem[] correctPropItems = correctImage.PropertyItems;
+                var correctDataTakenProperty1 = correctPropItems.Where(a => a.Id.ToString("x") == "9004").FirstOrDefault();
+                var correctDataTakenProperty2 = correctPropItems.Where(a => a.Id.ToString("x") == "9003").FirstOrDefault();
+
+                if (correctDataTakenProperty1 == null && correctDataTakenProperty2 == null)
+                {
+                    nullOnes.Add(file);
+                    continue;
+                }
+
+                var s1 = _Encoding.GetString(correctDataTakenProperty1.Value);
+                var s2 = _Encoding.GetString(correctDataTakenProperty2.Value);
+                if (s1 != s2)
+                {
+                    throw new Exception();
+                }
+
+                correctImage.Dispose();
+                var date = DateTime.ParseExact(s1.Replace(((char)0).ToString(), ""), "yyyy:MM:dd HH:mm:ss", CultureInfo.InvariantCulture);
+                File.SetCreationTime(file, date);
+                File.SetLastWriteTime(file, date);
+            }
         }
 
         private static void FixAndroidPhotos()
@@ -1689,21 +1738,21 @@ namespace CasualConsole
             {
                 for (int j = i + 1; j < typeCount; j++)
                 {
-                    List<Pair<int, int>> weakIndices = new List<Pair<int, int>>();
+                    var weakIndices = new List<(int,int)>();
                     int total = 0;
                     foreach (var row in Enumerable.Range(0, typeCount))
                     {
                         var value = values[row, i] * values[row, j];
                         total += value;
                         if (value > 100)
-                            weakIndices.Add(new Pair<int, int>(row, value));
+                            weakIndices.Add((row, value));
                     }
 
                     allValues.Add(new
                     {
                         name = types[i] + "-" + types[j],
                         total = total,
-                        weakness = weakIndices.Select(x => new { name = types[x.value1], value = x.value2 }).ToList()
+                        weakness = weakIndices.Select(x => new { name = types[x.Item1], value = x.Item2 }).ToList()
                     });
                 }
             }
@@ -1926,23 +1975,6 @@ namespace CasualConsole
     {
     }
 
-    public class Pair<T, E>
-    {
-        public T value1 { get; set; }
-        public E value2 { get; set; }
-
-        public Pair(T value1, E value2)
-        {
-            this.value1 = value1;
-            this.value2 = value2;
-        }
-
-        public string ToolString()
-        {
-            return "{" + value1 + "," + value2 + "}";
-        }
-    }
-
     public class Debt
     {
         public string From { get; set; }
@@ -1958,6 +1990,187 @@ namespace CasualConsole
             return string.Format("From: {0}, To: {1}, When: {2}, HowMuch: {3}", From, To, When, HowMuch);
         }
     }
+
+
+    public class TetSystemWindow : Form
+    {
+        private const int width = 1000;
+        private const int height = 500;
+        private const int margin = 100;
+        Pen pen = new Pen(Color.DarkGray, 2);
+        Pen redpen = new Pen(Color.Red, 2);
+        Pen bluepen = new Pen(Color.Blue, 2);
+        Font font = new Font("Consolas", 10, FontStyle.Bold);
+        Brush blackbrush = new SolidBrush(Color.Black);
+        Brush redbrush = new SolidBrush(Color.Red);
+        Brush bluebrush = new SolidBrush(Color.Blue);
+
+        int currentTet = 1;
+
+        public TetSystemWindow()
+        {
+            this.Size = new Size(width: width, height: height);
+            this.Paint += new PaintEventHandler(this.GameFrame_Paint);
+            this.KeyDown += XWindow_KeyPress;
+        }
+
+        private void XWindow_KeyPress(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Right)
+            {
+                currentTet++;
+                this.Refresh();
+            }
+            else if (e.KeyCode == Keys.Left)
+            {
+                if (currentTet <= 1)
+                    return;
+
+                currentTet--;
+                this.Refresh();
+            }
+        }
+
+        private void GameFrame_Paint(object sender, PaintEventArgs e)
+        {
+            int leftWithMargin = margin;
+            int rightWithMargin = width - margin;
+            int bottomWithMargin = height - margin;
+            int lineWidth = rightWithMargin - leftWithMargin;
+
+            Graphics g2d = e.Graphics;
+
+            // Draw bottom line
+            g2d.DrawLine(pen, margin, bottomWithMargin, rightWithMargin, bottomWithMargin);
+
+            // Draw the best frequencies
+            float[] ratios = { 1.5f, 1.33f, 1.25f, 1.2f };
+            foreach (var ratio in ratios)
+            {
+                float left = leftWithMargin + ((ratio - 1) * lineWidth);
+                g2d.DrawLine(redpen, (int)left, margin, (int)left, bottomWithMargin);
+                g2d.DrawString(ratio.ToString("N2"), font, redbrush, new Rectangle((int)left - 20, bottomWithMargin + 20, 100, 100));
+            }
+
+            // Draw based on the tets
+            g2d.DrawLine(bluepen, margin, margin, margin, bottomWithMargin);
+            g2d.DrawString(1.ToString("N2"), font, bluebrush, new Rectangle(margin - 20, bottomWithMargin + 20, 100, 100));
+            g2d.DrawLine(bluepen, rightWithMargin, margin, rightWithMargin, bottomWithMargin);
+            g2d.DrawString(2.ToString("N2"), font, bluebrush, new Rectangle(rightWithMargin - 20, bottomWithMargin + 20, 100, 100));
+            var baseInterval = Math.Pow(2, 1.0 / currentTet);
+            for (int i = 1; i < currentTet; i++)
+            {
+                var interval = Math.Pow(baseInterval, i);
+                double left = leftWithMargin + ((interval - 1) * lineWidth);
+                g2d.DrawLine(bluepen, (int)left, margin, (int)left, bottomWithMargin);
+                //g2d.DrawString(interval.ToString("N2"), font, bluebrush, new Rectangle((int)left - 20, bottomWithMargin + 20, 100, 100));
+            }
+
+            // Write the bottom text
+            g2d.DrawString("Current tets: " + currentTet, font, blackbrush, new Rectangle(0, 0, 0, 0));
+        }
+    }
+
+    public class GameOfLifeWindow : Form
+    {
+        private const int rowCount = 200;
+        private const int colCount = 300;
+        private const int cellSizePixels = 5;
+
+        private byte[][][] buffers;
+        private int bufferIndex = 0;
+        private Brush filledBrush = new SolidBrush(Color.Black);
+        private Brush emptyBrush = new SolidBrush(Color.White);
+
+        public GameOfLifeWindow()
+        {
+            this.ClientSize = new Size(width: colCount * cellSizePixels, height: rowCount * cellSizePixels);
+            this.Paint += GameOfLifeWindow_Paint;
+            this.KeyDown += GameOfLifeWindow_KeyDown;
+
+            byte[][] buffer1 = Enumerable.Range(0, rowCount).Select(x => new byte[colCount]).ToArray();
+            byte[][] buffer2 = Enumerable.Range(0, rowCount).Select(x => new byte[colCount]).ToArray();
+            this.buffers = new[] { buffer1, buffer2 };
+
+            var random = new Random();
+            foreach (var row in buffer1)
+            {
+                for (int i = 0; i < row.Length; i++)
+                {
+                    row[i] = (byte)random.Next(0, 2);
+                }
+            }
+
+            FixFlicker();
+        }
+
+        private void FixFlicker()
+        {
+            this.SetStyle(ControlStyles.UserPaint |
+                ControlStyles.OptimizedDoubleBuffer |
+                ControlStyles.AllPaintingInWmPaint |
+                ControlStyles.SupportsTransparentBackColor,
+                true);
+        }
+
+        private void GameOfLifeWindow_Paint(object sender, PaintEventArgs e)
+        {
+            Graphics g2d = e.Graphics;
+
+            for (int row = 0; row < rowCount; row++)
+            {
+                for (int col = 0; col < colCount; col++)
+                {
+                    var isCellAlive = this.buffers[bufferIndex][row][col] == 1;
+                    g2d.FillRectangle(isCellAlive ? filledBrush : emptyBrush, x: col * cellSizePixels, y: row * cellSizePixels, width: cellSizePixels, height: cellSizePixels);
+                }
+            }
+        }
+
+        private void GameOfLifeWindow_KeyDown(object sender, KeyEventArgs e)
+        {
+            var currentBuffer = buffers[bufferIndex];
+            bufferIndex = 1 - bufferIndex;
+            var otherBuffer = buffers[bufferIndex];
+            CalculateNext(currentBuffer, otherBuffer);
+            this.Refresh();
+        }
+
+        private bool IsCellAlive(byte[][] source, int row, int col)
+        {
+            if (row < 0 || row >= rowCount)
+                return false;
+            if (col < 0 || col >= colCount)
+                return false;
+            return source[row][col] == 1;
+        }
+
+        private void CalculateNext(byte[][] source, byte[][] destination)
+        {
+            for (int rowi = 0; rowi < source.Length; rowi++)
+            {
+                for (int coli = 0; coli < source[0].Length; coli++)
+                {
+                    int sorroundingCount = 0;
+                    if (IsCellAlive(source, rowi - 1, coli - 1)) sorroundingCount++;
+                    if (IsCellAlive(source, rowi - 1, coli)) sorroundingCount++;
+                    if (IsCellAlive(source, rowi - 1, coli + 1)) sorroundingCount++;
+                    if (IsCellAlive(source, rowi, coli - 1)) sorroundingCount++;
+                    if (IsCellAlive(source, rowi, coli + 1)) sorroundingCount++;
+                    if (IsCellAlive(source, rowi + 1, coli - 1)) sorroundingCount++;
+                    if (IsCellAlive(source, rowi + 1, coli)) sorroundingCount++;
+                    if (IsCellAlive(source, rowi + 1, coli + 1)) sorroundingCount++;
+
+                    bool isAlive = source[rowi][coli] == 1;
+                    if (isAlive)
+                        destination[rowi][coli] = sorroundingCount == 2 || sorroundingCount == 3 ? (byte)1 : (byte)0;
+                    else
+                        destination[rowi][coli] = sorroundingCount == 3 ? (byte)1 : (byte)0;
+                }
+            }
+        }
+    }
+
 
     [XmlRoot("foobar")]
     public class FooBar
