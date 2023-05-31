@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Html;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using System;
 using System.Collections.Generic;
 
 namespace DotNetCoreWebsite
@@ -79,6 +81,11 @@ namespace DotNetCoreWebsite
                 return null;
             else
                 return s;
+        }
+
+        public static IHtmlContent UriEscape(this IHtmlHelper helper, string s)
+        {
+            return helper.Raw(Uri.EscapeDataString(s).Replace("%20", "+"));
         }
     }
 }

@@ -1,7 +1,7 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 
 namespace DotNetCoreWebsite
 {
@@ -44,14 +44,14 @@ namespace DotNetCoreWebsite
 
         private void SaveFileNames()
         {
-            File.WriteAllText(path: repositoryFileName, contents: JsonConvert.SerializeObject(this.fileNames));
+            File.WriteAllText(path: repositoryFileName, contents: JsonSerializer.Serialize(this.fileNames));
         }
 
         private void CheckFileNames()
         {
             if (this.fileNames == null)
             {
-                this.fileNames = JsonConvert.DeserializeObject<Dictionary<string, string>>(File.ReadAllText(repositoryFileName));
+                this.fileNames = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(repositoryFileName));
             }
         }
     }

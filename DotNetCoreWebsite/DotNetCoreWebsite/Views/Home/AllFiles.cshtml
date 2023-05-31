@@ -22,7 +22,7 @@
             <td>
                 @if (Model.BackFolderPath != null)
                 {
-                    <a href="?q=@WebUtility.UrlEncode(Model.BackFolderPath)"><i class="fa fa-arrow-left"></i></a>
+                    <a href="?q=@Html.UriEscape(Model.BackFolderPath)"><i class="fa fa-arrow-left"></i></a>
                 }
                 else
                 {
@@ -32,7 +32,7 @@
             <td>
                 @if (Model.BackFolderPath != null)
                 {
-                    <a href="?q=@WebUtility.UrlEncode(Model.BackFolderPath)">..</a>
+                    <a href="?q=@Html.UriEscape(Model.BackFolderPath)">..</a>
                 }
             </td>
             <td></td>
@@ -52,7 +52,7 @@
                 <td>
                     @if (fileInfo.IsFolder)
                     {
-                        <a href="?q=@WebUtility.UrlEncode(Model.CurrentPath + fileInfo.Name)">@fileInfo.Name</a>
+                        <a href="?q=@Html.UriEscape(Model.CurrentPath + fileInfo.Name)">@fileInfo.Name</a>
                     }
                     else
                     {
@@ -62,7 +62,7 @@
                 <td data-sort-value="@fileInfo.FileSize">@fileInfo.FileSizeString</td>
                 <td class="utcdate" title="@fileInfo.AgeString">@fileInfo.ModifiedDateString</td>
                 <td class="downloadLink">
-                    <a href="@(fileInfo.IsFolder ? "DownloadMultiFile" : "DownloadFile")?q=@WebUtility.UrlEncode(Model.CurrentPath + fileInfo.Name)">
+                    <a href="@(fileInfo.IsFolder ? "DownloadMultiFile" : "DownloadFile")?q=@Html.UriEscape(Model.CurrentPath + fileInfo.Name)">
                         @if (fileInfo.IsFolder)
                         {
                             <i class="fa fa-file-archive-o" title="Download as Zip"></i>

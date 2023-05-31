@@ -18,7 +18,7 @@
         {
             <tr>
                 <td style="max-width: 15px"><img src="@item.img" /></td>
-                <td><a data-href="@WebUtility.UrlEncode(item.urlStripped)" href="#" onclick="getDetails(this);return false;">@item.title<br />@item.year</a></td>
+                <td><a data-href="@item.urlStripped" href="#" onclick="getDetails(this);return false;">@item.title<br />@item.year</a></td>
             </tr>
         }
     </table>
@@ -31,44 +31,9 @@
     // /home/ytsdetails?path=
     async function getDetails(obj){
         var urlPart = obj.dataset["href"];
-        var url = "/home/ytsdetails?path="+urlPart;
-        var response = await httpcallAsync(url);
+        var url = "/home/ytsdetails?path=" + encodeURIComponent(urlPart);
+        var response = await fetch(url).then(res => res.text());
         document.querySelector("#responseModalContent").innerHTML = response;
-    }
-
-    function httpcallAsync(url, headers) {
-        return new Promise((resolve, reject) => {
-            var xmlhttp = new XMLHttpRequest();
-
-            xmlhttp.onreadystatechange = function () {
-                if (xmlhttp.readyState == XMLHttpRequest.DONE) {
-                    if (xmlhttp.status == 200) {
-                        try {
-                            resolve(xmlhttp.responseText);
-                        }
-                        catch (err) {
-                            reject(err);
-                        }
-                    }
-                    else if (xmlhttp.status == 400) {
-                        reject('There was an error 400');
-                    }
-                    else {
-                        reject('something else other than 200 was returned');
-                    }
-                }
-            };
-
-            xmlhttp.open("GET", url, true);
-
-            if (headers) {
-                for (var key in headers) {
-                    xmlhttp.setRequestHeader(key, headers[key]);
-                }
-            }
-
-            xmlhttp.send();
-        })
     }
 </script>
 

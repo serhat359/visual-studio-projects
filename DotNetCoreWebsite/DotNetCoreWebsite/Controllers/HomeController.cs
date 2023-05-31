@@ -1,7 +1,6 @@
 ﻿using DotNetCoreWebsite.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -10,6 +9,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -40,6 +40,8 @@ namespace DotNetCoreWebsite.Controllers
         [ActionName("1337")]
         public async Task<IActionResult> Simple1337(string query)
         {
+            string noResultText = "No results were returned. Please refine your search.";
+
             string tableData = null;
             if (query != null)
             {
@@ -50,14 +52,21 @@ namespace DotNetCoreWebsite.Controllers
                 string responseContent = await response.Content.ReadAsStringAsync();
 
                 var indexBegin = responseContent.IndexOf("<table class=\"table-list table table-responsive table-striped\">");
-                if (indexBegin < 0)
+                if (indexBegin >= 0)
+                {
+                    var endPattern = "</table>";
+                    var indexEnd = responseContent.IndexOf(endPattern, indexBegin);
+                    if (indexEnd < 0)
+                        throw new Exception();
+                    tableData = responseContent.Substring(indexBegin, length: indexEnd - indexBegin + endPattern.Length);
+                    tableData = tableData.Replace("<i class=\"flaticon-message\"></i>", "💬");
+                }
+                else if (responseContent.IndexOf(noResultText) >= 0)
+                {
+                    tableData = "<p>" + noResultText + "</p>";
+                }
+                else
                     throw new Exception();
-                var endPattern = "</table>";
-                var indexEnd = responseContent.IndexOf(endPattern, indexBegin);
-                if (indexEnd < 0)
-                    throw new Exception();
-                tableData = responseContent.Substring(indexBegin, length: indexEnd - indexBegin + endPattern.Length);
-                tableData = tableData.Replace("<i class=\"flaticon-message\"></i>", "💬");
             }
 
             var model = new Simple1337Model
@@ -82,7 +91,7 @@ namespace DotNetCoreWebsite.Controllers
                 using var response = await httpClient.GetAsync(link);
                 if (response.IsSuccessStatusCode)
                 {
-                    var responseParsed = JsonConvert.DeserializeObject<YtsResponseModel>(await response.Content.ReadAsStringAsync());
+                    var responseParsed = JsonSerializer.Deserialize<YtsResponseModel>(await response.Content.ReadAsStringAsync());
                     if (responseParsed.status == "ok")
                     {
                         model.ResponseData = responseParsed.data;

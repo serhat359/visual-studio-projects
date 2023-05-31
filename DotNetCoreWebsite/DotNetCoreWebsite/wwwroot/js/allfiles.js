@@ -83,50 +83,22 @@ function convertDatesToLocal() {
     }
 }
 
-function httpcall(url, onsuccess) {
-    var xmlhttp = new XMLHttpRequest();
-
-    xmlhttp.onreadystatechange = function () {
-        if (xmlhttp.readyState == XMLHttpRequest.DONE) {
-            if (xmlhttp.status == 200) {
-                var result = xmlhttp.responseText;
-                try {
-                    onsuccess(result);
-                }
-                catch (err) {
-                    console.log(err);
-                }
-            }
-            else if (xmlhttp.status == 400) {
-                console.log('There was an error 400');
-            }
-            else {
-                console.log(`unexpected status code: ${xmlhttp.status}`);
-            }
-        }
-    };
-
-    xmlhttp.open("GET", url, true);
-
-    xmlhttp.send();
+async function getFolderSizes() {
+    var response = await fetch("/Home/GetFolderSize" + document.location.search);
+    if (!response.ok)
+        throw new Error();
+    var data = await response.json();
+    var rows = document.querySelectorAll("table tbody tr.xfolder");
+    for (var row of rows) {
+        var tds = row.querySelectorAll("td");
+        var folderName = tds[1].querySelector("a").innerText;
+        var sizeInfo = data[folderName];
+        tds[2].innerText = sizeInfo.fileSizeString;
+        tds[2].dataset["sortValue"] = sizeInfo.fileSize;
+    }
 }
 
-function getFolderSizes() {
-    httpcall("/Home/GetFolderSize" + document.location.search, function (dataStr) {
-        var data = JSON.parse(dataStr);
-
-        var rows = document.querySelectorAll("table tbody tr.xfolder");
-        for (var row of rows) {
-            var tds = row.querySelectorAll("td");
-            var folderName = tds[1].querySelector("a").innerText;
-            var sizeInfo = data[folderName];
-            tds[2].innerText = sizeInfo.fileSizeString;
-            tds[2].dataset["sortValue"] = sizeInfo.fileSize;
-        }
-    });
-}
-
-function SelectText(elementId) {
+function selectText(elementId) {
     var doc = document, text = doc.getElementById(elementId), range, selection;
     if (doc.body.createTextRange) {
         range = document.body.createTextRange();
@@ -149,7 +121,7 @@ $(document).ready(function () {
     })
 
     $('#selectAll').click(function () {
-        SelectText('linksModalContent');
+        selectText('linksModalContent');
     });
 
     getFolderSizes();
