@@ -426,62 +426,13 @@ namespace MVCCore.Controllers
         [HttpGet]
         public async Task<IActionResult> GenerateRssResult()
         {
-            var cacheTimespan = TimeSpan.FromMinutes(15);
+            return await generateRssResultInner(useRealLinks: false);
+        }
 
-            Func<Task<ContentResult>> initializerFunction = async () =>
-            {
-                var links = _myTorrentRssHelper.GetLinks().Keys;
-
-                var allLinks = new List<(DateTime date, XmlNode node)>();
-
-                var tasks = links.Select(url => Task.Run(async () =>
-                {
-                    var key = CacheHelper.MyRssKey + ":" + url;
-                    var val = await _cacheHelper.GetAsync(key, () => GetUrlTextDataWithRetry(url), cacheTimespan);
-                    return val;
-                })).ToArray();
-
-                foreach (var task in tasks)
-                {
-                    try
-                    {
-                        var result = await task;
-                        var xml = XmlParser.Parse(result);
-
-                        var itemNodes = xml.ChildNodes[0].ChildNodes[0].ChildNodes.Where(x => x.TagName == "item").ToList();
-                        foreach (var itemNode in itemNodes)
-                        {
-                            var date = DateTime.Parse(itemNode.SearchByTag("pubDate").InnerText);
-
-                            // This line was added for browser compatibility, should not be used with bittorrent clients
-                            itemNode.SearchByTag("link").InnerText = itemNode.SearchByTag("guid").InnerText;
-
-                            allLinks.Add((date, itemNode));
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        throw;
-                    }
-                }
-
-                var allNodes = allLinks.OrderByDescending(x => x.date).Select(x => x.node).ToList();
-
-                var newXml = XmlParser.Parse(Resource1.RssTemplate);
-
-                var itemNodesParent = newXml.ChildNodes[0].ChildNodes[0];
-                foreach (var node in allNodes)
-                {
-                    itemNodesParent.AppendChild(node);
-                }
-
-                var contentResult = Content(newXml.Beautify(), "application/xml");
-
-                return contentResult;
-            };
-
-            //return CacheHelper.Get<ContentResult>(CacheHelper.MyRssKey, initializerFunction, cacheTimespan);
-            return await initializerFunction();
+        [HttpGet]
+        public async Task<IActionResult> GenerateRealRssResult()
+        {
+            return await generateRssResultInner(useRealLinks: true);
         }
 
         [HttpGet]
@@ -621,6 +572,67 @@ namespace MVCCore.Controllers
             }
             else
                 return sectionPart;
+        }
+
+        private async Task<IActionResult> generateRssResultInner(bool useRealLinks)
+        {
+            var cacheTimespan = TimeSpan.FromMinutes(15);
+
+            Func<Task<ContentResult>> initializerFunction = async () =>
+            {
+                var links = _myTorrentRssHelper.GetLinks().Keys;
+
+                var allLinks = new List<(DateTime date, XmlNode node)>();
+
+                var tasks = links.Select(url => Task.Run(async () =>
+                {
+                    var key = CacheHelper.MyRssKey + ":" + url;
+                    var val = await _cacheHelper.GetAsync(key, () => GetUrlTextDataWithRetry(url), cacheTimespan);
+                    return val;
+                })).ToArray();
+
+                foreach (var task in tasks)
+                {
+                    try
+                    {
+                        var result = await task;
+                        var xml = XmlParser.Parse(result);
+
+                        var itemNodes = xml.ChildNodes[0].ChildNodes[0].ChildNodes.Where(x => x.TagName == "item").ToList();
+                        foreach (var itemNode in itemNodes)
+                        {
+                            var date = DateTime.Parse(itemNode.SearchByTag("pubDate").InnerText);
+
+                            // This line was added for browser compatibility, should not be used with bittorrent clients
+                            if (!useRealLinks)
+                                itemNode.SearchByTag("link").InnerText = itemNode.SearchByTag("guid").InnerText;
+
+                            allLinks.Add((date, itemNode));
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        throw;
+                    }
+                }
+
+                var allNodes = allLinks.OrderByDescending(x => x.date).Select(x => x.node).ToList();
+
+                var newXml = XmlParser.Parse(Resource1.RssTemplate);
+
+                var itemNodesParent = newXml.ChildNodes[0].ChildNodes[0];
+                foreach (var node in allNodes)
+                {
+                    itemNodesParent.AppendChild(node);
+                }
+
+                var contentResult = Content(newXml.Beautify(), "application/xml");
+
+                return contentResult;
+            };
+
+            //return CacheHelper.Get<ContentResult>(CacheHelper.MyRssKey, initializerFunction, cacheTimespan);
+            return await initializerFunction();
         }
 
         [GeneratedRegex("([a-zA-Z]+) ([0-9]+), ([0-9]+)", RegexOptions.Compiled)]
