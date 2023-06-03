@@ -10,7 +10,9 @@ namespace CasualConsoleCore.XmlParser;
 
 public class XmlParser
 {
-    public static XmlRoot Parse(string xml)
+    private static readonly IReadOnlySet<string> unclosedTags = new HashSet<string> { "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr", };
+
+    public static XmlRoot Parse(string xml, bool isHtml = false)
     {
         ArraySegment<(string, int)> parts = GetParts(xml).ToArray();
 
@@ -19,7 +21,7 @@ public class XmlParser
         int index = 0;
         while (true)
         {
-            var (node, endIndex) = ReadNode(parts[index..]);
+            var (node, endIndex) = ReadNode(parts[index..], isHtml);
             topDocument.ChildNodes.Add(node);
 
             if (endIndex < 0)
@@ -33,7 +35,7 @@ public class XmlParser
         return topDocument;
     }
 
-    private static (XmlNode, int) ReadNode(ArraySegment<(string token, int lineNumber)> tokens)
+    private static (XmlNode, int) ReadNode(ArraySegment<(string token, int lineNumber)> tokens, bool isHtml)
     {
         if (!tokens[0].token.IsBeginTag()) throw new Exception(); // TODO remove later
 
@@ -45,31 +47,38 @@ public class XmlParser
         parent.Attributes = attributes;
         var index = 1;
 
-        if (!isSingleTag)
+        if (isHtml && unclosedTags.Contains(tagName))
+            return (parent, index);
+
+        if (isSingleTag)
         {
-            while (tokens[index].token.IsBeginTag())
-            {
-                var (node, endIndex) = ReadNode(tokens[index..]);
-                index += endIndex;
-                parent.ChildNodes.Add(node);
-            }
-            if (!tokens[index].token.IsTag())
-            {
-                var text = tokens[index];
-                parent.InnerText = NormalizeXml(text.token);
-                index++;
-            }
-            while (tokens[index].token.IsBeginTag())
-            {
-                var (node, endIndex) = ReadNode(tokens[index..]);
-                index += endIndex;
-                parent.ChildNodes.Add(node);
-            }
-            if (tokens[index].token != "</" + tagName + ">")
-                throw new Exception($"Error on line: {tokens[index].lineNumber}. Expected '{"</" + tagName + ">"}' but encountered '{tokens[index].token}'");
+            return (parent, index);
         }
 
-        return (parent, isSingleTag ? index : index + 1);
+        while (tokens[index].token.IsBeginTag())
+        {
+            var (node, endIndex) = ReadNode(tokens[index..], isHtml);
+            index += endIndex;
+            parent.ChildNodes.Add(node);
+        }
+        if (!tokens[index].token.IsTag())
+        {
+            var text = tokens[index];
+            parent.InnerText = NormalizeXml(text.token);
+            index++;
+        }
+        while (tokens[index].token.IsBeginTag())
+        {
+            var (node, endIndex) = ReadNode(tokens[index..], isHtml);
+            index += endIndex;
+            parent.ChildNodes.Add(node);
+        }
+        if (tokens[index].token != "</" + tagName + ">")
+        {
+            throw new Exception($"Error on line: {tokens[index].lineNumber}. Expected '{"</" + tagName + ">"}' but encountered '{tokens[index].token}'");
+        }
+
+        return (parent, index + 1);
     }
 
     private static IEnumerable<(string token, int lineNumber)> GetParts(string xml)

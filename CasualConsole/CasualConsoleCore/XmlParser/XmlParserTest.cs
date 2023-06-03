@@ -22,6 +22,7 @@ namespace CasualConsoleCore.XmlParser
             SingleQuoteTest();
             HandleComments();
             MultiRootTest();
+            UnclosedTagHtmlTag();
         }
 
         private static void SimplestTest()
@@ -239,6 +240,22 @@ e
 
             var mydoc = XmlParser.Parse(text);
             if (mydoc.ChildNodes.Count != 3) throw new System.Exception();
+        }
+
+        private static void UnclosedTagHtmlTag()
+        {
+            var text = @"
+<picture>
+  <source media=""(min-width:650px)"" srcset=""img_pink_flowers.jpg"">
+  <source media=""(min-width:465px)"" srcset=""img_white_flower.jpg""/>
+  <img src=""img_orange_flowers.jpg"" alt=""Flowers"" style=""width:auto;"">
+  <img src=""img_orange_flowers.jpg"" alt=""Flowers"" style=""width:auto;""/>
+</picture>
+";
+
+            var mydoc = XmlParser.Parse(text, isHtml: true);
+            if (mydoc.ChildNodes.Count != 1) throw new System.Exception();
+            if (mydoc.ChildNodes[0].ChildNodes.Count != 4) throw new System.Exception();
         }
     }
 }
