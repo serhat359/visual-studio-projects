@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+﻿using System.Text.Json;
 
 namespace MVCCore.Helpers
 {
@@ -43,7 +43,7 @@ namespace MVCCore.Helpers
 
         private void SaveLinks()
         {
-            File.WriteAllText(path: FileName, contents: JsonConvert.SerializeObject(this.links));
+            File.WriteAllText(path: FileName, contents: JsonSerializer.Serialize(this.links));
         }
 
         private void CheckLinks()
@@ -53,7 +53,7 @@ namespace MVCCore.Helpers
                 string jsonText = File.ReadAllText(FileName);
                 try
                 {
-                    this.links = JsonConvert.DeserializeObject<Dictionary<string, string>>(jsonText);
+                    this.links = JsonSerializer.Deserialize<Dictionary<string, string>>(jsonText);
                 }
                 catch (Exception)
                 {
