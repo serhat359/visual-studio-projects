@@ -42,7 +42,7 @@
         </tr>
         @foreach (var fileInfo in Model.FileList)
         {
-            <tr class="default @(fileInfo.IsFolder ? "xfolder": "xfile")">
+            <tr class="default @(fileInfo.IsFolder ? "xfolder" : "xfile")">
                 <td>
                     @if (fileInfo.IsFolder)
                     {
@@ -67,7 +67,8 @@
                         {
                             <i class="fa fa-file-archive-o" title="Download as Zip"></i>
                         }
-                        else {
+                        else
+                        {
                             <i class="fa fa-download" title="Download single file"></i>
                         }
                     </a>
