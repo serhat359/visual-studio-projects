@@ -510,9 +510,9 @@ namespace MVCCore.Controllers
             int indexOfEnd = contents.IndexOf(endTag, indexOfStart);
 
             string sectionPart = contents.Substring(indexOfStart, indexOfEnd - indexOfStart + endTag.Length);
-            sectionPart = FixIncompleteImgs(sectionPart); // This part is necessary unfortunately
+            sectionPart = sectionPart.Replace("</source>", ""); // This part is necessary unfortunately, Tom's html is broken
 
-            var document = XmlParser.Parse(sectionPart);
+            var document = XmlParser.Parse(sectionPart, isHtml: true);
 
             var divs = document.ChildNodes[0].GetAllNodesRecursive().Where(c =>
             {
