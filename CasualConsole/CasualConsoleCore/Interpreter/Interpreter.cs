@@ -99,9 +99,10 @@ namespace CasualConsoleCore.Interpreter
             bool isContinue;
 
             var statements = GetStatements(tokens);
-            foreach (var statement in statements)
+
+            for (int i = 0; i < statements.count; i++)
             {
-                (value, isReturn, isBreak, isContinue) = statement.EvaluateStatement(defaultContext);
+                (value, isReturn, isBreak, isContinue) = statements.array[i].EvaluateStatement(defaultContext);
                 if (isReturn || isBreak || isContinue)
                     throw new Exception();
             }
@@ -109,71 +110,9 @@ namespace CasualConsoleCore.Interpreter
             return value.value;
         }
 
-        private static void GetStatementRangesTest(bool verbose)
-        {
-            var testCases = new List<(string code, string[] statements)>
-            {
-                ("2", new[]{ "2" }),
-                ("a = 2", new[]{ "a = 2" }),
-                ("var a = 2; a", new[]{ "var a = 2;", "a" }),
-                ("var a = 2;", new[]{ "var a = 2;" }),
-                ("var a = 2; var b = 2;", new[]{ "var a = 2;", "var b = 2;" }),
-                ("{}", new[]{ "{}" }),
-                ("({})", new[]{ "({})" }),
-                ("{}{}", new[]{ "{}","{}" }),
-                ("{} var a = 2; {}", new[]{ "{}", "var a = 2;", "{}" }),
-                ("{ var a = 2; }", new[]{ "{ var a = 2; }" }),
-                ("function () {}", new[]{ "function () {}" }),
-                ("() => {}", new[]{ "() => {}" }),
-                ("(x,y) => {}", new[]{ "(x,y) => {}" }),
-                ("() => {};", new[]{ "() => {};" }),
-                ("() => {}; () => {};", new[]{ "() => {};", "() => {};" }),
-                ("function(){};function(){};", new[]{ "function(){}", ";", "function(){}", ";" }),
-                ("var func2 = true ? function(){ return '1'; } : function(){ return '2'; }; func2()", new[]{ "var func2 = true ? function(){ return '1'; } : function(){ return '2'; };", "func2()" }),
-                ("function customReturnConstant(){ return -8; } customReturnConstant()", new[]{ "function customReturnConstant(){ return -8; }", "customReturnConstant()" }),
-                ("for(;;){}", new[]{ "for(;;){}" }),
-                ("for(var x in {}){}", new[]{ "for(var x in {}){}" }),
-                ("for(var x of []){}", new[]{ "for(var x of []){}" }),
-                ("while(){}", new[]{ "while(){}" }),
-                ("while(){} aa", new[]{ "while(){}", "aa" }),
-                ("while(){} var x; aa", new[]{ "while(){}", "var x;", "aa" }),
-                ("if(){} aa", new[]{ "if(){} ", "aa" }),
-                ("else if(){} aa", new[]{ "else if(){} ", "aa" }),
-                ("else{} aa", new[]{ "else{}", "aa" }),
-                ("var { a } = {}", new[]{ "var { a } = {}" }),
-                ("var a = {};", new[]{ "var a = {};" }),
-            };
-
-            foreach (var testCase in testCases)
-            {
-                var tokens = GetTokens(testCase.code).ToArraySegment(16);
-                var statements = GetStatementRanges(tokens).ToList();
-                if (statements.Count != testCase.statements.Length)
-                    throw new Exception();
-                for (int i = 0; i < statements.Count; i++)
-                {
-                    var statement = string.Join(" ", statements[i]);
-                    var testCaseStatement = testCase.statements[i];
-
-                    if (statement.Replace(" ", "") != testCaseStatement.Replace(" ", ""))
-                        throw new Exception();
-                }
-            }
-
-            if (verbose)
-            {
-                var oldColor = Console.ForegroundColor;
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("All GetStatementRangesTest tests have passed!");
-                Console.ForegroundColor = oldColor;
-            }
-        }
-
         public static void Test(bool verbose = true)
         {
             CustomValue.Test();
-
-            GetStatementRangesTest(verbose);
 
             DoPositiveTests();
             DoNegativeTests();
@@ -769,123 +708,121 @@ namespace CasualConsoleCore.Interpreter
             }
         }
 
-        private static IEnumerable<Statement> GetStatements(ArraySegment<string> tokens)
+        private static Slice<Statement> GetStatements(ArraySegment<string> tokens)
         {
-            var statementRanges = GetStatementRanges(tokens);
-            var statementEnumerator = statementRanges.Select(StatementMethods.New).GetEnumerator();
-
-            if (!statementEnumerator.MoveNext())
-                yield break;
-
-            Statement previousStatement = statementEnumerator.Current;
-            if (previousStatement.Type == StatementType.ElseIfStatement || previousStatement.Type == StatementType.ElseStatement)
-                throw new Exception();
-
-            while (statementEnumerator.MoveNext())
-            {
-                var currentStatement = statementEnumerator.Current;
-
-                if (currentStatement.Type == StatementType.ElseIfStatement || currentStatement.Type == StatementType.ElseStatement)
-                {
-                    // Handle if scenario
-                    if (previousStatement.Type != StatementType.IfStatement)
-                        throw new Exception();
-
-                    var innermostIfStatement = (IfStatement)previousStatement;
-                    while (innermostIfStatement.statementOfIf.Type == StatementType.IfStatement)
-                    {
-                        innermostIfStatement = (IfStatement)innermostIfStatement.statementOfIf;
-                    }
-
-                    while (currentStatement.Type == StatementType.ElseIfStatement)
-                    {
-                        innermostIfStatement.AddElseIf(currentStatement);
-                        if (!statementEnumerator.MoveNext())
-                        {
-                            yield return previousStatement;
-                            yield break;
-                        }
-                        currentStatement = statementEnumerator.Current;
-                    }
-
-                    if (currentStatement.Type == StatementType.ElseStatement)
-                    {
-                        innermostIfStatement.SetElse(currentStatement);
-                        continue;
-                    }
-                }
-
-                yield return previousStatement;
-                previousStatement = currentStatement;
-            }
-
-            yield return previousStatement;
-        }
-
-        private static IEnumerable<ArraySegment<string>> GetStatementRanges(ArraySegment<string> tokens)
-        {
+            var statements = new Slice<Statement>(3);
             int index = 0;
             while (index < tokens.Count)
             {
-                var newIndex = GetStatementEndIndex(tokens, index);
+                var (newIndex, statement) = GetStatement(tokens, index, expectingElse: false);
                 if (newIndex <= index)
                     throw new Exception();
-                yield return tokens[index..newIndex];
+                statements.Add(statement);
                 index = newIndex;
             }
-            yield break;
+            return statements;
         }
 
-        private static int GetStatementEndIndex(ArraySegment<string> tokens, int startingIndex)
+        private static (int, Statement) GetStatement(ArraySegment<string> tokens, int startingIndex, bool expectingElse)
         {
             var token = tokens[startingIndex];
-            if (token == "{")
+
+            switch (token)
             {
-                var newIndex = tokens.IndexOfBracesEnd(startingIndex + 1);
-                if (newIndex < 0)
-                    throw new Exception();
-                return newIndex + 1;
+                case "{":
+                    {
+                        var newIndex = tokens.IndexOfBracesEnd(startingIndex + 1);
+                        if (newIndex < 0)
+                            throw new Exception();
+                        return (newIndex + 1, new BlockStatement(tokens[startingIndex..(newIndex + 1)]));
+                    }
+                case "function":
+                    {
+                        var paranBegin = tokens.IndexOf("(", startingIndex);
+                        if (paranBegin < 0)
+                            throw new Exception();
+                        var paranEnd = tokens.IndexOfParenthesesEnd(paranBegin + 1);
+                        if (paranEnd < 0)
+                            throw new Exception();
+                        var braceBegin = tokens.IndexOf("{", paranEnd + 1);
+                        if (braceBegin < 0)
+                            throw new Exception();
+                        var braceEnd = tokens.IndexOfBracesEnd(braceBegin + 1);
+                        if (braceEnd < 0)
+                            throw new Exception();
+                        return (braceEnd + 1, new LineStatement(tokens[startingIndex..(braceEnd + 1)]));
+                    }
+                case "if":
+                    {
+                        var paranBegin = tokens.IndexOf("(", startingIndex);
+                        if (paranBegin < 0)
+                            throw new Exception();
+                        var paranEnd = tokens.IndexOfParenthesesEnd(paranBegin + 1);
+                        if (paranEnd < 0)
+                            throw new Exception();
+
+                        var (subEnd, subStatement) = GetStatement(tokens, paranEnd + 1, expectingElse: false);
+                        var condition = ExpressionMethods.New(tokens[(paranBegin + 1)..paranEnd]);
+                        var ifStatement = new IfStatement(condition, subStatement);
+                        while (subEnd < tokens.Count && tokens[subEnd] == "else")
+                        {
+                            bool isElseIf = tokens[subEnd + 1] == "if";
+                            if (isElseIf)
+                            {
+                                var (elseIfEnd, elseIfStatement) = GetStatement(tokens, subEnd, expectingElse: true);
+                                ifStatement.AddElseIf(elseIfStatement);
+                                subEnd = elseIfEnd;
+                                continue;
+                            }
+                            else
+                            {
+                                var (elseEnd, elseStatement) = GetStatement(tokens, subEnd + 1, expectingElse: true);
+                                ifStatement.SetElse(elseStatement);
+                                subEnd = elseEnd;
+                                break;
+                            }
+                        }
+                        return (subEnd, ifStatement);
+                    }
+                case "while":
+                    {
+                        var paranBegin = tokens.IndexOf("(", startingIndex);
+                        if (paranBegin < 0)
+                            throw new Exception();
+                        var paranEnd = tokens.IndexOfParenthesesEnd(paranBegin + 1);
+                        if (paranEnd < 0)
+                            throw new Exception();
+
+                        var (subEnd, subStatement) = GetStatement(tokens, paranEnd + 1, expectingElse: false);
+                        var condition = ExpressionMethods.New(tokens[(paranBegin + 1)..paranEnd]);
+                        var whileStatement = new WhileStatement(condition, subStatement);
+                        return (subEnd, whileStatement);
+                    }
+                case "for":
+                    {
+                        var paranBegin = tokens.IndexOf("(", startingIndex);
+                        if (paranBegin < 0)
+                            throw new Exception();
+                        var paranEnd = tokens.IndexOfParenthesesEnd(paranBegin + 1);
+                        if (paranEnd < 0)
+                            throw new Exception();
+
+                        var (subEnd, subStatement) = GetStatement(tokens, paranEnd + 1, expectingElse: false);
+                        var forStatement = ForStatement.FromTokens(tokens[startingIndex..(paranEnd + 1)], subStatement);
+                        return (subEnd, forStatement);
+                    }
             }
 
-            if (token == "function")
-            {
-                var paranBegin = tokens.IndexOf("(", startingIndex);
-                if (paranBegin < 0)
-                    throw new Exception();
-                var paranEnd = tokens.IndexOfParenthesesEnd(paranBegin + 1);
-                if (paranEnd < 0)
-                    throw new Exception();
-                var braceBegin = tokens.IndexOf("{", paranEnd + 1);
-                if (braceBegin < 0)
-                    throw new Exception();
-                var braceEnd = tokens.IndexOfBracesEnd(braceBegin + 1);
-                if (braceEnd < 0)
-                    throw new Exception();
-                return braceEnd + 1;
-            }
+            if (token == "else" && !expectingElse)
+                throw new Exception();
 
-            if (token == "if" || token == "for" || token == "while")
-            {
-                var paranBegin = tokens.IndexOf("(", startingIndex);
-                if (paranBegin < 0)
-                    throw new Exception();
-                var paranEnd = tokens.IndexOfParenthesesEnd(paranBegin + 1);
-                if (paranEnd < 0)
-                    throw new Exception();
-                return GetStatementEndIndex(tokens, paranEnd + 1);
-            }
-
-            if (token == "else")
-            {
-                return GetStatementEndIndex(tokens, startingIndex + 1);
-            }
-
+            int firstIndex = startingIndex;
             while (true)
             {
                 if (startingIndex == tokens.Count)
-                    return startingIndex;
+                    return (startingIndex, StatementMethods.New(tokens[firstIndex..startingIndex]));
                 if (tokens[startingIndex] == ";")
-                    return startingIndex + 1;
+                    return (startingIndex + 1, StatementMethods.New(tokens[firstIndex..(startingIndex + 1)]));
                 if (tokens[startingIndex] == "(")
                 {
                     startingIndex = tokens.IndexOfParenthesesEnd(startingIndex + 1);
@@ -1981,7 +1918,6 @@ namespace CasualConsoleCore.Interpreter
             BlockStatement,
             IfStatement,
             ElseIfStatement,
-            ElseStatement,
             WhileStatement,
             ForStatement,
             ForInOfStatement,
@@ -3610,37 +3546,26 @@ namespace CasualConsoleCore.Interpreter
         {
             public static Statement New(ArraySegment<string> tokens)
             {
-                if (tokens[0] == "{")
+                switch (tokens[0])
                 {
-                    if (tokens[^1] != "}")
-                        throw new Exception();
-                    return new BlockStatement(tokens);
+                    case "{":
+                        {
+                            if (tokens[^1] != "}")
+                                throw new Exception();
+                            return new BlockStatement(tokens);
+                        }
+                    case "else":
+                        {
+                            if (tokens[1] == "if")
+                                return new ElseIfStatement(tokens);
+                            else
+                                throw new Exception();
+                        }
+                    case "yield":
+                        return new YieldStatement(tokens);
+                    default:
+                        return new LineStatement(tokens);
                 }
-                else if (tokens[0] == "while")
-                {
-                    return new WhileStatement(tokens);
-                }
-                else if (tokens[0] == "for")
-                {
-                    return ForStatement.FromTokens(tokens);
-                }
-                else if (tokens[0] == "if")
-                {
-                    return new IfStatement(tokens);
-                }
-                else if (tokens[0] == "else")
-                {
-                    if (tokens[1] == "if")
-                        return new ElseIfStatement(tokens);
-                    else
-                        return new ElseStatement(tokens);
-                }
-                else if (tokens[0] == "yield")
-                {
-                    return new YieldStatement(tokens);
-                }
-                else
-                    return new LineStatement(tokens);
             }
             internal static (ArraySegment<string>, ArraySegment<string>) GetTokensConditionAndBody(ArraySegment<string> tokens, int conditionStartIndex)
             {
@@ -3770,14 +3695,14 @@ namespace CasualConsoleCore.Interpreter
         }
         class BlockStatement : Statement
         {
-            List<Statement> statements;
+            Slice<Statement> statements;
 
             public BlockStatement(ArraySegment<string> tokens)
             {
                 if (tokens[0] != "{")
                     throw new Exception();
                 tokens = tokens[1..^1];
-                statements = GetStatements(tokens).ToList();
+                statements = GetStatements(tokens);
             }
 
             public StatementType Type => StatementType.BlockStatement;
@@ -3786,9 +3711,10 @@ namespace CasualConsoleCore.Interpreter
             {
                 var newScope = VariableScope.NewWithInner(context.variableScope, isFunctionScope: false);
                 var newContext = new Context(newScope, context.thisOwner);
-                foreach (var statement in statements)
+
+                for (int i = 0; i < statements.count; i++)
                 {
-                    var (value, isReturn, isBreak, isContinue) = statement.EvaluateStatement(newContext);
+                    var (value, isReturn, isBreak, isContinue) = statements.array[i].EvaluateStatement(newContext);
                     if (isReturn)
                         return (value, true, false, false);
                     if (isBreak)
@@ -3796,13 +3722,14 @@ namespace CasualConsoleCore.Interpreter
                     if (isContinue)
                         return (CustomValue.Null, false, false, true);
                 }
+
                 return (CustomValue.Null, false, false, false);
             }
 
             public IEnumerable<CustomValue> AsEnumerable(Context context)
             {
-                foreach (var statement in statements)
-                    foreach (var value in statement.AsEnumerable(context))
+                for (int i = 0; i < statements.count; i++)
+                    foreach (var value in statements.array[i].AsEnumerable(context))
                         yield return value;
             }
         }
@@ -3811,13 +3738,9 @@ namespace CasualConsoleCore.Interpreter
             Expression conditionExpression;
             Statement statement;
 
-            public WhileStatement(ArraySegment<string> tokens)
+            public WhileStatement(Expression conditionExpression, Statement statement)
             {
-                if (tokens[1] != "(")
-                    throw new Exception();
-                var conditionStartIndex = 2;
-                var (expression, statement) = StatementMethods.GetConditionAndBody(tokens, conditionStartIndex);
-                this.conditionExpression = expression;
+                this.conditionExpression = conditionExpression;
                 this.statement = statement;
             }
 
@@ -3915,19 +3838,18 @@ namespace CasualConsoleCore.Interpreter
                 return (CustomValue.Null, false, false, false);
             }
 
-            public static Statement FromTokens(ArraySegment<string> tokens)
+            public static Statement FromTokens(ArraySegment<string> nonBodyTokens, Statement bodyStatement)
             {
                 bool isAwaitFor = false;
-                if (tokens[1] == "await")
+                if (nonBodyTokens[1] == "await")
                 {
-                    tokens = tokens[1..];
+                    nonBodyTokens = nonBodyTokens[1..];
                     isAwaitFor = true;
                 }
 
-                if (tokens[1] != "(")
+                if (nonBodyTokens[1] != "(")
                     throw new Exception();
-                var conditionStartIndex = 2;
-                var (expressionTokens, statementTokens) = StatementMethods.GetTokensConditionAndBody(tokens, conditionStartIndex);
+                var expressionTokens = nonBodyTokens[2..^1];
                 var expressions = SplitBy(expressionTokens, ";").ToList();
                 if (expressions.Count == 3)
                 {
@@ -3949,8 +3871,6 @@ namespace CasualConsoleCore.Interpreter
                     var iterationTokenGroup = SplitBy(allIterationTokens, ",").ToList();
                     var iterationStatements = iterationTokenGroup.SelectFast(StatementMethods.New);
 
-                    var bodyStatement = StatementMethods.New(statementTokens);
-
                     return new ForStatement(assignmentType, initializationStatements, conditionExpression, iterationStatements, bodyStatement);
                 }
                 else if (expressions.Count == 1)
@@ -3962,7 +3882,6 @@ namespace CasualConsoleCore.Interpreter
                     var operationType = parenthesesTokens[index + 1];
                     var restTokens = parenthesesTokens[(index + 2)..];
                     var restExpression = ExpressionMethods.New(restTokens);
-                    var bodyStatement = StatementMethods.New(statementTokens);
 
                     if (operationType == "in")
                     {
@@ -4149,17 +4068,13 @@ namespace CasualConsoleCore.Interpreter
         {
             Expression conditionExpression;
             internal Statement statementOfIf;
-            internal Lazy<List<(Expression condition, Statement statement)>> elseIfStatements = new Lazy<List<(Expression, Statement)>>(() => new List<(Expression, Statement)>());
+            internal List<(Expression condition, Statement statement)> elseIfStatements = new();
             Statement? elseStatement;
 
-            public IfStatement(ArraySegment<string> tokens)
+            public IfStatement(Expression conditionExpression, Statement statementOfIf)
             {
-                if (tokens[1] != "(")
-                    throw new Exception();
-                var conditionStartIndex = 2;
-                var (expression, statement) = StatementMethods.GetConditionAndBody(tokens, conditionStartIndex);
-                this.conditionExpression = expression;
-                this.statementOfIf = statement;
+                this.conditionExpression = conditionExpression;
+                this.statementOfIf = statementOfIf;
             }
 
             public StatementType Type => StatementType.IfStatement;
@@ -4169,7 +4084,7 @@ namespace CasualConsoleCore.Interpreter
                 if (elseStatement != null)
                     throw new Exception();
                 var elseIf = (ElseIfStatement)statementAfterIf;
-                elseIfStatements.Value.Add((elseIf.condition, elseIf.statement));
+                elseIfStatements.Add((elseIf.condition, elseIf.statement));
             }
 
             internal void SetElse(Statement statementAfterIf)
@@ -4190,7 +4105,7 @@ namespace CasualConsoleCore.Interpreter
                     return (CustomValue.Null, false, isBreak, isContinue);
                 }
 
-                foreach (var elseIfStatement in elseIfStatements.Value)
+                foreach (var elseIfStatement in elseIfStatements)
                 {
                     var elseIfCondition = elseIfStatement.condition.EvaluateExpression(context);
                     if (elseIfCondition.IsTruthy())
@@ -4219,7 +4134,7 @@ namespace CasualConsoleCore.Interpreter
                 if (conditionValue.IsTruthy())
                     return statementOfIf.AsEnumerable(context);
 
-                foreach (var elseIfStatement in elseIfStatements.Value)
+                foreach (var elseIfStatement in elseIfStatements)
                 {
                     var elseIfCondition = elseIfStatement.condition.EvaluateExpression(context);
                     if (elseIfCondition.IsTruthy())
@@ -4259,36 +4174,15 @@ namespace CasualConsoleCore.Interpreter
                 return statement.AsEnumerable(context);
             }
         }
-        class ElseStatement : Statement
-        {
-            Statement statement;
-
-            public ElseStatement(ArraySegment<string> tokens)
-            {
-                statement = StatementMethods.New(tokens[1..]);
-            }
-
-            public StatementType Type => StatementType.ElseStatement;
-
-            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
-            {
-                return statement.EvaluateStatement(context);
-            }
-
-            public IEnumerable<CustomValue> AsEnumerable(Context context)
-            {
-                return statement.AsEnumerable(context);
-            }
-        }
         class FunctionStatement : Statement, Expression
         {
-            List<(string paramName, bool isRest)> parametersList;
+            IReadOnlyList<(string paramName, bool isRest)> parametersList;
             Statement body;
             bool isLambda;
             bool isAsync;
             bool isGenerator;
 
-            private FunctionStatement(List<(string paramName, bool isRest)> parametersList, Statement body, bool isLambda, bool isAsync, bool isGenerator)
+            private FunctionStatement(IReadOnlyList<(string paramName, bool isRest)> parametersList, Statement body, bool isLambda, bool isAsync, bool isGenerator)
             {
                 if (!isLambda && body is LineStatement)
                     throw new Exception();
@@ -4309,15 +4203,13 @@ namespace CasualConsoleCore.Interpreter
             {
             }
 
-            private static List<(string paramName, bool isRest)> GetParameterList(string singleParameter)
+            private static IReadOnlyList<(string paramName, bool isRest)> GetParameterList(string singleParameter)
             {
                 // Prepare parameters
-                var parametersList = new List<(string, bool)>();
-                parametersList.Add((singleParameter, false));
-                return parametersList;
+                return new (string, bool)[] { (singleParameter, false) };
             }
 
-            private static List<(string paramName, bool isRest)> GetParameterList(ArraySegment<string> parameters)
+            private static IReadOnlyList<(string paramName, bool isRest)> GetParameterList(ArraySegment<string> parameters)
             {
                 if (parameters.Count > 0 && parameters[0] == "(")
                     throw new Exception();
@@ -4430,6 +4322,30 @@ namespace CasualConsoleCore.Interpreter
                     foreach (var value in multiValue.AsMultiValue())
                         yield return value;
                 }
+            }
+        }
+
+        struct Slice<T>
+        {
+            internal T[] array;
+            internal int count;
+
+            public Slice(int initialSize)
+            {
+                this.array = new T[initialSize];
+                this.count = 0;
+            }
+
+            public void Add(T item)
+            {
+                if (count == array.Length)
+                {
+                    var newArray = new T[array.Length * 2];
+                    Array.Copy(array, 0, newArray, 0, array.Length);
+                    array = newArray;
+                }
+
+                array[count++] = item;
             }
         }
     }
