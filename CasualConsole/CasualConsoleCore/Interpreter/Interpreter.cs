@@ -11,6 +11,7 @@ namespace CasualConsoleCore.Interpreter
     public class Interpreter
     {
         private static readonly HashSet<char> onlyChars = new HashSet<char>() { '(', ')', ',', ';', '{', '}', '[', ']' };
+        private static readonly string[] onlyCharStrings;
         private static readonly HashSet<string> operators = new HashSet<string>() { "+", "-", "*", "/", "%", "=", "?", ":", "<", ">", "<=", ">=", "&&", "||", "??", "!", "!=", ".", "==", "+=", "-=", "*=", "/=", "%=", "=>", "++", "--", "...", "?.", "?.[", "?.(" };
         private static readonly HashSet<string> assignmentSet = new HashSet<string>() { "=", "+=", "-=", "*=", "/=", "%=" };
         private static readonly HashSet<string> regularOperatorSet = new HashSet<string>() { "+", "-", "*", "/", "%", "==", "!=", "<", ">", "<=", ">=", "&&", "||", "??" };
@@ -29,6 +30,13 @@ namespace CasualConsoleCore.Interpreter
             nullExpression = new CustomValueExpression(CustomValue.Null);
 
             operatorsCompiled = operators.GroupBy(x => x[0]).ToDictionary(x => x.Key, x => x.Where(y => y.Length > 1).GroupBy(y => y[1]).ToDictionary(y => y.Key, y => y.Where(z => z.Length > 2).Select(z => z[2]).ToHashSet()));
+
+            // Setup onlyCharStrings
+            onlyCharStrings = new string[128];
+            foreach (var c in onlyChars)
+            {
+                onlyCharStrings[c] = c.ToString();
+            }
         }
 
         private Context defaultContext;
@@ -91,14 +99,14 @@ namespace CasualConsoleCore.Interpreter
 
         public object InterpretCode(string code)
         {
-            var tokens = GetTokens(code).ToArraySegment(16);
+            var tokens = GetTokens(code, 16);
 
             CustomValue value = CustomValue.Null;
             bool isReturn;
             bool isBreak;
             bool isContinue;
 
-            var statements = GetStatements(tokens);
+            var statements = GetStatements(tokens.ToSegment());
 
             for (int i = 0; i < statements.count; i++)
             {
@@ -1271,8 +1279,9 @@ namespace CasualConsoleCore.Interpreter
             return false;
         }
 
-        private static IEnumerable<string> GetTokens(string content)
+        private static Slice<string> GetTokens(string content, int initialSliceSize)
         {
+            var tokens = new Slice<string>(initialSliceSize);
             int i = 0;
             for (; i < content.Length;)
             {
@@ -1284,8 +1293,7 @@ namespace CasualConsoleCore.Interpreter
                     while (i < content.Length && (char.IsLetterOrDigit(content[i]) || '_' == content[i]))
                         i++;
 
-                    string token = content.Substring(start, i - start);
-                    yield return token;
+                    tokens.Add(content[start..i]);
                 }
                 else if (char.IsDigit(c))
                 {
@@ -1294,8 +1302,7 @@ namespace CasualConsoleCore.Interpreter
                     while (i < content.Length && (char.IsDigit(content[i]) || content[i] == '.'))
                         i++;
 
-                    string token = content.Substring(start, i - start);
-                    yield return token;
+                    tokens.Add(content[start..i]);
                 }
                 else if (c == '/' && i + 1 < content.Length && (content[i + 1] == '/' || content[i + 1] == '*'))
                 {
@@ -1335,18 +1342,18 @@ namespace CasualConsoleCore.Interpreter
                         if (i < content.Length && level2Set.Contains(content[i]))
                         {
                             i++;
-                            yield return content.Substring(start, i - start);
+                            tokens.Add(content[start..i]);
                         }
                         else
-                            yield return content.Substring(start, i - start);
+                            tokens.Add(content[start..i]);
                     }
                     else
-                        yield return content.Substring(start, i - start);
+                        tokens.Add(content[start..i]);
                 }
                 else if (onlyChars.Contains(c))
                 {
                     i++;
-                    yield return c.ToString();
+                    tokens.Add(onlyCharStrings[c]);
                 }
                 else if (c == '"' || c == '\'' || c == '`')
                 {
@@ -1364,8 +1371,7 @@ namespace CasualConsoleCore.Interpreter
                         else
                             i++;
                     }
-                    string token = content.Substring(start, i - start);
-                    yield return token;
+                    tokens.Add(content[start..i]);
                 }
                 else if (char.IsWhiteSpace(c))
                 {
@@ -1378,6 +1384,7 @@ namespace CasualConsoleCore.Interpreter
                     throw new Exception();
                 }
             }
+            return tokens;
         }
 
         interface FunctionObject : Statement
@@ -3102,9 +3109,8 @@ namespace CasualConsoleCore.Interpreter
                         var end = token.IndexOfBracesEnd(i + 2);
                         if (end < 0)
                             throw new Exception();
-                        var substring = token[(i + 2)..end];
-                        var subtokens = GetTokens(substring).ToArraySegment(8);
-                        var subExpression = ExpressionMethods.New(subtokens);
+                        var subtokens = GetTokens(token[(i + 2)..end], 8);
+                        var subExpression = ExpressionMethods.New(subtokens.ToSegment());
                         parts.Add(subExpression);
                         i = end + 1;
                         continue;
@@ -4346,6 +4352,11 @@ namespace CasualConsoleCore.Interpreter
                 }
 
                 array[count++] = item;
+            }
+
+            public ArraySegment<T> ToSegment()
+            {
+                return ((ArraySegment<T>)array)[..count];
             }
         }
     }
