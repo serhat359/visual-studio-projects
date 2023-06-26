@@ -606,6 +606,9 @@ namespace CasualConsoleCore.Interpreter
                 ("var o = { name:'Serhat', get gname(){ return this.name; } }; o.gname", "Serhat"),
                 ("var x = 2; var o = { set val(value){ x = value; } }; o.val = 10; x", 10),
                 ("var x = 2; var o = { set val(value){ x = value; }, get val(){ return x; } }; x = 25; o.val", 25),
+                ("(function(x,){return x})(12,)", 12),
+                ("var { name, } = { name: 'Serhat', }; name", "Serhat"),
+                ("var [x,] = [12,]; x", 12),
             };
 
             var interpreter = new Interpreter();
@@ -690,6 +693,15 @@ namespace CasualConsoleCore.Interpreter
                 "var o = { val: 2, set val(x){} }",
                 "var o = { get val(){}, get val(){} }",
                 "var o = { set val(){}, set val(){} }",
+                "(function(,){})",
+                "(function(12,,){})",
+                "(function(){})(,)",
+                "(function(){})(12,,)",
+                "({ , })",
+                "({ age:2 ,, })",
+                "[,]",
+                "[12,,]",
+                "var {x,,} = { age:2 }",
             };
             var interpreter = new Interpreter();
             foreach (var code in testCases)
@@ -857,7 +869,7 @@ namespace CasualConsoleCore.Interpreter
             }
         }
 
-        private static IEnumerable<ArraySegment<string>> SplitBy(ArraySegment<string> tokens, string separator)
+        private static IEnumerable<ArraySegment<string>> SplitBy(ArraySegment<string> tokens, string separator, bool allowTrailing)
         {
             if (tokens.Count == 0)
                 yield break;
@@ -883,7 +895,10 @@ namespace CasualConsoleCore.Interpreter
                     index = i + 1;
                 }
             }
-            yield return tokens[index..];
+            if (!allowTrailing || index < tokens.Count)
+            {
+                yield return tokens[index..];
+            }
         }
 
         private static CustomValue CallFunction(FunctionObject function, List<CustomValue> arguments, CustomValue thisOwner)
@@ -2364,7 +2379,7 @@ namespace CasualConsoleCore.Interpreter
 
                         AddToLastNode(ref previousExpression, Precedence.FunctionCall, (expression, p) =>
                         {
-                            var paramsSplit = SplitBy(parameters, ",");
+                            var paramsSplit = SplitBy(parameters, ",", allowTrailing: true);
                             var expressionList = new List<(bool hasThreeDot, Expression expression)>();
                             foreach (var item in paramsSplit)
                             {
@@ -2964,7 +2979,7 @@ namespace CasualConsoleCore.Interpreter
             public MapExpression(ArraySegment<string> tokens)
             {
                 tokens = tokens[1..^1];
-                var res = SplitBy(tokens, ",");
+                var res = SplitBy(tokens, ",", allowTrailing: true);
                 this.fieldExpressions = new List<(string fieldName, Expression expression, bool hasThreeDot, bool isGetProp, bool isSetProp)>();
                 foreach (var item in res)
                 {
@@ -3089,7 +3104,7 @@ namespace CasualConsoleCore.Interpreter
             public ArrayExpression(ArraySegment<string> tokens)
             {
                 tokens = tokens[1..^1];
-                var res = SplitBy(tokens, ",");
+                var res = SplitBy(tokens, ",", allowTrailing: true);
                 expressionList = new List<(bool, Expression)>();
                 foreach (var item in res)
                 {
@@ -3452,7 +3467,7 @@ namespace CasualConsoleCore.Interpreter
 
             public static MapAssignmentExpression FromBody(ArraySegment<string> tokens, int braceEndIndex, AssignmentType assignmentType)
             {
-                var variableGroups = SplitBy(tokens[1..braceEndIndex], ",");
+                var variableGroups = SplitBy(tokens[1..braceEndIndex], ",", allowTrailing: true);
                 var variableNames = variableGroups.Select(x =>
                 {
                     if (x.Count == 1)
@@ -3498,7 +3513,7 @@ namespace CasualConsoleCore.Interpreter
 
             public static ArrayAssignmentExpression FromBody(ArraySegment<string> tokens, int bracketsEndIndex, AssignmentType assignmentType)
             {
-                var variableGroups = SplitBy(tokens[1..bracketsEndIndex], ",");
+                var variableGroups = SplitBy(tokens[1..bracketsEndIndex], ",", allowTrailing: true);
                 var variableNames = variableGroups.Select(x =>
                 {
                     if (x.Count != 1)
@@ -3987,7 +4002,7 @@ namespace CasualConsoleCore.Interpreter
                 if (nonBodyTokens[1] != "(")
                     throw new Exception();
                 var expressionTokens = nonBodyTokens[2..^1];
-                var expressions = SplitBy(expressionTokens, ";").ToList();
+                var expressions = SplitBy(expressionTokens, ";", allowTrailing: false).ToList();
                 if (expressions.Count == 3)
                 {
                     // Normal for loop
@@ -3998,14 +4013,14 @@ namespace CasualConsoleCore.Interpreter
                     AssignmentType assignmentType = AssignmentType.None;
                     var isNewAssignment = allInitializationTokens.Count > 0 && IsAssignmentType(allInitializationTokens[0], out assignmentType);
                     var assignmentTokens = isNewAssignment ? allInitializationTokens[1..] : allInitializationTokens;
-                    var initializationTokenGroup = SplitBy(assignmentTokens, ",").ToList();
+                    var initializationTokenGroup = SplitBy(assignmentTokens, ",", allowTrailing: false).ToList();
                     var initializationStatements = initializationTokenGroup.SelectFast(x => AssignmentExpression.FromVarStatement(x, assignmentType));
 
                     var conditionTokens = expressions[1];
                     var conditionExpression = conditionTokens.Count > 0 ? ExpressionMethods.New(conditionTokens) : trueExpression;
 
                     var allIterationTokens = expressions[2];
-                    var iterationTokenGroup = SplitBy(allIterationTokens, ",").ToList();
+                    var iterationTokenGroup = SplitBy(allIterationTokens, ",", allowTrailing: false).ToList();
                     var iterationStatements = iterationTokenGroup.SelectFast(StatementMethods.New);
 
                     return new ForStatement(assignmentType, initializationStatements, conditionExpression, iterationStatements, bodyStatement);
@@ -4354,7 +4369,7 @@ namespace CasualConsoleCore.Interpreter
                 // Prepare parameters
                 var parametersList = new List<(string, bool)>();
 
-                var parameterGroups = SplitBy(parameters, ",").ToList();
+                var parameterGroups = SplitBy(parameters, ",", allowTrailing: true).ToList();
                 for (int parameterIndex = 0; parameterIndex < parameterGroups.Count; parameterIndex++)
                 {
                     var parameterGroup = parameterGroups[parameterIndex];
