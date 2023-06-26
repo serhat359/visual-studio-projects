@@ -49,14 +49,14 @@ namespace CasualConsoleCore.Interpreter
             defaultContext = new Context(defaultVariableScope, defaultThisOwner);
 
             CustomValue printFunctionCustomValue = CustomValue.FromFunction(new PrintFunction());
-            defaultvariables["console"] = (CustomValue.FromMap(new Dictionary<string, CustomValue>()
+            defaultvariables["console"] = (CustomValue.FromMap(new Dictionary<string, ValueOrGetterSetter>()
             {
                 { "log", printFunctionCustomValue },
             }), AssignmentType.Const);
             defaultvariables["print"] = (printFunctionCustomValue, AssignmentType.Const);
 
-            defaultvariables["Array"] = (CustomValue.FromMap(new Dictionary<string, CustomValue> {
-                { "prototype", CustomValue.FromMap(new Dictionary<string, CustomValue>()
+            defaultvariables["Array"] = (CustomValue.FromMap(new Dictionary<string, ValueOrGetterSetter> {
+                { "prototype", CustomValue.FromMap(new Dictionary<string, ValueOrGetterSetter>()
                     {
                         { "push", CustomValue.FromFunction(new ArrayPushFunction()) },
                         { "pop", CustomValue.FromFunction(new ArrayPopFunction()) },
@@ -64,32 +64,32 @@ namespace CasualConsoleCore.Interpreter
                 },
             }), AssignmentType.Const);
 
-            defaultvariables["Function"] = (CustomValue.FromMap(new Dictionary<string, CustomValue> {
-                { "prototype", CustomValue.FromMap(new Dictionary<string, CustomValue>()
+            defaultvariables["Function"] = (CustomValue.FromMap(new Dictionary<string, ValueOrGetterSetter> {
+                { "prototype", CustomValue.FromMap(new Dictionary<string, ValueOrGetterSetter>()
                     {
                         { "call", CustomValue.FromFunction(new FunctionCallFunction()) },
                     })
                 },
             }), AssignmentType.Const);
 
-            defaultvariables["String"] = (CustomValue.FromMap(new Dictionary<string, CustomValue> {
-                { "prototype", CustomValue.FromMap(new Dictionary<string, CustomValue>()
+            defaultvariables["String"] = (CustomValue.FromMap(new Dictionary<string, ValueOrGetterSetter> {
+                { "prototype", CustomValue.FromMap(new Dictionary<string, ValueOrGetterSetter>()
                     {
                         { "charAt", CustomValue.FromFunction(new CharAtFunction()) },
                     })
                 },
             }), AssignmentType.Const);
 
-            defaultvariables["Generator"] = (CustomValue.FromMap(new Dictionary<string, CustomValue> {
-                { "prototype", CustomValue.FromMap(new Dictionary<string, CustomValue>()
+            defaultvariables["Generator"] = (CustomValue.FromMap(new Dictionary<string, ValueOrGetterSetter> {
+                { "prototype", CustomValue.FromMap(new Dictionary<string, ValueOrGetterSetter>()
                     {
                         { "next", CustomValue.FromFunction(new GeneratorNextFunction()) },
                     })
                 },
             }), AssignmentType.Const);
 
-            defaultvariables["AsyncGenerator"] = (CustomValue.FromMap(new Dictionary<string, CustomValue> {
-                { "prototype", CustomValue.FromMap(new Dictionary<string, CustomValue>()
+            defaultvariables["AsyncGenerator"] = (CustomValue.FromMap(new Dictionary<string, ValueOrGetterSetter> {
+                { "prototype", CustomValue.FromMap(new Dictionary<string, ValueOrGetterSetter>()
                     {
                         { "next", CustomValue.FromFunction(new AsyncGeneratorNextFunction()) },
                     })
@@ -602,6 +602,10 @@ namespace CasualConsoleCore.Interpreter
                 ("`\\u0041\\u0041\\u0041`", "AAA"),
                 ("\"\\u003C/script\\u003E\"", "</script>"),
                 ("\"\\uD83D\\uDC4C\"", "👌"),
+                ("var o = { get val(){ return 2; } }; o.val", 2),
+                ("var o = { name:'Serhat', get gname(){ return this.name; } }; o.gname", "Serhat"),
+                ("var x = 2; var o = { set val(value){ x = value; } }; o.val = 10; x", 10),
+                ("var x = 2; var o = { set val(value){ x = value; }, get val(){ return x; } }; x = 25; o.val", 25),
             };
 
             var interpreter = new Interpreter();
@@ -682,6 +686,10 @@ namespace CasualConsoleCore.Interpreter
                 "if(false) {} else {} else {}",
                 "if(false) {} else {} else if(true) {}",
                 "var a = null; a.name?.length",
+                "var o = { val: 2, get val(){} }",
+                "var o = { val: 2, set val(x){} }",
+                "var o = { get val(){}, get val(){} }",
+                "var o = { set val(){}, set val(){} }",
             };
             var interpreter = new Interpreter();
             foreach (var code in testCases)
@@ -1055,19 +1063,30 @@ namespace CasualConsoleCore.Interpreter
                 var prototype = GetPrototype(baseExpressionValue.type, context);
                 if (prototype.type != ValueType.Null)
                 {
-                    var prototypeMap = (Dictionary<string, CustomValue>)prototype.value;
+                    var prototypeMap = prototype.GetAsMap();
                     if (prototypeMap.TryGetValue((string)keyExpressionValue.value, out var value))
                     {
-                        return value;
+                        return (CustomValue)value;
                     }
                 }
             }
 
             if (baseExpressionValue.type == ValueType.Map && keyExpressionValue.type == ValueType.String)
             {
-                var map = (Dictionary<string, CustomValue>)baseExpressionValue.value;
+                var map = baseExpressionValue.GetAsMap();
                 if (map.TryGetValue((string)keyExpressionValue.value, out var value))
-                    return value;
+                {
+                    if (value is CustomValue customValue)
+                    {
+                        return customValue;
+                    }
+                    else
+                    {
+                        var getterSetter = (GetterSetter)value;
+                        var getter = getterSetter.getter ?? throw new Exception("no getter property was found");
+                        return CallFunction(getter, new List<CustomValue>(), baseExpressionValue);
+                    }
+                }
                 else
                     return CustomValue.Null;
             }
@@ -1110,27 +1129,27 @@ namespace CasualConsoleCore.Interpreter
                 case ValueType.Array:
                     {
                         var v = context.variableScope.GetVariable("Array");
-                        return ((Dictionary<string, CustomValue>)v.value).TryGetValue("prototype", out var value) ? value : CustomValue.Null;
+                        return v.GetAsMap().TryGetValue("prototype", out var value) ? (CustomValue)value : CustomValue.Null;
                     }
                 case ValueType.Function:
                     {
                         var v = context.variableScope.GetVariable("Function");
-                        return ((Dictionary<string, CustomValue>)v.value).TryGetValue("prototype", out var value) ? value : CustomValue.Null;
+                        return v.GetAsMap().TryGetValue("prototype", out var value) ? (CustomValue)value : CustomValue.Null;
                     }
                 case ValueType.String:
                     {
                         var v = context.variableScope.GetVariable("String");
-                        return ((Dictionary<string, CustomValue>)v.value).TryGetValue("prototype", out var value) ? value : CustomValue.Null;
+                        return v.GetAsMap().TryGetValue("prototype", out var value) ? (CustomValue)value : CustomValue.Null;
                     }
                 case ValueType.Generator:
                     {
                         var v = context.variableScope.GetVariable("Generator");
-                        return ((Dictionary<string, CustomValue>)v.value).TryGetValue("prototype", out var value) ? value : CustomValue.Null;
+                        return v.GetAsMap().TryGetValue("prototype", out var value) ? (CustomValue)value : CustomValue.Null;
                     }
                 case ValueType.AsyncGenerator:
                     {
                         var v = context.variableScope.GetVariable("AsyncGenerator");
-                        return ((Dictionary<string, CustomValue>)v.value).TryGetValue("prototype", out var value) ? value : CustomValue.Null;
+                        return v.GetAsMap().TryGetValue("prototype", out var value) ? (CustomValue)value : CustomValue.Null;
                     }
                 default:
                     return CustomValue.Null;
@@ -1141,9 +1160,24 @@ namespace CasualConsoleCore.Interpreter
         {
             if (baseExpressionValue.type == ValueType.Map && keyExpressionValue.type == ValueType.String)
             {
-                var map = (Dictionary<string, CustomValue>)baseExpressionValue.value;
+                var map = baseExpressionValue.GetAsMap();
                 var key = (string)keyExpressionValue.value;
-                map[key] = value;
+                if (map.TryGetValue(key, out var previousValue))
+                {
+                    if (previousValue is GetterSetter getterSetter)
+                    {
+                        var setter = getterSetter.setter ?? throw new Exception("no setter property was found");
+                        CallFunction(setter, new List<CustomValue> { value }, baseExpressionValue);
+                    }
+                    else
+                    {
+                        map[key] = value;
+                    }
+                }
+                else
+                {
+                    map[key] = value;
+                }
                 return value;
             }
             else if (baseExpressionValue.type == ValueType.Array)
@@ -1181,12 +1215,12 @@ namespace CasualConsoleCore.Interpreter
             throw new Exception();
         }
 
-        private static CustomValue ApplyLValueOperation(Expression lValue, Func<CustomValue, CustomValue> operation, Context context, out CustomValue oldValue)
+        private static CustomValue ApplyLValueOperation(Expression lValue, Func<CustomValue?, CustomValue> operation, bool needOldValue, Context context, out CustomValue? oldValue)
         {
             if (lValue is SingleTokenVariableExpression singleExpression)
             {
                 var variableName = singleExpression.token;
-                oldValue = context.variableScope.GetVariable(variableName);
+                oldValue = needOldValue ? context.variableScope.GetVariable(variableName) : null;
                 var newValue = operation(oldValue);
                 context.variableScope.SetVariable(variableName, newValue);
                 return newValue;
@@ -1200,7 +1234,7 @@ namespace CasualConsoleCore.Interpreter
                     var keyExpressionValue = ((Expression)expressions).EvaluateExpression(context);
 
                     var isThis = IsThisExpression(op18.GetSecondLastExpression());
-                    oldValue = DoIndexingGet(baseExpressionValue, keyExpressionValue, context, isThis);
+                    oldValue = needOldValue ? DoIndexingGet(baseExpressionValue, keyExpressionValue, context, isThis) : null;
                     var newValue = operation(oldValue);
                     return DoIndexingSet(newValue, baseExpressionValue, keyExpressionValue, context, isThis);
                 }
@@ -1705,7 +1739,7 @@ namespace CasualConsoleCore.Interpreter
                 bool success = this.enumerator.MoveNext();
                 if (success)
                 {
-                    var map = new Dictionary<string, CustomValue>
+                    var map = new Dictionary<string, ValueOrGetterSetter>
                     {
                         ["value"] = this.enumerator.Current,
                         ["done"] = CustomValue.False
@@ -1764,7 +1798,7 @@ namespace CasualConsoleCore.Interpreter
                     var (success, value) = await task;
                     if (success)
                     {
-                        var map = new Dictionary<string, CustomValue>
+                        var map = new Dictionary<string, ValueOrGetterSetter>
                         {
                             ["value"] = value,
                             ["done"] = CustomValue.False
@@ -1790,7 +1824,11 @@ namespace CasualConsoleCore.Interpreter
             }
         }
 
-        private struct CustomValue
+        interface ValueOrGetterSetter
+        {
+
+        }
+        private struct CustomValue : ValueOrGetterSetter
         {
             public object value;
             public ValueType type;
@@ -1798,7 +1836,7 @@ namespace CasualConsoleCore.Interpreter
             public static readonly CustomValue Null = new CustomValue(null!, ValueType.Null);
             public static readonly CustomValue True = new CustomValue(true, ValueType.Bool);
             public static readonly CustomValue False = new CustomValue(false, ValueType.Bool);
-            public static readonly CustomValue GeneratorDone = CustomValue.FromMap(new Dictionary<string, CustomValue>
+            public static readonly CustomValue GeneratorDone = CustomValue.FromMap(new Dictionary<string, ValueOrGetterSetter>
             {
                 ["value"] = CustomValue.Null,
                 ["done"] = CustomValue.True,
@@ -1836,7 +1874,7 @@ namespace CasualConsoleCore.Interpreter
                 return new CustomValue(func, ValueType.Function);
             }
 
-            internal static CustomValue FromMap(Dictionary<string, CustomValue> map)
+            internal static CustomValue FromMap(Dictionary<string, ValueOrGetterSetter> map)
             {
                 return new CustomValue(map, ValueType.Map);
             }
@@ -1888,6 +1926,11 @@ namespace CasualConsoleCore.Interpreter
                     throw new Exception();
             }
 
+            internal Dictionary<string, ValueOrGetterSetter> GetAsMap()
+            {
+                return (Dictionary<string, ValueOrGetterSetter>)value;
+            }
+
             public override string ToString()
             {
                 if (value is null)
@@ -1916,6 +1959,17 @@ namespace CasualConsoleCore.Interpreter
                         throw new Exception();
                     }
                 }
+            }
+        }
+        private struct GetterSetter : ValueOrGetterSetter
+        {
+            internal readonly FunctionObject? getter;
+            internal readonly FunctionObject? setter;
+
+            public GetterSetter(FunctionObject? getter, FunctionObject? setter)
+            {
+                this.getter = getter;
+                this.setter = setter;
             }
         }
 
@@ -2905,13 +2959,13 @@ namespace CasualConsoleCore.Interpreter
         }
         class MapExpression : Expression
         {
-            List<(string fieldName, Expression expression, bool hasThreeDot)> fieldExpressions;
+            List<(string fieldName, Expression expression, bool hasThreeDot, bool isGetProp, bool isSetProp)> fieldExpressions;
 
             public MapExpression(ArraySegment<string> tokens)
             {
                 tokens = tokens[1..^1];
                 var res = SplitBy(tokens, ",");
-                this.fieldExpressions = new List<(string fieldName, Expression expression, bool hasThreeDot)>();
+                this.fieldExpressions = new List<(string fieldName, Expression expression, bool hasThreeDot, bool isGetProp, bool isSetProp)>();
                 foreach (var item in res)
                 {
                     var firstToken = item[0];
@@ -2919,6 +2973,8 @@ namespace CasualConsoleCore.Interpreter
 
                     Expression expression;
                     bool hasThreeDot = false;
+                    bool isGetProp = false;
+                    bool isSetProp = false;
                     if (item.Count == 1)
                         expression = ExpressionMethods.New(item);
                     else if (item[1] == ":")
@@ -2945,28 +3001,82 @@ namespace CasualConsoleCore.Interpreter
                         expression = FunctionStatement.FromTokens(item, isLambda: false, isAsync: true, isGenerator: true);
                         fieldName = item[2];
                     }
+                    else if (item[0] == "get" && item[2] == "(")
+                    {
+                        expression = FunctionStatement.FromTokens(item, isLambda: false, isAsync: false, isGenerator: false);
+                        fieldName = item[1];
+                        isGetProp = true;
+                    }
+                    else if (item[0] == "set" && item[2] == "(")
+                    {
+                        expression = FunctionStatement.FromTokens(item, isLambda: false, isAsync: false, isGenerator: false);
+                        fieldName = item[1];
+                        isSetProp = true;
+                    }
                     else
                         throw new Exception();
 
-                    this.fieldExpressions.Add((fieldName, expression, hasThreeDot));
+                    this.fieldExpressions.Add((fieldName, expression, hasThreeDot, isGetProp, isSetProp));
                 }
             }
 
             public CustomValue EvaluateExpression(Context context)
             {
-                var map = new Dictionary<string, CustomValue>();
-                foreach (var (fieldName, expression, hasThreeDot) in fieldExpressions)
+                var map = new Dictionary<string, ValueOrGetterSetter>();
+                foreach (var (fieldName, expression, hasThreeDot, isGetProp, isSetProp) in fieldExpressions)
                 {
                     var fieldValue = expression.EvaluateExpression(context);
-                    if (!hasThreeDot)
-                        map[fieldName] = fieldValue;
-                    else
+                    if (hasThreeDot)
                     {
-                        if (fieldValue.type != ValueType.Map)
-                            throw new Exception();
-                        var valueMap = (Dictionary<string, CustomValue>)fieldValue.value;
+                        var valueMap = fieldValue.GetAsMap();
                         foreach (var pair in valueMap)
                             map[pair.Key] = pair.Value;
+                    }
+                    else if (isGetProp)
+                    {
+                        var f = (FunctionObject)fieldValue.value;
+                        if (map.TryGetValue(fieldName, out var oldVal))
+                        {
+                            if (oldVal is GetterSetter getterSetter)
+                            {
+                                if (getterSetter.getter != null)
+                                    throw new Exception("getter was already defined");
+                                map[fieldName] = new GetterSetter(getter: f, setter: getterSetter.setter);
+                            }
+                            else
+                            {
+                                throw new Exception();
+                            }
+                        }
+                        else
+                        {
+                            map[fieldName] = new GetterSetter(getter: f, setter: null);
+                        }
+                    }
+                    else if (isSetProp)
+                    {
+                        var f = (FunctionObject)fieldValue.value;
+                        if (map.TryGetValue(fieldName, out var oldVal))
+                        {
+                            if (oldVal is GetterSetter getterSetter)
+                            {
+                                if (getterSetter.setter != null)
+                                    throw new Exception("setter was already defined");
+                                map[fieldName] = new GetterSetter(getter: getterSetter.getter, setter: f);
+                            }
+                            else
+                            {
+                                throw new Exception();
+                            }
+                        }
+                        else
+                        {
+                            map[fieldName] = new GetterSetter(getter: null, setter: f);
+                        }
+                    }
+                    else
+                    {
+                        map[fieldName] = fieldValue;
                     }
                 }
                 return CustomValue.FromMap(map);
@@ -3265,11 +3375,11 @@ namespace CasualConsoleCore.Interpreter
             public CustomValue EvaluateExpression(Context context)
             {
                 CustomValue value = CustomValue.FromNumber(1);
-                Func<CustomValue, CustomValue> operation = existingValue => AddOrSubtract(existingValue, isInc ? Operator.Plus : Operator.Minus, value);
+                Func<CustomValue?, CustomValue> operation = existingValue => AddOrSubtract(existingValue.Value, isInc ? Operator.Plus : Operator.Minus, value);
 
-                var newValue = ApplyLValueOperation(expressionRest, operation, context, out var oldValue);
+                var newValue = ApplyLValueOperation(expressionRest, operation, needOldValue: true, context, out var oldValue);
 
-                return isPre ? newValue : oldValue;
+                return isPre ? newValue : oldValue.Value;
             }
         }
         class AwaitExpression : HasRestExpression
@@ -3314,13 +3424,27 @@ namespace CasualConsoleCore.Interpreter
                 CustomValue mapValue = rValue.EvaluateExpression(context);
                 if (mapValue.type != ValueType.Map)
                     throw new Exception();
-                var underlyingMap = (Dictionary<string, CustomValue>)mapValue.value;
+                var underlyingMap = mapValue.GetAsMap();
                 foreach (var (sourceName, targetName) in variableNames)
                 {
                     if (!underlyingMap.TryGetValue(sourceName, out var value))
-                        value = CustomValue.Null;
-
-                    context.variableScope.AssignVariable(assignmentType, targetName, value);
+                    {
+                        context.variableScope.AssignVariable(assignmentType, targetName, CustomValue.Null);
+                    }
+                    else
+                    {
+                        if (value is CustomValue customValue)
+                        {
+                            context.variableScope.AssignVariable(assignmentType, targetName, customValue);
+                        }
+                        else
+                        {
+                            var getterSetter = (GetterSetter)value;
+                            var getterFunction = getterSetter.getter ?? throw new Exception("getter function was not defined");
+                            var res = CallFunction(getterFunction, new List<CustomValue>(), mapValue);
+                            context.variableScope.AssignVariable(assignmentType, targetName, res);
+                        }
+                    }
                 }
 
                 return CustomValue.Null;
@@ -3451,33 +3575,40 @@ namespace CasualConsoleCore.Interpreter
                 {
                     var value = rValue.EvaluateExpression(context);
 
-                    Func<CustomValue, CustomValue> operation;
+                    Func<CustomValue?, CustomValue> operation;
+                    bool needOldValue;
 
                     switch (assignmentOperator)
                     {
                         case "=":
                             operation = existingValue => value;
+                            needOldValue = false;
                             break;
                         case "+=":
-                            operation = existingValue => AddOrSubtract(existingValue, Operator.Plus, value);
+                            operation = existingValue => AddOrSubtract(existingValue.Value, Operator.Plus, value);
+                            needOldValue = true;
                             break;
                         case "-=":
-                            operation = existingValue => AddOrSubtract(existingValue, Operator.Minus, value);
+                            operation = existingValue => AddOrSubtract(existingValue.Value, Operator.Minus, value);
+                            needOldValue = true;
                             break;
                         case "*=":
-                            operation = existingValue => MultiplyOrDivide(existingValue, Operator.Multiply, value);
+                            operation = existingValue => MultiplyOrDivide(existingValue.Value, Operator.Multiply, value);
+                            needOldValue = true;
                             break;
                         case "/=":
-                            operation = existingValue => MultiplyOrDivide(existingValue, Operator.Divide, value);
+                            operation = existingValue => MultiplyOrDivide(existingValue.Value, Operator.Divide, value);
+                            needOldValue = true;
                             break;
                         case "%=":
-                            operation = existingValue => MultiplyOrDivide(existingValue, Operator.Modulus, value);
+                            operation = existingValue => MultiplyOrDivide(existingValue.Value, Operator.Modulus, value);
+                            needOldValue = true;
                             break;
                         default:
                             throw new Exception();
                     }
 
-                    return ApplyLValueOperation(lValue, operation, context, out var _);
+                    return ApplyLValueOperation(lValue, operation, needOldValue, context, out var _);
                 }
             }
 
@@ -4042,7 +4173,7 @@ namespace CasualConsoleCore.Interpreter
                 var sourceValue = sourceExpression.EvaluateExpression(context);
                 if (isInStatement)
                 {
-                    var map = (Dictionary<string, CustomValue>)sourceValue.value;
+                    var map = sourceValue.GetAsMap();
                     var keys = map.Keys;
                     return (scope, keys.Select(CustomValue.FromParsedString));
                 }
