@@ -609,6 +609,7 @@ namespace CasualConsoleCore.Interpreter
                 ("(function(x,){return x})(12,)", 12),
                 ("var { name, } = { name: 'Serhat', }; name", "Serhat"),
                 ("var [x,] = [12,]; x", 12),
+                ("(function(a,b,...rest){ return rest.length })()", 0),
             };
 
             var interpreter = new Interpreter();
@@ -910,6 +911,8 @@ namespace CasualConsoleCore.Interpreter
                 if (isRest)
                 {
                     var restArrayCount = arguments.Count - i;
+                    if (restArrayCount < 0)
+                        restArrayCount = 0;
                     var restArray = new List<CustomValue>(restArrayCount);
                     for (int j = 0; j < restArrayCount; j++)
                     {
