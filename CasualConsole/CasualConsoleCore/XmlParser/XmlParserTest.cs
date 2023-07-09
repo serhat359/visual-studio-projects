@@ -1,5 +1,4 @@
 ﻿using System.Xml;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace CasualConsoleCore.XmlParser
 {
@@ -7,9 +6,12 @@ namespace CasualConsoleCore.XmlParser
     {
         public static void Test()
         {
+            EmptyTest();
             SimplestTest();
             RecursiveTest();
             InnerTextNormalizeTest();
+            InnerTextNormalizeTestInt();
+            InnerTextNormalizeTestHexInt();
             BasicAttributeTest();
             CustomAttributeTest();
             AttributeNormalizeTest();
@@ -23,6 +25,14 @@ namespace CasualConsoleCore.XmlParser
             HandleComments();
             MultiRootTest();
             UnclosedTagHtmlTag();
+        }
+
+        private static void EmptyTest()
+        {
+            var text = "";
+
+            var mydoc = XmlParser.Parse(text);
+            if (mydoc.ChildNodes.Count != 0) throw new System.Exception();
         }
 
         private static void SimplestTest()
@@ -75,6 +85,36 @@ namespace CasualConsoleCore.XmlParser
 
             if (doc.ChildNodes[0].InnerText != "R&D") throw new System.Exception();
             if (mydoc.ChildNodes[0].InnerText != "R&D") throw new System.Exception();
+        }
+
+        private static void InnerTextNormalizeTestInt()
+        {
+            var text = @"
+<nodes>I&#39;m gone</nodes>
+";
+
+            XmlDocument doc = new XmlDocument();
+            doc.LoadXml(text);
+
+            var mydoc = XmlParser.Parse(text);
+
+            if (doc.ChildNodes[0].InnerText != "I'm gone") throw new System.Exception();
+            if (mydoc.ChildNodes[0].InnerText != "I'm gone") throw new System.Exception();
+        }
+
+        private static void InnerTextNormalizeTestHexInt()
+        {
+            var text = @"
+<nodes>I&#x27;m gone</nodes>
+";
+
+            XmlDocument doc = new XmlDocument();
+            doc.LoadXml(text);
+
+            var mydoc = XmlParser.Parse(text);
+
+            if (doc.ChildNodes[0].InnerText != "I'm gone") throw new System.Exception();
+            if (mydoc.ChildNodes[0].InnerText != "I'm gone") throw new System.Exception();
         }
 
         private static void BasicAttributeTest()

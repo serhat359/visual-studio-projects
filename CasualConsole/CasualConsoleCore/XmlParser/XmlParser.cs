@@ -12,24 +12,38 @@ public class XmlParser
 {
     private static readonly IReadOnlySet<string> unclosedTags = new HashSet<string> { "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr", };
 
+    public static XmlRoot ParseHtml(string xml)
+    {
+        return Parse(xml, isHtml: true);
+    }
+
     public static XmlRoot Parse(string xml, bool isHtml = false)
     {
-        ArraySegment<(string, int)> parts = GetParts(xml).ToArray();
+        var partsEnumerable = GetParts(xml);
+        if (isHtml)
+        {
+            if (partsEnumerable.FirstOrDefault().token.StartsWith("<!"))
+                partsEnumerable = partsEnumerable.Skip(1);
+        }
+        ArraySegment<(string, int)> parts = partsEnumerable.ToArray();
 
         var topDocument = new XmlRoot();
 
-        int index = 0;
-        while (true)
+        if (parts.Count > 0)
         {
-            var (node, endIndex) = ReadNode(parts[index..], isHtml);
-            topDocument.ChildNodes.Add(node);
+            int index = 0;
+            while (true)
+            {
+                var (node, endIndex) = ReadNode(parts[index..], isHtml);
+                topDocument.ChildNodes.Add(node);
 
-            if (endIndex < 0)
-                throw new Exception();
-            if (endIndex + index == parts.Count)
-                break;
+                if (endIndex < 0)
+                    throw new Exception();
+                if (endIndex + index == parts.Count)
+                    break;
 
-            index += endIndex;
+                index += endIndex;
+            }
         }
 
         return topDocument;
@@ -233,7 +247,9 @@ public class XmlParser
         }
     }
 
-    private static readonly Regex htmlEncodedRegex = new Regex(@"&[0-9a-zA-Z]{3,7};", RegexOptions.Compiled);
+    private static readonly Regex htmlEncodedRegex = new Regex(@"&[0-9a-zA-Z]+;", RegexOptions.Compiled);
+    private static readonly Regex htmlEncodedRegexInt = new Regex(@"&#([0-9]+);", RegexOptions.Compiled);
+    private static readonly Regex htmlEncodedRegexHexInt = new Regex(@"&#x([0-9]+);", RegexOptions.Compiled);
     private static string NormalizeXml(string s)
     {
         if (s.Length >= 2 && s[0] == '<' && s[1] == '!')
@@ -241,11 +257,10 @@ public class XmlParser
             return s[9..^3];
         }
 
-        return htmlEncodedRegex.Replace(s, m =>
-        {
-            var unicode = HttpUtility.HtmlDecode(m.Value);
-            return unicode;
-        });
+        s = htmlEncodedRegex.Replace(s, m => HttpUtility.HtmlDecode(m.Value));
+        s = htmlEncodedRegexInt.Replace(s, m => ((char)int.Parse(m.Groups[1].Value)).ToString());
+        s = htmlEncodedRegexHexInt.Replace(s, m => ((char)Convert.ToUInt32(m.Groups[1].Value, 16)).ToString());
+        return s;
     }
 }
 
