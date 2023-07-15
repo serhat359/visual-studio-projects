@@ -281,6 +281,12 @@ public class XmlNodeBase
             }
             return stringBuilder.ToString().Trim();
         }
+        set
+        {
+            children.Clear();
+            childNodes.Clear();
+            children.Add(value);
+        }
     }
 
     public void AddXmlNode(XmlNode node)
