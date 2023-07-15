@@ -385,3 +385,26 @@ public static class XmlParserExtensions
         return s[^1] == '>' && s[^2] == '/';
     }
 }
+
+public static class XmlNodeExtensions
+{
+    public static IEnumerable<XmlNode> AllInnerNodes(this XmlRoot root)
+    {
+        foreach (var item in root.ChildNodes)
+        {
+            yield return item;
+            foreach (var node in item.AllInnerNodes())
+                yield return node;
+        }
+    }
+
+    public static IEnumerable<XmlNode> AllInnerNodes(this XmlNode xmlNode)
+    {
+        foreach (var item in xmlNode.ChildNodes)
+        {
+            yield return item;
+            foreach (var node in item.AllInnerNodes())
+                yield return node;
+        }
+    }
+}
