@@ -40,7 +40,7 @@ namespace MVCCore
             await writer.FlushAsync();
         }
 
-        private static Dictionary<(string, bool), string> dicEscapeXMLValue = new Dictionary<(string, bool), string>();
+        private static Dictionary<(string, bool), string> dicEscapeXMLValue = new();
         public static string EscapeXMLValue(string xmlString, bool xmlEncode)
         {
             if (xmlString == null)
@@ -170,7 +170,7 @@ namespace MVCCore
                 int xmlRootIndex = Append("");
                 nestCount++;
 
-                Dictionary<string, string> xmlAttributes = new Dictionary<string, string>();
+                Dictionary<string, string> xmlAttributes = new();
 
                 foreach (var property in properties)
                 {
@@ -223,7 +223,7 @@ namespace MVCCore
             }
         }
 
-        private Dictionary<Type, List<Attribute>> typeXmlAttributeDic = new Dictionary<Type, List<Attribute>>();
+        private Dictionary<Type, List<Attribute>> typeXmlAttributeDic = new();
         private List<Attribute> GetXmlAttributes(Type type)
         {
             if (!typeXmlAttributeDic.TryGetValue(type, out var res))
@@ -234,7 +234,7 @@ namespace MVCCore
             return res;
         }
 
-        private Dictionary<PropertyInfo, List<Attribute>> propXmlAttributeDic = new Dictionary<PropertyInfo, List<Attribute>>();
+        private Dictionary<PropertyInfo, List<Attribute>> propXmlAttributeDic = new();
         private List<Attribute> GetXmlAttributes(PropertyInfo propertyInfo)
         {
             if (!propXmlAttributeDic.TryGetValue(propertyInfo, out var res))
@@ -245,7 +245,7 @@ namespace MVCCore
             return res;
         }
 
-        private Dictionary<FieldInfo, List<Attribute>> fieldXmlAttributeDic = new Dictionary<FieldInfo, List<Attribute>>();
+        private Dictionary<FieldInfo, List<Attribute>> fieldXmlAttributeDic = new();
         private List<Attribute> GetXmlAttributes(FieldInfo fieldInfo)
         {
             if (!fieldXmlAttributeDic.TryGetValue(fieldInfo, out var res))
@@ -256,7 +256,7 @@ namespace MVCCore
             return res;
         }
 
-        private Dictionary<Type, PropertyInfo[]> propDic = new Dictionary<Type, PropertyInfo[]>();
+        private Dictionary<Type, PropertyInfo[]> propDic = new();
         private PropertyInfo[] GetProperties(Type t)
         {
             if (!propDic.TryGetValue(t, out var res))
@@ -267,7 +267,7 @@ namespace MVCCore
             return res;
         }
 
-        private Dictionary<Type, FieldInfo[]> fieldDic = new Dictionary<Type, FieldInfo[]>();
+        private Dictionary<Type, FieldInfo[]> fieldDic = new();
         private FieldInfo[] GetFields(Type t)
         {
             if (!fieldDic.TryGetValue(t, out var res))

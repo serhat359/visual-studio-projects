@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using MVCCore.Helpers;
 using MVCCore.Models;
-using MVCCore.Models.Home;
 using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -37,7 +36,6 @@ namespace MVCCore.Controllers
         {
             var paths = new[]
             {
-                //"/Home/FixAnimeNews",
                 "/Home/FixTomsArticlesManual",
                 "/Home/FixTomsNewsManualParse",
                 "/Home/MangainnParseXml/one-punch-man",
@@ -167,7 +165,7 @@ namespace MVCCore.Controllers
 
             var content = allContent[start..(end + endPart.Length)];
 
-            var parsed = XmlParser.Parse(content);
+            var parsed = XmlParser.ParseHtml(content);
 
             var allNodes = parsed.ChildNodes[0].GetAllNodesRecursive();
             var hrefs = allNodes.Where(x => x.TagName == "a" && (x.Attributes["class"] ?? "").StartsWith("no-underline")).ToList();
@@ -195,40 +193,6 @@ namespace MVCCore.Controllers
 
             var rssObject = new RssResult(data);
             return Xml(rssObject);
-        }
-
-        [HttpGet]
-        public async Task<ActionResult> GetAnimeNewsCookie()
-        {
-            string cookieValue = _cacheHelper.Get(CacheHelper.MALCookie, () => "", CacheHelper.MALTimeSpan);
-            string userAgentValue = _cacheHelper.Get(CacheHelper.MALUserAgent, () => "", CacheHelper.MALTimeSpan);
-
-            return View(new GetAnimeNewsCookieModel { Cookie = cookieValue, UserAgent = userAgentValue });
-        }
-
-        [HttpPost]
-        public async Task<ActionResult> GetAnimeNewsCookie(GetAnimeNewsCookieModel model)
-        {
-            _cacheHelper.Set(CacheHelper.MALCookie, model.Cookie, CacheHelper.MALTimeSpan);
-            _cacheHelper.Set(CacheHelper.MALUserAgent, model.UserAgent, CacheHelper.MALTimeSpan);
-            return View(model);
-        }
-
-        [HttpGet]
-        public async Task<IActionResult> FixAnimeNews()
-        {
-            string url = "https://www.animenewsnetwork.com/news/rss.xml?ann-edition=us";
-
-            string contents = (await GetUrlTextData(url, x =>
-            {
-                x.Headers.Add("Host", "www.animenewsnetwork.com");
-                x.Headers.Add("Cookie", _cacheHelper.Get(CacheHelper.MALCookie, () => "", CacheHelper.MALTimeSpan));
-                x.Headers.Add("User-Agent", _cacheHelper.Get(CacheHelper.MALUserAgent, () => "", CacheHelper.MALTimeSpan));
-            }))
-                .Replace("animenewsnetwork.cc", "animenewsnetwork.com")
-                .Replace("http://", "https://");
-
-            return Content(contents, "application/xml; charset=UTF-8", Encoding.UTF8);
         }
 
         [HttpGet]
@@ -623,7 +587,7 @@ namespace MVCCore.Controllers
                 var itemNodesParent = newXml.ChildNodes[0].ChildNodes[0];
                 foreach (var node in allNodes)
                 {
-                    itemNodesParent.AppendChild(node);
+                    itemNodesParent.AddXmlNode(node);
                 }
 
                 var contentResult = Content(newXml.Beautify(), "application/xml");
