@@ -1,4 +1,5 @@
-﻿using System.Xml;
+﻿using System;
+using System.Xml;
 
 namespace CasualConsoleCore.XmlParser
 {
@@ -9,6 +10,7 @@ namespace CasualConsoleCore.XmlParser
             EmptyTest();
             SimplestTest();
             RecursiveTest();
+            InnerTextTest();
             InnerTextNormalizeTest();
             InnerTextNormalizeTestInt();
             InnerTextNormalizeTestHexInt();
@@ -20,6 +22,7 @@ namespace CasualConsoleCore.XmlParser
             DataLengthTest();
             TrimTest();
             BeautifyTest();
+            BeautifyTest2();
             InnerXmlAndNodeTest();
             SingleQuoteTest();
             HandleComments();
@@ -70,6 +73,16 @@ namespace CasualConsoleCore.XmlParser
             if (doc.ChildNodes[0].ChildNodes[0].InnerText != mydoc.ChildNodes[0].ChildNodes[0].InnerText) throw new System.Exception();
             if (doc.ChildNodes[0].ChildNodes[1].InnerText != mydoc.ChildNodes[0].ChildNodes[1].InnerText) throw new System.Exception();
             if (doc.ChildNodes[0].ChildNodes[2].InnerText != mydoc.ChildNodes[0].ChildNodes[2].InnerText) throw new System.Exception();
+        }
+
+        private static void InnerTextTest()
+        {
+            var text = @"
+<nodes>This code says <code>hello world</code> and it's awesome</nodes>
+";
+
+            var mydoc = XmlParser.Parse(text);
+            if (mydoc.InnerText != "This code says hello world and it's awesome") throw new System.Exception();
         }
 
         private static void InnerTextNormalizeTest()
@@ -243,19 +256,28 @@ e
             if (textIndented != beautifiedIndented) throw new System.Exception();
         }
 
+        private static void BeautifyTest2()
+        {
+            var text = @"<main>This is the text. <a>Click</a> to see more</main>";
+
+            var mydoc = XmlParser.Parse(text);
+            var beautified = mydoc.Beautify(indentChars: "", newLineChars: "");
+
+            if (text != beautified) throw new System.Exception();
+        }
+
         private static void InnerXmlAndNodeTest()
         {
             var text = @"
 <a>
 <b>
-e
-<c>DData</c>
+e <c>DData</c>
 </b>
 </a>
 ";
             var mydoc = XmlParser.Parse(text);
             var node = mydoc.ChildNodes[0].ChildNodes[0];
-            if (!(node.InnerText == "e" && node.ChildNodes.Count == 1)) throw new System.Exception();
+            if (!(node.InnerText == "e DData" && node.ChildNodes.Count == 1)) throw new System.Exception();
         }
 
         private static void SingleQuoteTest()

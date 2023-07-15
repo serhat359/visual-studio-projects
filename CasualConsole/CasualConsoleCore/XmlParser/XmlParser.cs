@@ -12,14 +12,14 @@ public class XmlParser
 {
     private static readonly IReadOnlySet<string> unclosedTags = new HashSet<string> { "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr", };
 
-    public static XmlRoot ParseHtml(string xml)
+    public static XmlNodeBase ParseHtml(string xml)
     {
         return Parse(xml, isHtml: true);
     }
 
-    public static XmlRoot Parse(string xml, bool isHtml = false)
+    public static XmlNodeBase Parse(string xml, bool isHtml = false)
     {
-        var partsEnumerable = GetParts(xml);
+        var partsEnumerable = GetParts(xml).Where(x => !string.IsNullOrWhiteSpace(x.token));
         if (isHtml)
         {
             if (partsEnumerable.FirstOrDefault().token.StartsWith("<!"))
@@ -27,7 +27,7 @@ public class XmlParser
         }
         ArraySegment<(string, int)> parts = partsEnumerable.ToArray();
 
-        var topDocument = new XmlRoot();
+        var topDocument = new XmlNodeBase();
 
         if (parts.Count > 0)
         {
@@ -35,7 +35,7 @@ public class XmlParser
             while (true)
             {
                 var (node, endIndex) = ReadNode(parts[index..], isHtml);
-                topDocument.ChildNodes.Add(node);
+                topDocument.AddXmlNode(node);
 
                 if (endIndex < 0)
                     throw new Exception();
@@ -69,24 +69,25 @@ public class XmlParser
             return (parent, index);
         }
 
-        while (tokens[index].token.IsBeginTag())
+        while (true)
         {
-            var (node, endIndex) = ReadNode(tokens[index..], isHtml);
-            index += endIndex;
-            parent.ChildNodes.Add(node);
+            if (tokens[index].token.IsBeginTag())
+            {
+                var (node, endIndex) = ReadNode(tokens[index..], isHtml);
+                index += endIndex;
+                parent.AddXmlNode(node);
+                continue;
+            }
+            if (!tokens[index].token.IsTag())
+            {
+                var text = tokens[index];
+                parent.AddTextNode(NormalizeXml(text.token));
+                index++;
+                continue;
+            }
+            break;
         }
-        if (!tokens[index].token.IsTag())
-        {
-            var text = tokens[index];
-            parent.InnerText = NormalizeXml(text.token);
-            index++;
-        }
-        while (tokens[index].token.IsBeginTag())
-        {
-            var (node, endIndex) = ReadNode(tokens[index..], isHtml);
-            index += endIndex;
-            parent.ChildNodes.Add(node);
-        }
+
         if (tokens[index].token != "</" + tagName + ">")
         {
             throw new Exception($"Error on line: {tokens[index].lineNumber}. Expected '{"</" + tagName + ">"}' but encountered '{tokens[index].token}'");
@@ -103,10 +104,6 @@ public class XmlParser
         bool IsWhiteSpace(char c)
         {
             if (c == '\n') lineNumber++;
-            return char.IsWhiteSpace(c);
-        }
-        static bool IsWhiteSpaceNoIncrement(char c)
-        {
             return char.IsWhiteSpace(c);
         }
         static bool ContinuesWith(string s, string text, int index)
@@ -136,8 +133,7 @@ public class XmlParser
 
         while (true)
         {
-            while (i < xml.Length && IsWhiteSpace(xml[i]))
-                i++;
+            if (i < xml.Length && xml[i] == '\n') lineNumber++;
             if (i == xml.Length)
                 break;
 
@@ -189,7 +185,7 @@ public class XmlParser
             {
                 int lineNumberStart = lineNumber;
                 int start = i;
-                while (true)
+                while (i < xml.Length)
                 {
                     if (xml[i] == '\n') lineNumber++;
                     if (xml[i] == '<')
@@ -198,8 +194,6 @@ public class XmlParser
                 }
 
                 var end = i;
-                while (IsWhiteSpaceNoIncrement(xml[end - 1]))
-                    end--;
 
                 var token = xml[start..end];
                 yield return (token, lineNumberStart);
@@ -264,9 +258,41 @@ public class XmlParser
     }
 }
 
-public class XmlRoot
+public class XmlNodeBase
 {
-    public List<XmlNode> ChildNodes { get; set; } = new List<XmlNode>();
+    private readonly List<object> children = new List<object>();
+    private readonly List<XmlNode> childNodes = new List<XmlNode>();
+
+    public IReadOnlyList<object> Children => children;
+    public IReadOnlyList<XmlNode> ChildNodes => childNodes;
+    public string InnerText
+    {
+        get
+        {
+            var stringBuilder = new StringBuilder();
+            foreach (var item in Children)
+            {
+                if (item is string s)
+                    stringBuilder.Append(s);
+                else if (item is XmlNode node)
+                    stringBuilder.Append(node.InnerText);
+                else
+                    throw new Exception();
+            }
+            return stringBuilder.ToString().Trim();
+        }
+    }
+
+    public void AddXmlNode(XmlNode node)
+    {
+        children.Add(node);
+        childNodes.Add(node);
+    }
+
+    public void AddTextNode(string text)
+    {
+        children.Add(text);
+    }
 
     public string Beautify(string indentChars = "  ", string newLineChars = "\r\n")
     {
@@ -281,29 +307,16 @@ public class XmlRoot
     }
 }
 
-public class XmlNode
+public class XmlNode : XmlNodeBase
 {
     private string? tagName;
     private NameValueCollection? attributes;
 
-    public string InnerText { get; set; } = "";
     public string TagName { get { return tagName ?? throw new Exception(); } set { tagName = value; } }
     public NameValueCollection Attributes { get { return attributes ?? throw new Exception(); } set { attributes = value; } }
-    public List<XmlNode> ChildNodes { get; set; } = new List<XmlNode>();
 
     public XmlNode()
     {
-    }
-
-    public XmlNode(string tagName, NameValueCollection attributes)
-    {
-        this.tagName = tagName;
-        this.attributes = attributes;
-    }
-
-    public void AppendChild(XmlNode node)
-    {
-        ChildNodes.Add(node);
     }
 
     public void Beautify(StringBuilder sb, string indentChars = "  ", string newLineChars = "\r\n")
@@ -332,34 +345,31 @@ public class XmlNode
             }
             sb.Append('>');
 
-            sb.Append(HttpUtility.HtmlEncode(node.InnerText));
+            bool isSingleAndString = node.Children.Count == 1 && node.ChildNodes.Count == 0;
+            foreach (var item in node.Children)
+            {
+                if (!isSingleAndString)
+                    sb.Append(newLineChars);
+                if (item is string s)
+                    sb.Append(item);
+                else if (item is XmlNode n)
+                    Write(n, level + 1);
+                else
+                    throw new Exception();
+            }
 
-            foreach (var item in node.ChildNodes)
+            if (!isSingleAndString)
             {
                 sb.Append(newLineChars);
-                Write(item, level + 1);
-            }
-            if (node.ChildNodes.Any())
-                sb.Append(newLineChars);
-
-            if (node.ChildNodes.Any())
                 for (int i = 0; i < level; i++)
                     sb.Append(indentChars);
+            }
             sb.Append("</");
             sb.Append(node.tagName);
             sb.Append('>');
         }
 
         Write(node, 0);
-    }
-
-    public string Beautify(string indentChars = "  ", string newLineChars = "\r\n")
-    {
-        var sb = new StringBuilder();
-
-        Beautify(sb, indentChars, newLineChars);
-
-        return sb.ToString();
     }
 }
 
@@ -388,19 +398,9 @@ public static class XmlParserExtensions
 
 public static class XmlNodeExtensions
 {
-    public static IEnumerable<XmlNode> AllInnerNodes(this XmlRoot root)
+    public static IEnumerable<XmlNode> AllInnerNodes(this XmlNodeBase root)
     {
         foreach (var item in root.ChildNodes)
-        {
-            yield return item;
-            foreach (var node in item.AllInnerNodes())
-                yield return node;
-        }
-    }
-
-    public static IEnumerable<XmlNode> AllInnerNodes(this XmlNode xmlNode)
-    {
-        foreach (var item in xmlNode.ChildNodes)
         {
             yield return item;
             foreach (var node in item.AllInnerNodes())
