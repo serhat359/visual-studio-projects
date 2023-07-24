@@ -357,7 +357,7 @@ public class XmlNode : XmlNodeBase
                 if (!isSingleAndString)
                     sb.Append(newLineChars);
                 if (item is string s)
-                    sb.Append(item);
+                    sb.Append(HttpUtility.HtmlEncode(s));
                 else if (item is XmlNode n)
                     Write(n, level + 1);
                 else

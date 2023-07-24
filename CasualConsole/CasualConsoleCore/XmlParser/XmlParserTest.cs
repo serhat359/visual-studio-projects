@@ -23,6 +23,7 @@ namespace CasualConsoleCore.XmlParser
             TrimTest();
             BeautifyTest();
             BeautifyTest2();
+            BeautifyTest3();
             InnerXmlAndNodeTest();
             SingleQuoteTest();
             HandleComments();
@@ -264,6 +265,17 @@ e
             var beautified = mydoc.Beautify(indentChars: "", newLineChars: "");
 
             if (text != beautified) throw new System.Exception();
+        }
+
+        private static void BeautifyTest3()
+        {
+            var text = "<a></a>";
+
+            var mydoc = XmlParser.Parse(text);
+            mydoc.ChildNodes[0].InnerText = "<some text that contains less than>";
+            var beautified = mydoc.Beautify();
+
+            if (beautified != "<a>&lt;some text that contains less than&gt;</a>") throw new System.Exception();
         }
 
         private static void InnerXmlAndNodeTest()
