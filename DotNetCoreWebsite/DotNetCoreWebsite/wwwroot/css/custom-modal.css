@@ -1,0 +1,30 @@
+﻿.modal {
+    background-color: rgba(0,0,0,0.4); /* Transparent dimmed overlay */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: table;
+}
+
+.modal.modal-hidden {
+    display: none;
+}
+
+.modal .modal-container {
+    display: table-cell;
+    text-align: center;
+    vertical-align: middle;
+    width: 200px;
+}
+
+.modal .modal-body {
+    box-shadow: 5px 10px #888888;
+    display: inline-block;
+    background-color: white;
+    border: 1px solid black;
+    padding: 10px;
+    text-align: left;
+    border-radius: 15px;
+}

@@ -1,10 +1,10 @@
 ﻿var isSet = false;
 
 function onMainCheckboxClick() {
-    var allCheckBoxes = document.querySelectorAll(".downloadCheckBox input[type=checkbox]");
+    let allCheckBoxes = document.querySelectorAll(".downloadCheckBox input[type=checkbox]");
 
     isSet = !isSet;
-    for (var i = 0; i < allCheckBoxes.length; i++) {
+    for (let i = 0; i < allCheckBoxes.length; i++) {
         allCheckBoxes[i].checked = isSet;
     }
 
@@ -13,17 +13,17 @@ function onMainCheckboxClick() {
 }
 
 function onCheckboxClick() {
-    $('#downloadSelectedButton')[0].href = getDownloadSelectedUrl();
+    document.querySelector('#downloadSelectedButton').href = getDownloadSelectedUrl();
 }
 
 function getDownloadSelectedUrl() {
-    var path = new URL(window.location.toString()).searchParams.get("q");
-    var fileNames = [];
-    var allSelectedCheckBoxes = document.querySelectorAll(".downloadCheckBox input[type=checkbox]:checked");
+    let path = new URL(window.location.toString()).searchParams.get("q");
+    let fileNames = [];
+    let allSelectedCheckBoxes = document.querySelectorAll(".downloadCheckBox input[type=checkbox]:checked");
 
-    for (var i = 0; i < allSelectedCheckBoxes.length; i++) {
-        var link = allSelectedCheckBoxes[i].parentElement.parentElement.querySelector(".downloadLink a").href;
-        var fileName = new URL(link).searchParams.get("q");
+    for (let i = 0; i < allSelectedCheckBoxes.length; i++) {
+        let link = allSelectedCheckBoxes[i].parentElement.parentElement.querySelector(".downloadLink a").href;
+        let fileName = new URL(link).searchParams.get("q");
 
         if (path) {
             fileName = fileName.replace(path + "/", "");
@@ -32,7 +32,7 @@ function getDownloadSelectedUrl() {
         fileNames.push(fileName);
     }
 
-    var params = fileNames.map(x => "q=" + encodeURIComponent(x));
+    let params = fileNames.map(x => "q=" + encodeURIComponent(x));
 
     if (path)
         params.push("path=" + encodeURIComponent(path));
@@ -41,33 +41,30 @@ function getDownloadSelectedUrl() {
 }
 
 function getDownloadLinks() {
-    var linksArray = Array.from(document.querySelectorAll(".downloadCheckBoxInput:checked")).map(x => x.closest("tr").querySelector(".downloadLink a").href);
-    var linksJoined = linksArray.join("<br />");
+    let linksArray = Array.from(document.querySelectorAll(".downloadCheckBoxInput:checked")).map(x => x.closest("tr").querySelector(".downloadLink a").href);
+    let linksJoined = linksArray.join("<br />");
     document.getElementById("linksModalContent").innerHTML = linksJoined;
-    $("#linksModal").modal({
-        escapeClose: true,
-        clickClose: true,
-        showClose: false
-    });
+    makeModal("#linksModal");
 }
 
 function setDownloadButtonVisibility() {
-    $('#downloadSelectedButton').setVisible($('.downloadCheckBoxInput:checked').length > 0);
-    $('#getDownloadLinksButton').setVisible($('.downloadCheckBoxInput:checked').length > 0);
+    let checkedCount = document.querySelectorAll('.downloadCheckBoxInput:checked').length;
+    setVisible('#downloadSelectedButton', checkedCount > 0);
+    setVisible('#getDownloadLinksButton', checkedCount > 0);
 }
 
 function toLocalDate(utcDateString) {
-    var date = utcDateString.replace(" UTC", "").replace(" ", "T") + ":00.000Z";
+    let date = utcDateString.replace(" UTC", "").replace(" ", "T") + ":00.000Z";
     return formatDate(new Date(date));
 }
 
 function formatDate(d) {
-    var month = '' + (d.getMonth() + 1);
-    var day = '' + d.getDate();
-    var year = d.getFullYear();
+    let month = '' + (d.getMonth() + 1);
+    let day = '' + d.getDate();
+    let year = d.getFullYear();
 
-    var hours = d.getHours();
-    var minutes = d.getMinutes();
+    let hours = d.getHours();
+    let minutes = d.getMinutes();
 
     return `${year}-${pad2Left(month)}-${pad2Left(day)} ${pad2Left(hours)}:${pad2Left(minutes)}`;
 }
@@ -77,29 +74,29 @@ function pad2Left(n) {
 }
 
 function convertDatesToLocal() {
-    var allDates = document.querySelectorAll(".utcdate");
+    let allDates = document.querySelectorAll(".utcdate");
     for (x of allDates) {
         x.innerHTML = toLocalDate(x.innerHTML);
     }
 }
 
 async function getFolderSizes() {
-    var response = await fetch("/Home/GetFolderSize" + document.location.search);
+    let response = await fetch("/Home/GetFolderSize" + document.location.search);
     if (!response.ok)
         throw new Error();
-    var data = await response.json();
-    var rows = document.querySelectorAll("table tbody tr.xfolder");
-    for (var row of rows) {
-        var tds = row.querySelectorAll("td");
-        var folderName = tds[1].querySelector("a").innerText;
-        var sizeInfo = data[folderName];
+    let data = await response.json();
+    let rows = document.querySelectorAll("table tbody tr.xfolder");
+    for (let row of rows) {
+        let tds = row.querySelectorAll("td");
+        let folderName = tds[1].querySelector("a").innerText;
+        let sizeInfo = data[folderName];
         tds[2].innerText = sizeInfo.fileSizeString;
         tds[2].dataset["sortValue"] = sizeInfo.fileSize;
     }
 }
 
 function selectText(elementId) {
-    var doc = document, text = doc.getElementById(elementId), range, selection;
+    let doc = document, text = doc.getElementById(elementId), range, selection;
     if (doc.body.createTextRange) {
         range = document.body.createTextRange();
         range.moveToElementText(text);
@@ -113,37 +110,86 @@ function selectText(elementId) {
     }
 }
 
-$(document).ready(function () {
+document.addEventListener("DOMContentLoaded", function (event) {
     convertDatesToLocal();
 
-    $('.downloadCheckBoxInput').on("click", function (event) {
+    addOnClick('.downloadCheckBoxInput', function (event) {
         setDownloadButtonVisibility();
     })
 
-    $('#selectAll').click(function () {
+    addOnClick('#selectAll', function (event) {
         selectText('linksModalContent');
     });
 
     getFolderSizes();
+
+    allowTableSorting();
 });
 
-// Allow table sorting
-$('th').click(function () {
-    var table = $(this).parents('table').eq(0)
-    var rows = table.find('tr:gt(1)').toArray().sort(comparer($(this).index()))
-    this.asc = !this.asc
-    if (!this.asc) { rows = rows.reverse() }
-    for (var i = 0; i < rows.length; i++) { table.append(rows[i]) }
-})
-function comparer(index) {
-    return function (a, b) {
-        var valA = getCellValue(a, index), valB = getCellValue(b, index)
-        return $.isNumeric(valA) && $.isNumeric(valB) ? valA - valB : valA.toString().localeCompare(valB)
+function setVisible(selector, isVisible) {
+    let elems = document.querySelectorAll(selector);
+    for (let elem of elems) {
+        elem.style.visibility = isVisible ? "visible" : "hidden";
     }
 }
+
+function addOnClick(selector, func) {
+    let elems = document.querySelectorAll(selector);
+    for (let elem of elems) {
+        elem.addEventListener("click", func, false);
+    }
+}
+
+function allowTableSorting() {
+    // Allow table sorting
+    addOnClick('th', function () {
+        let table = this.closest("table");
+        let tbody = table.querySelector("tbody");
+        let trs = tbody.querySelectorAll('tr');
+        let comparer = getComparer(whichIndex(this));
+        let rows = Array.from(trs).sort(comparer);
+        this.asc = !this.asc;
+        if (!this.asc) { rows = rows.reverse() }
+        for (let i = 0; i < rows.length; i++) {
+            tbody.appendChild(rows[i]);
+        }
+    });
+}
+
+function getComparer(index) {
+    return function (a, b) {
+        let valA = getCellValue(a, index), valB = getCellValue(b, index)
+        return isNumeric(valA) && isNumeric(valB) ? valA - valB : valA.toString().localeCompare(valB)
+    }
+}
+
 function getCellValue(row, index) {
-    $elem = $(row).children('td').eq(index);
-    var dataValue = $elem[0].dataset["sortValue"];
+    let elem = row.querySelectorAll("td")[index];
+    let dataValue = elem.dataset["sortValue"];
     if (dataValue) return dataValue;
-    return $elem.text()
+    return elem.innerText;
+}
+
+function isNumeric(text) {
+    return !isNaN(new Number(text));
+}
+
+function whichIndex(elem) {
+    let children = elem.parentElement.children;
+    for (let i = 0; i < children.length; i++)
+        if (children[i] == elem)
+            return i;
+    return -1;
+}
+
+function makeModal(selector) {
+    var modal = document.querySelector(selector);
+    var container = modal.querySelector(".modal-container");
+
+    modal.classList.remove("modal-hidden");
+
+    modal.addEventListener("click", function (e) {
+        if (e.target !== modal && e.target !== container) return;
+        modal.classList.add("modal-hidden");
+    });
 }
