@@ -480,6 +480,10 @@ namespace CasualConsoleCore.Interpreter
                 ("`${2+3}`", "5"),
                 ("`${(2+3)}`", "5"),
                 ("`\n`", "\n"), // Allow new lines for backtick strings
+                ("`hello ${'world'}`", "hello world"),
+                ("`hello ${`world`}`", "hello world"),
+                ("`hello ${`w${`orld`}`}`", "hello world"),
+                ("`${`}` + `}`}`", "}}"),
                 ("var number = 1; `${number}`", "1"),
                 ("var number = 1; `foo ${number} baz`", "foo 1 baz"),
                 ("var text = 'world'; `hello ${text}`", "hello world"),
@@ -1337,106 +1341,170 @@ namespace CasualConsoleCore.Interpreter
             int i = 0;
             for (; i < content.Length;)
             {
-                char c = content[i];
-                if (char.IsLetter(c) || c == '_')
-                {
-                    int start = i;
-                    i++;
-                    while (i < content.Length && (char.IsLetterOrDigit(content[i]) || '_' == content[i]))
-                        i++;
+                if (SkipWhiteSpace(content, ref i))
+                    continue;
+                if (SkipComment(content, ref i))
+                    continue;
 
-                    tokens.Add(content[start..i]);
-                }
-                else if (char.IsDigit(c))
-                {
-                    int start = i;
-                    i++;
-                    while (i < content.Length && (char.IsDigit(content[i]) || content[i] == '.'))
-                        i++;
-
-                    tokens.Add(content[start..i]);
-                }
-                else if (c == '/' && i + 1 < content.Length && (content[i + 1] == '/' || content[i + 1] == '*'))
-                {
-                    // Handle comment
-                    i++;
-                    char c2 = content[i];
-                    if (c2 == '/')
-                    {
-                        i++;
-                        while (content[i] != '\n')
-                            i++;
-                    }
-                    else if (c2 == '*')
-                    {
-                        i++;
-                        while (true)
-                        {
-                            if (content[i] == '*' && content[i + 1] == '/')
-                                break;
-                            i++;
-                        }
-                        i += 2;
-                    }
-                    else
-                    {
-                        throw new Exception();
-                    }
-                }
-                else if (operatorsCompiled.TryGetValue(c, out var level1Map))
-                {
-                    int start = i;
-                    i++;
-
-                    if (i < content.Length && level1Map.TryGetValue(content[i], out var level2Set))
-                    {
-                        i++;
-                        if (i < content.Length && level2Set.Contains(content[i]))
-                        {
-                            i++;
-                            tokens.Add(content[start..i]);
-                        }
-                        else
-                            tokens.Add(content[start..i]);
-                    }
-                    else
-                        tokens.Add(content[start..i]);
-                }
-                else if (onlyChars.Contains(c))
-                {
-                    i++;
-                    tokens.Add(onlyCharStrings[c]);
-                }
-                else if (c == '"' || c == '\'' || c == '`')
-                {
-                    int start = i;
-                    i++;
-                    while (true)
-                    {
-                        if (content[i] == '\\')
-                            i += 2;
-                        else if (content[i] == c)
-                        {
-                            i++;
-                            break;
-                        }
-                        else
-                            i++;
-                    }
-                    tokens.Add(content[start..i]);
-                }
-                else if (char.IsWhiteSpace(c))
-                {
-                    i++;
-                    while (i < content.Length && char.IsWhiteSpace(content[i]))
-                        i++;
-                }
-                else
-                {
-                    throw new Exception();
-                }
+                tokens.Add(ReadToken(content, ref i, skipWhitespaceAndComment: false));
             }
             return tokens;
+        }
+
+        private static bool SkipWhiteSpace(string content, ref int i)
+        {
+            if (i >= content.Length)
+                return false;
+            bool isWhiteSpace = char.IsWhiteSpace(content[i]);
+            if (!isWhiteSpace)
+                return false;
+
+            i++;
+            while (i < content.Length)
+            {
+                if (char.IsWhiteSpace(content[i]))
+                    i++;
+                else
+                    break;
+            }
+            return true;
+        }
+
+        private static bool SkipComment(string content, ref int i)
+        {
+            if (i >= content.Length)
+                return false;
+            bool isComment = content[i] == '/' && i + 1 < content.Length && (content[i + 1] == '/' || content[i + 1] == '*');
+            if (!isComment)
+                return false;
+
+            // Handle comment
+            i++;
+            char c2 = content[i];
+            if (c2 == '/')
+            {
+                i++;
+                while (content[i] != '\n')
+                    i++;
+            }
+            else if (c2 == '*')
+            {
+                i++;
+                while (true)
+                {
+                    if (content[i] == '*' && content[i + 1] == '/')
+                        break;
+                    i++;
+                }
+                i += 2;
+            }
+            else
+            {
+                throw new Exception();
+            }
+            return true;
+        }
+
+        private static string ReadToken(string content, ref int i, bool skipWhitespaceAndComment)
+        {
+            if (skipWhitespaceAndComment)
+            {
+                while (true)
+                {
+                    if (SkipWhiteSpace(content, ref i))
+                        continue;
+                    if (SkipComment(content, ref i))
+                        continue;
+                    break;
+                }
+            }
+
+            char c = content[i];
+            if (char.IsLetter(c) || c == '_')
+            {
+                int start = i;
+                i++;
+                while (i < content.Length && (char.IsLetterOrDigit(content[i]) || '_' == content[i]))
+                    i++;
+
+                return content[start..i];
+            }
+            else if (char.IsDigit(c))
+            {
+                int start = i;
+                i++;
+                while (i < content.Length && (char.IsDigit(content[i]) || content[i] == '.'))
+                    i++;
+
+                return content[start..i];
+            }
+            else if (operatorsCompiled.TryGetValue(c, out var level1Map))
+            {
+                int start = i;
+                i++;
+
+                if (i < content.Length && level1Map.TryGetValue(content[i], out var level2Set))
+                {
+                    i++;
+                    if (i < content.Length && level2Set.Contains(content[i]))
+                    {
+                        i++;
+                    }
+                }
+                return content[start..i];
+            }
+            else if (onlyChars.Contains(c))
+            {
+                i++;
+                return onlyCharStrings[c];
+            }
+            else if (c == '"' || c == '\'')
+            {
+                int start = i;
+                i++;
+                while (true)
+                {
+                    if (content[i] == '\\')
+                        i += 2;
+                    else if (content[i] == c)
+                    {
+                        i++;
+                        break;
+                    }
+                    else
+                        i++;
+                }
+                return content[start..i];
+            }
+            else if (c == '`')
+            {
+                int start = i;
+                i++;
+                while (true)
+                {
+                    if (content[i] == '\\')
+                        i += 2;
+                    else if (content[i] == c)
+                    {
+                        i++;
+                        break;
+                    }
+                    else if (content[i] == '$' && content[i + 1] == '{')
+                    {
+                        i += 2;
+                        var tempToken = ReadToken(content, ref i, skipWhitespaceAndComment: true);
+                        while (tempToken != "}")
+                            tempToken = ReadToken(content, ref i, skipWhitespaceAndComment: true);
+                    }
+                    else
+                        i++;
+                }
+                return content[start..i];
+            }
+            else
+            {
+                throw new Exception();
+            }
         }
 
         interface FunctionObject : Statement
@@ -3234,13 +3302,18 @@ namespace CasualConsoleCore.Interpreter
                         break;
                     else if (token[i] == '$' && token[i + 1] == '{')
                     {
-                        var end = token.IndexOfBracesEnd(i + 2);
-                        if (end < 0)
-                            throw new Exception();
-                        var subtokens = GetTokens(token[(i + 2)..end], 8);
+                        var subtokens = new Slice<string>(8);
+                        i += 2;
+                        while (true)
+                        {
+                            var t = ReadToken(token, ref i, skipWhitespaceAndComment: true);
+                            if (t == "}")
+                                break;
+                            subtokens.Add(t);
+                        }
+
                         var subExpression = ExpressionMethods.New(subtokens.ToSegment());
                         parts.Add(subExpression);
-                        i = end + 1;
                         continue;
                     }
 
@@ -4532,11 +4605,6 @@ static class InterpreterExtensions
     public static int IndexOfBracesEnd(this ArraySegment<string> source, int startIndex)
     {
         return IndexOfPairsEnd(source, startIndex, "{", "}");
-    }
-
-    public static int IndexOfBracesEnd(this string source, int startIndex)
-    {
-        return IndexOfPairsEnd(source, startIndex, '{', '}');
     }
 
     public static int IndexOfBracketsEnd(this ArraySegment<string> source, int startIndex)
