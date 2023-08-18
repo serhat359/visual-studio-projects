@@ -15,19 +15,21 @@ namespace CasualConsoleCore.Interpreter
         private static readonly HashSet<string> operators = new HashSet<string>() { "+", "-", "*", "/", "%", "=", "?", ":", "<", ">", "<=", ">=", "&&", "||", "??", "!", "!=", ".", "==", "+=", "-=", "*=", "/=", "%=", "=>", "++", "--", "...", "?.", "?.[", "?.(" };
         private static readonly HashSet<string> assignmentSet = new HashSet<string>() { "=", "+=", "-=", "*=", "/=", "%=" };
         private static readonly HashSet<string> regularOperatorSet = new HashSet<string>() { "+", "-", "*", "/", "%", "==", "!=", "<", ">", "<=", ">=", "&&", "||", "??" };
-        private static readonly HashSet<string> keywords = new HashSet<string>() { "this", "var", "let", "const", "if", "else", "while", "for", "break", "continue", "function", "async", "await", "return", "yield", "true", "false", "null" };
+        private static readonly HashSet<string> keywords = new HashSet<string>() { "this", "var", "let", "const", "if", "else", "while", "for", "break", "continue", "function", "class", "async", "await", "return", "yield", "true", "false", "null", "new" };
         private static readonly Dictionary<char, Dictionary<char, HashSet<char>>> operatorsCompiled;
         private static readonly Dictionary<char, int> hexToint = new Dictionary<char, int>() { { '0', 0 }, { '1', 1 }, { '2', 2 }, { '3', 3 }, { '4', 4 }, { '5', 5 }, { '6', 6 }, { '7', 7 }, { '8', 8 }, { '9', 9 }, { 'A', 10 }, { 'B', 11 }, { 'C', 12 }, { 'D', 13 }, { 'E', 14 }, { 'F', 15 }, { 'a', 10 }, { 'b', 11 }, { 'c', 12 }, { 'd', 13 }, { 'e', 14 }, { 'f', 15 }, };
 
         private static readonly Expression trueExpression;
         private static readonly Expression falseExpression;
         private static readonly Expression nullExpression;
+        private static readonly Expression thisExpression;
 
         static Interpreter()
         {
             trueExpression = new CustomValueExpression(CustomValue.True);
             falseExpression = new CustomValueExpression(CustomValue.False);
             nullExpression = new CustomValueExpression(CustomValue.Null);
+            thisExpression = new ThisExpression();
 
             operatorsCompiled = operators.GroupBy(x => x[0]).ToDictionary(x => x.Key, x => x.Where(y => y.Length > 1).GroupBy(y => y[1]).ToDictionary(y => y.Key, y => y.Where(z => z.Length > 2).Select(z => z[2]).ToHashSet()));
 
@@ -439,8 +441,7 @@ namespace CasualConsoleCore.Interpreter
                 ("arr3.length = 0", 0),
                 ("arr3.push(7)", 1),
                 ("arr3[0]", 7),
-                ("arr3 = [7,6,7];", null),
-                ("arr3.length", 3),
+                ("arr3 = [7,6,7]; arr3.length", 3),
                 ("arr3.pop()", 7),
                 ("arr3.length", 2),
                 ("arr3.pop()", 6),
@@ -558,17 +559,14 @@ namespace CasualConsoleCore.Interpreter
                 ("o?.name.name().name", null),
                 ("o?.['name']['name']()['name']", null),
                 ("o?.[2]", null),
-                ("o = [1,2,3];", null),
-                ("o?.[2]", 3),
-                ("o = { name: 'Serhat' };", null),
-                ("o.name", "Serhat"),
+                ("o = [1,2,3]; o?.[2]", 3),
+                ("o = { name: 'Serhat' }; o.name", "Serhat"),
                 ("o?.name", "Serhat"),
                 ("o = null;", null),
                 ("o?.()", null),
                 ("o?.name()", null),
                 ("o?.name?.()", null),
-                ("o = {};", null),
-                ("o.name?.()", null),
+                ("o = {}; o.name?.()", null),
                 ("var potentiallyNullObj = null; var x = 0; var prop = potentiallyNullObj?.[x++]; x", 0),
                 ("var f = x => `asd${x}asd`; var arr = [f(1),f(2),f(3)]; arr[0] == 'asd1asd' && arr[1] == 'asd2asd' && arr[2] == 'asd3asd'", true),
                 ("Array.prototype.popTwice = function(){ this.pop(); this.pop(); }; var arr = [1,2,3]; arr.popTwice(); arr.length", 1),
@@ -614,6 +612,11 @@ namespace CasualConsoleCore.Interpreter
                 ("var { name, } = { name: 'Serhat', }; name", "Serhat"),
                 ("var [x,] = [12,]; x", 12),
                 ("(function(a,b,...rest){ return rest.length })()", 0),
+                ("class Rectangle { constructor(height, width) { this.height = height; this.width = width; } get area() { return this.calcArea(); } calcArea() { return this.height * this.width; } } new Rectangle(10,20).height", 10),
+                ("new Rectangle(10,20).area", 200),
+                ("Rectangle != null", true),
+                ("Rectangle.prototype.calcArea != null", true),
+                ("Rectangle.prototype.isSquare = function(){ return this.width == this.height; }; new Rectangle(20,20).isSquare()", true),
             };
 
             var interpreter = new Interpreter();
@@ -707,6 +710,7 @@ namespace CasualConsoleCore.Interpreter
                 "[,]",
                 "[12,,]",
                 "var {x,,} = { age:2 }",
+                "class X{} class X{} ",
             };
             var interpreter = new Interpreter();
             foreach (var code in testCases)
@@ -783,6 +787,17 @@ namespace CasualConsoleCore.Interpreter
                         var braceEnd = tokens.IndexOfBracesEnd(braceBegin + 1);
                         if (braceEnd < 0)
                             throw new Exception();
+                        return (braceEnd + 1, new LineStatement(tokens[startingIndex..(braceEnd + 1)]));
+                    }
+                case "class":
+                    {
+                        var braceBegin = tokens.IndexOf("{", startingIndex);
+                        if (braceBegin < 0)
+                            throw new Exception();
+                        var braceEnd = tokens.IndexOfBracesEnd(braceBegin + 1);
+                        if (braceEnd < 0)
+                            throw new Exception();
+                        var classtokens = tokens[startingIndex..(braceEnd + 1)];
                         return (braceEnd + 1, new LineStatement(tokens[startingIndex..(braceEnd + 1)]));
                     }
                 case "if":
@@ -941,6 +956,35 @@ namespace CasualConsoleCore.Interpreter
             return result;
         }
 
+        private static CustomValue EvaluateFunctionCall(Context context, CustomValue functionValue, List<(bool hasThreeDot, Expression expression)> expressionList, CustomValue newOwner)
+        {
+            if (functionValue.type != ValueType.Function)
+                throw new Exception("variable is not a function");
+            FunctionObject function = (FunctionObject)functionValue.value;
+
+            return EvaluateFunctionCall(context, function, expressionList, newOwner);
+        }
+
+        private static CustomValue EvaluateFunctionCall(Context context, FunctionObject function, List<(bool hasThreeDot, Expression expression)> expressionList, CustomValue newOwner)
+        {
+            var arguments = new List<CustomValue>();
+            foreach (var (hasThreeDot, expression) in expressionList)
+            {
+                if (hasThreeDot)
+                {
+                    var value = expression.EvaluateExpression(context);
+                    foreach (var item in value.AsMultiValue())
+                        arguments.Add(item);
+                }
+                else
+                    arguments.Add(expression.EvaluateExpression(context));
+            }
+
+            CustomValue owner = function.IsLambda ? context.thisOwner : newOwner;
+
+            return CallFunction(function, arguments, owner);
+        }
+
         private static bool Compare(CustomValue first, Operator operatorType, CustomValue second)
         {
             if (first.type != second.type)
@@ -1075,7 +1119,7 @@ namespace CasualConsoleCore.Interpreter
 
         private static bool IsThisExpression(Expression baseExpression)
         {
-            return baseExpression is SingleTokenVariableExpression ex && ex.token == "this";
+            return baseExpression is ThisExpression;
         }
 
         private static CustomValue DoIndexingGet(CustomValue baseExpressionValue, CustomValue keyExpressionValue, Context context, bool isThisToken)
@@ -1095,8 +1139,10 @@ namespace CasualConsoleCore.Interpreter
 
             if (baseExpressionValue.type == ValueType.Map && keyExpressionValue.type == ValueType.String)
             {
-                var map = baseExpressionValue.GetAsMap();
-                if (map.TryGetValue((string)keyExpressionValue.value, out var value))
+                var baseObject = baseExpressionValue.GetBaseObject();
+                var key = (string)keyExpressionValue.value;
+
+                static CustomValue GetValue(ValueOrGetterSetter value, CustomValue baseExpressionValue)
                 {
                     if (value is CustomValue customValue)
                     {
@@ -1105,8 +1151,23 @@ namespace CasualConsoleCore.Interpreter
                     else
                     {
                         var getterSetter = (GetterSetter)value;
-                        var getter = getterSetter.getter ?? throw new Exception("no getter property was found");
-                        return CallFunction(getter, new List<CustomValue>(), baseExpressionValue);
+                        return CallFunction(getterSetter.GetGetter(), new List<CustomValue>(), baseExpressionValue);
+                    }
+                }
+
+                var map = baseObject.properties;
+                if (map.TryGetValue(key, out var value))
+                {
+                    return GetValue(value, baseExpressionValue);
+                }
+                else if (baseObject.name != "")
+                {
+                    // Not a regular object, an instance of a class
+                    var classInfo = context.variableScope.GetVariable(baseObject.name);
+                    var classObject = (ClassObject)classInfo.value;
+                    if (classObject.methods.TryGetValue(key, out var method))
+                    {
+                        return GetValue(method, baseExpressionValue);
                     }
                 }
                 else
@@ -1139,6 +1200,12 @@ namespace CasualConsoleCore.Interpreter
             {
                 var variableName = (string)keyExpressionValue.value;
                 return context.variableScope.GetVariable(variableName);
+            }
+            else if (baseExpressionValue.type == ValueType.Class && keyExpressionValue.type == ValueType.String)
+            {
+                var classObject = (ClassObject)baseExpressionValue.value;
+                if ((string)keyExpressionValue.value == "prototype")
+                    return classObject.prototype;
             }
 
             throw new Exception();
@@ -1188,8 +1255,7 @@ namespace CasualConsoleCore.Interpreter
                 {
                     if (previousValue is GetterSetter getterSetter)
                     {
-                        var setter = getterSetter.setter ?? throw new Exception("no setter property was found");
-                        CallFunction(setter, new List<CustomValue> { value }, baseExpressionValue);
+                        CallFunction(getterSetter.GetSetter(), new List<CustomValue> { value }, baseExpressionValue);
                     }
                     else
                     {
@@ -1267,6 +1333,59 @@ namespace CasualConsoleCore.Interpreter
             {
                 throw new Exception();
             }
+        }
+
+        private static FunctionStatement ExtractProperty(ArraySegment<string> item, ref string fieldName, ref bool isGetProp, ref bool isSetProp)
+        {
+            FunctionStatement expression;
+            if (item[1] == "(")
+            {
+                expression = FunctionStatement.FromTokens(item, isLambda: false, isAsync: false, isGenerator: false);
+            }
+            else if (item[0] == "async" && item[2] == "(")
+            {
+                expression = FunctionStatement.FromTokens(item, isLambda: false, isAsync: true, isGenerator: false);
+                fieldName = item[1];
+            }
+            else if (item[0] == "*" && item[2] == "(")
+            {
+                expression = FunctionStatement.FromTokens(item, isLambda: false, isAsync: false, isGenerator: true);
+                fieldName = item[1];
+            }
+            else if (item[0] == "async" && item[1] == "*" && item[3] == "(")
+            {
+                expression = FunctionStatement.FromTokens(item, isLambda: false, isAsync: true, isGenerator: true);
+                fieldName = item[2];
+            }
+            else if (item[0] == "get" && item[2] == "(")
+            {
+                expression = FunctionStatement.FromTokens(item, isLambda: false, isAsync: false, isGenerator: false);
+                fieldName = item[1];
+                isGetProp = true;
+            }
+            else if (item[0] == "set" && item[2] == "(")
+            {
+                expression = FunctionStatement.FromTokens(item, isLambda: false, isAsync: false, isGenerator: false);
+                fieldName = item[1];
+                isSetProp = true;
+            }
+            else
+                throw new Exception();
+            return expression;
+        }
+
+        private static List<(bool hasThreeDot, Expression expression)> GetArguments(ArraySegment<string> parameters)
+        {
+            var paramsSplit = SplitBy(parameters, ",", allowTrailing: true);
+            var expressionList = new List<(bool hasThreeDot, Expression expression)>();
+            foreach (var item in paramsSplit)
+            {
+                if (item[0] == "...")
+                    expressionList.Add((true, ExpressionMethods.New(item[1..])));
+                else
+                    expressionList.Add((false, ExpressionMethods.New(item)));
+            }
+            return expressionList;
         }
 
         private static bool IsVariableName(string token)
@@ -1507,6 +1626,30 @@ namespace CasualConsoleCore.Interpreter
             }
         }
 
+        class ClassObject
+        {
+            internal readonly FunctionObject? constructor;
+            internal readonly Dictionary<string, ValueOrGetterSetter> methods;
+            internal readonly CustomValue prototype;
+
+            public ClassObject(FunctionObject? constructor, Dictionary<string, ValueOrGetterSetter> methods)
+            {
+                this.constructor = constructor;
+                this.methods = methods;
+                this.prototype = CustomValue.FromMap(methods);
+            }
+        }
+        class BaseObject
+        {
+            internal readonly string name;
+            internal readonly Dictionary<string, ValueOrGetterSetter> properties;
+
+            public BaseObject(string name, Dictionary<string, ValueOrGetterSetter> properties)
+            {
+                this.name = name;
+                this.properties = properties;
+            }
+        }
         interface FunctionObject : Statement
         {
             IReadOnlyList<(string paramName, bool isRest)> Parameters { get; }
@@ -1960,9 +2103,14 @@ namespace CasualConsoleCore.Interpreter
                 return new CustomValue(func, ValueType.Function);
             }
 
-            internal static CustomValue FromMap(Dictionary<string, ValueOrGetterSetter> map)
+            internal static CustomValue FromClass(ClassObject func)
             {
-                return new CustomValue(map, ValueType.Map);
+                return new CustomValue(func, ValueType.Class);
+            }
+
+            internal static CustomValue FromMap(Dictionary<string, ValueOrGetterSetter> map, string className = "")
+            {
+                return new CustomValue(new BaseObject(className, map), ValueType.Map);
             }
 
             internal static CustomValue FromArray(CustomArray array)
@@ -2014,7 +2162,11 @@ namespace CasualConsoleCore.Interpreter
 
             internal Dictionary<string, ValueOrGetterSetter> GetAsMap()
             {
-                return (Dictionary<string, ValueOrGetterSetter>)value;
+                return ((BaseObject)value).properties;
+            }
+            internal BaseObject GetBaseObject()
+            {
+                return (BaseObject)value;
             }
 
             public override string ToString()
@@ -2049,13 +2201,37 @@ namespace CasualConsoleCore.Interpreter
         }
         private struct GetterSetter : ValueOrGetterSetter
         {
-            internal readonly FunctionObject? getter;
-            internal readonly FunctionObject? setter;
+            private readonly FunctionObject? getter;
+            private readonly FunctionObject? setter;
 
             public GetterSetter(FunctionObject? getter, FunctionObject? setter)
             {
                 this.getter = getter;
                 this.setter = setter;
+            }
+
+            public FunctionObject GetGetter()
+            {
+                return getter ?? throw new Exception("no getter was defined");
+            }
+
+            public FunctionObject GetSetter()
+            {
+                return setter ?? throw new Exception("no setter was defined");
+            }
+
+            public GetterSetter WithNewGetter(FunctionObject f)
+            {
+                if (getter != null)
+                    throw new Exception("getter was already defined");
+                return new GetterSetter(f, setter);
+            }
+
+            public GetterSetter WithNewSetter(FunctionObject f)
+            {
+                if (setter != null)
+                    throw new Exception("setter was already defined");
+                return new GetterSetter(getter, f);
             }
         }
 
@@ -2069,6 +2245,7 @@ namespace CasualConsoleCore.Interpreter
             ForStatement,
             ForInOfStatement,
             FunctionStatement,
+            ClassStatement,
             YieldStatement,
         }
 
@@ -2079,6 +2256,7 @@ namespace CasualConsoleCore.Interpreter
             String,
             Bool,
             Function,
+            Class,
             Map,
             Array,
             Promise,
@@ -2120,6 +2298,7 @@ namespace CasualConsoleCore.Interpreter
             ConditionalMemberAccess,
             ConditionalComputedMemberAccess,
             ConditionalFunctionCall,
+            New,
         }
 
         enum Precedence : int
@@ -2450,15 +2629,7 @@ namespace CasualConsoleCore.Interpreter
 
                         AddToLastNode(ref previousExpression, Precedence.FunctionCall, (expression, p) =>
                         {
-                            var paramsSplit = SplitBy(parameters, ",", allowTrailing: true);
-                            var expressionList = new List<(bool hasThreeDot, Expression expression)>();
-                            foreach (var item in paramsSplit)
-                            {
-                                if (item[0] == "...")
-                                    expressionList.Add((true, ExpressionMethods.New(item[1..])));
-                                else
-                                    expressionList.Add((false, ExpressionMethods.New(item)));
-                            }
+                            var expressionList = GetArguments(parameters);
 
                             if (expression is HasRestExpression hasRestExpression)
                             {
@@ -2578,6 +2749,18 @@ namespace CasualConsoleCore.Interpreter
                     var (expressionRest, lastIndex) = ReadExpression(tokens, index + 1);
                     var newExpression = new AwaitExpression(expressionRest);
                     return (newExpression, lastIndex);
+                }
+                if (token == "new")
+                {
+                    var className = tokens[1];
+                    var paranBegin = 2;
+                    if (tokens[paranBegin] != "(")
+                        throw new Exception();
+                    var paranEnd = tokens.IndexOfParenthesesEnd(paranBegin + 1);
+                    if (paranEnd < 0)
+                        throw new Exception();
+                    var newExpression = new NewClassInstanceExpression(className, tokens[(paranBegin + 1)..paranEnd]);
+                    return (newExpression, paranEnd + 1);
                 }
                 if (token == "-" || token == "+")
                 {
@@ -2752,6 +2935,8 @@ namespace CasualConsoleCore.Interpreter
                 }
                 if (IsVariableName(token))
                 {
+                    if (token == "this")
+                        return (thisExpression, index + 1);
                     return (new SingleTokenVariableExpression(token), index + 1);
                 }
 
@@ -3013,30 +3198,6 @@ namespace CasualConsoleCore.Interpreter
                 return lastValue;
             }
 
-            private static CustomValue EvaluateFunctionCall(Context context, CustomValue functionValue, List<(bool hasThreeDot, Expression expression)> expressionList, CustomValue newOwner)
-            {
-                if (functionValue.type != ValueType.Function)
-                    throw new Exception("variable is not a function");
-                FunctionObject function = (FunctionObject)functionValue.value;
-
-                var arguments = new List<CustomValue>();
-                foreach (var (hasThreeDot, expression) in expressionList)
-                {
-                    if (hasThreeDot)
-                    {
-                        var value = expression.EvaluateExpression(context);
-                        foreach (var item in value.AsMultiValue())
-                            arguments.Add(item);
-                    }
-                    else
-                        arguments.Add(expression.EvaluateExpression(context));
-                }
-
-                CustomValue owner = function.IsLambda ? context.thisOwner : newOwner;
-
-                return CallFunction(function, arguments, owner);
-            }
-
             public Expression GetSecondLastExpression()
             {
                 var count = nextValues.Count;
@@ -3070,37 +3231,8 @@ namespace CasualConsoleCore.Interpreter
                         hasThreeDot = true;
                         expression = ExpressionMethods.New(item[1..]);
                     }
-                    else if (item[1] == "(")
-                        expression = FunctionStatement.FromTokens(item, isLambda: false, isAsync: false, isGenerator: false);
-                    else if (item[0] == "async" && item[2] == "(")
-                    {
-                        expression = FunctionStatement.FromTokens(item, isLambda: false, isAsync: true, isGenerator: false);
-                        fieldName = item[1];
-                    }
-                    else if (item[0] == "*" && item[2] == "(")
-                    {
-                        expression = FunctionStatement.FromTokens(item, isLambda: false, isAsync: false, isGenerator: true);
-                        fieldName = item[1];
-                    }
-                    else if (item[0] == "async" && item[1] == "*" && item[3] == "(")
-                    {
-                        expression = FunctionStatement.FromTokens(item, isLambda: false, isAsync: true, isGenerator: true);
-                        fieldName = item[2];
-                    }
-                    else if (item[0] == "get" && item[2] == "(")
-                    {
-                        expression = FunctionStatement.FromTokens(item, isLambda: false, isAsync: false, isGenerator: false);
-                        fieldName = item[1];
-                        isGetProp = true;
-                    }
-                    else if (item[0] == "set" && item[2] == "(")
-                    {
-                        expression = FunctionStatement.FromTokens(item, isLambda: false, isAsync: false, isGenerator: false);
-                        fieldName = item[1];
-                        isSetProp = true;
-                    }
                     else
-                        throw new Exception();
+                        expression = Interpreter.ExtractProperty(item, ref fieldName, ref isGetProp, ref isSetProp);
 
                     this.fieldExpressions.Add((fieldName, expression, hasThreeDot, isGetProp, isSetProp));
                 }
@@ -3125,9 +3257,7 @@ namespace CasualConsoleCore.Interpreter
                         {
                             if (oldVal is GetterSetter getterSetter)
                             {
-                                if (getterSetter.getter != null)
-                                    throw new Exception("getter was already defined");
-                                map[fieldName] = new GetterSetter(getter: f, setter: getterSetter.setter);
+                                map[fieldName] = getterSetter.WithNewGetter(f);
                             }
                             else
                             {
@@ -3146,9 +3276,7 @@ namespace CasualConsoleCore.Interpreter
                         {
                             if (oldVal is GetterSetter getterSetter)
                             {
-                                if (getterSetter.setter != null)
-                                    throw new Exception("setter was already defined");
-                                map[fieldName] = new GetterSetter(getter: getterSetter.getter, setter: f);
+                                map[fieldName] = getterSetter.WithNewSetter(f);
                             }
                             else
                             {
@@ -3380,9 +3508,14 @@ namespace CasualConsoleCore.Interpreter
 
             public CustomValue EvaluateExpression(Context context)
             {
-                if (token == "this")
-                    return context.thisOwner;
                 return context.variableScope.GetVariable(token);
+            }
+        }
+        class ThisExpression : Expression
+        {
+            public CustomValue EvaluateExpression(Context context)
+            {
+                return context.thisOwner;
             }
         }
         class CustomValueExpression : Expression
@@ -3497,6 +3630,31 @@ namespace CasualConsoleCore.Interpreter
                 return rest;
             }
         }
+        class NewClassInstanceExpression : Expression
+        {
+            private string className;
+            private List<(bool hasThreeDot, Expression expression)> expressionList;
+
+            public NewClassInstanceExpression(string className, ArraySegment<string> tokens)
+            {
+                this.className = className;
+                expressionList = GetArguments(tokens);
+            }
+
+            public CustomValue EvaluateExpression(Context context)
+            {
+                var classObject = context.variableScope.GetVariable(className);
+                if (classObject.type != ValueType.Class)
+                    throw new Exception();
+
+                var cl = (ClassObject)classObject.value;
+                var newObject = CustomValue.FromMap(new Dictionary<string, ValueOrGetterSetter>(), className);
+                if (cl.constructor != null)
+                    EvaluateFunctionCall(context, cl.constructor, expressionList, newObject);
+
+                return newObject;
+            }
+        }
         class MapAssignmentExpression : Expression
         {
             public (string sourceName, string targetName)[] variableNames;
@@ -3531,8 +3689,7 @@ namespace CasualConsoleCore.Interpreter
                         else
                         {
                             var getterSetter = (GetterSetter)value;
-                            var getterFunction = getterSetter.getter ?? throw new Exception("getter function was not defined");
-                            var res = CallFunction(getterFunction, new List<CustomValue>(), mapValue);
+                            var res = CallFunction(getterSetter.GetGetter(), new List<CustomValue>(), mapValue);
                             context.variableScope.AssignVariable(assignmentType, targetName, res);
                         }
                     }
@@ -3821,10 +3978,8 @@ namespace CasualConsoleCore.Interpreter
 
             public LineStatement(ArraySegment<string> tokens)
             {
-                var hasSemiColon = false;
                 if (tokens[^1] == ";")
                 {
-                    hasSemiColon = true;
                     tokens = tokens[..^1];
                 }
 
@@ -3893,6 +4048,63 @@ namespace CasualConsoleCore.Interpreter
                         return (CustomValue.Null, false, false, false);
                     };
                 }
+                else if (tokens[0] == "class")
+                {
+                    var className = tokens[1];
+                    if (!IsVariableName(className))
+                        throw new Exception();
+                    if (tokens[2] != "{")
+                        throw new Exception();
+                    if (tokens[^1] != "}")
+                        throw new Exception();
+
+                    var classBodyTokens = tokens[3..^1];
+                    FunctionStatement? constructor = null;
+                    var methodList = new List<(FunctionStatement, string fieldName, bool isGetProp, bool isSetProp)>();
+                    int bodyIndex = 0;
+                    while (bodyIndex < classBodyTokens.Count)
+                    {
+                        if (classBodyTokens[bodyIndex] == "constructor")
+                        {
+                            if (constructor != null)
+                                throw new Exception("The constructor was already defined");
+
+                            var braceBegin = classBodyTokens.IndexOf("{", bodyIndex + 1);
+                            if (braceBegin < 0)
+                                throw new Exception();
+                            var braceEnd = classBodyTokens.IndexOfBracesEnd(braceBegin + 1);
+                            if (braceEnd < 0)
+                                throw new Exception();
+                            constructor = FunctionStatement.FromTokens(classBodyTokens[bodyIndex..(braceEnd + 1)], isLambda: false, isAsync: false, isGenerator: false);
+                            bodyIndex = braceEnd + 1;
+                        }
+                        else
+                        {
+                            // handle functions
+                            var braceBegin = classBodyTokens.IndexOf("{", bodyIndex + 1);
+                            if (braceBegin < 0)
+                                throw new Exception();
+                            var braceEnd = classBodyTokens.IndexOfBracesEnd(braceBegin + 1);
+                            if (braceEnd < 0)
+                                throw new Exception();
+                            bool isGetProp = false;
+                            bool isSetProp = false;
+                            var functionTokens = classBodyTokens[bodyIndex..(braceEnd + 1)];
+                            string fieldName = functionTokens[0];
+                            var res = Interpreter.ExtractProperty(functionTokens, ref fieldName, ref isGetProp, ref isSetProp);
+                            methodList.Add((res, fieldName, isGetProp, isSetProp));
+                            bodyIndex = braceEnd + 1;
+                        }
+                    }
+
+                    var classStatement = new ClassStatement(constructor, methodList);
+                    eval = context =>
+                    {
+                        var newClass = classStatement.EvaluateExpression(context);
+                        context.variableScope.AddConstVariable(className, newClass);
+                        return (CustomValue.Null, false, false, false);
+                    };
+                }
                 else
                 {
                     var expression = GetExpression(tokens);
@@ -3900,10 +4112,7 @@ namespace CasualConsoleCore.Interpreter
                     eval = context =>
                     {
                         var expressionValue = expression.EvaluateExpression(context);
-                        if (hasSemiColon)
-                            return (CustomValue.Null, false, false, false);
-                        else
-                            return (expressionValue, false, false, false);
+                        return (expressionValue, false, false, false);
                     };
                 }
             }
@@ -4511,6 +4720,60 @@ namespace CasualConsoleCore.Interpreter
                 throw new Exception();
             }
         }
+        class ClassStatement : Statement, Expression
+        {
+            private FunctionStatement? constructor;
+            private List<(FunctionStatement, string fieldName, bool isGetProp, bool isSetProp)> methodList;
+
+            public ClassStatement(FunctionStatement? constructor, List<(FunctionStatement, string fieldName, bool isGetProp, bool isSetProp)> methodList)
+            {
+                this.constructor = constructor;
+                this.methodList = methodList;
+            }
+
+            public StatementType Type => StatementType.ClassStatement;
+
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+            {
+                var methods = new Dictionary<string, ValueOrGetterSetter>();
+                foreach (var (fStatement, name, isGet, isSet) in methodList)
+                {
+                    var f = fStatement.EvaluateExpression(context);
+                    if (isGet || isSet)
+                    {
+                        var func = (FunctionObject)f.value;
+                        if (methods.TryGetValue(name, out var getterSetter))
+                        {
+                            if (isGet)
+                                methods[name] = ((GetterSetter)getterSetter).WithNewGetter(func);
+                            else if (isSet)
+                                methods[name] = ((GetterSetter)getterSetter).WithNewSetter(func);
+                        }
+                        else
+                        {
+                            methods.Add(name, new GetterSetter(isGet ? func : null, isSet ? func : null));
+                        }
+                    }
+                    else
+                    {
+                        methods.Add(name, f);
+                    }
+                }
+
+                var newClass = new ClassObject(constructor == null ? null : (FunctionObject)constructor.EvaluateExpression(context).value, methods);
+                return (CustomValue.FromClass(newClass), false, false, false);
+            }
+
+            public CustomValue EvaluateExpression(Context context)
+            {
+                return EvaluateStatement(context).Item1;
+            }
+
+            public IEnumerable<CustomValue> AsEnumerable(Context context)
+            {
+                throw new NotImplementedException();
+            }
+        }
         class YieldStatement : Statement
         {
             Expression expression;
@@ -4666,25 +4929,6 @@ static class InterpreterExtensions
             newArr[i] = converter(source[i]);
         }
         return newArr;
-    }
-
-    public static ArraySegment<T> ToArraySegment<T>(this IEnumerable<T> source, int initialSize)
-    {
-        int count = 0;
-        var array = new T[initialSize];
-        foreach (var item in source)
-        {
-            if (count == array.Length)
-            {
-                var newArray = new T[array.Length * 2];
-                Array.Copy(array, 0, newArray, 0, array.Length);
-                array = newArray;
-            }
-
-            array[count++] = item;
-        }
-        ArraySegment<T> segment = array;
-        return segment[0..count];
     }
 
     public static new bool Equals(object? result, object? expected)
