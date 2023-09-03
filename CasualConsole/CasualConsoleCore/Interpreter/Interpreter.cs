@@ -515,9 +515,6 @@ namespace CasualConsoleCore.Interpreter
                 ("2 && 7", 7),
                 ("2 && 0", 0),
                 ("var name = 'name1'; ({ name }).name", "name1"),
-                ("var n1 = 'name2'; (()=> this.n1)()", "name2"),
-                ("var n2 = 'name3'; var o = {}; o.f = ()=>{ return this.n2; }; o.f()", "name3"),
-                ("var n3 = 'name4'; function thisTester1(){ (function(){ this.n3 = 'name4-2'; })(); } thisTester1(); n3", "name4-2"),
                 ("print()", null),
                 ("[...[1,2,3]].length", 3),
                 ("var arr = [2, ...[1,2,3]]; arr[0] == 2 && arr[1] == 1 && arr[2] == 2 && arr[3] == 3", true),
@@ -661,6 +658,8 @@ namespace CasualConsoleCore.Interpreter
                 "while(true)",
                 "var a = ",
                 "true,",
+                "var a = null; this.a",
+                "(function(){ return this.a })()",
                 "var a = ()",
                 "var 23a = 23",
                 "var a-b = -2",
@@ -1130,12 +1129,7 @@ namespace CasualConsoleCore.Interpreter
             return expressionTree;
         }
 
-        private static bool IsThisExpression(Expression baseExpression)
-        {
-            return baseExpression is ThisExpression;
-        }
-
-        private static CustomValue DoIndexingGet(CustomValue baseExpressionValue, CustomValue keyExpressionValue, Context context, bool isThisToken)
+        private static CustomValue DoIndexingGet(CustomValue baseExpressionValue, CustomValue keyExpressionValue, Context context)
         {
             if (keyExpressionValue.type == ValueType.String)
             {
@@ -1154,7 +1148,7 @@ namespace CasualConsoleCore.Interpreter
             {
                 if (baseExpressionValue.value is ProxyObjectInstance proxy)
                 {
-                    return proxy.DoIndexingGet(keyExpressionValue, context, isThisToken);
+                    return proxy.DoIndexingGet(keyExpressionValue, context);
                 }
 
                 var baseObject = baseExpressionValue.GetBaseObject();
@@ -1214,11 +1208,6 @@ namespace CasualConsoleCore.Interpreter
                         return CustomValue.Null;
                 }
             }
-            else if (isThisToken && baseExpressionValue.type == ValueType.Null)
-            {
-                var variableName = (string)keyExpressionValue.value;
-                return context.variableScope.GetVariable(variableName);
-            }
             else if (baseExpressionValue.type == ValueType.Class && keyExpressionValue.type == ValueType.String)
             {
                 var classObject = (IClassInfoObject)baseExpressionValue.value;
@@ -1263,13 +1252,13 @@ namespace CasualConsoleCore.Interpreter
             }
         }
 
-        private static CustomValue DoIndexingSet(CustomValue value, CustomValue baseExpressionValue, CustomValue keyExpressionValue, Context context, bool isThisToken)
+        private static CustomValue DoIndexingSet(CustomValue value, CustomValue baseExpressionValue, CustomValue keyExpressionValue, Context context)
         {
             if (baseExpressionValue.type == ValueType.Map && keyExpressionValue.type == ValueType.String)
             {
                 if (baseExpressionValue.value is ProxyObjectInstance proxy)
                 {
-                    return proxy.DoIndexingSet(value, keyExpressionValue, context, isThisToken);
+                    return proxy.DoIndexingSet(value, keyExpressionValue, context);
                 }
 
                 var map = baseExpressionValue.GetAsMap();
@@ -1316,12 +1305,6 @@ namespace CasualConsoleCore.Interpreter
                     }
                 }
             }
-            else if (isThisToken && baseExpressionValue.type == ValueType.Null)
-            {
-                var variableName = (string)keyExpressionValue.value;
-                context.variableScope.SetVariable(variableName, value);
-                return value;
-            }
 
             throw new Exception();
         }
@@ -1344,10 +1327,9 @@ namespace CasualConsoleCore.Interpreter
                     var baseExpressionValue = op18.EvaluateAllButLast(context);
                     var keyExpressionValue = ((Expression)expressions).EvaluateExpression(context);
 
-                    var isThis = IsThisExpression(op18.GetSecondLastExpression());
-                    oldValue = needOldValue ? DoIndexingGet(baseExpressionValue, keyExpressionValue, context, isThis) : null;
+                    oldValue = needOldValue ? DoIndexingGet(baseExpressionValue, keyExpressionValue, context) : null;
                     var newValue = operation(oldValue);
-                    return DoIndexingSet(newValue, baseExpressionValue, keyExpressionValue, context, isThis);
+                    return DoIndexingSet(newValue, baseExpressionValue, keyExpressionValue, context);
                 }
 
                 throw new Exception();
@@ -1710,19 +1692,19 @@ namespace CasualConsoleCore.Interpreter
                 this.setHandler = setHandler;
             }
 
-            public CustomValue DoIndexingGet(CustomValue keyExpressionValue, Context context, bool isThisToken)
+            public CustomValue DoIndexingGet(CustomValue keyExpressionValue, Context context)
             {
                 if (getHandler == null)
-                    return Interpreter.DoIndexingGet(target, keyExpressionValue, context, isThisToken);
+                    return Interpreter.DoIndexingGet(target, keyExpressionValue, context);
                 else
                     return CallFunction(getHandler, new List<CustomValue> { target, keyExpressionValue }, CustomValue.Null);
             }
 
-            public CustomValue DoIndexingSet(CustomValue value, CustomValue keyExpressionValue, Context context, bool isThisToken)
+            public CustomValue DoIndexingSet(CustomValue value, CustomValue keyExpressionValue, Context context)
             {
                 if (setHandler == null)
                 {
-                    return Interpreter.DoIndexingSet(value, target, keyExpressionValue, context, isThisToken);
+                    return Interpreter.DoIndexingSet(value, target, keyExpressionValue, context);
                 }
                 else
                 {
@@ -3292,14 +3274,14 @@ namespace CasualConsoleCore.Interpreter
                             {
                                 var keyExpressionValue = ((Expression)expressions).EvaluateExpression(context);
                                 secondLastValue = lastValue;
-                                lastValue = DoIndexingGet(lastValue, keyExpressionValue, context, i == 0 && IsThisExpression(firstExpression));
+                                lastValue = DoIndexingGet(lastValue, keyExpressionValue, context);
                             }
                             break;
                         case Operator.ComputedMemberAccess:
                             {
                                 var keyExpressionValue = ((Expression)expressions).EvaluateExpression(context);
                                 secondLastValue = lastValue;
-                                lastValue = DoIndexingGet(lastValue, keyExpressionValue, context, i == 0 && IsThisExpression(firstExpression));
+                                lastValue = DoIndexingGet(lastValue, keyExpressionValue, context);
                             }
                             break;
                         case Operator.FunctionCall:
