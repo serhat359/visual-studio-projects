@@ -97,6 +97,8 @@ namespace CasualConsoleCore.Interpreter
                     })
                 },
             }), AssignmentType.Const);
+
+            defaultvariables["Proxy"] = (CustomValue.FromClass(new ProxyClassObject()), AssignmentType.Const);
         }
 
         public object InterpretCode(string code)
@@ -617,6 +619,17 @@ namespace CasualConsoleCore.Interpreter
                 ("Rectangle != null", true),
                 ("Rectangle.prototype.calcArea != null", true),
                 ("Rectangle.prototype.isSquare = function(){ return this.width == this.height; }; new Rectangle(20,20).isSquare()", true),
+                ("var proxy = new Proxy([], {}); proxy.push(12); proxy.length", 1),
+                ("var proxy = new Proxy({}, {}); proxy.name = 'Serhat'; proxy.name", "Serhat"),
+                ("var proxy = new Proxy({ name(){ return 'Serhat' } }, {}); proxy.name()", "Serhat"),
+                ("var proxy = new Proxy({}, { get(obj, prop){ return prop } }); proxy.customProp", "customProp"),
+                ("var proxy = new Proxy({ name: 'Serhat' }, { get(obj, prop){ return obj[prop] ?? '23' } }); proxy.name", "Serhat"),
+                ("proxy.customProp", "23"),
+                ("var proxy = new Proxy({ name: 'Serhat', age: 23 }, { set(obj, prop, value){ if(prop == 'age' && value < 20) obj[prop] = 20; else obj[prop] = value } }); proxy.name = 'new name'", "new name"),
+                ("proxy.age = 30", 30),
+                ("proxy.age", 30),
+                ("proxy.age = 15", 15),
+                ("proxy.age", 20),
             };
 
             var interpreter = new Interpreter();
@@ -1139,6 +1152,11 @@ namespace CasualConsoleCore.Interpreter
 
             if (baseExpressionValue.type == ValueType.Map && keyExpressionValue.type == ValueType.String)
             {
+                if (baseExpressionValue.value is ProxyObjectInstance proxy)
+                {
+                    return proxy.DoIndexingGet(keyExpressionValue, context, isThisToken);
+                }
+
                 var baseObject = baseExpressionValue.GetBaseObject();
                 var key = (string)keyExpressionValue.value;
 
@@ -1164,8 +1182,8 @@ namespace CasualConsoleCore.Interpreter
                 {
                     // Not a regular object, an instance of a class
                     var classInfo = context.variableScope.GetVariable(baseObject.name);
-                    var classObject = (ClassObject)classInfo.value;
-                    if (classObject.methods.TryGetValue(key, out var method))
+                    var classObject = (IClassInfoObject)classInfo.value;
+                    if (classObject.TryGetValueMethod(key, out var method))
                     {
                         return GetValue(method, baseExpressionValue);
                     }
@@ -1203,9 +1221,9 @@ namespace CasualConsoleCore.Interpreter
             }
             else if (baseExpressionValue.type == ValueType.Class && keyExpressionValue.type == ValueType.String)
             {
-                var classObject = (ClassObject)baseExpressionValue.value;
+                var classObject = (IClassInfoObject)baseExpressionValue.value;
                 if ((string)keyExpressionValue.value == "prototype")
-                    return classObject.prototype;
+                    return classObject.Prototype;
             }
 
             throw new Exception();
@@ -1249,6 +1267,11 @@ namespace CasualConsoleCore.Interpreter
         {
             if (baseExpressionValue.type == ValueType.Map && keyExpressionValue.type == ValueType.String)
             {
+                if (baseExpressionValue.value is ProxyObjectInstance proxy)
+                {
+                    return proxy.DoIndexingSet(value, keyExpressionValue, context, isThisToken);
+                }
+
                 var map = baseExpressionValue.GetAsMap();
                 var key = (string)keyExpressionValue.value;
                 if (map.TryGetValue(key, out var previousValue))
@@ -1626,17 +1649,41 @@ namespace CasualConsoleCore.Interpreter
             }
         }
 
-        class ClassObject
+        // Defines info about a class, NOT an instance
+        interface IClassInfoObject
         {
-            internal readonly FunctionObject? constructor;
-            internal readonly Dictionary<string, ValueOrGetterSetter> methods;
-            internal readonly CustomValue prototype;
+            FunctionObject? Constructor { get; }
+            CustomValue Prototype { get; }
+            bool TryGetValueMethod(string key, out ValueOrGetterSetter valueOrGetterSetter);
+        }
+        class ClassObject : IClassInfoObject
+        {
+            public FunctionObject? Constructor { get; }
+            public CustomValue Prototype { get; }
+            private Dictionary<string, ValueOrGetterSetter> Methods { get; }
 
             public ClassObject(FunctionObject? constructor, Dictionary<string, ValueOrGetterSetter> methods)
             {
-                this.constructor = constructor;
-                this.methods = methods;
-                this.prototype = CustomValue.FromMap(methods);
+                this.Constructor = constructor;
+                this.Methods = methods;
+                this.Prototype = CustomValue.FromMap(methods);
+            }
+
+            public bool TryGetValueMethod(string key, out ValueOrGetterSetter valueOrGetterSetter)
+            {
+                return Methods.TryGetValue(key, out valueOrGetterSetter);
+            }
+        }
+        class ProxyClassObject : IClassInfoObject
+        {
+            private FunctionObject constructor = new ProxyClassConstructor();
+
+            public FunctionObject? Constructor => constructor;
+            public CustomValue Prototype => throw new Exception();
+
+            public bool TryGetValueMethod(string key, out ValueOrGetterSetter valueOrGetterSetter)
+            {
+                throw new Exception();
             }
         }
         class BaseObject
@@ -1648,6 +1695,40 @@ namespace CasualConsoleCore.Interpreter
             {
                 this.name = name;
                 this.properties = properties;
+            }
+        }
+        class ProxyObjectInstance
+        {
+            internal CustomValue target;
+            private FunctionObject? getHandler;
+            private FunctionObject? setHandler;
+
+            public ProxyObjectInstance(CustomValue target, FunctionObject? getHandler, FunctionObject? setHandler)
+            {
+                this.target = target;
+                this.getHandler = getHandler;
+                this.setHandler = setHandler;
+            }
+
+            public CustomValue DoIndexingGet(CustomValue keyExpressionValue, Context context, bool isThisToken)
+            {
+                if (getHandler == null)
+                    return Interpreter.DoIndexingGet(target, keyExpressionValue, context, isThisToken);
+                else
+                    return CallFunction(getHandler, new List<CustomValue> { target, keyExpressionValue }, CustomValue.Null);
+            }
+
+            public CustomValue DoIndexingSet(CustomValue value, CustomValue keyExpressionValue, Context context, bool isThisToken)
+            {
+                if (setHandler == null)
+                {
+                    return Interpreter.DoIndexingSet(value, target, keyExpressionValue, context, isThisToken);
+                }
+                else
+                {
+                    CallFunction(setHandler, new List<CustomValue> { target, keyExpressionValue, value }, CustomValue.Null);
+                    return value;
+                }
             }
         }
         interface FunctionObject : Statement
@@ -1914,6 +1995,40 @@ namespace CasualConsoleCore.Interpreter
                 throw new NotImplementedException();
             }
         }
+        class ProxyClassConstructor : FunctionObject
+        {
+            private IReadOnlyList<(string paramName, bool isRest)> parameters = new[] { ("target", false), ("options", false) };
+
+            public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
+
+            public VariableScope? Scope => null;
+
+            public bool IsLambda => false;
+
+            public StatementType Type => throw new Exception();
+
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+            {
+                var target = context.variableScope.GetVariable(Parameters[0].paramName);
+                var options = context.variableScope.GetVariable(Parameters[1].paramName);
+                var optionsProperties = options.GetBaseObject().properties;
+                var hasGetHandler = optionsProperties.TryGetValue("get", out var getSettings);
+                var hasSetHandler = optionsProperties.TryGetValue("set", out var setSettings);
+
+                FunctionObject? getHandler = hasGetHandler ? (FunctionObject)(((CustomValue)getSettings).value) : null;
+                FunctionObject? setHandler = hasSetHandler ? (FunctionObject)(((CustomValue)setSettings).value) : null;
+
+                var newProxy = new ProxyObjectInstance(target, getHandler, setHandler);
+
+                var value = CustomValue.FromProxy(newProxy);
+                return (value, false, false, false);
+            }
+
+            public IEnumerable<CustomValue> AsEnumerable(Context context)
+            {
+                throw new NotImplementedException();
+            }
+        }
         class CustomArray
         {
             internal List<CustomValue> list;
@@ -2103,7 +2218,7 @@ namespace CasualConsoleCore.Interpreter
                 return new CustomValue(func, ValueType.Function);
             }
 
-            internal static CustomValue FromClass(ClassObject func)
+            internal static CustomValue FromClass(IClassInfoObject func)
             {
                 return new CustomValue(func, ValueType.Class);
             }
@@ -2111,6 +2226,11 @@ namespace CasualConsoleCore.Interpreter
             internal static CustomValue FromMap(Dictionary<string, ValueOrGetterSetter> map, string className = "")
             {
                 return new CustomValue(new BaseObject(className, map), ValueType.Map);
+            }
+
+            internal static CustomValue FromProxy(ProxyObjectInstance proxy)
+            {
+                return new CustomValue(proxy, ValueType.Map);
             }
 
             internal static CustomValue FromArray(CustomArray array)
@@ -3187,6 +3307,9 @@ namespace CasualConsoleCore.Interpreter
                                 var expressionList = (List<(bool hasThreeDot, Expression expression)>)expressions;
                                 var oldSecondLastValue = secondLastValue;
                                 secondLastValue = lastValue;
+
+                                if (oldSecondLastValue.type == ValueType.Map && oldSecondLastValue.value is ProxyObjectInstance proxy)
+                                    oldSecondLastValue = proxy.target;
                                 lastValue = EvaluateFunctionCall(context, lastValue, expressionList, oldSecondLastValue);
                             }
                             break;
@@ -3647,10 +3770,16 @@ namespace CasualConsoleCore.Interpreter
                 if (classObject.type != ValueType.Class)
                     throw new Exception();
 
-                var cl = (ClassObject)classObject.value;
+                var cl = (IClassInfoObject)classObject.value;
                 var newObject = CustomValue.FromMap(new Dictionary<string, ValueOrGetterSetter>(), className);
-                if (cl.constructor != null)
-                    EvaluateFunctionCall(context, cl.constructor, expressionList, newObject);
+                if (cl.Constructor != null)
+                {
+                    var constructorReturn = EvaluateFunctionCall(context, cl.Constructor, expressionList, newObject);
+                    if (constructorReturn.type == ValueType.Null)
+                        return newObject;
+                    else
+                        return constructorReturn;
+                }
 
                 return newObject;
             }
