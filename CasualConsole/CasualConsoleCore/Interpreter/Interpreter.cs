@@ -70,6 +70,7 @@ namespace CasualConsoleCore.Interpreter
                 { "prototype", CustomValue.FromMap(new Dictionary<string, ValueOrGetterSetter>()
                     {
                         { "call", CustomValue.FromFunction(new FunctionCallFunction()) },
+                        { "apply", CustomValue.FromFunction(new FunctionApplyFunction()) },
                     })
                 },
             }), AssignmentType.Const);
@@ -571,6 +572,7 @@ namespace CasualConsoleCore.Interpreter
                 ("Array.prototype.popTwice = function(){ this.pop(); this.pop(); }; var arr = [1,2,3]; arr.popTwice(); arr.length", 1),
                 ("Array.prototype.pushTwice = function(x){ this.push(x); this.push(x); }; var arr = [1,2,3]; arr.pushTwice(9); arr.length == 5 && arr[3] == 9 && arr[4] == 9", true),
                 ("var f = function(x, y, z){ return this.name + (x + y); }; var o = { name: 'Serhat' }; f.call(o, 1, 2)", "Serhat3"),
+                ("var f = function(x, y, z){ return this.name + (x + y); }; var o = { name: 'Serhat' }; f.apply(o, [1, 2])", "Serhat3"),
                 ("'hello'.charAt(0)", "h"),
                 ("'hello'.charAt(2)", "l"),
                 ("var o = { name: 'Serhat', age: 30 }; var name; var age; ({ name, age } = o); name == 'Serhat' && age == 30", true),
@@ -1811,6 +1813,34 @@ namespace CasualConsoleCore.Interpreter
         class FunctionCallFunction : FunctionObject
         {
             private static (string paramName, bool isRest)[] parameters = new[] { ("thisOwner", false), ("args", true) };
+
+            public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
+
+            public VariableScope? Scope => null;
+
+            public bool IsLambda => false;
+
+            public StatementType Type => throw new NotImplementedException();
+
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+            {
+                var thisOwner = context.variableScope.GetVariable(Parameters[0].paramName);
+                var args = context.variableScope.GetVariable(Parameters[1].paramName);
+                var argsList = ((CustomArray)args.value).list;
+
+                var returnValue = CallFunction((FunctionObject)context.thisOwner.value, argsList, thisOwner);
+
+                return (returnValue, false, false, false);
+            }
+
+            public IEnumerable<CustomValue> AsEnumerable(Context context)
+            {
+                throw new NotImplementedException();
+            }
+        }
+        class FunctionApplyFunction : FunctionObject
+        {
+            private static (string paramName, bool isRest)[] parameters = new[] { ("thisOwner", false), ("args", false) };
 
             public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
 
