@@ -652,6 +652,7 @@ namespace CasualConsoleCore.Interpreter
                 ("var k = ''; k &&= 2; k", ""),
                 ("var k = 'hello'; k &&= 2; k", 2),
                 ("var k = ''; var n = null; k &&= n=2; n", null), // Checking optimization
+                ("var o = { name:'thisName', getName(){ return (() => this.name)(); } }; o.getName()", "thisName"),
             };
 
             var interpreter = new Interpreter();
