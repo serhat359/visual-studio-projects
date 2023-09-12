@@ -12,8 +12,8 @@ namespace CasualConsoleCore.Interpreter
     {
         private static readonly HashSet<char> onlyChars = new HashSet<char>() { '(', ')', ',', ';', '{', '}', '[', ']' };
         private static readonly string[] onlyCharStrings;
-        private static readonly HashSet<string> operators = new HashSet<string>() { "+", "-", "*", "/", "%", "=", "?", ":", "<", ">", "<=", ">=", "&&", "||", "??", "!", "!=", ".", "==", "+=", "-=", "*=", "/=", "%=", "=>", "++", "--", "...", "?.", "?.[", "?.(" };
-        private static readonly HashSet<string> assignmentSet = new HashSet<string>() { "=", "+=", "-=", "*=", "/=", "%=" };
+        private static readonly HashSet<string> operators = new HashSet<string>() { "+", "-", "*", "/", "%", "=", "?", ":", "<", ">", "<=", ">=", "&&", "||", "??", "!", "!=", ".", "==", "+=", "-=", "*=", "/=", "%=", "??=", "||=", "&&=", "=>", "++", "--", "...", "?.", "?.[", "?.(" };
+        private static readonly HashSet<string> assignmentSet = new HashSet<string>() { "=", "+=", "-=", "*=", "/=", "%=", "&&=", "||=", "??=" };
         private static readonly HashSet<string> regularOperatorSet = new HashSet<string>() { "+", "-", "*", "/", "%", "==", "!=", "<", ">", "<=", ">=", "&&", "||", "??" };
         private static readonly HashSet<string> keywords = new HashSet<string>() { "this", "var", "let", "const", "if", "else", "while", "for", "break", "continue", "function", "class", "async", "await", "return", "yield", "true", "false", "null", "new" };
         private static readonly Dictionary<char, Dictionary<char, HashSet<char>>> operatorsCompiled;
@@ -57,6 +57,12 @@ namespace CasualConsoleCore.Interpreter
             }), AssignmentType.Const);
             defaultvariables["print"] = (printFunctionCustomValue, AssignmentType.Const);
 
+            defaultvariables["Math"] = (CustomValue.FromMap(new Dictionary<string, ValueOrGetterSetter>
+            {
+                { "random", CustomValue.FromFunction(new MathRandomFunction()) },
+                { "floor", CustomValue.FromFunction(new MathFloorFunction()) }
+            }), AssignmentType.Const);
+
             defaultvariables["Array"] = (CustomValue.FromMap(new Dictionary<string, ValueOrGetterSetter> {
                 { "prototype", CustomValue.FromMap(new Dictionary<string, ValueOrGetterSetter>()
                     {
@@ -79,6 +85,7 @@ namespace CasualConsoleCore.Interpreter
                 { "prototype", CustomValue.FromMap(new Dictionary<string, ValueOrGetterSetter>()
                     {
                         { "charAt", CustomValue.FromFunction(new CharAtFunction()) },
+                        { "charCodeAt", CustomValue.FromFunction(new CharCodeAtFunction()) },
                     })
                 },
             }), AssignmentType.Const);
@@ -629,6 +636,22 @@ namespace CasualConsoleCore.Interpreter
                 ("proxy.age", 30),
                 ("proxy.age = 15", 15),
                 ("proxy.age", 20),
+                ("'A'.charCodeAt(0)", 65),
+                ("'Aa'.charCodeAt(1)", 97),
+                ("Math.floor(3.2)", 3),
+                ("Math.floor(-3.2)", -4),
+                ("var ran = Math.random(); ran >=0 && ran < 1", true),
+                ("'text'.length", 4),
+                ("'hello'.length", 5),
+                ("var total = 0; for (let c of 'hello') total++; total", 5),
+                ("var k = null; k ??= 2; k", 2),
+                ("var k = 2; var n = null; k ??= n=2; n", null), // Checking optimization
+                ("var k = 0; k ||= 2; k", 2),
+                ("var k = 2; var n = null; k ||= n=2; n", null), // Checking optimization
+                ("var k = 0; k &&= 2; k", 0),
+                ("var k = ''; k &&= 2; k", ""),
+                ("var k = 'hello'; k &&= 2; k", 2),
+                ("var k = ''; var n = null; k &&= n=2; n", null), // Checking optimization
             };
 
             var interpreter = new Interpreter();
@@ -1210,6 +1233,16 @@ namespace CasualConsoleCore.Interpreter
                         return CustomValue.Null;
                 }
             }
+            else if (baseExpressionValue.type == ValueType.String)
+            {
+                var str = (string)baseExpressionValue.value;
+                if (keyExpressionValue.type == ValueType.String)
+                {
+                    var fieldName = (string)keyExpressionValue.value;
+                    if (fieldName == "length")
+                        return CustomValue.FromNumber(str.Length);
+                }
+            }
             else if (baseExpressionValue.type == ValueType.Class && keyExpressionValue.type == ValueType.String)
             {
                 var classObject = (IClassInfoObject)baseExpressionValue.value;
@@ -1393,6 +1426,11 @@ namespace CasualConsoleCore.Interpreter
                     expressionList.Add((false, ExpressionMethods.New(item)));
             }
             return expressionList;
+        }
+
+        private static IEnumerable<CustomValue> StringAsEnumerable(string str)
+        {
+            return str.Select(c => CustomValue.FromParsedString(c.ToString()));
         }
 
         private static bool IsVariableName(string token)
@@ -1866,6 +1904,51 @@ namespace CasualConsoleCore.Interpreter
                 throw new NotImplementedException();
             }
         }
+        class MathRandomFunction : FunctionObject
+        {
+            public IReadOnlyList<(string paramName, bool isRest)> Parameters => Array.Empty<(string, bool)>();
+
+            public VariableScope? Scope => null;
+
+            public bool IsLambda => false;
+
+            public StatementType Type => throw new NotImplementedException();
+
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+            {
+                var randomDouble = Random.Shared.NextDouble();
+                return (CustomValue.FromNumber(randomDouble), false, false, false);
+            }
+
+            public IEnumerable<CustomValue> AsEnumerable(Context context)
+            {
+                throw new NotImplementedException();
+            }
+        }
+        class MathFloorFunction : FunctionObject
+        {
+            private static (string paramName, bool isRest)[] parameters = new[] { ("number", false) };
+
+            public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
+
+            public VariableScope? Scope => null;
+
+            public bool IsLambda => false;
+
+            public StatementType Type => throw new NotImplementedException();
+
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+            {
+                var number = context.variableScope.GetVariable(Parameters[0].paramName);
+                var num = (double)number.value;
+                return (CustomValue.FromNumber(Math.Floor(num)), false, false, false);
+            }
+
+            public IEnumerable<CustomValue> AsEnumerable(Context context)
+            {
+                throw new NotImplementedException();
+            }
+        }
         class GeneratorNextFunction : FunctionObject
         {
             private static (string paramName, bool isRest)[] parameters = Array.Empty<(string, bool)>();
@@ -1944,6 +2027,41 @@ namespace CasualConsoleCore.Interpreter
 
                 var newValue = CustomValue.FromParsedString(str[index].ToString());
                 return (newValue, false, false, false);
+            }
+
+            public IEnumerable<CustomValue> AsEnumerable(Context context)
+            {
+                throw new NotImplementedException();
+            }
+        }
+        class CharCodeAtFunction : FunctionObject
+        {
+            private static (string paramName, bool isRest)[] parameters = new[] { ("x", false) };
+
+            public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
+
+            public VariableScope? Scope => null;
+
+            public bool IsLambda => false;
+
+            public StatementType Type => throw new Exception();
+
+            public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+            {
+                var thisString = context.thisOwner;
+                if (thisString.type != ValueType.String)
+                    throw new Exception();
+
+                var str = (string)thisString.value;
+
+                var indexValue = context.variableScope.GetVariable(Parameters[0].paramName);
+                if (indexValue.type != ValueType.Number)
+                    throw new Exception();
+
+                int index = (int)(double)indexValue.value;
+
+                var newValue = (int)str[index];
+                return (CustomValue.FromNumber(newValue), false, false, false);
             }
 
             public IEnumerable<CustomValue> AsEnumerable(Context context)
@@ -3962,35 +4080,45 @@ namespace CasualConsoleCore.Interpreter
                 }
                 else
                 {
-                    var value = rValue.EvaluateExpression(context);
-
                     Func<CustomValue?, CustomValue> operation;
                     bool needOldValue;
 
                     switch (assignmentOperator)
                     {
                         case "=":
-                            operation = existingValue => value;
+                            operation = existingValue => rValue.EvaluateExpression(context);
                             needOldValue = false;
                             break;
                         case "+=":
-                            operation = existingValue => AddOrSubtract(existingValue.Value, Operator.Plus, value);
+                            operation = existingValue => AddOrSubtract(existingValue.Value, Operator.Plus, rValue.EvaluateExpression(context));
                             needOldValue = true;
                             break;
                         case "-=":
-                            operation = existingValue => AddOrSubtract(existingValue.Value, Operator.Minus, value);
+                            operation = existingValue => AddOrSubtract(existingValue.Value, Operator.Minus, rValue.EvaluateExpression(context));
                             needOldValue = true;
                             break;
                         case "*=":
-                            operation = existingValue => MultiplyOrDivide(existingValue.Value, Operator.Multiply, value);
+                            operation = existingValue => MultiplyOrDivide(existingValue.Value, Operator.Multiply, rValue.EvaluateExpression(context));
                             needOldValue = true;
                             break;
                         case "/=":
-                            operation = existingValue => MultiplyOrDivide(existingValue.Value, Operator.Divide, value);
+                            operation = existingValue => MultiplyOrDivide(existingValue.Value, Operator.Divide, rValue.EvaluateExpression(context));
                             needOldValue = true;
                             break;
                         case "%=":
-                            operation = existingValue => MultiplyOrDivide(existingValue.Value, Operator.Modulus, value);
+                            operation = existingValue => MultiplyOrDivide(existingValue.Value, Operator.Modulus, rValue.EvaluateExpression(context));
+                            needOldValue = true;
+                            break;
+                        case "&&=":
+                            operation = existingValue => !existingValue.Value.IsTruthy() ? existingValue.Value : rValue.EvaluateExpression(context);
+                            needOldValue = true;
+                            break;
+                        case "||=":
+                            operation = existingValue => existingValue.Value.IsTruthy() ? existingValue.Value : rValue.EvaluateExpression(context);
+                            needOldValue = true;
+                            break;
+                        case "??=":
+                            operation = existingValue => existingValue.Value.type != ValueType.Null ? existingValue.Value : rValue.EvaluateExpression(context);
                             needOldValue = true;
                             break;
                         default:
@@ -4620,7 +4748,12 @@ namespace CasualConsoleCore.Interpreter
                 }
                 else if (isOfStatement)
                 {
-                    if (sourceValue.type == ValueType.Array && !isAwait)
+                    if (sourceValue.type == ValueType.String && !isAwait)
+                    {
+                        var str = (string)sourceValue.value;
+                        return (scope, StringAsEnumerable(str));
+                    }
+                    else if (sourceValue.type == ValueType.Array && !isAwait)
                     {
                         var array = (CustomArray)sourceValue.value;
                         return (scope, array.list);
