@@ -1785,8 +1785,6 @@ namespace CasualConsoleCore.Interpreter
 
             public bool IsLambda => isLambda;
 
-            public StatementType Type => throw new Exception();
-
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
                 if (!isGenerator)
@@ -1834,8 +1832,6 @@ namespace CasualConsoleCore.Interpreter
 
             public bool IsLambda => false;
 
-            public StatementType Type => throw new NotImplementedException();
-
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
                 var printValue = context.variableScope.GetVariable(Parameters[0].paramName);
@@ -1858,8 +1854,6 @@ namespace CasualConsoleCore.Interpreter
             public VariableScope? Scope => null;
 
             public bool IsLambda => false;
-
-            public StatementType Type => throw new NotImplementedException();
 
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
@@ -1887,8 +1881,6 @@ namespace CasualConsoleCore.Interpreter
 
             public bool IsLambda => false;
 
-            public StatementType Type => throw new NotImplementedException();
-
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
                 var thisOwner = context.variableScope.GetVariable(Parameters[0].paramName);
@@ -1913,8 +1905,6 @@ namespace CasualConsoleCore.Interpreter
 
             public bool IsLambda => false;
 
-            public StatementType Type => throw new NotImplementedException();
-
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
                 var randomDouble = Random.Shared.NextDouble();
@@ -1935,8 +1925,6 @@ namespace CasualConsoleCore.Interpreter
             public VariableScope? Scope => null;
 
             public bool IsLambda => false;
-
-            public StatementType Type => throw new NotImplementedException();
 
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
@@ -1959,8 +1947,6 @@ namespace CasualConsoleCore.Interpreter
             public VariableScope? Scope => null;
 
             public bool IsLambda => false;
-
-            public StatementType Type => throw new NotImplementedException();
 
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
@@ -1985,8 +1971,6 @@ namespace CasualConsoleCore.Interpreter
 
             public bool IsLambda => false;
 
-            public StatementType Type => throw new NotImplementedException();
-
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
                 var thisOwner = context.thisOwner;
@@ -2009,8 +1993,6 @@ namespace CasualConsoleCore.Interpreter
             public VariableScope? Scope => null;
 
             public bool IsLambda => false;
-
-            public StatementType Type => throw new Exception();
 
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
@@ -2045,8 +2027,6 @@ namespace CasualConsoleCore.Interpreter
 
             public bool IsLambda => false;
 
-            public StatementType Type => throw new Exception();
-
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
                 var thisString = context.thisOwner;
@@ -2080,8 +2060,6 @@ namespace CasualConsoleCore.Interpreter
 
             public bool IsLambda => false;
 
-            public StatementType Type => throw new Exception();
-
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
                 var thisArray = context.thisOwner;
@@ -2108,8 +2086,6 @@ namespace CasualConsoleCore.Interpreter
 
             public bool IsLambda => false;
 
-            public StatementType Type => throw new Exception();
-
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
                 var thisArray = context.thisOwner;
@@ -2135,8 +2111,6 @@ namespace CasualConsoleCore.Interpreter
             public VariableScope? Scope => null;
 
             public bool IsLambda => false;
-
-            public StatementType Type => throw new Exception();
 
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
@@ -2484,20 +2458,6 @@ namespace CasualConsoleCore.Interpreter
                     throw new Exception("setter was already defined");
                 return new GetterSetter(getter, f);
             }
-        }
-
-        enum StatementType
-        {
-            LineStatement,
-            BlockStatement,
-            IfStatement,
-            ElseIfStatement,
-            WhileStatement,
-            ForStatement,
-            ForInOfStatement,
-            FunctionStatement,
-            ClassStatement,
-            YieldStatement,
         }
 
         enum ValueType
@@ -4194,7 +4154,6 @@ namespace CasualConsoleCore.Interpreter
         interface Statement
         {
             (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context);
-            StatementType Type { get; }
             IEnumerable<CustomValue> AsEnumerable(Context context);
         }
         static class StatementMethods
@@ -4387,8 +4346,6 @@ namespace CasualConsoleCore.Interpreter
                 }
             }
 
-            public StatementType Type => StatementType.LineStatement;
-
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
                 return eval(context);
@@ -4411,8 +4368,6 @@ namespace CasualConsoleCore.Interpreter
                 tokens = tokens[1..^1];
                 statements = GetStatements(tokens);
             }
-
-            public StatementType Type => StatementType.BlockStatement;
 
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
@@ -4450,8 +4405,6 @@ namespace CasualConsoleCore.Interpreter
                 this.conditionExpression = conditionExpression;
                 this.statement = statement;
             }
-
-            public StatementType Type => StatementType.WhileStatement;
 
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
@@ -4502,8 +4455,6 @@ namespace CasualConsoleCore.Interpreter
                 this.iterationStatements = iterationStatements;
                 this.bodyStatement = bodyStatement;
             }
-
-            public StatementType Type => StatementType.ForStatement;
 
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
@@ -4656,8 +4607,6 @@ namespace CasualConsoleCore.Interpreter
                 this.isAwait = isAwait;
             }
 
-            public StatementType Type => StatementType.ForInOfStatement;
-
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
                 var (scope, elements) = GetElementsAndContext(context);
@@ -4789,8 +4738,6 @@ namespace CasualConsoleCore.Interpreter
                 this.statementOfIf = statementOfIf;
             }
 
-            public StatementType Type => StatementType.IfStatement;
-
             internal void AddElseIf(Statement statementAfterIf)
             {
                 if (elseStatement != null)
@@ -4874,8 +4821,6 @@ namespace CasualConsoleCore.Interpreter
                 this.statement = statement;
             }
 
-            public StatementType Type => StatementType.ElseIfStatement;
-
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
                 return statement.EvaluateStatement(context);
@@ -4955,8 +4900,6 @@ namespace CasualConsoleCore.Interpreter
                 return parametersList;
             }
 
-            public StatementType Type => StatementType.FunctionStatement;
-
             public static FunctionStatement FromParametersAndBody(string singleParameter, ArraySegment<string> bodyTokens, bool isLambda, bool isAsync, bool isGenerator)
             {
                 var body = StatementMethods.New(bodyTokens);
@@ -5005,8 +4948,6 @@ namespace CasualConsoleCore.Interpreter
                 this.constructor = constructor;
                 this.methodList = methodList;
             }
-
-            public StatementType Type => StatementType.ClassStatement;
 
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
@@ -5070,8 +5011,6 @@ namespace CasualConsoleCore.Interpreter
 
                 this.expression = ExpressionMethods.New(tokens);
             }
-
-            public StatementType Type => StatementType.YieldStatement;
 
             public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
             {
