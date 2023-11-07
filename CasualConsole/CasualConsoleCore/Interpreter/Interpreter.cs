@@ -749,6 +749,7 @@ namespace CasualConsoleCore.Interpreter
                 "[12,,]",
                 "var {x,,} = { age:2 }",
                 "class X{} class X{} ",
+                "true + true",
             };
             var interpreter = new Interpreter();
             foreach (var code in testCases)
@@ -1126,11 +1127,13 @@ namespace CasualConsoleCore.Interpreter
                     double totalNumber = (double)firstValue.value + (double)value.value;
                     return CustomValue.FromNumber(totalNumber);
                 }
-                else
+                else if (firstValue.type == ValueType.String || value.type == ValueType.String)
                 {
                     string totalString = firstValue.ToString() + value.ToString();
                     return CustomValue.FromParsedString(totalString);
                 }
+                else
+                    throw new Exception();
             }
             else if (operatorType == Operator.Minus)
             {
@@ -2406,13 +2409,13 @@ namespace CasualConsoleCore.Interpreter
             internal static void Test()
             {
                 var stringTestCases = new List<(string token, string value)>()
-            {
-                ("\"2\"", "2"),
-                ("\"Hello world\"", "Hello world"),
-                ("\"foo\"", "foo"),
-                ("\"\\\"foo\\\"\"", "\"foo\""),
-                ("\"\\t\"", "\t"),
-            };
+                {
+                    ("\"2\"", "2"),
+                    ("\"Hello world\"", "Hello world"),
+                    ("\"foo\"", "foo"),
+                    ("\"\\\"foo\\\"\"", "\"foo\""),
+                    ("\"\\t\"", "\t"),
+                };
 
                 foreach (var stringTestCase in stringTestCases)
                 {
