@@ -653,6 +653,7 @@ namespace CasualConsoleCore.Interpreter
                 ("var k = 'hello'; k &&= 2; k", 2),
                 ("var k = ''; var n = null; k &&= n=2; n", null), // Checking optimization
                 ("var o = { name:'thisName', getName(){ return (() => this.name)(); } }; o.getName()", "thisName"),
+                ("var [x, ...y] = [1,2,3,4]; y.length", 3),
             };
 
             var interpreter = new Interpreter();
@@ -3940,11 +3941,11 @@ namespace CasualConsoleCore.Interpreter
         }
         class ArrayAssignmentExpression : Expression
         {
-            public ArraySegment<string> variableNames;
+            public (string varName, bool isRest)[] variableNames;
             public Expression rValue;
             public AssignmentType assignmentType;
 
-            public ArrayAssignmentExpression(ArraySegment<string> variableNames, Expression rValue, AssignmentType assignmentType)
+            public ArrayAssignmentExpression((string, bool)[] variableNames, Expression rValue, AssignmentType assignmentType)
             {
                 this.variableNames = variableNames;
                 this.rValue = rValue;
@@ -3958,10 +3959,20 @@ namespace CasualConsoleCore.Interpreter
                     throw new Exception();
                 var underlyingArray = ((CustomArray)mapValue.value).list;
 
-                for (int i = 0; i < variableNames.Count; i++)
+                for (int i = 0; i < variableNames.Length; i++)
                 {
-                    var value = i < underlyingArray.Count ? underlyingArray[i] : CustomValue.Null;
-                    context.variableScope.AssignVariable(assignmentType, variableNames[i], value);
+                    var (varName, isRest) = variableNames[i];
+                    if (!isRest)
+                    {
+                        var value = i < underlyingArray.Count ? underlyingArray[i] : CustomValue.Null;
+                        context.variableScope.AssignVariable(assignmentType, varName, value); 
+                    }
+                    else
+                    {
+                        var values = underlyingArray.Skip(i).ToList();
+                        var value = CustomValue.FromArray(new CustomArray(values));
+                        context.variableScope.AssignVariable(assignmentType, varName, value);
+                    }
                 }
 
                 return CustomValue.Null;
@@ -3972,9 +3983,11 @@ namespace CasualConsoleCore.Interpreter
                 var variableGroups = SplitBy(tokens[1..bracketsEndIndex], ",", allowTrailing: true);
                 var variableNames = variableGroups.Select(x =>
                 {
-                    if (x.Count != 1)
-                        throw new Exception();
-                    return x[0];
+                    if (x.Count == 1)
+                        return (x[0], false);
+                    if(x.Count == 2 && x[0] == "...")
+                        return (x[1], true);
+                    throw new Exception();
                 }).ToArray();
 
                 var rValueTokens = tokens[(bracketsEndIndex + 2)..];
