@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Web;
 
 namespace CasualConsoleCore.Templater;
 
@@ -9,12 +10,10 @@ public class Templater
     public static Func<object, Dictionary<string, Func<object, object>>, string> CompileTemplate(string template)
     {
         var handlers = new List<object>();
-        var (handler, end) = GetHandler(template, 0);
-        handlers.Add(handler);
-
+        var end = 0;
         while (end < template.Length)
         {
-            (handler, end) = GetHandler(template, end);
+            (var handler, end) = GetHandler(template, end);
             handlers.Add(handler);
         }
         return (data, helpers) =>
@@ -36,79 +35,66 @@ public class Templater
             if (first == "if")
             {
                 var ifExpr = GetExpression(tokens, 1);
-                (var handlers, end) = GetBodyHandlers(template, end);
-
-                while (char.IsWhiteSpace(template[end]))
-                    end++;
-                if (template[end] == '{' && template[end + 1] == '{')
+                (var ifHandlers, end) = GetBodyHandlers(template, end);
+                var nextHandlerType = GetHandlerType(template, end);
+                if (nextHandlerType != "else")
                 {
-                    var tempEnd = end + 2;
-                    while (template[tempEnd] == ' ')
-                        tempEnd++;
-                    int tempStart = tempEnd++;
-                    while (template[tempEnd] != '.' && template[tempEnd] != '}' && template[tempEnd] != ' ')
-                        tempEnd++;
-                    var word = template[tempStart..tempEnd];
-                    if (word == "else")
+                    Action<Action<string>, Context> simpleHandler = (writer, context) =>
                     {
-                        var elseIfHandlers = new List<(Func<Context, object>, List<object>)>();
-                        List<object>? elseHandlers = null;
-
-                        var elseTokensEnd = tempStart;
-                        while (true)
+                        if (Truthy(ifExpr(context)))
                         {
-                            (var elseTokens, elseTokensEnd) = GetTokens(template, elseTokensEnd);
-                            if (elseTokens.Count == 1)
-                            {
-                                (var elseInnerHandlers, elseTokensEnd) = GetBodyHandlers(template, elseTokensEnd);
-                                elseHandlers = elseInnerHandlers;
-                                break;
-                            }
-                            else
-                            {
-                                // Has else if
-                                if (elseTokens[1] != "if")
-                                    throw new Exception();
-                                var elseIfExpr = GetExpression(elseTokens, 2);
-
-                                (var elseIfInnerHandlers, elseTokensEnd) = GetBodyHandlers(template, elseTokensEnd);
-                                elseIfHandlers.Add((elseIfExpr, elseIfInnerHandlers));
-                            }
+                            HandleMulti(writer, context, ifHandlers);
                         }
-                        Action<Action<string>, Context> handler = (writer, context) =>
-                        {
-                            if (Truthy(ifExpr(context)))
-                            {
-                                HandleMulti(writer, context, handlers);
-                                return;
-                            }
-                            foreach (var (elseIfExpr, elseIfHandlers) in elseIfHandlers)
-                            {
-                                if (Truthy(elseIfExpr(context)))
-                                {
-                                    HandleMulti(writer, context, elseIfHandlers);
-                                    return;
-                                }
-                            }
-                            if (elseHandlers != null)
-                            {
-                                HandleMulti(writer, context, elseHandlers);
-                                return;
-                            }
-                        };
-                        return (handler, elseTokensEnd);
-                    }
+                    };
+                    return (simpleHandler, end);
                 }
 
-                Action<Action<string>, Context> simpleHandler = (writer, context) =>
+                var elseIfHandlers = new List<(Func<Context, object>, List<object>)>();
+                List<object>? elseHandlers = null;
+                while (true)
                 {
-                    var val = ifExpr(context);
-                    if (Truthy(val))
+                    (var elseTokens, end) = GetTokens(template, end + 2);
+                    if (elseTokens.Count == 1)
                     {
-                        HandleMulti(writer, context, handlers);
+                        (elseHandlers, end) = GetBodyHandlers(template, end);
+                        break;
+                    }
+                    else
+                    {
+                        // Has else if
+                        if (elseTokens[1] != "if")
+                            throw new Exception();
+                        var elseIfExpr = GetExpression(elseTokens, 2);
+
+                        (var elseIfInnerHandlers, end) = GetBodyHandlers(template, end);
+                        elseIfHandlers.Add((elseIfExpr, elseIfInnerHandlers));
+                    }
+                    nextHandlerType = GetHandlerType(template, end);
+                    if (nextHandlerType != "else")
+                        break;
+                }
+                Action<Action<string>, Context> handler = (writer, context) =>
+                {
+                    if (Truthy(ifExpr(context)))
+                    {
+                        HandleMulti(writer, context, ifHandlers);
+                        return;
+                    }
+                    foreach (var (elseIfExpr, elseIfHandlers) in elseIfHandlers)
+                    {
+                        if (Truthy(elseIfExpr(context)))
+                        {
+                            HandleMulti(writer, context, elseIfHandlers);
+                            return;
+                        }
+                    }
+                    if (elseHandlers != null)
+                    {
+                        HandleMulti(writer, context, elseHandlers);
+                        return;
                     }
                 };
-                return (simpleHandler, end);
+                return (handler, end);
             }
             else if (first == "for")
             {
@@ -138,7 +124,7 @@ public class Templater
                 Action<Action<string>, Context> handler = (writer, context) =>
                 {
                     var value = expr(context);
-                    writer(value?.ToString());
+                    writer(HttpUtility.HtmlEncode(value?.ToString()));
                 };
                 return (handler, end);
             }
@@ -191,6 +177,23 @@ public class Templater
             tokens.Add(token);
         }
     }
+    private static string? GetHandlerType(string template, int start)
+    {
+        while (start < template.Length && char.IsWhiteSpace(template[start]))
+            start++;
+
+        if (start+1 < template.Length && template[start] == '{' && template[start + 1] == '{')
+        {
+            start += 2;
+            while (template[start] == ' ')
+                start++;
+            int tempStart = start++;
+            while (template[start] != '.' && template[start] != '}' && template[start] != ' ')
+                start++;
+            return template[tempStart..start];
+        }
+        return null;
+    }
     private static (List<object>, int) GetBodyHandlers(string template, int end)
     {
         var handlers = new List<object>();
@@ -227,7 +230,7 @@ public class Templater
             return context => Call(context.Get(token));
         }
 
-        // has two or more token
+        // has two or more tokens
         if (tokens[start + 1] == ".")
         {
             var objName = tokens[start];
@@ -249,7 +252,7 @@ public class Templater
         {
             // function call
             var f = tokens[start];
-            var expr = GetExpression(tokens, start+1);
+            var expr = GetExpression(tokens, start + 1);
             return context =>
             {
                 var func = (Func<object, object>)context.Get(f);
@@ -266,7 +269,7 @@ public class Templater
         if (o is double d) return d != 0;
         return true;
     }
-    
+
     interface Context
     {
         object Get(string key);

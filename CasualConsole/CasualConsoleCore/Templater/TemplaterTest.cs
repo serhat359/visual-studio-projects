@@ -37,6 +37,8 @@ public class TemplaterTest
         var tests = new (string, object, string)[] {
             ("", new { }, ""),
             ("hello", new { }, "hello"),
+            ("<script>", new { }, "<script>"),
+            ("{{t}}", new { t="<script>" }, "&lt;script&gt;"),
             ("hello {{w}}", new { w="world" }, "hello world"),
             ("hello {{upper w}}", new { w="world" }, "hello WORLD"),
             ("{{h}} {{w}}", new { h="hello", w="world" }, "hello world"),
@@ -54,6 +56,8 @@ public class TemplaterTest
             ("{{fixed number}}", new { number=AsFunc(()=>2.762736723) }, "2.76"),
             ("{{fixed a.b}}", new {a = new { b = 2.762736723 } }, "2.76"),
             ("{{if isPos a.b}}YES{{end}}{{else}}NO{{end}}", new {a = new { b = 2.762736723 } }, "YES"),
+            ("{{if x}}{{end}}{{x}}", new { x=2 }, "2"),
+            ("{{if x}}{{end}}    {{else if x}}   {{end}}    {{x}}", new { x=2 }, "    2"),
         };
 
         foreach (var (template, data, expected) in tests)
