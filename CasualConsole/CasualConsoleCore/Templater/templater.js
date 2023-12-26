@@ -1,4 +1,7 @@
 const Templater = function(){
+    function err(){
+        throw new Error();
+    }
     function htmlEncode(s){
         if (typeof s !== "string"){
             s = String(s ?? "")
@@ -15,9 +18,12 @@ const Templater = function(){
         let handler;
         while (end < template.length){
             [handler, end] = getHandler(template, end);
+            if (!handler)
+                err();
             handlers.push(handler);
         }
         return (data, helpers) => {
+            helpers ??= {};
             const parts = [];
             const writer = x => parts.push(x);
             const contextData = {};
@@ -62,7 +68,7 @@ const Templater = function(){
                         break;
                     }
                     else{
-                        if (elseTokens[1] !== "if") throw new Error();
+                        if (elseTokens[1] !== "if") err();
                         const elseIfExpr = getExpression(elseTokens, 2);
                         let elseIfInnerHandlers;
                         [elseIfInnerHandlers, end] = getBodyHandlers(template, end);
@@ -94,7 +100,7 @@ const Templater = function(){
             }
             else if (first === "for"){
                 const loopVarName = tokens[1];
-                if (tokens[2] !== "in") throw new Error();
+                if (tokens[2] !== "in") err();
                 const loopValuesExpr = getExpression(tokens, 3);
                 let handlers;
                 [handlers, end] = getBodyHandlers(template, end);
@@ -108,7 +114,7 @@ const Templater = function(){
                 }
                 return [handler, end];
             }
-            else if (first === "end")
+            else if (first === "end" || first === "else")
             {
                 return [null, end];
             }
@@ -122,12 +128,17 @@ const Templater = function(){
         }
         else if (i < 0)
         {
-            return [template.substring(start), template.length];
+            return [checkString(template.substring(start)), template.length];
         }
         else
         {
-            return [template.substring(start, i), i];
+            return [checkString(template.substring(start, i)), i];
         }
+    }
+    function checkString(s){
+        if (!s)
+            err();
+        return s;
     }
     function handleMulti(writer, context, handlers){
         for (const h of handlers)
@@ -138,7 +149,7 @@ const Templater = function(){
     }
     function getTokens(template, i){
         const tokens = [];
-        while(true){
+        while (true){
             while (template[i] === ' ')
                 i++;
             if (template[i] === '}' && template[i + 1] === '}')
@@ -150,9 +161,11 @@ const Templater = function(){
                 continue;
             }
             const start = i++;
-            while (template[i] !== '.' && template[i] !== '}' && template[i] !== ' ')
+            while (i < template.length && template[i] !== '.' && template[i] !== '}' && template[i] !== ' ')
                 i++;
             const token = template.substring(start, i);
+            if (!token)
+                err();
             tokens.push(token);
         }
     }
@@ -183,6 +196,8 @@ const Templater = function(){
         return [handlers, end];
     }
     function getExpression(tokens, start){
+        if (tokens.length - start == 0)
+            err();
         if (tokens.length - start == 1)
         {
             const token = tokens[start];

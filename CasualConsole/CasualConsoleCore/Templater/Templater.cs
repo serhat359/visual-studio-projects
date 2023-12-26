@@ -14,6 +14,8 @@ public class Templater
         while (end < template.Length)
         {
             (var handler, end) = GetHandler(template, end);
+            if (handler == null)
+                throw new Exception();
             handlers.Add(handler);
         }
         return (data, helpers) =>
@@ -114,7 +116,7 @@ public class Templater
                 };
                 return (handler, end);
             }
-            else if (first == "end")
+            else if (first == "end" || first == "else")
             {
                 return (null, end);
             }
@@ -131,12 +133,18 @@ public class Templater
         }
         else if (i < 0)
         {
-            return (template[start..], template.Length);
+            return (CheckString(template[start..]), template.Length);
         }
         else
         {
-            return (template[start..i], i);
+            return (CheckString(template[start..i]), i);
         }
+    }
+    private static string CheckString(string s)
+    {
+        if (s.Length == 0)
+            throw new Exception();
+        return s;
     }
     private static void HandleMulti(Action<string> writer, Context context, List<object> handlers)
     {
@@ -171,9 +179,11 @@ public class Templater
             }
 
             int start = i++;
-            while (template[i] != '.' && template[i] != '}' && template[i] != ' ')
+            while (i < template.Length && template[i] != '.' && template[i] != '}' && template[i] != ' ')
                 i++;
             var token = template[start..i];
+            if (token.Length == 0)
+                throw new Exception();
             tokens.Add(token);
         }
     }
@@ -182,7 +192,7 @@ public class Templater
         while (start < template.Length && char.IsWhiteSpace(template[start]))
             start++;
 
-        if (start+1 < template.Length && template[start] == '{' && template[start + 1] == '{')
+        if (start + 1 < template.Length && template[start] == '{' && template[start + 1] == '{')
         {
             start += 2;
             while (template[start] == ' ')
@@ -223,6 +233,8 @@ public class Templater
             return value;
         }
 
+        if (tokens.Count - start == 0)
+            throw new Exception();
         if (tokens.Count - start == 1)
         {
             // has one token

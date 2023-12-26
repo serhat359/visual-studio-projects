@@ -1,12 +1,12 @@
-﻿using NPOI.HSSF.Record;
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace CasualConsoleCore.Templater;
 
 public class TemplaterTest
 {
-    public static void Test()
+    public static async Task Test()
     {
         Func<object> AsFunc(Func<object> f) => f;
 
@@ -68,6 +68,46 @@ public class TemplaterTest
             {
                 throw new Exception();
             }
+        }
+
+        var badTests = new[] {
+            "{{",
+            "{{}}",
+            "{{if}}",
+            "{{if x}}",
+            "{{if}}{{end}}",
+            "{{if x}}{{}}",
+            "{{if x}}}}",
+            "{{if x}}{{",
+            "{{for}}",
+            "{{end}}",
+            "{{else}}",
+            "{{else if}}",
+        };
+        foreach (var badTest in badTests)
+        {
+            var timeoutTask = Task.Run(async () =>
+            {
+                await Task.Delay(200);
+            });
+            var compileTask = Task.Run(() =>
+            {
+                try
+                {
+                    Templater.CompileTemplate(badTest);
+                    return null;
+                }
+                catch (Exception e)
+                {
+                    return e;
+                }
+            });
+            var res = await Task.WhenAny(timeoutTask, compileTask);
+            if (res == timeoutTask)
+                throw new Exception("timout compiling");
+            var error = await compileTask;
+            if (error == null)
+                throw new Exception("error expected");
         }
 
         Console.WriteLine("Passed all Templater tests!!");
