@@ -27,6 +27,7 @@ const Templater = function(){
             const parts = [];
             const writer = x => parts.push(x);
             const contextData = {};
+            contextData["$"] = data;
             const context = {
                 get(key){
                     return contextData[key] ?? helpers[key] ?? data[key];

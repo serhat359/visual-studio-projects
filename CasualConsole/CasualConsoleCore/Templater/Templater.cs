@@ -297,6 +297,8 @@ public class Templater
         {
             this.helpers = helpers;
             this.global = global;
+
+            values["$"] = global;
         }
 
         public object? Get(string key)

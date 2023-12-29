@@ -58,6 +58,7 @@ public class TemplaterTest
             ("{{if isPos a.b}}YES{{end}}{{else}}NO{{end}}", new {a = new { b = 2.762736723 } }, "YES"),
             ("{{if x}}{{end}}{{x}}", new { x=2 }, "2"),
             ("{{if x}}{{end}}    {{else if x}}   {{end}}    {{x}}", new { x=2 }, "    2"),
+            ("{{for x in $}}{{x}}{{end}}", new object[]{ 1,2,3,4 }, "1234"),
         };
 
         foreach (var (template, data, expected) in tests)
