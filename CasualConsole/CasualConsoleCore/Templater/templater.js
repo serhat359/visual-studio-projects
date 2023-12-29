@@ -202,26 +202,74 @@ const Templater = function(){
         if (tokens.length - start == 1)
         {
             const token = tokens[start];
-            return context => context.get(token);
+            return getTokenAsExpression(token);
         }
         if (tokens[start + 1] === "."){
+            const argGroups = getArgGroups(tokens, start);
+            if (argGroups.length == 1)
+                return argGroups[0];
+            err();
+        }
+        else {
+            const f = tokens[start];
+            const argGroups = getArgGroups(tokens, start + 1);
+            if (argGroups.length == 1) {
+                const expr = getExpression(tokens, start + 1);
+                return context => {
+                    const func = context.get(f);
+                    if (typeof func !== "function")
+                        throw new Error(`value of ${f} was not a function`);
+                    const val = expr(context);
+                    return func(val);
+                };
+            }
+            else {
+                return context => {
+                    const func = context.get(f);
+                    if (typeof func !== "function")
+                        throw new Error(`value of ${f} was not a function`);
+                    const args = argGroups.map(expr => expr(context));
+                    return func.apply(this, args);
+                }
+            }
+        }
+    }
+    function getTokenAsExpression(token) {
+        return context => context.get(token);
+    }
+    function getMemberAccessExpression(tokens, start, end) {
+        if (end - start == 1) {
+            return getTokenAsExpression(tokens[start]);
+        }
+        else if (end - start == 3) {
             const objName = tokens[start];
             const key = tokens[start + 2];
             return context => {
                 return context.get(objName)[key];
             };
         }
-        else {
-            const f = tokens[start];
-            const expr = getExpression(tokens, start + 1);
-            return context =>
-            {
-                var func = context.get(f);
-                if (typeof func !== "function")
-                    throw new Error(`value of ${f} was not a function`);
-                var val = expr(context);
-                return func(val);
-            };
+        err();
+    }
+    function getArgGroups(tokens, start) {
+        const args = [];
+        while (true) {
+            let end = start;
+            if (tokens[end] === '.') err();
+            end++;
+            while (end < tokens.length && tokens[end] === '.') {
+                end++;
+                if (end < tokens.length && tokens[end] === '.')
+                    err();
+                end++;
+            }
+
+            args.push(getMemberAccessExpression(tokens, start, end));
+            if (end == tokens.length)
+                return args;
+            else {
+                if (end == start) err();
+                start = end;
+            }
         }
     }
     function ws(x){

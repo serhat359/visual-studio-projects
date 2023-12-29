@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Web;
 
@@ -7,7 +8,7 @@ namespace CasualConsoleCore.Templater;
 
 public class Templater
 {
-    public static Func<object, Dictionary<string, Func<object, object>>, string> CompileTemplate(string template)
+    public static Func<object, Dictionary<string, object>, string> CompileTemplate(string template)
     {
         var handlers = new List<object>();
         var end = 0;
@@ -218,32 +219,69 @@ public class Templater
     }
     private static Func<Context, object> GetExpression(List<string> tokens, int start)
     {
-        static object Call(object value)
-        {
-            if (value == null)
-                return null;
-            var valueType = value.GetType();
-            if (valueType.IsGenericType && valueType.GetGenericTypeDefinition() == typeof(Func<>))
-            {
-                if (value is Func<object> f)
-                    return f();
-                else
-                    throw new Exception();
-            }
-            return value;
-        }
-
         if (tokens.Count - start == 0)
             throw new Exception();
         if (tokens.Count - start == 1)
         {
             // has one token
             var token = tokens[start];
-            return context => Call(context.Get(token));
+            return GetTokenAsExpression(token);
         }
 
         // has two or more tokens
         if (tokens[start + 1] == ".")
+        {
+            var argGroups = GetArgGroups(tokens, start);
+            if (argGroups.Count == 1)
+                return argGroups[0];
+
+            throw new Exception();
+        }
+        else
+        {
+            // function call
+            var f = tokens[start];
+            var argGroups = GetArgGroups(tokens, start + 1);
+            if (argGroups.Count == 1)
+            {
+                var expr = argGroups[0];
+                return context =>
+                {
+                    var funcVal = context.Get(f);
+                    if (funcVal is Func<object, object> func1)
+                    {
+                        var val = expr(context);
+                        return func1(val);
+                    }
+                    throw new Exception();
+                };
+            }
+            else
+            {
+                return context =>
+                {
+                    var funcVal = context.Get(f);
+                    if (funcVal is Func<object[], object> func1)
+                    {
+                        var args = argGroups.Select(expr => expr(context)).ToArray();
+                        return func1(args);
+                    }
+                    throw new Exception();
+                };
+            }
+        }
+    }
+    private static Func<Context, object> GetTokenAsExpression(string token)
+    {
+        return context => Call(context.Get(token));
+    }
+    private static Func<Context, object> GetMemberAccessExpression(List<string> tokens, int start, int end)
+    {
+        if (end - start == 1)
+        {
+            return GetTokenAsExpression(tokens[start]);
+        }
+        else if (end - start == 3)
         {
             var objName = tokens[start];
             var key = tokens[start + 2];
@@ -260,22 +298,54 @@ public class Templater
                 return Call(obj.GetType().GetProperty(key).GetValue(obj));
             };
         }
-        else
+        throw new Exception();
+    }
+    static object Call(object value)
+    {
+        if (value == null)
+            return null;
+        var valueType = value.GetType();
+        if (valueType.IsGenericType && valueType.GetGenericTypeDefinition() == typeof(Func<>))
         {
-            // function call
-            var f = tokens[start];
-            var expr = GetExpression(tokens, start + 1);
-            return context =>
+            if (value is Func<object> f)
+                return f();
+            else
+                throw new Exception();
+        }
+        return value;
+    }
+    private static List<Func<Context, object>> GetArgGroups(List<string> tokens, int start)
+    {
+        var args = new List<Func<Context, object>>();
+
+        while (true)
+        {
+            int end = start;
+            if (tokens[end] == ".") throw new Exception();
+            end++;
+            while (end < tokens.Count && tokens[end] == ".")
             {
-                var func = (Func<object, object>)context.Get(f);
-                var val = expr(context);
-                return func(val);
-            };
+                end++;
+                if (end < tokens.Count && tokens[end] == ".") throw new Exception();
+                end++;
+            }
+
+            args.Add(GetMemberAccessExpression(tokens, start, end));
+            if (end == tokens.Count)
+            {
+                return args;
+            }
+            else
+            {
+                if (start == end) throw new Exception();
+                start = end;
+            }
         }
     }
     private static bool Truthy(object o)
     {
         if (o is null) return false;
+        if (o is false) return false;
         if (o is string s) return s != "";
         if (o is int i) return i != 0;
         if (o is double d) return d != 0;
@@ -290,10 +360,10 @@ public class Templater
     class RealContext : Context
     {
         Dictionary<string, object> values = new();
-        Dictionary<string, Func<object, object>> helpers;
+        Dictionary<string, object> helpers;
         object global;
 
-        public RealContext(Dictionary<string, Func<object, object>> helpers, object global)
+        public RealContext(Dictionary<string, object> helpers, object global)
         {
             this.helpers = helpers;
             this.global = global;

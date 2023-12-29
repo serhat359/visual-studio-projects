@@ -23,6 +23,8 @@ var tests = [
     ["{{if x}}{{end}}{{x}}", { x:2 }, "2"],
     ["{{if x}}{{end}}    {{else if x}}   {{end}}    {{x}}", { x:2 }, "    2"],
     ["{{for x in texts}}<{{x}}>{{end}}", { texts: ["foo", "bar", "baz", "<script>"] }, "<foo><bar><baz><&lt;script&gt;>"],
+    ["{{if gt $.v1 $.v2}}YES{{end}}", { v1: 6, v2: 3 }, "YES"],
+    ["{{sum $.n $.n $.n $.n}}", { n:25 }, "100"],
 ];
 
 let helpers = {
@@ -34,6 +36,15 @@ let helpers = {
     },
     isPos(d){
         return d > 0;
+    },
+    gt(o1, o2){
+        return o1 > o2;
+    },
+    sum(...args){
+        let total = 0;
+        for(const arg of args)
+            total += arg;
+        return total;
     }
 };
 

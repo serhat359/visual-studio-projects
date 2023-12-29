@@ -28,10 +28,15 @@ public class TemplaterTest
                 return s.ToUpperInvariant();
             throw new Exception();
         }
-        var helpers = new Dictionary<string, Func<object, object>> {
+        static object eq(object[] args)
+        {
+            return object.Equals(args[0], args[1]);
+        }
+        var helpers = new Dictionary<string, object> {
             { "fixed", toFixed },
             { "isPos", isPos },
             { "upper", upper },
+            { "eq", eq },
         };
 
         var tests = new (string, object, string)[] {
@@ -59,6 +64,8 @@ public class TemplaterTest
             ("{{if x}}{{end}}{{x}}", new { x=2 }, "2"),
             ("{{if x}}{{end}}    {{else if x}}   {{end}}    {{x}}", new { x=2 }, "    2"),
             ("{{for x in $}}{{x}}{{end}}", new object[]{ 1,2,3,4 }, "1234"),
+            ("{{if eq $.v1 $.v2}}YES{{end}}{{else}}NO{{end}}", new { v1=1, v2=1 }, "YES"),
+            ("{{if eq $.v1 $.v2}}YES{{end}}{{else}}NO{{end}}", new { v1=1, v2=2 }, "NO"),
         };
 
         foreach (var (template, data, expected) in tests)
