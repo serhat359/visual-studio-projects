@@ -50,52 +50,55 @@ public class NewInterpreter
         var context = new Context(variables);
         var expressions = GetStatements(code);
 
-        object? lastValue = null;
+        CustomValue lastValue = CustomValue.Null;
+        ResultType resultType;
         foreach (var expression in expressions)
         {
-            lastValue = expression.Run(context).value;
+            (lastValue, resultType) = expression.Run(context);
+            if (resultType != ResultType.Normal)
+                throw new Exception();
         }
 
-        return lastValue;
+        return lastValue.value;
     }
 
-    private static List<Expression> GetStatements(ReadOnlySpan<char> code)
+    private static List<Statement> GetStatements(ReadOnlySpan<char> code)
     {
         var tokenizer = new Tokenizer(code);
 
-        var expressions = new List<Expression>();
+        var statements = new List<Statement>();
 
         while (ReadStatement(ref tokenizer, out var expr))
         {
-            expressions.Add(expr);
+            statements.Add(expr);
         }
 
-        return expressions;
+        return statements;
     }
 
-    private static bool ReadStatement(ref Tokenizer tokenizer, [NotNullWhen(true)] out Expression? expression)
+    private static bool ReadStatement(ref Tokenizer tokenizer, [NotNullWhen(true)] out Statement? statement)
     {
         if (!tokenizer.TryReadToken(out var firstToken))
         {
-            expression = null;
+            statement = null;
             return false;
         }
 
-        return ReadStatement(firstToken, ref tokenizer, out expression);
+        return ReadStatement(firstToken, ref tokenizer, out statement);
     }
 
-    private static bool ReadStatement(ReadOnlySpan<char> firstToken, ref Tokenizer tokenizer, [NotNullWhen(true)] out Expression? expression)
+    private static bool ReadStatement(ReadOnlySpan<char> firstToken, ref Tokenizer tokenizer, [NotNullWhen(true)] out Statement? statement)
     {
         if (firstToken.SequenceEqual("var"))
         {
-            expression = VarAssignmentExpression.New(ref tokenizer);
+            statement = VarAssignmentExpression.New(ref tokenizer);
             return true;
         }
         if (firstToken.SequenceEqual("while"))
         {
             var (conditionExpression, bodyStatement) = ReadIfOnce(ref tokenizer);
             var whileStatement = new WhileStatement(conditionExpression, bodyStatement);
-            expression = whileStatement;
+            statement = whileStatement;
             return true;
         }
         if (firstToken.SequenceEqual("if"))
@@ -109,7 +112,7 @@ public class NewInterpreter
                 if (!maybeElseToken.SequenceEqual("else"))
                 {
                     tokenizer.GiveBack(maybeElseToken);
-                    expression = ifStatement;
+                    statement = ifStatement;
                     return true;
                 }
                 var maybeIfToken = tokenizer.ReadToken();
@@ -123,22 +126,38 @@ public class NewInterpreter
                     if (!ReadStatement(maybeIfToken, ref tokenizer, out var elseBodyStatement))
                         throw new Exception();
                     ifStatement.SetElse(elseBodyStatement);
-                    expression = ifStatement;
+                    statement = ifStatement;
                     return true;
                 }
             }
         }
         if (firstToken.SequenceEqual("{"))
         {
-            expression = new BlockStatement(firstToken, ref tokenizer);
+            statement = new BlockStatement(firstToken, ref tokenizer);
+            return true;
+        }
+        if (firstToken.SequenceEqual("break"))
+        {
+            var semiColon = tokenizer.ReadToken();
+            if (!semiColon.SequenceEqual(";"))
+                throw new Exception();
+            statement = BreakStatement.instance;
+            return true;
+        }
+        if (firstToken.SequenceEqual("continue"))
+        {
+            var semiColon = tokenizer.ReadToken();
+            if (!semiColon.SequenceEqual(";"))
+                throw new Exception();
+            statement = ContinueStatement.instance;
             return true;
         }
 
-        expression = ReadExpression(firstToken, ref tokenizer);
+        statement = ReadExpression(firstToken, ref tokenizer);
         return true;
     }
 
-    private static (Expression condition, Expression body) ReadIfOnce(ref Tokenizer tokenizer)
+    private static (Expression condition, Statement body) ReadIfOnce(ref Tokenizer tokenizer)
     {
         // if must be read here
         var t1 = tokenizer.ReadToken();
@@ -362,15 +381,24 @@ public class NewInterpreter
         }
     }
 
-    interface Expression
+    abstract class Expression : Statement
     {
-        CustomValue Run(Context context);
+        public abstract CustomValue Run(Context context);
+
+        (CustomValue, ResultType) Statement.Run(Context context)
+        {
+            return (Run(context), ResultType.Normal);
+        }
+    }
+    interface Statement
+    {
+        (CustomValue value, ResultType resultType) Run(Context context);
     }
 
     #region Statements
-    class BlockStatement : Expression
+    class BlockStatement : Statement
     {
-        private readonly List<Expression> statements = new();
+        private readonly List<Statement> statements = new();
 
         public BlockStatement(ReadOnlySpan<char> firstToken, ref Tokenizer tokenizer)
         {
@@ -384,80 +412,110 @@ public class NewInterpreter
             }
         }
 
-        public CustomValue Run(Context context)
+        public (CustomValue, ResultType) Run(Context context)
         {
             foreach (var statement in statements)
             {
-                statement.Run(context);
+                var res = statement.Run(context);
+                if (res.resultType != ResultType.Normal)
+                    return res;
             }
-            return CustomValue.Null;
+            return (CustomValue.Null, ResultType.Normal);
         }
     }
-    class IfStatement : Expression
+    class IfStatement : Statement
     {
         private readonly Expression ifConditionExpression;
-        private readonly Expression ifBodyStatement;
+        private readonly Statement ifBodyStatement;
 
-        private readonly List<(Expression condition, Expression body)> elseIfStatements = new();
-        private Expression? elseStatementBody = null;
+        private readonly List<(Expression condition, Statement body)> elseIfStatements = new();
+        private Statement? elseStatementBody = null;
 
-        public IfStatement(Expression ifConditionExpression, Expression ifBodyStatement)
+        public IfStatement(Expression ifConditionExpression, Statement ifBodyStatement)
         {
             this.ifConditionExpression = ifConditionExpression;
             this.ifBodyStatement = ifBodyStatement;
         }
 
-        public void AddElseIf((Expression condition, Expression body) tuple)
+        public void AddElseIf((Expression condition, Statement body) tuple)
         {
             elseIfStatements.Add(tuple);
         }
 
-        public void SetElse(Expression expression)
+        public void SetElse(Statement statement)
         {
             if (elseStatementBody != null) throw new Exception();
-            elseStatementBody = expression;
+            elseStatementBody = statement;
         }
 
-        public CustomValue Run(Context context)
+        public (CustomValue, ResultType) Run(Context context)
         {
             if (ifConditionExpression.Run(context).IsTruthy())
             {
-                ifBodyStatement.Run(context);
-                return CustomValue.Null;
+                var res = ifBodyStatement.Run(context);
+                if (res.resultType != ResultType.Normal)
+                    return res;
+                return (CustomValue.Null, ResultType.Normal);
             }
             foreach (var (cond, body) in elseIfStatements)
             {
                 if (cond.Run(context).IsTruthy())
                 {
-                    body.Run(context);
-                    return CustomValue.Null;
+                    var res = body.Run(context);
+                    if (res.resultType != ResultType.Normal)
+                        return res;
+                    return (CustomValue.Null, ResultType.Normal);
                 }
             }
             if (elseStatementBody != null)
             {
-                elseStatementBody.Run(context);
+                var res = elseStatementBody.Run(context);
+                if (res.resultType != ResultType.Normal)
+                    return res;
             }
-            return CustomValue.Null;
+            return (CustomValue.Null, ResultType.Normal);
         }
     }
-    class WhileStatement : Expression
+    class WhileStatement : Statement
     {
         private readonly Expression conditionExpression;
-        private readonly Expression bodyStatement;
+        private readonly Statement bodyStatement;
 
-        public WhileStatement(Expression conditionExpression, Expression bodyStatement)
+        public WhileStatement(Expression conditionExpression, Statement bodyStatement)
         {
             this.conditionExpression = conditionExpression;
             this.bodyStatement = bodyStatement;
         }
 
-        public CustomValue Run(Context context)
+        public (CustomValue, ResultType) Run(Context context)
         {
             while (conditionExpression.Run(context).IsTruthy())
             {
-                bodyStatement.Run(context);
+                var res = bodyStatement.Run(context);
+                if (res.resultType == ResultType.Break)
+                    break;
+                if (res.resultType == ResultType.Return)
+                    return res;
             }
-            return CustomValue.Null;
+            return (CustomValue.Null, ResultType.Normal);
+        }
+    }
+    class BreakStatement : Statement
+    {
+        public static BreakStatement instance = new();
+
+        public (CustomValue, ResultType) Run(Context context)
+        {
+            return (CustomValue.Null, ResultType.Break);
+        }
+    }
+    class ContinueStatement : Statement
+    {
+        public static ContinueStatement instance = new();
+
+        public (CustomValue, ResultType) Run(Context context)
+        {
+            return (CustomValue.Null, ResultType.Continue);
         }
     }
     #endregion
@@ -493,7 +551,7 @@ public class NewInterpreter
             return new VarAssignmentExpression(firstToken.ToString(), expression);
         }
 
-        public CustomValue Run(Context context)
+        public override CustomValue Run(Context context)
         {
             context.SetNewOrExisting(varName, expression.Run(context));
 
@@ -509,7 +567,7 @@ public class NewInterpreter
             this.insideExpression = insideExpression;
         }
 
-        public CustomValue Run(Context context)
+        public override CustomValue Run(Context context)
         {
             return insideExpression.Run(context);
         }
@@ -523,7 +581,7 @@ public class NewInterpreter
             this.value = value;
         }
 
-        public CustomValue Run(Context context)
+        public override CustomValue Run(Context context)
         {
             return value;
         }
@@ -537,7 +595,7 @@ public class NewInterpreter
             this.varName = varName.ToString();
         }
 
-        public CustomValue Run(Context context)
+        public override CustomValue Run(Context context)
         {
             return context.GetVariable(varName);
         }
@@ -553,7 +611,7 @@ public class NewInterpreter
             this.expressionRest = expressionRest;
         }
 
-        public CustomValue Run(Context context)
+        public override CustomValue Run(Context context)
         {
             var rest = expressionRest.Run(context);
             if (rest.type != ValueType.Number)
@@ -574,7 +632,7 @@ public class NewInterpreter
             this.expressionRest = expressionRest;
         }
 
-        public CustomValue Run(Context context)
+        public override CustomValue Run(Context context)
         {
             var rest = expressionRest.Run(context);
             bool restValue = rest.IsTruthy();
@@ -594,7 +652,7 @@ public class NewInterpreter
             this.colonExpression = colonExpression;
         }
 
-        public CustomValue Run(Context context)
+        public override CustomValue Run(Context context)
         {
             var conditionValue = conditionExpression.Run(context);
             bool isTruthy = conditionValue.IsTruthy();
@@ -619,7 +677,7 @@ public class NewInterpreter
             nextValues.Add((operatorToken, expression));
         }
 
-        public CustomValue Run(Context context)
+        public override CustomValue Run(Context context)
         {
             switch (precedence)
             {
@@ -1010,7 +1068,7 @@ public class NewInterpreter
             return value.ToString()!;
         }
     }
-    enum ValueType
+    enum ValueType : int
     {
         Null,
         Number,
@@ -1040,7 +1098,7 @@ public class NewInterpreter
         DotAccess = 18,
         LambdaExpression = 9999,
     }
-    enum Operator
+    enum Operator : int
     {
         None,
         NormalAssign,
@@ -1073,6 +1131,13 @@ public class NewInterpreter
         ConditionalComputedMemberAccess,
         ConditionalFunctionCall,
         New,
+    }
+    enum ResultType : int
+    {
+        Normal,
+        Break,
+        Continue,
+        Return,
     }
 
     #region Tokenizing Related
