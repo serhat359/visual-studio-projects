@@ -89,90 +89,75 @@ public class NewInterpreter
 
     private static bool ReadStatement(ReadOnlySpan<char> firstToken, ref Tokenizer tokenizer, [NotNullWhen(true)] out Statement? statement)
     {
-        if (firstToken.SequenceEqual("var"))
+        switch (firstToken)
         {
-            statement = VarAssignmentExpression.New(ref tokenizer);
-            return true;
-        }
-        if (firstToken.SequenceEqual("while"))
-        {
-            var (conditionExpression, bodyStatement) = ReadIfOnce(ref tokenizer);
-            var whileStatement = new WhileStatement(conditionExpression, bodyStatement);
-            statement = whileStatement;
-            return true;
-        }
-        if (firstToken.SequenceEqual("if"))
-        {
-            var (conditionExpression, bodyStatement) = ReadIfOnce(ref tokenizer);
-            var ifStatement = new IfStatement(conditionExpression, bodyStatement);
-
-            while (true)
-            {
-                var maybeElseToken = tokenizer.ReadToken();
-                if (!maybeElseToken.SequenceEqual("else"))
-                {
-                    tokenizer.GiveBack(maybeElseToken);
-                    statement = ifStatement;
-                    return true;
-                }
-                var maybeIfToken = tokenizer.ReadToken();
-                if (maybeIfToken.SequenceEqual("if"))
-                {
-                    ifStatement.AddElseIf(ReadIfOnce(ref tokenizer));
-                    continue;
-                }
-                else
-                {
-                    if (!ReadStatement(maybeIfToken, ref tokenizer, out var elseBodyStatement))
-                        throw new Exception();
-                    ifStatement.SetElse(elseBodyStatement);
-                    statement = ifStatement;
-                    return true;
-                }
-            }
-        }
-        if (firstToken.SequenceEqual("{"))
-        {
-            statement = new BlockStatement(firstToken, ref tokenizer);
-            return true;
-        }
-        if (firstToken.SequenceEqual("break"))
-        {
-            var semiColon = tokenizer.ReadToken();
-            if (!semiColon.SequenceEqual(";"))
-                throw new Exception();
-            statement = BreakStatement.instance;
-            return true;
-        }
-        if (firstToken.SequenceEqual("continue"))
-        {
-            var semiColon = tokenizer.ReadToken();
-            if (!semiColon.SequenceEqual(";"))
-                throw new Exception();
-            statement = ContinueStatement.instance;
-            return true;
-        }
-        if (firstToken.SequenceEqual("function"))
-        {
-            var functionName = tokenizer.ReadToken();
-            if (!IsVariableName(functionName))
-                throw new Exception();
-            var f = ReadFunction(ref tokenizer);
-            statement = new FunctionStatement(functionName.ToString(), f);
-            return true;
-        }
-        if (firstToken.SequenceEqual("return"))
-        {
-            var semiColon = tokenizer.ReadToken();
-            if (semiColon.SequenceEqual(";"))
-            {
-                statement = ReturnStatementEmpty.instance;
+            case "var":
+                statement = VarAssignmentExpression.New(ref tokenizer);
                 return true;
-            }
-            tokenizer.GiveBack(semiColon);
-            var expr = ReadExpression(ref tokenizer);
-            statement = new ReturnStatement(expr);
-            return true;
+            case "while":
+                var (ifConditionExpression, ifBodyStatement) = ReadIfOnce(ref tokenizer);
+                var whileStatement = new WhileStatement(ifConditionExpression, ifBodyStatement);
+                statement = whileStatement;
+                return true;
+            case "if":
+                var (conditionExpression, bodyStatement) = ReadIfOnce(ref tokenizer);
+                var ifStatement = new IfStatement(conditionExpression, bodyStatement);
+
+                while (true)
+                {
+                    var maybeElseToken = tokenizer.ReadToken();
+                    if (!maybeElseToken.SequenceEqual("else"))
+                    {
+                        tokenizer.GiveBack(maybeElseToken);
+                        statement = ifStatement;
+                        return true;
+                    }
+                    var maybeIfToken = tokenizer.ReadToken();
+                    if (maybeIfToken.SequenceEqual("if"))
+                    {
+                        ifStatement.AddElseIf(ReadIfOnce(ref tokenizer));
+                        continue;
+                    }
+                    else
+                    {
+                        if (!ReadStatement(maybeIfToken, ref tokenizer, out var elseBodyStatement))
+                            throw new Exception();
+                        ifStatement.SetElse(elseBodyStatement);
+                        statement = ifStatement;
+                        return true;
+                    }
+                }
+            case "{":
+                statement = new BlockStatement(firstToken, ref tokenizer);
+                return true;
+            case "break":
+                if (!tokenizer.ReadToken().SequenceEqual(";"))
+                    throw new Exception();
+                statement = BreakStatement.instance;
+                return true;
+            case "continue":
+                if (!tokenizer.ReadToken().SequenceEqual(";"))
+                    throw new Exception();
+                statement = ContinueStatement.instance;
+                return true;
+            case "function":
+                var functionName = tokenizer.ReadToken();
+                if (!IsVariableName(functionName))
+                    throw new Exception();
+                var f = ReadFunction(ref tokenizer);
+                statement = new FunctionStatement(functionName.ToString(), f);
+                return true;
+            case "return":
+                var semiColon = tokenizer.ReadToken();
+                if (semiColon.SequenceEqual(";"))
+                {
+                    statement = ReturnStatementEmpty.instance;
+                    return true;
+                }
+                tokenizer.GiveBack(semiColon);
+                var expr = ReadExpression(ref tokenizer);
+                statement = new ReturnStatement(expr);
+                return true;
         }
 
         statement = ReadExpression(firstToken, ref tokenizer);
@@ -317,13 +302,12 @@ public class NewInterpreter
 
     static Expression ReadInitialExpression(ReadOnlySpan<char> firstToken, ref Tokenizer tokenizer)
     {
-        if (firstToken.SequenceEqual("null")) return nullExpression;
-        if (firstToken.SequenceEqual("true")) return trueExpression;
-        if (firstToken.SequenceEqual("false")) return falseExpression;
-
-        if (firstToken.SequenceEqual("function"))
+        switch (firstToken)
         {
-            return ReadFunction(ref tokenizer);
+            case "null": return nullExpression;
+            case "true": return trueExpression;
+            case "false": return falseExpression;
+            case "function": return ReadFunction(ref tokenizer);
         }
 
         if (firstToken[0] == '\'' || firstToken[0] == '"')
