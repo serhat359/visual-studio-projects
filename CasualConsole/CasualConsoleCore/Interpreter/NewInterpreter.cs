@@ -152,6 +152,28 @@ public class NewInterpreter
             statement = ContinueStatement.instance;
             return true;
         }
+        if (firstToken.SequenceEqual("function"))
+        {
+            var functionName = tokenizer.ReadToken();
+            if (!IsVariableName(functionName))
+                throw new Exception();
+            var f = ReadFunction(ref tokenizer);
+            statement = new FunctionStatement(functionName.ToString(), f);
+            return true;
+        }
+        if (firstToken.SequenceEqual("return"))
+        {
+            var semiColon = tokenizer.ReadToken();
+            if (semiColon.SequenceEqual(";"))
+            {
+                statement = ReturnStatementEmpty.instance;
+                return true;
+            }
+            tokenizer.GiveBack(semiColon);
+            var expr = ReadExpression(ref tokenizer);
+            statement = new ReturnStatement(expr);
+            return true;
+        }
 
         statement = ReadExpression(firstToken, ref tokenizer);
         return true;
@@ -198,7 +220,7 @@ public class NewInterpreter
             if (op.SequenceEqual(";"))
                 return firstExpression;
 
-            if (op.SequenceEqual(")") || op.SequenceEqual(":"))
+            if (op.SequenceEqual(")") || op.SequenceEqual(":") || op.SequenceEqual(","))
             {
                 tokenizer.GiveBack(op);
                 return firstExpression;
@@ -216,15 +238,75 @@ public class NewInterpreter
 
             if (TreeExpression.TryParseOperator(op, out var precedence, out var oper))
             {
-                var nextExpression = ReadInitialExpression(ref tokenizer);
-                if (firstExpression is not TreeExpression tree)
-                    firstExpression = new TreeExpression(precedence, firstExpression, oper, nextExpression);
+                if (precedence < Precedence.FunctionCall)
+                {
+                    var nextExpression = ReadInitialExpression(ref tokenizer);
+                    if (firstExpression is not TreeExpression tree)
+                        firstExpression = new TreeExpression(precedence, firstExpression, oper, nextExpression);
+                    else
+                        firstExpression = tree.Combine(precedence, oper, nextExpression);
+                }
                 else
-                    firstExpression = tree.Combine(precedence, oper, nextExpression);
+                {
+                    var expressions = new List<Expression>();
+                    var token = tokenizer.ReadToken();
+
+                    if (!token.SequenceEqual(")"))
+                    {
+                        tokenizer.GiveBack(token);
+                        while (true)
+                        {
+                            var expr = ReadExpression(ref tokenizer);
+                            expressions.Add(expr);
+                            token = tokenizer.ReadToken();
+                            if (token.SequenceEqual(")"))
+                                break;
+                            if (token.SequenceEqual(","))
+                                continue;
+                            throw new Exception();
+                        }
+                    }
+
+                    TreeExpression.CombineFunctionCall(ref firstExpression, expressions);
+                    continue;
+                }
             }
         }
 
         throw new Exception();
+    }
+
+    private static FunctionExpression ReadFunction(ref Tokenizer tokenizer)
+    {
+        // expects parantheses
+        var token = tokenizer.ReadToken();
+        if (!token.SequenceEqual("("))
+            throw new Exception();
+        var parameters = new List<string>();
+        token = tokenizer.ReadToken();
+
+        if (!token.SequenceEqual(")"))
+        {
+            tokenizer.GiveBack(token);
+            while (true)
+            {
+                token = tokenizer.ReadToken();
+                if (!IsVariableName(token))
+                    throw new Exception();
+                parameters.Add(token.ToString());
+                token = tokenizer.ReadToken();
+                if (token.SequenceEqual(")"))
+                    break;
+                if (token.SequenceEqual(","))
+                    continue;
+                throw new Exception();
+            }
+        }
+
+        if (!ReadStatement(ref tokenizer, out var statement))
+            throw new Exception();
+
+        return new FunctionExpression(parameters, statement);
     }
 
     private static Expression ReadInitialExpression(ref Tokenizer tokenizer)
@@ -238,6 +320,11 @@ public class NewInterpreter
         if (firstToken.SequenceEqual("null")) return nullExpression;
         if (firstToken.SequenceEqual("true")) return trueExpression;
         if (firstToken.SequenceEqual("false")) return falseExpression;
+
+        if (firstToken.SequenceEqual("function"))
+        {
+            return ReadFunction(ref tokenizer);
+        }
 
         if (firstToken[0] == '\'' || firstToken[0] == '"')
         {
@@ -350,34 +437,79 @@ public class NewInterpreter
     private class Context
     {
         private readonly Dictionary<string, CustomValue> variables;
+        private readonly Context? innerContext;
 
-        public Context(Dictionary<string, CustomValue> variables)
+        public Context(Context? innerContext = null) : this(new Dictionary<string, CustomValue>(), innerContext)
+        {
+
+        }
+
+        public Context(Dictionary<string, CustomValue> variables, Context? innerContext = null)
         {
             this.variables = variables;
-        }
-
-        public void SetExisting(string varName, CustomValue value)
-        {
-            if (!variables.ContainsKey(varName))
-                throw new Exception($"variable '{varName}' is not defined");
-            variables[varName] = value;
-        }
-
-        public void SetNewOrExisting(string varName, CustomValue value)
-        {
-            variables[varName] = value;
+            this.innerContext = innerContext;
         }
 
         public CustomValue GetVariable(string varName)
         {
-            if (!variables.TryGetValue(varName, out var value))
-                throw new Exception($"variable '{varName}' is not defined");
-            return value;
+            var context = this;
+            CustomValue value;
+            while (true)
+            {
+                if (context.variables.TryGetValue(varName, out value))
+                {
+                    return value;
+                }
+                if (context.innerContext == null)
+                {
+                    throw new Exception($"variable '{varName}' is not defined");
+                }
+                context = context.innerContext;
+            }
+        }
+
+        public void SetExisting(string varName, CustomValue newValue)
+        {
+            var context = this;
+            CustomValue oldValue;
+            while (true)
+            {
+                if (context.variables.TryGetValue(varName, out oldValue))
+                {
+                    context.variables[varName] = newValue;
+                    return;
+                }
+                if (context.innerContext == null)
+                {
+                    throw new Exception($"variable '{varName}' is not defined");
+                }
+                context = context.innerContext;
+            }
         }
 
         public CustomValue Replace(string varName, Func<CustomValue, CustomValue> f)
         {
-            return variables[varName] = f(variables[varName]);
+            Context context = this;
+            CustomValue oldValue;
+            while (true)
+            {
+                if (context.variables.TryGetValue(varName, out oldValue))
+                {
+                    var newValue = f(oldValue);
+                    context.variables[varName] = newValue;
+                    return newValue;
+                }
+                if (context.innerContext == null)
+                {
+                    throw new Exception($"variable '{varName}' is not defined");
+                }
+                context = context.innerContext;
+            }
+        }
+
+        public void SetOuterMost(string varName, CustomValue val)
+        {
+            this.variables[varName] = val;
         }
     }
 
@@ -388,6 +520,58 @@ public class NewInterpreter
         (CustomValue, ResultType) Statement.Run(Context context)
         {
             return (Run(context), ResultType.Normal);
+        }
+    }
+    interface ChainExpression
+    {
+        CustomValue Run(CustomValue lastValue, Context context);
+    }
+    class FunctionCallChain : ChainExpression
+    {
+        private readonly List<Expression> expressions;
+
+        public FunctionCallChain(List<Expression> expressions)
+        {
+            this.expressions = expressions;
+        }
+
+        public CustomValue Run(CustomValue lastValue, Context context)
+        {
+            var f = (IFunction)lastValue.value;
+            var args = expressions.Select(x => x.Run(context)).ToList();
+            return f.Run(args);
+        }
+    }
+    class Op18Expression : Expression
+    {
+        private readonly Expression baseExpression;
+        private readonly List<ChainExpression> links = new();
+
+        private Op18Expression(Expression baseExpression)
+        {
+            this.baseExpression = baseExpression;
+        }
+
+        public static Op18Expression FunctionCall(Expression baseExpression, List<Expression> expressions)
+        {
+            var expr = new Op18Expression(baseExpression);
+            expr.links.Add(new FunctionCallChain(expressions));
+            return expr;
+        }
+
+        public void AddFunctionCall(List<Expression> expressions)
+        {
+            links.Add(new FunctionCallChain(expressions));
+        }
+
+        public override CustomValue Run(Context context)
+        {
+            var baseValue = baseExpression.Run(context);
+            foreach (var link in links)
+            {
+                baseValue = link.Run(baseValue, context);
+            }
+            return baseValue;
         }
     }
     interface Statement
@@ -518,6 +702,48 @@ public class NewInterpreter
             return (CustomValue.Null, ResultType.Continue);
         }
     }
+    class ReturnStatementEmpty : Statement
+    {
+        public static ReturnStatementEmpty instance = new();
+
+        public (CustomValue, ResultType) Run(Context context)
+        {
+            return (CustomValue.Null, ResultType.Return);
+        }
+    }
+    class ReturnStatement : Statement
+    {
+        private readonly Expression expression;
+
+        public ReturnStatement(Expression expression)
+        {
+            this.expression = expression;
+        }
+
+        public (CustomValue value, ResultType resultType) Run(Context context)
+        {
+            var val = expression.Run(context);
+            return (val, ResultType.Return);
+        }
+    }
+    class FunctionStatement : Statement
+    {
+        string functionName;
+        FunctionExpression expression;
+
+        public FunctionStatement(string functionName, FunctionExpression expression)
+        {
+            this.functionName = functionName;
+            this.expression = expression;
+        }
+
+        public (CustomValue value, ResultType resultType) Run(Context context)
+        {
+            var f = expression.Run(context);
+            context.SetOuterMost(functionName, f);
+            return (CustomValue.Null, ResultType.Normal);
+        }
+    }
     #endregion
 
     #region Expressions
@@ -553,14 +779,14 @@ public class NewInterpreter
 
         public override CustomValue Run(Context context)
         {
-            context.SetNewOrExisting(varName, expression.Run(context));
+            context.SetOuterMost(varName, expression.Run(context));
 
             return CustomValue.Null;
         }
     }
     class ParanthesesExpression : Expression
     {
-        private readonly Expression insideExpression;
+        internal readonly Expression insideExpression;
 
         public ParanthesesExpression(Expression insideExpression)
         {
@@ -872,6 +1098,12 @@ public class NewInterpreter
                         op = Operator.ModulusAssign;
                         return true;
                     }
+                case "(":
+                    {
+                        precedence = Precedence.FunctionCall;
+                        op = Operator.FunctionCall;
+                        return true;
+                    }
                 default:
                     throw new Exception();
             }
@@ -912,6 +1144,33 @@ public class NewInterpreter
                 else
                     nextValues = tree.nextValues;
             }
+        }
+
+        public static void CombineFunctionCall(ref Expression expression, List<Expression> expressions)
+        {
+            if (expression is VariableExpression variableExpression)
+            {
+                expression = Op18Expression.FunctionCall(variableExpression, expressions);
+                return;
+            }
+            if (expression is ParanthesesExpression paranthesesExpression)
+            {
+                expression = Op18Expression.FunctionCall(paranthesesExpression.insideExpression, expressions);
+                return;
+            }
+            if (expression is TreeExpression treeExpression)
+            {
+                var nextValues = CollectionsMarshal.AsSpan(treeExpression.nextValues);
+                ref var last = ref nextValues[^1];
+                CombineFunctionCall(ref last.expression, expressions);
+                return;
+            }
+            if (expression is Op18Expression op18)
+            {
+                op18.AddFunctionCall(expressions);
+                return;
+            }
+            throw new NotImplementedException();
         }
     }
     #endregion
@@ -1042,6 +1301,11 @@ public class NewInterpreter
             return new CustomValue(str, ValueType.String);
         }
 
+        public static CustomValue FromFunction(IFunction function)
+        {
+            return new CustomValue(function, ValueType.Function);
+        }
+
         internal bool IsTruthy()
         {
             switch (type)
@@ -1081,6 +1345,59 @@ public class NewInterpreter
         Promise,
         Generator,
         AsyncGenerator,
+    }
+    interface IFunction
+    {
+        CustomValue Run(List<CustomValue> arguments);
+    }
+    class Function : IFunction
+    {
+        private readonly List<string> parameters;
+        private readonly Statement body;
+        private readonly Context context;
+
+        public Function(List<string> parameters, Statement body, Context context)
+        {
+            this.parameters = parameters;
+            this.body = body;
+            this.context = context;
+        }
+
+        public CustomValue Run(List<CustomValue> arguments)
+        {
+            var context = new Context(this.context);
+            var paramsSpan = CollectionsMarshal.AsSpan(parameters);
+            for (int i = 0; i < paramsSpan.Length; i++)
+            {
+                var param = paramsSpan[i];
+                var val = i < arguments.Count ? arguments[i] : CustomValue.Null;
+                context.SetOuterMost(param, val);
+            }
+
+            var res = body.Run(context);
+            if (res.resultType == ResultType.Return)
+                return res.value;
+            if (res.resultType == ResultType.Normal)
+                return CustomValue.Null;
+            throw new Exception();
+        }
+    }
+    class FunctionExpression : Expression
+    {
+        private readonly List<string> parameters;
+        private readonly Statement body;
+
+        public FunctionExpression(List<string> parameters, Statement body)
+        {
+            this.parameters = parameters;
+            this.body = body;
+        }
+
+        public override CustomValue Run(Context context)
+        {
+            var f = new Function(parameters, body, context);
+            return CustomValue.FromFunction(f);
+        }
     }
     enum Precedence : int
     {
