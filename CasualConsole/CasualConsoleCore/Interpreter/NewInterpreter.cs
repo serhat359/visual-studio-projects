@@ -205,7 +205,7 @@ public class NewInterpreter
             if (op.SequenceEqual(";"))
                 return firstExpression;
 
-            if (op.SequenceEqual(")") || op.SequenceEqual(":") || op.SequenceEqual(","))
+            if (op.SequenceEqual(")") || op.SequenceEqual("}") || op.SequenceEqual("]") || op.SequenceEqual(":") || op.SequenceEqual(","))
             {
                 tokenizer.GiveBack(op);
                 return firstExpression;
@@ -231,7 +231,7 @@ public class NewInterpreter
                     else
                         firstExpression = tree.Combine(precedence, oper, nextExpression);
                 }
-                else
+                else if (oper == Operator.FunctionCall)
                 {
                     var expressions = new List<Expression>();
                     var token = tokenizer.ReadToken();
@@ -252,52 +252,31 @@ public class NewInterpreter
                         }
                     }
 
-                    TreeExpression.CombineFunctionCall(ref firstExpression, expressions);
+                    TreeExpression.CombineOp18(ref firstExpression, new FunctionCallChain(expressions));
                     continue;
                 }
+                else if (oper == Operator.ComputedMemberAccess)
+                {
+                    var expr = ReadExpression(ref tokenizer);
+                    if (!tokenizer.ReadToken().SequenceEqual("]"))
+                        throw new Exception();
+                    TreeExpression.CombineOp18(ref firstExpression, new MemberAccessChain(expr));
+                    continue;
+                }
+                else if (oper == Operator.DotMemberAccess)
+                {
+                    var token = tokenizer.ReadToken();
+                    if (!IsVariableName(token))
+                        throw new Exception();
+                    TreeExpression.CombineOp18(ref firstExpression, new DotAccessChain(token.ToString()));
+                    continue;
+                }
+                else
+                    throw new Exception();
             }
         }
 
         throw new Exception();
-    }
-
-    private static FunctionExpression ReadFunction(ref Tokenizer tokenizer)
-    {
-        // expects parantheses
-        var token = tokenizer.ReadToken();
-        if (!token.SequenceEqual("("))
-            throw new Exception();
-        var parameters = new List<string>();
-        token = tokenizer.ReadToken();
-
-        if (!token.SequenceEqual(")"))
-        {
-            tokenizer.GiveBack(token);
-            while (true)
-            {
-                token = tokenizer.ReadToken();
-                if (!IsVariableName(token))
-                    throw new Exception();
-                parameters.Add(token.ToString());
-                token = tokenizer.ReadToken();
-                if (token.SequenceEqual(")"))
-                    break;
-                if (token.SequenceEqual(","))
-                    continue;
-                throw new Exception();
-            }
-        }
-
-        if (!ReadStatement(ref tokenizer, out var statement))
-            throw new Exception();
-
-        return new FunctionExpression(parameters, statement);
-    }
-
-    private static Expression ReadInitialExpression(ref Tokenizer tokenizer)
-    {
-        var first = tokenizer.ReadToken();
-        return ReadInitialExpression(first, ref tokenizer);
     }
 
     static Expression ReadInitialExpression(ReadOnlySpan<char> firstToken, ref Tokenizer tokenizer)
@@ -310,7 +289,7 @@ public class NewInterpreter
             case "function": return ReadFunction(ref tokenizer);
         }
 
-        if (firstToken[0] == '\'' || firstToken[0] == '"')
+        if (IsStaticString(firstToken))
         {
             var str = ParseStaticString(firstToken);
             var value = CustomValue.FromString(str);
@@ -375,7 +354,85 @@ public class NewInterpreter
             }
             return new ParanthesesExpression(expressions[0]);
         }
+        if (firstToken.SequenceEqual("{"))
+        {
+            return ReadPlainObject(ref tokenizer);
+        }
         throw new Exception();
+    }
+
+    private static Expression ReadInitialExpression(ref Tokenizer tokenizer)
+    {
+        var first = tokenizer.ReadToken();
+        return ReadInitialExpression(first, ref tokenizer);
+    }
+
+    private static FunctionExpression ReadFunction(ref Tokenizer tokenizer)
+    {
+        // expects parantheses
+        var token = tokenizer.ReadToken();
+        if (!token.SequenceEqual("("))
+            throw new Exception();
+        var parameters = new List<string>();
+        token = tokenizer.ReadToken();
+
+        if (!token.SequenceEqual(")"))
+        {
+            tokenizer.GiveBack(token);
+            while (true)
+            {
+                token = tokenizer.ReadToken();
+                if (!IsVariableName(token))
+                    throw new Exception();
+                parameters.Add(token.ToString());
+                token = tokenizer.ReadToken();
+                if (token.SequenceEqual(")"))
+                    break;
+                if (token.SequenceEqual(","))
+                    continue;
+                throw new Exception();
+            }
+        }
+
+        if (!ReadStatement(ref tokenizer, out var statement))
+            throw new Exception();
+
+        return new FunctionExpression(parameters, statement);
+    }
+
+    private static PlainObjectExpression ReadPlainObject(ref Tokenizer tokenizer)
+    {
+        // beginning marker was already read
+        var list = new List<(string, Expression)>();
+        var token = tokenizer.ReadToken();
+
+        if (!token.SequenceEqual("}"))
+        {
+            tokenizer.GiveBack(token);
+            while (true)
+            {
+                string propName;
+                token = tokenizer.ReadToken();
+                if (IsStaticString(token))
+                    propName = ParseStaticString(token);
+                else if (IsVariableName(token))
+                    propName = token.ToString();
+                else
+                    throw new Exception();
+
+                if (!tokenizer.ReadToken().SequenceEqual(":")) throw new Exception();
+                var expr = ReadExpression(ref tokenizer);
+                list.Add((propName, expr));
+                token = tokenizer.ReadToken();
+                if (token.SequenceEqual("}"))
+                    break;
+                if (token.SequenceEqual(","))
+                    continue;
+                throw new Exception();
+            }
+        }
+
+        return new PlainObjectExpression(list);
     }
 
     private static string ParseStaticString(ReadOnlySpan<char> s)
@@ -526,6 +583,42 @@ public class NewInterpreter
             return f.Run(args);
         }
     }
+    class MemberAccessChain : ChainExpression
+    {
+        private readonly Expression expression;
+
+        public MemberAccessChain(Expression expression)
+        {
+            this.expression = expression;
+        }
+
+        public CustomValue Run(CustomValue lastValue, Context context)
+        {
+            var val = expression.Run(context);
+            if (val.value is string prop)
+            {
+                var obj = (IObject)lastValue.value;
+                return obj.GetProp(prop);
+            }
+
+            throw new NotImplementedException();
+        }
+    }
+    class DotAccessChain : ChainExpression
+    {
+        private readonly string prop;
+
+        public DotAccessChain(string prop)
+        {
+            this.prop = prop;
+        }
+
+        public CustomValue Run(CustomValue lastValue, Context context)
+        {
+            var obj = (IObject)lastValue.value;
+            return obj.GetProp(prop);
+        }
+    }
     class Op18Expression : Expression
     {
         private readonly Expression baseExpression;
@@ -536,16 +629,16 @@ public class NewInterpreter
             this.baseExpression = baseExpression;
         }
 
-        public static Op18Expression FunctionCall(Expression baseExpression, List<Expression> expressions)
+        public static Op18Expression New(Expression baseExpression, ChainExpression expression)
         {
             var expr = new Op18Expression(baseExpression);
-            expr.links.Add(new FunctionCallChain(expressions));
+            expr.links.Add(expression);
             return expr;
         }
 
-        public void AddFunctionCall(List<Expression> expressions)
+        public void AddChain(ChainExpression expression)
         {
-            links.Add(new FunctionCallChain(expressions));
+            links.Add(expression);
         }
 
         public override CustomValue Run(Context context)
@@ -1088,6 +1181,18 @@ public class NewInterpreter
                         op = Operator.FunctionCall;
                         return true;
                     }
+                case "[":
+                    {
+                        precedence = Precedence.Indexing;
+                        op = Operator.ComputedMemberAccess;
+                        return true;
+                    }
+                case ".":
+                    {
+                        precedence = Precedence.DotAccess;
+                        op = Operator.DotMemberAccess;
+                        return true;
+                    }
                 default:
                     throw new Exception();
             }
@@ -1130,31 +1235,68 @@ public class NewInterpreter
             }
         }
 
-        public static void CombineFunctionCall(ref Expression expression, List<Expression> expressions)
+        public static void CombineOp18(ref Expression expression, ChainExpression chain)
         {
             if (expression is VariableExpression variableExpression)
             {
-                expression = Op18Expression.FunctionCall(variableExpression, expressions);
+                expression = Op18Expression.New(variableExpression, chain);
                 return;
             }
             if (expression is ParanthesesExpression paranthesesExpression)
             {
-                expression = Op18Expression.FunctionCall(paranthesesExpression.insideExpression, expressions);
+                expression = Op18Expression.New(paranthesesExpression.insideExpression, chain);
                 return;
             }
             if (expression is TreeExpression treeExpression)
             {
                 var nextValues = CollectionsMarshal.AsSpan(treeExpression.nextValues);
                 ref var last = ref nextValues[^1];
-                CombineFunctionCall(ref last.expression, expressions);
+                CombineOp18(ref last.expression, chain);
                 return;
             }
             if (expression is Op18Expression op18)
             {
-                op18.AddFunctionCall(expressions);
+                op18.AddChain(chain);
                 return;
             }
             throw new NotImplementedException();
+        }
+    }
+    class FunctionExpression : Expression
+    {
+        private readonly List<string> parameters;
+        private readonly Statement body;
+
+        public FunctionExpression(List<string> parameters, Statement body)
+        {
+            this.parameters = parameters;
+            this.body = body;
+        }
+
+        public override CustomValue Run(Context context)
+        {
+            var f = new Function(parameters, body, context);
+            return CustomValue.FromFunction(f);
+        }
+    }
+    class PlainObjectExpression : Expression
+    {
+        private readonly List<(string, Expression)> list;
+
+        public PlainObjectExpression(List<(string, Expression)> list)
+        {
+            this.list = list;
+        }
+
+        public override CustomValue Run(Context context)
+        {
+            var properties = new Dictionary<string, CustomValue>();
+            foreach (var (prop, expr) in list)
+            {
+                properties[prop] = expr.Run(context);
+            }
+
+            return CustomValue.FromPlainObject(new PlainObject(properties));
         }
     }
     #endregion
@@ -1290,6 +1432,11 @@ public class NewInterpreter
             return new CustomValue(function, ValueType.Function);
         }
 
+        public static CustomValue FromPlainObject(PlainObject plainObject)
+        {
+            return new CustomValue(plainObject, ValueType.PlainObject);
+        }
+
         internal bool IsTruthy()
         {
             switch (type)
@@ -1324,7 +1471,7 @@ public class NewInterpreter
         Bool,
         Function,
         Class,
-        Map,
+        PlainObject,
         Array,
         Promise,
         Generator,
@@ -1366,21 +1513,24 @@ public class NewInterpreter
             throw new Exception();
         }
     }
-    class FunctionExpression : Expression
+    interface IObject
     {
-        private readonly List<string> parameters;
-        private readonly Statement body;
+        CustomValue GetProp(string prop);
+    }
+    class PlainObject : IObject
+    {
+        private readonly Dictionary<string, CustomValue> properties = new();
 
-        public FunctionExpression(List<string> parameters, Statement body)
+        public PlainObject(Dictionary<string, CustomValue> properties)
         {
-            this.parameters = parameters;
-            this.body = body;
+            this.properties = properties;
         }
 
-        public override CustomValue Run(Context context)
+        public CustomValue GetProp(string prop)
         {
-            var f = new Function(parameters, body, context);
-            return CustomValue.FromFunction(f);
+            if (properties.TryGetValue(prop, out var value))
+                return value;
+            return CustomValue.Null;
         }
     }
     enum Precedence : int
@@ -1425,10 +1575,10 @@ public class NewInterpreter
         AndAnd,
         OrOr,
         DoubleQuestion,
-        MemberAccess,
+        DotMemberAccess,
         ComputedMemberAccess,
         FunctionCall,
-        ConditionalMemberAccess,
+        ConditionalDotMemberAccess,
         ConditionalComputedMemberAccess,
         ConditionalFunctionCall,
         New,
@@ -1614,6 +1764,10 @@ public class NewInterpreter
     private static bool IsVariableName(ReadOnlySpan<char> token)
     {
         return isCharOrUnderscore(token[0]);
+    }
+    private static bool IsStaticString(ReadOnlySpan<char> token)
+    {
+        return token[0] == '\'' || token[0] == '"';
     }
 
     #endregion
