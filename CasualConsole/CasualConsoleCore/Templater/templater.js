@@ -214,7 +214,7 @@ const Templater = function(){
             const f = tokens[start];
             const argGroups = getArgGroups(tokens, start + 1);
             if (argGroups.length == 1) {
-                const expr = getExpression(tokens, start + 1);
+                const expr = argGroups[0];
                 return context => {
                     const func = context.get(f);
                     if (typeof func !== "function")
