@@ -298,6 +298,25 @@ public class Templater
                 return Call(obj.GetType().GetProperty(key).GetValue(obj));
             };
         }
+        else if (end - start == 5)
+        {
+            var objName = tokens[start];
+            var key1 = tokens[start + 2];
+            var key2 = tokens[start + 4];
+            return context =>
+            {
+                var obj = context.Get(objName);
+                obj = obj.GetType().GetProperty(key1).GetValue(obj);
+                if (key2 == "length")
+                {
+                    if (obj is object[] arr)
+                        return arr.Length;
+                    else if (obj is string s)
+                        return s.Length;
+                }
+                return Call(obj.GetType().GetProperty(key2).GetValue(obj));
+            };
+        }
         throw new Exception();
     }
     static object Call(object value)

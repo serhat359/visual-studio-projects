@@ -248,6 +248,14 @@ const Templater = function(){
                 return context.get(objName)[key];
             };
         }
+        else if (end - start == 5) {
+            const objName = tokens[start];
+            const key1 = tokens[start + 2];
+            const key2 = tokens[start + 4];
+            return context => {
+                return context.get(objName)[key1][key2];
+            };
+        }
         err();
     }
     function getArgGroups(tokens, start) {

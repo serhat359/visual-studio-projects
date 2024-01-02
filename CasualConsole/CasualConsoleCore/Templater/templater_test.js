@@ -15,6 +15,7 @@ var tests = [
     ["numbers count: {{text.length}}", { text: "hello world" }, "numbers count: 11"],
     ["num: {{numF}}", { get numF(){ return 3; } }, "num: 3"],
     ["{{a.b}}", { a: { b: "text" } }, "text"],
+    ["{{a.b.c}}", { a: { b: { c: "text" } } }, "text"],
     ["{{for e in num}}{{e.x}}{{end}}", { num: [{x:2},{x:5},{x:8}] }, "258"],
     ["{{if arr.length}}{{for a in arr}}{{end}}{{end}}{{else}}No record found{{end}}", { arr:[] }, "No record found"],
     ["{{fixed number}}", { number:2.762736723 }, "2.76"],
