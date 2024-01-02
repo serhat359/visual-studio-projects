@@ -101,18 +101,35 @@ public class Templater
             }
             else if (first == "for")
             {
-                var loopVarName = tokens[1];
                 if (tokens[2] != "in")
-                    throw new Exception();
+                {
+                    var inIndex = tokens.IndexOf("in");
+                    if (inIndex > 2)
+                        tokens = MergeTokens(tokens, inIndex);
+                    else
+                        throw new Exception();
+                }
+                var loopVarName = tokens[1];
+                string? loopIndexName = null;
+                if (loopVarName.Contains(","))
+                {
+                    var parts = loopVarName.Split(',');
+                    loopVarName = parts[0];
+                    loopIndexName = parts[1];
+                }
                 var loopValuesExpr = GetExpression(tokens, 3);
                 (var handlers, end) = GetBodyHandlers(template, end);
                 Action<Action<string>, Context> handler = (writer, context) =>
                 {
                     var loopValues = loopValuesExpr(context);
+                    int i = 0;
                     foreach (var val in (object[])loopValues)
                     {
                         context.Set(loopVarName, val);
+                        if (loopIndexName != null)
+                            context.Set(loopIndexName, i);
                         HandleMulti(writer, context, handlers);
+                        i++;
                     }
                 };
                 return (handler, end);
@@ -140,6 +157,13 @@ public class Templater
         {
             return (CheckString(template[start..i]), i);
         }
+    }
+    private static List<string> MergeTokens(List<string> tokens, int inIndex)
+    {
+        var merged = string.Concat(Enumerable.Range(1, inIndex - 1).Select(i => tokens[i]));
+        var newTokens = new List<string> { tokens[0], merged };
+        newTokens.AddRange(tokens.Skip(inIndex));
+        return newTokens;
     }
     private static string CheckString(string s)
     {

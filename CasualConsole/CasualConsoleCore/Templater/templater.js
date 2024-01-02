@@ -99,18 +99,28 @@ const Templater = function(){
                 }
                 return [handler, end];
             }
-            else if (first === "for"){
-                const loopVarName = tokens[1];
-                if (tokens[2] !== "in") err();
+            else if (first === "for") {
+                if (tokens[2] !== "in") {
+                    const inIndex = tokens.indexOf("in");
+                    if (inIndex > 2)
+                        tokens = mergeTokens(tokens, inIndex);
+                    else
+                        err();
+                }
+                const [loopVarName, loopIndexName] = tokens[1].split(",");
                 const loopValuesExpr = getExpression(tokens, 3);
                 let handlers;
                 [handlers, end] = getBodyHandlers(template, end);
                 const handler =  (writer, context) =>{
                     const loopValues = loopValuesExpr(context);
+                    let i = 0;
                     for (const val of loopValues)
                     {
                         context.set(loopVarName, val);
+                        if (loopIndexName)
+                            context.set(loopIndexName, i);
                         handleMulti(writer, context, handlers);
+                        i++;
                     }
                 }
                 return [handler, end];
@@ -135,6 +145,10 @@ const Templater = function(){
         {
             return [checkString(template.substring(start, i)), i];
         }
+    }
+    function mergeTokens(tokens, inIndex) {
+        const merged = tokens.slice(1, inIndex).join("");
+        return [tokens[0], merged, ...tokens.slice(inIndex)];
     }
     function checkString(s){
         if (!s)
