@@ -60,8 +60,10 @@ for (let [template, data, expected] of tests){
 var badTests = [
     "{{",
     "{{}}",
-    //"{{x.}}",
-    //"{{.x}}",
+    "{{x.}}",
+    "{{x.x.}}",
+    "{{.x}}",
+    "{{.x.x}}",
     "{{if}}",
     "{{if x}}",
     "{{if}}{{end}}",

@@ -195,7 +195,7 @@ const Templater = function () {
         return [handlers, end];
     }
     function getExpression(tokens, start) {
-        if (tokens.length - start == 0)
+        if (tokens.length - start == 0 || tokens[start] === '.')
             err();
         if (tokens.length - start == 1)
             return getTokenAsExpression(tokens[start]);
@@ -250,7 +250,7 @@ const Templater = function () {
             end++;
             while (end < tokens.length && tokens[end] === '.') {
                 end++;
-                if (end < tokens.length && tokens[end] === '.')
+                if (tokens[end] === '.' || tokens[end] === undefined)
                     err();
                 end++;
             }
@@ -258,10 +258,7 @@ const Templater = function () {
             args.push(getMemberAccessExpression(tokens, start, end));
             if (end == tokens.length)
                 return args;
-            else {
-                if (end == start) err();
-                start = end;
-            }
+            start = end;
         }
     }
     return { compile };
