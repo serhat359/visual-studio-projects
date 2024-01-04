@@ -124,9 +124,7 @@ const Templater = function () {
             }
             else {
                 const expr = getExpression(tokens, 0);
-                const handler = (writer, context) => {
-                    writer(htmlEncode(expr(context)));
-                }
+                const handler = (writer, context) => writer(htmlEncode(expr(context)));
                 return [handler, end];
             }
         }
@@ -228,17 +226,13 @@ const Templater = function () {
         else if (end == 3) {
             const objName = tokens[start];
             const key = tokens[start + 2];
-            return context => {
-                return context.get(objName)[key];
-            };
+            return context => context.get(objName)[key];
         }
         else if (end == 5) {
             const objName = tokens[start];
             const key1 = tokens[start + 2];
             const key2 = tokens[start + 4];
-            return context => {
-                return context.get(objName)[key1][key2];
-            };
+            return context => context.get(objName)[key1][key2];
         }
         err();
     }
