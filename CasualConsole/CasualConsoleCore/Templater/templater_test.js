@@ -60,6 +60,8 @@ for (let [template, data, expected] of tests){
 var badTests = [
     "{{",
     "{{}}",
+    //"{{x.}}",
+    //"{{.x}}",
     "{{if}}",
     "{{if x}}",
     "{{if}}{{end}}",
@@ -69,15 +71,22 @@ var badTests = [
     "{{for}}",
     "{{for x}}",
     "{{for x in }}",
+	"{{for in }}",
     "{{for x in k}}",
+	"{{for in k}}",
     "{{end}}",
     "{{else}}",
     "{{else if}}",
 ];
 
 for (let k of badTests) {
-    try{ Templater.compile(k); }
-    catch(e){  };
+    try {
+        Templater.compile(k);
+    }
+    catch (e) {
+        continue;
+    };
+    throw new Error(`${k} should have thrown error`);
 }
 
 console.log("SUCCESS!!");

@@ -1,22 +1,20 @@
-const Templater = function(){
-    function err(){
+const Templater = function () {
+    function err() {
         throw new Error();
     }
-    function htmlEncode(s){
-        if (typeof s !== "string"){
-            s = String(s ?? "")
-        };
+    function htmlEncode(s) {
+        s = String(s ?? "");
         return s.replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/'/g, '&#39;')
-        .replace(/"/g, '&#34;');
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/'/g, '&#39;')
+            .replace(/"/g, '&#34;');
     }
-    function compile(template){
+    function compile(template) {
         const handlers = [];
         let end = 0;
         let handler;
-        while (end < template.length){
+        while (end < template.length) {
             [handler, end] = getHandler(template, end);
             if (!handler)
                 err();
@@ -29,10 +27,10 @@ const Templater = function(){
             const contextData = {};
             contextData["$"] = data;
             const context = {
-                get(key){
+                get(key) {
                     return contextData[key] ?? helpers[key] ?? data[key];
                 },
-                set(name, val){
+                set(name, val) {
                     contextData[name] = val;
                 }
             };
@@ -40,19 +38,19 @@ const Templater = function(){
             return parts.join("");
         };
     }
-    function getHandler(template, start){
+    function getHandler(template, start) {
+        if (start == template.length) err();
         const i = template.indexOf("{{", start);
-        if (i == start){
+        if (i == start) {
             let [tokens, end] = getTokens(template, i + 2);
             const first = tokens[0];
-            if (first === "if"){
+            if (first === "if") {
                 const ifExpr = getExpression(tokens, 1);
                 let ifHandlers;
                 [ifHandlers, end] = getBodyHandlers(template, end);
                 let nextHandlerType = getHandlerType(template, end);
-                if (nextHandlerType !== "else"){
-                    const simpleHandler = (writer, context) =>
-                    {
+                if (nextHandlerType !== "else") {
+                    const simpleHandler = (writer, context) => {
                         if (ifExpr(context))
                             handleMulti(writer, context, ifHandlers);
                     };
@@ -61,14 +59,13 @@ const Templater = function(){
                 const elseIfHandlers = [];
                 let elseHandlers = null;
                 let elseTokens;
-                while(true){
+                while (true) {
                     [elseTokens, end] = getTokens(template, end + 2);
-                    if (elseTokens.length == 1)
-                    {
+                    if (elseTokens.length == 1) {
                         [elseHandlers, end] = getBodyHandlers(template, end);
                         break;
                     }
-                    else{
+                    else {
                         if (elseTokens[1] !== "if") err();
                         const elseIfExpr = getExpression(elseTokens, 2);
                         let elseIfInnerHandlers;
@@ -79,20 +76,18 @@ const Templater = function(){
                     if (nextHandlerType !== "else")
                         break;
                 }
-                const handler =  (writer, context) =>{
-                    if(ifExpr(context)){
+                const handler = (writer, context) => {
+                    if (ifExpr(context)) {
                         handleMulti(writer, context, ifHandlers);
                         return;
                     }
-                    for(const [elseIfExpr, elseIfHand] of elseIfHandlers){
-                        if (elseIfExpr(context))
-                        {
+                    for (const [elseIfExpr, elseIfHand] of elseIfHandlers) {
+                        if (elseIfExpr(context)) {
                             handleMulti(writer, context, elseIfHand);
                             return;
                         }
                     }
-                    if (elseHandlers)
-                    {
+                    if (elseHandlers) {
                         handleMulti(writer, context, elseHandlers);
                         return;
                     }
@@ -111,11 +106,10 @@ const Templater = function(){
                 const loopValuesExpr = getExpression(tokens, 3);
                 let handlers;
                 [handlers, end] = getBodyHandlers(template, end);
-                const handler =  (writer, context) =>{
+                const handler = (writer, context) => {
                     const loopValues = loopValuesExpr(context);
                     let i = 0;
-                    for (const val of loopValues)
-                    {
+                    for (const val of loopValues) {
                         context.set(loopVarName, val);
                         if (loopIndexName)
                             context.set(loopIndexName, i);
@@ -125,52 +119,43 @@ const Templater = function(){
                 }
                 return [handler, end];
             }
-            else if (first === "end" || first === "else")
-            {
+            else if (first === "end" || first === "else") {
                 return [null, end];
             }
-            else{
+            else {
                 const expr = getExpression(tokens, 0);
-                const handler = (writer, context) =>{
+                const handler = (writer, context) => {
                     writer(htmlEncode(expr(context)));
                 }
                 return [handler, end];
             }
         }
-        else if (i < 0)
-        {
-            return [checkString(template.substring(start)), template.length];
+        else if (i < 0) {
+            return [template.substring(start), template.length];
         }
-        else
-        {
-            return [checkString(template.substring(start, i)), i];
+        else {
+            return [template.substring(start, i), i];
         }
     }
     function mergeTokens(tokens, inIndex) {
         const merged = tokens.slice(1, inIndex).join("");
         return [tokens[0], merged, ...tokens.slice(inIndex)];
     }
-    function checkString(s){
-        if (!s)
-            err();
-        return s;
-    }
-    function handleMulti(writer, context, handlers){
+    function handleMulti(writer, context, handlers) {
         for (const h of handlers)
             if (typeof h === "string")
                 writer(h);
             else
                 h(writer, context);
     }
-    function getTokens(template, i){
+    function getTokens(template, i) {
         const tokens = [];
-        while (true){
+        while (true) {
             while (template[i] === ' ')
                 i++;
             if (template[i] === '}' && template[i + 1] === '}')
                 return [tokens, i + 2];
-            if (template[i] === '.')
-            {
+            if (template[i] === '.') {
                 tokens.push(".");
                 i++;
                 continue;
@@ -184,11 +169,10 @@ const Templater = function(){
             tokens.push(token);
         }
     }
-    function getHandlerType(template, start){
-        while (start < template.length && ws(template[start]))
+    function getHandlerType(template, start) {
+        while (start < template.length && /\s/.test(template[start])) // checking for whitespace
             start++;
-        if (start + 1 < template.length && template[start] === '{' && template[start + 1] === '{')
-        {
+        if (start + 1 < template.length && template[start] === '{' && template[start + 1] === '{') {
             start += 2;
             while (template[start] === ' ')
                 start++;
@@ -199,26 +183,23 @@ const Templater = function(){
         }
         return null;
     }
-    function getBodyHandlers(template, end){
+    function getBodyHandlers(template, end) {
         const handlers = [];
         let handler;
-        while(true){
+        while (true) {
             [handler, end] = getHandler(template, end);
-            if (handler == null)
+            if (!handler)
                 break;
             handlers.push(handler);
         }
         return [handlers, end];
     }
-    function getExpression(tokens, start){
+    function getExpression(tokens, start) {
         if (tokens.length - start == 0)
             err();
         if (tokens.length - start == 1)
-        {
-            const token = tokens[start];
-            return getTokenAsExpression(token);
-        }
-        if (tokens[start + 1] === "."){
+            return getTokenAsExpression(tokens[start]);
+        if (tokens[start + 1] === ".") {
             const argGroups = getArgGroups(tokens, start);
             if (argGroups.length == 1)
                 return argGroups[0];
@@ -227,24 +208,12 @@ const Templater = function(){
         else {
             const f = tokens[start];
             const argGroups = getArgGroups(tokens, start + 1);
-            if (argGroups.length == 1) {
-                const expr = argGroups[0];
-                return context => {
-                    const func = context.get(f);
-                    if (typeof func !== "function")
-                        throw new Error(`value of ${f} was not a function`);
-                    const val = expr(context);
-                    return func(val);
-                };
-            }
-            else {
-                return context => {
-                    const func = context.get(f);
-                    if (typeof func !== "function")
-                        throw new Error(`value of ${f} was not a function`);
-                    const args = argGroups.map(expr => expr(context));
-                    return func.apply(this, args);
-                }
+            return context => {
+                const func = context.get(f);
+                if (typeof func !== "function")
+                    throw new Error(`value of ${f} was not a function`);
+                const args = argGroups.map(expr => expr(context));
+                return func.apply(null, args);
             }
         }
     }
@@ -252,17 +221,18 @@ const Templater = function(){
         return context => context.get(token);
     }
     function getMemberAccessExpression(tokens, start, end) {
-        if (end - start == 1) {
+        end -= start;
+        if (end == 1) {
             return getTokenAsExpression(tokens[start]);
         }
-        else if (end - start == 3) {
+        else if (end == 3) {
             const objName = tokens[start];
             const key = tokens[start + 2];
             return context => {
                 return context.get(objName)[key];
             };
         }
-        else if (end - start == 5) {
+        else if (end == 5) {
             const objName = tokens[start];
             const key1 = tokens[start + 2];
             const key2 = tokens[start + 4];
@@ -293,9 +263,6 @@ const Templater = function(){
                 start = end;
             }
         }
-    }
-    function ws(x){
-        return x === ' ' || x === '\n' || x === '\t' || x === '\r';
     }
     return { compile };
 }();
