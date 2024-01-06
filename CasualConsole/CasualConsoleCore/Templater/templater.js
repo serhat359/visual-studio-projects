@@ -18,8 +18,7 @@ const Templater = function () {
         let handler;
         while (end < template.length) {
             [handler, end] = getHandler(template, end);
-            if (!handler)
-                err();
+            assertTruthy(handler);
             handlers.push(handler);
         }
         return (data, helpers) => {
@@ -167,17 +166,11 @@ const Templater = function () {
                 i++;
             if (template[i] === '}' && template[i + 1] === '}')
                 return [tokens, i + 2];
-            if (template[i] === '.') {
-                tokens.push(".");
-                i++;
-                continue;
-            }
             const start = i++;
-            while (i < template.length && template[i] !== '.' && template[i] !== '}' && template[i] !== ' ')
+            while (i < template.length && template[i] !== '}' && template[i] !== ' ')
                 i++;
             const token = template.substring(start, i);
-            if (!token)
-                err();
+            assertTruthy(token);
             tokens.push(token);
         }
     }
@@ -189,7 +182,7 @@ const Templater = function () {
             while (template[start] === ' ')
                 start++;
             const tempStart = start++;
-            while (template[start] !== '.' && template[start] !== '}' && template[start] !== ' ')
+            while (template[start] !== '}' && template[start] !== ' ')
                 start++;
             return template.substring(tempStart, start);
         }
@@ -211,63 +204,56 @@ const Templater = function () {
             err();
         if (tokens.length - start == 1)
             return getTokenAsExpression(tokens[start]);
-        if (tokens[start + 1] === ".") {
-            const argGroups = getArgGroups(tokens, start);
-            if (argGroups.length == 1)
-                return argGroups[0];
-            err();
-        }
-        else {
-            const f = tokens[start];
-            const argGroups = getArgGroups(tokens, start + 1);
+        const f = tokens[start];
+        if (f.includes(".")) err();
+        const argGroups = getArgGroups(tokens, start + 1);
+        if (argGroups.length == 1) {
+            const expr = argGroups[0];
             return context => {
-                const func = context.get(f);
-                if (typeof func !== "function")
-                    throw new Error(`value of ${f} was not a function`);
-                const args = argGroups.map(expr => expr(context));
-                return func.apply(null, args);
+                const func = getFunc(f, context);
+                return func(expr(context));
             }
         }
+        return context => {
+            const func = getFunc(f, context);
+            const args = argGroups.map(expr => expr(context));
+            return func.apply(null, args);
+        }
+    }
+    function getFunc(f, context) {
+        const func = context.get(f);
+        if (typeof func !== "function")
+            throw new Error(`value of ${f} was not a function`);
+        return func;
     }
     function getTokenAsExpression(token) {
-        return context => context.get(token);
-    }
-    function getMemberAccessExpression(tokens, start, end) {
-        end -= start;
-        if (end == 1) {
-            return getTokenAsExpression(tokens[start]);
+        const subTokens = token.split(".");
+        subTokens.forEach(assertTruthy);
+        if (subTokens.length == 1) {
+            const t = subTokens[0];
+            return context => context.get(t);
         }
-        else if (end == 3) {
-            const objName = tokens[start];
-            const key = tokens[start + 2];
-            return context => context.get(objName)[key];
+        if (subTokens.length == 2) {
+            const t = subTokens[0];
+            const k = subTokens[1];
+            return context => context.get(t)[k];
         }
-        else if (end == 5) {
-            const objName = tokens[start];
-            const key1 = tokens[start + 2];
-            const key2 = tokens[start + 4];
-            return context => context.get(objName)[key1][key2];
+        if (subTokens.length == 3) {
+            const t = subTokens[0];
+            const k1 = subTokens[1];
+            const k2 = subTokens[2];
+            return context => context.get(t)[k1][k2];
         }
         err();
     }
-    function getArgGroups(tokens, start) {
-        const args = [];
-        while (true) {
-            let end = start;
-            if (tokens[end] === '.') err();
-            end++;
-            while (end < tokens.length && tokens[end] === '.') {
-                end++;
-                if (tokens[end] === '.' || tokens[end] === undefined)
-                    err();
-                end++;
-            }
-
-            args.push(getMemberAccessExpression(tokens, start, end));
-            if (end == tokens.length)
-                return args;
-            start = end;
-        }
+    function getArgGroups(tokens, index) {
+        const exprs = [];
+        while (index < tokens.length)
+            exprs.push(getTokenAsExpression(tokens[index++]));
+        return exprs;
+    }
+    function assertTruthy(x) {
+        if (!x) err();
     }
     return { compile };
 }();
