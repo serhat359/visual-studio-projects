@@ -97,28 +97,40 @@ const Templater = function () {
                 return [handler, end];
             }
             else if (first === "for") {
-                if (tokens[2] !== "in") {
-                    const inIndex = tokens.indexOf("in");
-                    if (inIndex > 2)
+                let loopType = tokens[2];
+                if (loopType !== "in" && loopType !== "range") {
+                    const inIndex = tokens.findIndex(x => x === "in" || x === "range");
+                    if (inIndex > 2) {
                         tokens = mergeTokens(tokens, inIndex);
+                        loopType = tokens[2];
+                    }
                     else
                         err();
                 }
-                const [loopVarName, loopIndexName] = tokens[1].split(",");
+                const [t1, t2] = tokens[1].split(",");
                 const loopValuesExpr = getExpression(tokens, 3);
                 let handlers;
                 [handlers, end] = getBodyHandlers(template, end);
-                const handler = (writer, context) => {
-                    const loopValues = loopValuesExpr(context);
-                    let i = 0;
-                    for (const val of loopValues) {
-                        context.set(loopVarName, val);
-                        if (loopIndexName)
-                            context.set(loopIndexName, i);
-                        handleMulti(writer, context, handlers);
-                        i++;
+                const handler = loopType === "in"
+                    ? (writer, context) => {
+                        const loopValues = loopValuesExpr(context);
+                        let i = 0;
+                        for (const val of loopValues) {
+                            context.set(t1, val);
+                            if (t2)
+                                context.set(t2, i);
+                            handleMulti(writer, context, handlers);
+                            i++;
+                        }
                     }
-                }
+                    : (writer, context) => {
+                        const obj = loopValuesExpr(context);
+                        for (const key in obj) {
+                            context.set(t1, key);
+                            context.set(t2, obj[key]);
+                            handleMulti(writer, context, handlers);
+                        }
+                    }
                 return [handler, end];
             }
             else if (first === "end" || first === "else") {

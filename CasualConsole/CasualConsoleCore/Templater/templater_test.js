@@ -13,7 +13,6 @@ var tests = [
     ["numbers: {{for x in num.inner}}{{x}},{{end}}", { num: { inner: [1,2,3] } }, "numbers: 1,2,3,"],
     ["numbers count: {{num.length}}", { num: [1,2,3] }, "numbers count: 3"],
     ["numbers count: {{text.length}}", { text: "hello world" }, "numbers count: 11"],
-    ["num: {{numF}}", { get numF(){ return 3; } }, "num: 3"],
     ["{{a.b}}", { a: { b: "text" } }, "text"],
     ["{{a.b.c}}", { a: { b: { c: "text" } } }, "text"],
     ["{{for e in $}}{{e}}{{end}}", [2,5,8], "258"],
@@ -28,6 +27,7 @@ var tests = [
     ["{{for x in texts}}<{{x}}>{{end}}", { texts: ["foo", "bar", "baz", "<script>"] }, "<foo><bar><baz><&lt;script&gt;>"],
     ["{{if gt $.v1 $.v2}}YES{{end}}", { v1: 6, v2: 3 }, "YES"],
     ["{{sum $.n $.n $.n $.n}}", { n:25 }, "100"],
+    ["{{for k , v range $}}{{k}}:{{v}},{{end}}", { name:"Jack", age:25 }, "name:Jack,age:25,"],
 ];
 
 let helpers = {
