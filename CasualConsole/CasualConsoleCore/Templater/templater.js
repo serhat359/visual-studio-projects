@@ -4,11 +4,13 @@ const Templater = function () {
     }
     function htmlEncode(s) {
         s = String(s ?? "");
-        return s.replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/'/g, '&#39;')
-            .replace(/"/g, '&#34;');
+        return /[&<>\'\"]/.test(s)
+			? s.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/'/g, '&#39;')
+				.replace(/"/g, '&#34;')
+			: s;
     }
     function compile(template) {
         const handlers = [];
