@@ -135,6 +135,12 @@ const Templater = function () {
             else if (first === "end" || first === "else") {
                 return [null, end];
             }
+            else if (first === "set") {
+                const varName = tokens[1];
+                const expr = getExpression(tokens, 2);
+                const handler = (writer, context) => context.set(varName, expr(context));
+                return [handler, end];
+            }
             else {
                 const expr = getExpression(tokens, 0);
                 const handler = (writer, context) => writer(htmlEncode(expr(context)));
