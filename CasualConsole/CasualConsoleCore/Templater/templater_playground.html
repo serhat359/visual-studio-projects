@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Tiny Template Playground</title>
+</head>
+<body>
+
+<div style="display: flex">
+	<div style="padding-right: 25px;">
+	<label>JSON data:</label><br>
+	<textarea id="jsonData" rows="11" cols="80" onkeyup="renderDiv()" spellcheck="false" ></textarea>
+	<br><br>
+	</div>
+
+	<div>
+	<label>Helpers (Script):</label><br>
+	<textarea id="helpersText" rows="11" cols="80" onkeyup="renderDiv()" spellcheck="false" ></textarea>
+	<br><br>
+	</div>
+</div>
+
+<label>Template:</label><br>
+<textarea id="template" rows="16" cols="80" onkeyup="renderDiv()" spellcheck="false" ></textarea>
+
+<br><br>
+<label>Render result:</label>
+<input name="renderType" id="radioRendered" value="rendered" type="radio" onchange="renderDiv()" checked /><label for="radioRendered">Rendered</label>
+<input name="renderType" id="radioAsHtml" value="ashtml" type="radio" onchange="renderDiv()" /><label for="radioAsHtml">As HTML</label>
+<br>
+<div id="renderError" style="color: red;">
+</div>
+<div id="renderResult">
+</div>
+
+<script src="templater.min.js"></script>
+
+<script id="extraScript"></script>
+
+<script>
+function renderDiv(){
+	errorDiv.textContent = "";
+	
+	var renderMode = document.querySelector("input[name='renderType']:checked").value;
+	
+	try{
+		eval(helpersScriptText.value);
+	} catch(e){
+		errorDiv.textContent = "Error when running the script";
+		return;
+	}
+
+	var parsedJsonData;
+	try {
+		parsedJsonData = JSON.parse(jsonDataTextArea.value);
+	} catch (e) {
+		errorDiv.textContent = "Error when parsing JSON data";
+		return;
+	}
+	
+	var renderer;
+	try {
+		renderer = Templater.compile(templateTextArea.value);
+	} catch (e) {
+		errorDiv.textContent = "Error when parsing the template";
+		return;
+	}
+	
+	try {
+		var content = renderer(parsedJsonData, helpers);
+		if (renderMode === "ashtml")
+			renderResultDiv.innerText = content;
+		else
+			renderResultDiv.innerHTML = content;
+	} catch (e) {
+		errorDiv.textContent = "Error when rendering the HTML";
+		return;
+	}
+}
+
+var helpers;
+var jsonDataTextArea = document.querySelector("#jsonData");
+var templateTextArea = document.querySelector("#template");
+var renderResultDiv = document.querySelector("#renderResult");
+var helpersScriptText = document.querySelector("#helpersText");
+var errorDiv = document.querySelector("#renderError");
+var helpersScript = document.querySelector("#extraScript");
+
+window.addEventListener("load", (event) => {
+	helpersScriptText.value = '\
+helpers = {\n\
+\n\
+  fixed(x){\n\
+    return x.toFixed(2)\n\
+  },\n\
+\n\
+  upper(x){\n\
+    return x.toUpperCase()\n\
+  },\n\
+\n\
+}';
+	jsonDataTextArea.value = '\
+[\n\
+  { "name": "foo", "number": 2.5 }, \n\
+  { "name": "bar", "number": 3.45466 },\n\
+  { "name": "baz", "number": 45.222323 }\n\
+]';
+	templateTextArea.value = '\
+<table>\n\
+  <thead>\n\
+    <th>NAME</th>\n\
+    <th>Name</th>\n\
+    <th>Number</th>\n\
+  </thead>\n\
+  <tbody>\n\
+    {{for x in $}}\n\
+      <tr>\n\
+        <td>{{upper x.name}}</td>\n\
+        <td>{{x.name}}</td>\n\
+        <td>{{fixed x.number}}</td>\n\
+      </tr>\n\
+    {{end}}\n\
+  </tbody>\n\
+</table>';
+
+	renderDiv();
+});
+
+</script>
+
+</body>
+</html>
