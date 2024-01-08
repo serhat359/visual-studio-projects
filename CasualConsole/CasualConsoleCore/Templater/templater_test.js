@@ -61,6 +61,8 @@ for (let [template, data, expected] of tests){
 
 var badTests = [
     "{{",
+    "{{end",
+    "{{else",
     "{{}}",
     "{{x.}}",
     "{{x.x.}}",
@@ -82,6 +84,9 @@ var badTests = [
     "{{end}}",
     "{{else}}",
     "{{else if}}",
+    "{{if $}}{{",
+    "{{if $}}{{end}}{{",
+    "{{if $}}{{end}}{{else",
 ];
 
 for (let k of badTests) {

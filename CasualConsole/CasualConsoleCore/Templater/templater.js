@@ -188,7 +188,7 @@ const Templater = function () {
             while (template[start] === ' ')
                 start++;
             const tempStart = start++;
-            while (template[start] !== '}' && template[start] !== ' ')
+            while (start < template.length && template[start] !== '}' && template[start] !== ' ')
                 start++;
             return template.substring(tempStart, start);
         }
