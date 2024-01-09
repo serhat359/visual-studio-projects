@@ -1,17 +1,4 @@
 const Templater = function () {
-    function err() {
-        throw new Error();
-    }
-    function htmlEncode(s) {
-        s = String(s ?? "");
-        return /[&<>\'\"]/.test(s)
-            ? s.replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/'/g, '&#39;')
-                .replace(/"/g, '&#34;')
-            : s;
-    }
     function compile(template) {
         const handlers = [];
         let end = 0;
@@ -262,6 +249,19 @@ const Templater = function () {
     }
     function assertTruthy(x) {
         if (!x) err();
+    }
+    function err() {
+        throw new Error();
+    }
+    function htmlEncode(s) {
+        s = String(s ?? "");
+        return /[&<>\'\"]/.test(s)
+            ? s.replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/'/g, '&#39;')
+                .replace(/"/g, '&#34;')
+            : s;
     }
     return { compile };
 }();
