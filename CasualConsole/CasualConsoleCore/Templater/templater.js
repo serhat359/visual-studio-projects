@@ -1,4 +1,5 @@
 const Templater = function () {
+    const registeredHelpers = {};
     function compile(template) {
         const handlers = [];
         let end = 0;
@@ -15,7 +16,7 @@ const Templater = function () {
             contextData["$"] = data;
             const context = {
                 get(key) {
-                    return contextData[key] ?? helpers[key] ?? data[key];
+                    return contextData[key] ?? helpers[key] ?? registeredHelpers[key] ?? data[key];
                 },
                 set(name, val) {
                     contextData[name] = val;
@@ -24,6 +25,9 @@ const Templater = function () {
             handleMulti(writer, context, handlers);
             return parts.join("");
         };
+    }
+    function registerHelper(name, f) {
+        registeredHelpers[name] = f;
     }
     function getHandler(template, start) {
         if (start == template.length) err();
@@ -263,6 +267,6 @@ const Templater = function () {
                 .replace(/"/g, '&#34;')
             : s;
     }
-    return { compile };
+    return { compile, registerHelper };
 }();
 export default Templater;

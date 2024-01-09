@@ -30,7 +30,8 @@ var tests = [
     ["{{if gt $.v1 $.v2}}YES{{end}}", { v1: 6, v2: 3 }, "YES"],
     ["{{sum $.n $.n $.n $.n}}", { n:25 }, "100"],
     ["{{for k , v range $}}{{k}}:{{v}},{{end}}", { name:"Jack", age:25 }, "name:Jack,age:25,"],
-    ["{{for e in $}}{{set k fixed e}}{{k}},{{end}}", [1,2,3], "1.00,2.00,3.00,"],
+    ["{{for e in $}}{{set k fixed e}}{{k}},{{end}}", [1, 2, 3], "1.00,2.00,3.00,"],
+    ["{{if not data}}It's not{{end}}{{else}}it is{{end}}", { data: false }, "It's not"],
 ];
 
 let helpers = {
@@ -53,6 +54,8 @@ let helpers = {
         return total;
     }
 };
+
+Templater.registerHelper("not", x => !x);
 
 for (let [template, data, expected] of tests){
     let compiled = Templater.compile(template);
