@@ -21,8 +21,7 @@ const Templater = function () {
             assertTruthy(handler);
             handlers.push(handler);
         }
-        return (data, helpers) => {
-            helpers ??= {};
+        return (data, helpers = {}) => {
             const parts = [];
             const writer = x => parts.push(x);
             const contextData = {};
