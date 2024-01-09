@@ -92,7 +92,7 @@ const Templater = function () {
                         handleMulti(writer, context, elseHandlers);
                         return;
                     }
-                }
+                };
                 return [handler, end];
             }
             else if (first === "for") {
@@ -129,7 +129,7 @@ const Templater = function () {
                             context.set(t2, obj[key]);
                             handleMulti(writer, context, handlers);
                         }
-                    }
+                    };
                 return [handler, end];
             }
             else if (first === "end" || first === "else") {
@@ -235,22 +235,25 @@ const Templater = function () {
     function getTokenAsExpression(token) {
         const subTokens = token.split(".");
         subTokens.forEach(assertTruthy);
+        const t = subTokens[0];
         if (subTokens.length == 1) {
-            const t = subTokens[0];
             return context => context.get(t);
         }
         if (subTokens.length == 2) {
-            const t = subTokens[0];
             const k = subTokens[1];
             return context => context.get(t)[k];
         }
         if (subTokens.length == 3) {
-            const t = subTokens[0];
             const k1 = subTokens[1];
             const k2 = subTokens[2];
             return context => context.get(t)[k1][k2];
         }
-        err();
+        return context => {
+            let o = context.get(t);
+            for (let i = 1; i < subTokens.length; i++)
+                o = o[subTokens[i]];
+            return o;
+        }
     }
     function getArgGroups(tokens, index) {
         const exprs = [];

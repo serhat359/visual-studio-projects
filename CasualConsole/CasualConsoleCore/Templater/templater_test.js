@@ -15,6 +15,8 @@ var tests = [
     ["numbers count: {{text.length}}", { text: "hello world" }, "numbers count: 11"],
     ["{{a.b}}", { a: { b: "text" } }, "text"],
     ["{{a.b.c}}", { a: { b: { c: "text" } } }, "text"],
+    ["{{a.b.c.d}}", { a: { b: { c: { d: "text" } } } }, "text"],
+    ["{{a.b.c.d.e}}", { a: { b: { c: { d: { e: "text" } } } } }, "text"],
     ["{{for e in $}}{{e}}{{end}}", [2,5,8], "258"],
     ["{{for e in num}}{{e.x}}{{end}}", { num: [{ x: 2 }, { x: 5 }, { x: 8 }] }, "258"],
     ["{{for e , i in num}}{{i}}{{end}}", { num: [{ x: 2 }, { x: 5 }, { x: 8 }] }, "012"],
