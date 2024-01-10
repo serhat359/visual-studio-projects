@@ -1,6 +1,6 @@
-const Templater = function () {
+const Templater = (() => {
     const registeredHelpers = {};
-    function compile(template) {
+    const compile = template => {
         const handlers = [];
         let end = 0;
         let handler;
@@ -26,11 +26,9 @@ const Templater = function () {
             handleMulti(writer, context, handlers);
             return parts.join("");
         };
-    }
-    function registerHelper(name, f) {
-        registeredHelpers[name] = f;
-    }
-    function getHandler(template, start) {
+    };
+    const registerHelper = (name, f) => registeredHelpers[name] = f;
+    const getHandler = (template, start) => {
         if (start == template.length) throw new Error("Expected {{end}} but not found");
         const i = template.indexOf("{{", start);
         if (i == start) {
@@ -149,18 +147,15 @@ const Templater = function () {
             return [template.substring(start, i), i];
         }
     }
-    function mergeTokens(tokens, inIndex) {
-        const merged = tokens.slice(1, inIndex).join("");
-        return [tokens[0], merged, ...tokens.slice(inIndex)];
-    }
-    function handleMulti(writer, context, handlers) {
+    const mergeTokens = (tokens, inIndex) => [tokens[0], tokens.slice(1, inIndex).join(""), ...tokens.slice(inIndex)];
+    const handleMulti = (writer, context, handlers) => {
         for (const h of handlers)
             if (typeof h === "string")
                 writer(h);
             else
                 h(writer, context);
     }
-    function getTokens(template, i) {
+    const getTokens = (template, i) => {
         const tokens = [];
         while (true) {
             while (template[i] === ' ')
@@ -176,7 +171,7 @@ const Templater = function () {
             tokens.push(token);
         }
     }
-    function getHandlerType(template, start) {
+    const getHandlerType = (template, start) => {
         while (start < template.length && /\s/.test(template[start])) // checking for whitespace
             start++;
         if (start + 1 < template.length && template[start] === '{' && template[start + 1] === '{') {
@@ -190,7 +185,7 @@ const Templater = function () {
         }
         return null;
     }
-    function getBodyHandlers(template, end) {
+    const getBodyHandlers = (template, end) => {
         const handlers = [];
         let handler;
         while (true) {
@@ -201,7 +196,7 @@ const Templater = function () {
         }
         return [handlers, end];
     }
-    function getExpression(tokens, start) {
+    const getExpression = (tokens, start) => {
         if (tokens.length - start == 0 || tokens[start] === '.') {
             if (tokens.length == 0) throw new Error("Expression cannot be empty");
             else throw new Error(`Expression expected after: ${tokens.slice(0, start).join(" ")}`);
@@ -224,13 +219,13 @@ const Templater = function () {
             return func.apply(null, args);
         }
     }
-    function getFunc(f, context) {
+    const getFunc = (f, context) => {
         const func = context.get(f);
         if (typeof func !== "function")
             throw new Error(`value of ${f} was not a function`);
         return func;
     }
-    function getTokenAsExpression(token) {
+    const getTokenAsExpression = token => {
         const expr = getTokenAsExpressionInner(token);
         return context => {
             try {
@@ -240,7 +235,7 @@ const Templater = function () {
             }
         };
     }
-    function getTokenAsExpressionInner(token) {
+    const getTokenAsExpressionInner = token => {
         const subTokens = token.split(".");
         subTokens.forEach(x => { if (!x) throw new Error(`Invalid member access expression: ${token}`) });
         const t = subTokens[0];
@@ -263,13 +258,13 @@ const Templater = function () {
             return o;
         }
     }
-    function getArgGroups(tokens, index) {
+    const getArgGroups = (tokens, index) => {
         const exprs = [];
         while (index < tokens.length)
             exprs.push(getTokenAsExpression(tokens[index++]));
         return exprs;
     }
-    function htmlEncode(s) {
+    const htmlEncode = s => {
         s = String(s ?? "");
         return /[&<>\'\"]/.test(s)
             ? s.replace(/&/g, '&amp;')
@@ -280,5 +275,5 @@ const Templater = function () {
             : s;
     }
     return { compile, registerHelper };
-}();
+})();
 export default Templater;
