@@ -6,7 +6,8 @@ const Templater = function () {
         let handler;
         while (end < template.length) {
             [handler, end] = getHandler(template, end);
-            assertTruthy(handler);
+            if (!handler)
+                throw new Error("Unexpected end token");
             handlers.push(handler);
         }
         return (data, helpers = {}) => {
@@ -30,7 +31,7 @@ const Templater = function () {
         registeredHelpers[name] = f;
     }
     function getHandler(template, start) {
-        if (start == template.length) err();
+        if (start == template.length) throw new Error("Expected {{end}} but not found");
         const i = template.indexOf("{{", start);
         if (i == start) {
             let [tokens, end] = getTokens(template, i + 2);
@@ -57,7 +58,7 @@ const Templater = function () {
                         break;
                     }
                     else {
-                        if (elseTokens[1] !== "if") err();
+                        if (elseTokens[1] !== "if") throw new Error("Unexpected expression after else");
                         const elseIfExpr = getExpression(elseTokens, 2);
                         let elseIfInnerHandlers;
                         [elseIfInnerHandlers, end] = getBodyHandlers(template, end);
@@ -94,7 +95,7 @@ const Templater = function () {
                         loopType = tokens[2];
                     }
                     else
-                        err();
+                        throw new Error("For loops have to be either 'in' or 'range' loops");
                 }
                 const [t1, t2] = tokens[1].split(",");
                 const loopValuesExpr = getExpression(tokens, 3);
@@ -103,6 +104,7 @@ const Templater = function () {
                 const handler = loopType === "in"
                     ? (writer, context) => {
                         const loopValues = loopValuesExpr(context);
+                        if (loopValues == null) throw new Error(`Value of '${tokens.slice(3).join(" ")}' was not iterable`);
                         let i = 0;
                         for (const val of loopValues) {
                             context.set(t1, val);
@@ -122,8 +124,11 @@ const Templater = function () {
                     };
                 return [handler, end];
             }
-            else if (first === "end" || first === "else") {
+            else if (first === "end") {
                 return [null, end];
+            }
+            else if (first === "else") {
+                throw new Error("Unexpected else token");
             }
             else if (first === "set") {
                 const varName = tokens[1];
@@ -166,7 +171,8 @@ const Templater = function () {
             while (i < template.length && template[i] !== '}' && template[i] !== ' ')
                 i++;
             const token = template.substring(start, i);
-            assertTruthy(token);
+            if (!token)
+                throw new Error("Tag not closed with }}")
             tokens.push(token);
         }
     }
@@ -196,12 +202,14 @@ const Templater = function () {
         return [handlers, end];
     }
     function getExpression(tokens, start) {
-        if (tokens.length - start == 0 || tokens[start] === '.')
-            err();
+        if (tokens.length - start == 0 || tokens[start] === '.') {
+            if (tokens.length == 0) throw new Error("Expression cannot be empty");
+            else throw new Error(`Expression expected after: ${tokens.slice(0, start).join(" ")}`);
+        }
         if (tokens.length - start == 1)
             return getTokenAsExpression(tokens[start]);
         const f = tokens[start];
-        if (f.includes(".")) err();
+        if (f.includes(".")) throw new Error(`Function name cannot contain a dot character: ${f}`);
         const argGroups = getArgGroups(tokens, start + 1);
         if (argGroups.length == 1) {
             const expr = argGroups[0];
@@ -223,8 +231,18 @@ const Templater = function () {
         return func;
     }
     function getTokenAsExpression(token) {
+        const expr = getTokenAsExpressionInner(token);
+        return context => {
+            try {
+                return expr(context);
+            } catch (e) {
+                throw new Error(`Error while resolving: ${token}`);
+            }
+        };
+    }
+    function getTokenAsExpressionInner(token) {
         const subTokens = token.split(".");
-        subTokens.forEach(assertTruthy);
+        subTokens.forEach(x => { if (!x) throw new Error(`Invalid member access expression: ${token}`) });
         const t = subTokens[0];
         if (subTokens.length == 1) {
             return context => context.get(t);
@@ -250,12 +268,6 @@ const Templater = function () {
         while (index < tokens.length)
             exprs.push(getTokenAsExpression(tokens[index++]));
         return exprs;
-    }
-    function assertTruthy(x) {
-        if (!x) err();
-    }
-    function err() {
-        throw new Error();
     }
     function htmlEncode(s) {
         s = String(s ?? "");
