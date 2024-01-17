@@ -49,7 +49,7 @@
                         <i class="fa fa-folder-open"></i>
                     }
                 </td>
-                <td>
+                <td title="@fileInfo.Name">
                     @if (fileInfo.IsFolder)
                     {
                         <a href="?q=@Html.UriEscape(Model.CurrentPath + fileInfo.Name)">@fileInfo.Name</a>
@@ -113,5 +113,12 @@
 
     table.table-hover > tbody > tr > td.downloadCheckBox > input[type=checkbox] {
         display: none;
+    }
+
+    table > tbody > tr > td {
+        max-width: 600px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 </style>
