@@ -4,33 +4,39 @@ using System.IO;
 using System.Threading;
 using System.Windows.Forms;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace BackupHomeFolder
 {
     class FileCopyingThread
     {
-        public volatile bool continueCopy = false;
+        private readonly CancellationTokenSource stopCopySource;
 
-        ThreadStart threadAction;
-
-        public FileCopyingThread(List<FileCopyInfo> filesToCopy, IntPtr windowHandle, long bytesToCopy, Label fileCopyLabel, List<string> filesToDelete, string destinationFolder)
+        public FileCopyingThread(IReadOnlyList<FileCopyInfo> filesToCopy, IntPtr windowHandle, long bytesToCopy, Label fileCopyLabel, IReadOnlyList<string> filesToDelete, string destinationFolder)
         {
-            threadAction = () =>
-            {
-                DoWork(filesToCopy, windowHandle, bytesToCopy, fileCopyLabel, filesToDelete, destinationFolder);
-            };
+            this.stopCopySource = new CancellationTokenSource();
 
-            Thread thread = new Thread(threadAction);
-            thread.Start();
+            Task task = Task.Run(() =>
+            {
+                DoWork(filesToCopy, windowHandle, bytesToCopy, fileCopyLabel, filesToDelete, destinationFolder, stopCopySource.Token);
+            });
         }
 
-        private void DoWork(List<FileCopyInfo> filesToCopy, IntPtr handle, long bytesToCopy, Label fileCopyLabel, List<string> filesToDelete, string destinationFolder)
+        public void StopCopy()
         {
-            continueCopy = true;
+            stopCopySource.Cancel();
+        }
+
+        private void DoWork(IReadOnlyList<FileCopyInfo> filesToCopy, IntPtr handle, long bytesToCopy, Label fileCopyLabel, IReadOnlyList<string> filesToDelete, string destinationFolder, CancellationToken stopCopy)
+        {
             long bytesCopied = 0;
 
-            filesToDelete.Each((filePathToDelete, i) =>
+            for (int i = 0; i < filesToDelete.Count; i++)
             {
+                if (stopCopy.IsCancellationRequested)
+                    break;
+
+                string filePathToDelete = filesToDelete[i];
                 UpdateLabel(fileCopyLabel, string.Format("Deleting {0} of {1} files", (i + 1), filesToDelete.Count));
 
                 try
@@ -39,12 +45,14 @@ namespace BackupHomeFolder
                     File.Delete(filePathToDelete);
                 }
                 catch (UnauthorizedAccessException) { }
+            }
 
-                return continueCopy;
-            });
-
-            filesToCopy.Each((copyInfo, i) =>
+            for (int i = 0; i < filesToCopy.Count; i++)
             {
+                if (stopCopy.IsCancellationRequested)
+                    break;
+
+                var copyInfo = filesToCopy[i];
                 UpdateLabel(fileCopyLabel, string.Format("Copying {0} of {1} files", (i + 1), filesToCopy.Count));
                 string directoryPath = Delimon.Win32.IO.Path.GetDirectoryName(copyInfo.DestinationPath);
                 if (!Directory.Exists(directoryPath))
@@ -62,15 +70,14 @@ namespace BackupHomeFolder
                 TaskbarProgress.SetState(handle, TaskbarProgress.TaskbarStates.Normal);
                 TaskbarProgress.SetValue(handle, bytesCopied, IfZero(bytesToCopy, 1));
                 bytesCopied += copyInfo.FileSizeBytes;
-                return continueCopy;
-            });
+            };
 
             DeleteEmptyFolders(destinationFolder);
 
             TaskbarProgress.SetState(handle, TaskbarProgress.TaskbarStates.Normal);
             TaskbarProgress.SetValue(handle, 1, 1);
 
-            string labelText = continueCopy ? "Copying Completed" : "Copying Stopped";
+            string labelText = !stopCopy.IsCancellationRequested ? "Copying Completed" : "Copying Stopped";
 
             UpdateLabel(fileCopyLabel, labelText);
             MessageBox.Show(labelText);

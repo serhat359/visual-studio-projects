@@ -1,5 +1,4 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -37,42 +36,6 @@ namespace GenerateCRC32Checksum
             }
 
             return null;
-        }
-
-        [Obsolete("This function does not use regex, use GetCRC function instead")]
-        static string GetCRCOld(string filename)
-        {
-            int length = filename.Length;
-
-            for (int i = 0; i < length; i++)
-            {
-                int bracIndex = filename.IndexOf('[', i);
-
-                if (bracIndex >= 0)
-                {
-                    int bracEndIndex = filename.IndexOf(']', bracIndex);
-
-                    if (bracEndIndex - bracIndex == 9)
-                    {
-                        string code = filename.Substring(bracIndex + 1, 8);
-                        if (code.All(c => IsHexadecimal(c)))
-                            return code;
-                    }
-                }
-                else
-                    break;
-
-                i = bracIndex + 1;
-            }
-
-            return null;
-        }
-
-        private static bool IsHexadecimal(char c)
-        {
-            Func<char, char, char, bool> between = (ch, start, end) => ch >= start && ch <= end;
-
-            return between(c, '0', '9') || between(c, 'a', 'f') || between(c, 'A', 'F');
         }
     }
 }

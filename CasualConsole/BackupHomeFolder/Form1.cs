@@ -202,8 +202,7 @@ namespace BackupHomeFolder
 
         private void stopCopybutton_Click(object sender, EventArgs e)
         {
-            if (thread != null)
-                thread.continueCopy = false;
+            thread?.StopCopy();
         }
     }
 

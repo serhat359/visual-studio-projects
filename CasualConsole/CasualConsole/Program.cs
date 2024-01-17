@@ -38,17 +38,25 @@ namespace CasualConsole
 
             //FixIphonePhotos();
 
-            return;
+            /*
+            var rhythmFinder = new RhythmFinder();
+            rhythmFinder.Show();
+            rhythmFinder.Invalidate();
+            Application.Run(rhythmFinder);
+            */
 
             var window = new TetSystemWindow();
             window.Show();
             window.Invalidate();
             Application.Run(window);
 
+
             var gameOfLife = new GameOfLifeWindow();
             gameOfLife.Show();
             gameOfLife.Invalidate();
             Application.Run(gameOfLife);
+
+            return;
 
             //FixAndroidPhotos();
 
@@ -137,7 +145,7 @@ namespace CasualConsole
         {
             // This code updates 'date modified' values based on 'date taken' values
 
-            var folderPath = @"C:\Users\Xhertas\Downloads\LANDrop";
+            var folderPath = @"E:\Serhat\Image & Video\Telefon\to be processed";
             var files = Directory.GetFiles(folderPath);
 
             Encoding _Encoding = Encoding.UTF8;
@@ -156,15 +164,16 @@ namespace CasualConsole
                     continue;
                 }
 
-                var s1 = _Encoding.GetString(correctDataTakenProperty1.Value);
-                var s2 = _Encoding.GetString(correctDataTakenProperty2.Value);
-                if (s1 != s2)
+                var s1 = correctDataTakenProperty1 != null ? _Encoding.GetString(correctDataTakenProperty1.Value) : null;
+                var s2 = correctDataTakenProperty2 != null ? _Encoding.GetString(correctDataTakenProperty2.Value) : null;
+                if (s1 != null && s2 != null && s1 != s2)
                 {
                     throw new Exception();
                 }
 
+                var nonNull = s1 ?? s2;
                 correctImage.Dispose();
-                var date = DateTime.ParseExact(s1.Replace(((char)0).ToString(), ""), "yyyy:MM:dd HH:mm:ss", CultureInfo.InvariantCulture);
+                var date = DateTime.ParseExact(nonNull.Replace(((char)0).ToString(), ""), "yyyy:MM:dd HH:mm:ss", CultureInfo.InvariantCulture);
                 File.SetCreationTime(file, date);
                 File.SetLastWriteTime(file, date);
             }
@@ -1116,7 +1125,7 @@ namespace CasualConsole
                 hasMinus = false;
             }
 
-            return new FilterInputParsed { Excluded = excluded.ToArray(), Included = included.ToArray() };
+            return new FilterInputParsed { Excluded = excluded, Included = included };
         }
 
         private static void TestStackPool()
@@ -1498,80 +1507,6 @@ namespace CasualConsole
             Console.WriteLine("The operation {1} took {0} milliseconds", (endTicks - startTicks).TotalMilliseconds, operationName);
         }
 
-        private static async Task MultiThreadJobQueueTest()
-        {
-            bool willEnqueueJob = true;
-
-            Queue<ConvertJob> convertQueue = new Queue<ConvertJob>();
-
-            convertQueue.Enqueue(new ConvertJob { FileName = "some name" });
-            convertQueue.Enqueue(new ConvertJob { FileName = "some other name" });
-            convertQueue.Enqueue(new ConvertJob { FileName = "another name" });
-            convertQueue.Enqueue(new ConvertJob { FileName = "yet another name" });
-
-            Action<int, ConsoleColor> convertThreadAction = (threadIndex, color) =>
-            {
-                while (true)
-                {
-                    bool hadJob = convertQueue.SafeQueueDoJob(job =>
-                    {
-                        Console.ForegroundColor = color;
-                        Console.WriteLine("I'm thread {0} and I'm starting converting \"{1}\"...", threadIndex, job.FileName);
-
-                        int randomMillis = DateTime.Now.Millisecond % 1000;
-
-                        int jobDuration = randomMillis * 9 + 2000;
-
-                        Thread.Sleep(jobDuration);
-
-                        Console.ForegroundColor = color;
-                        Console.WriteLine("I'm thread {0} and I just finished converting \"{1}\" and it took {2} milliseconds", threadIndex, job.FileName, jobDuration);
-                    });
-
-                    if (!hadJob)
-                    {
-                        //Console.WriteLine("Thread {0} reporting: Had no job available, so I'm waiting...", threadIndex);
-
-                        if (willEnqueueJob)
-                            Thread.Sleep(500);
-                        else
-                            break;
-                    }
-                }
-            };
-
-            ConsoleColor[] colors = new ConsoleColor[] { ConsoleColor.Yellow, ConsoleColor.Red, ConsoleColor.Green, ConsoleColor.Blue };
-
-            List<Task<int>> converterThreadList = Enumerable.Range(0, 4).Select(threadIndex => Task.Run(() =>
-            {
-                convertThreadAction(threadIndex, colors[threadIndex]);
-                return 0;
-            })).ToList();
-
-            for (int i = 0; i < 20; i++)
-            {
-                Thread.Sleep(1500);
-                lock (convertQueue)
-                {
-                    convertQueue.Enqueue(new ConvertJob { FileName = "new file " + i });
-                }
-                Console.ForegroundColor = ConsoleColor.Gray;
-                Console.WriteLine("Just enqueued job {0}", i);
-            }
-
-            willEnqueueJob = false;
-            Console.ForegroundColor = ConsoleColor.Gray;
-            Console.WriteLine("No more jobs to enqueue, waiting for the thread to finish");
-
-            foreach (var thread in converterThreadList)
-            {
-                await thread;
-            }
-
-            Console.ForegroundColor = ConsoleColor.Gray;
-            Console.WriteLine("All threads have finished working");
-        }
-
         private static void TestAddingBlur()
         {
             Bitmap picture = new Bitmap(@"C:\Users\Xhertas\Pictures\harfler.png");
@@ -1738,7 +1673,7 @@ namespace CasualConsole
             {
                 for (int j = i + 1; j < typeCount; j++)
                 {
-                    var weakIndices = new List<(int,int)>();
+                    var weakIndices = new List<(int, int)>();
                     int total = 0;
                     foreach (var row in Enumerable.Range(0, typeCount))
                     {
@@ -1845,7 +1780,7 @@ namespace CasualConsole
 
             int matchCount = matchCollection.Count;
 
-            Func<Match, string> evaluator = match =>
+            string replaced = regex.Replace(baseString, match =>
             {
                 string matchWholeValue = match.Value;
 
@@ -1854,9 +1789,7 @@ namespace CasualConsole
                 string result = regexTo.Replace("{}", extractedValue);
 
                 return result;
-            };
-
-            string replaced = regex.Replace(baseString, new MatchEvaluator(evaluator));
+            });
 
             return replaced;
         }
@@ -2044,7 +1977,7 @@ namespace CasualConsole
             g2d.DrawLine(pen, margin, bottomWithMargin, rightWithMargin, bottomWithMargin);
 
             // Draw the best frequencies
-            float[] ratios = { 1.5f, 1.33f, 1.25f, 1.2f };
+            float[] ratios = { 1.5f, 1.33f, 1.25f, 1.2f, 1.66f };
             foreach (var ratio in ratios)
             {
                 float left = leftWithMargin + ((ratio - 1) * lineWidth);
@@ -2068,6 +2001,81 @@ namespace CasualConsole
 
             // Write the bottom text
             g2d.DrawString("Current tets: " + currentTet, font, blackbrush, new Rectangle(0, 0, 0, 0));
+        }
+    }
+
+    public class RhythmFinder : Form
+    {
+        private const int width = 500;
+        private const int height = 500;
+        private const int margin = 100;
+
+        private Button clickButton;
+        private Label text;
+
+        private DateTime? lastClicked = null;
+        private List<double> millisDiffList = new List<double>();
+
+        public RhythmFinder()
+        {
+            this.Size = new Size(width: width, height: height);
+            //this.Paint += new PaintEventHandler(this.GameFrame_Paint);
+            //this.KeyDown += XWindow_KeyPress;
+
+            this.clickButton = new Button();
+            this.clickButton.Location = new System.Drawing.Point(125, 155);
+            this.clickButton.Name = "clickButton";
+            this.clickButton.Size = new System.Drawing.Size(250, 250);
+            this.clickButton.TabIndex = 1;
+            this.clickButton.Text = "Click";
+            this.clickButton.UseVisualStyleBackColor = true;
+            this.clickButton.Click += new System.EventHandler(this.button_Click);
+
+            this.text = new Label();
+            this.text.Location = new System.Drawing.Point(175, 55);
+            this.text.Size = new Size(200, 100);
+            this.text.Text = "initial";
+
+            this.Controls.Add(clickButton);
+            this.Controls.Add(text);
+        }
+
+        private void button_Click(object sender, EventArgs e)
+        {
+            var now = DateTime.Now;
+
+            if (lastClicked is null)
+            {
+                lastClicked = now;
+                return;
+            }
+            else
+            {
+                var diff = now - lastClicked.Value;
+                lastClicked = now;
+                millisDiffList.Add(diff.TotalMilliseconds);
+
+                Task.Run(CalculateBPM);
+            }
+        }
+
+        private void CalculateBPM()
+        {
+            millisDiffList.Sort();
+
+            int sizeTen = millisDiffList.Count / 5;
+            int begin = sizeTen;
+            int end = millisDiffList.Count - sizeTen;
+            int count = end - begin;
+            double total = 0;
+            for (int i = begin; i < end; i++)
+            {
+                total += millisDiffList[i];
+            }
+            double average = total / count;
+            var bpm = (1000 / average) * 60;
+
+            this.text.ThreadSafe(x => x.Text = bpm.ToString());
         }
     }
 
@@ -2145,6 +2153,8 @@ namespace CasualConsole
             return source[row][col] == 1;
         }
 
+        private const byte one = 1;
+        private const byte zero = 0;
         private void CalculateNext(byte[][] source, byte[][] destination)
         {
             for (int rowi = 0; rowi < source.Length; rowi++)
@@ -2163,9 +2173,9 @@ namespace CasualConsole
 
                     bool isAlive = source[rowi][coli] == 1;
                     if (isAlive)
-                        destination[rowi][coli] = sorroundingCount == 2 || sorroundingCount == 3 ? (byte)1 : (byte)0;
+                        destination[rowi][coli] = sorroundingCount == 2 || sorroundingCount == 3 ? one : zero;
                     else
-                        destination[rowi][coli] = sorroundingCount == 3 ? (byte)1 : (byte)0;
+                        destination[rowi][coli] = sorroundingCount == 3 ? one : zero;
                 }
             }
         }
@@ -2240,7 +2250,7 @@ namespace CasualConsole
 
     public class FilterInputParsed
     {
-        public string[] Included { get; set; }
-        public string[] Excluded { get; set; }
+        public IReadOnlyList<string> Included { get; set; }
+        public IReadOnlyList<string> Excluded { get; set; }
     }
 }

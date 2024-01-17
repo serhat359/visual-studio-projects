@@ -125,7 +125,5 @@ namespace CasualConsole
                 throw new Exception("Method not found");
             }
         }
-
-
     }
 }

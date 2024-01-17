@@ -26,6 +26,8 @@ public class XmlParser
                 partsEnumerable = partsEnumerable.Skip(1);
         }
         ArraySegment<(string, int)> parts = partsEnumerable.ToArray();
+        if (parts.Count > 0 && parts[0].Item1.StartsWith("<?xml"))
+            parts = parts[1..];
 
         var topDocument = new XmlNodeBase();
 
@@ -96,7 +98,7 @@ public class XmlParser
         return (parent, index + 1);
     }
 
-    private static IEnumerable<(string token, int lineNumber)> GetParts(string xml)
+    public static IEnumerable<(string token, int lineNumber)> GetParts(string xml)
     {
         int i = 0;
         int lineNumber = 1;
@@ -244,7 +246,7 @@ public class XmlParser
     private static readonly Regex htmlEncodedRegex = new Regex(@"&[0-9a-zA-Z]+;", RegexOptions.Compiled);
     private static readonly Regex htmlEncodedRegexInt = new Regex(@"&#([0-9]+);", RegexOptions.Compiled);
     private static readonly Regex htmlEncodedRegexHexInt = new Regex(@"&#x([0-9]+);", RegexOptions.Compiled);
-    private static string NormalizeXml(string s)
+    public static string NormalizeXml(string s)
     {
         if (s.Length >= 2 && s[0] == '<' && s[1] == '!')
         {
@@ -320,6 +322,8 @@ public class XmlNode : XmlNodeBase
 
     public string TagName { get { return tagName ?? throw new Exception(); } set { tagName = value; } }
     public NameValueCollection Attributes { get { return attributes ?? throw new Exception(); } set { attributes = value; } }
+
+    public XmlNode this[string key] => this.ChildNodes.Single(x => x.tagName == key);
 
     public XmlNode()
     {

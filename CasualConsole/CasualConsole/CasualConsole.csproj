@@ -24,6 +24,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <LangVersion>7.3</LangVersion>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -34,6 +35,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <LangVersion>7.3</LangVersion>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Bencode, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
@@ -71,16 +73,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Base64.cs" />
-    <Compile Include="CachedIEnumerable.cs" />
     <Compile Include="CodeLabTemp.cs" />
     <Compile Include="Comparer.cs" />
-    <Compile Include="ConvertJob.cs" />
     <Compile Include="DataUtil.cs" />
     <Compile Include="DictionaryConverter.cs" />
     <Compile Include="ExpressionCodes.cs" />
     <Compile Include="Extensions.cs" />
-    <Compile Include="HeroesV.cs" />
-    <Compile Include="Intersection.cs" />
     <Compile Include="LaytonBridgePuzzle.cs" />
     <Compile Include="LaytonClockPuzzle.cs" />
     <Compile Include="MultiReplacer\CustomReplacer.cs" />
@@ -89,8 +87,6 @@
     <Compile Include="MultiReplacer\StringBuilderReplacer.cs" />
     <Compile Include="MvcBinder.cs" />
     <Compile Include="MvcBinderController.cs" />
-    <Compile Include="MyOtherThread.cs" />
-    <Compile Include="OpenGlPixelProcessing.cs" />
     <Compile Include="PhoneMakerHelper.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -101,7 +97,6 @@
     </Compile>
     <Compile Include="StackPool.cs" />
     <Compile Include="TaskExt.cs" />
-    <Compile Include="TinyJson.cs" />
     <Compile Include="UnityEncryption.cs" />
   </ItemGroup>
   <ItemGroup>
