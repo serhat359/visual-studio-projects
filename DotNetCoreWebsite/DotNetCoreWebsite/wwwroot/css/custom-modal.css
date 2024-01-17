@@ -20,11 +20,13 @@
 }
 
 .modal .modal-body {
-    box-shadow: 5px 10px #888888;
     display: inline-block;
     background-color: white;
-    border: 1px solid black;
-    padding: 10px;
-    text-align: left;
+    border: 2px solid gray;
+    padding: 20px;
     border-radius: 15px;
+}
+
+.modal .modal-body p {
+    text-align: left;
 }
