@@ -8,15 +8,17 @@ namespace DotNetCoreWebsite
         private Stream stream;
         private CoreEncryption coreEncryption;
         private readonly long misalignment;
+        private readonly long rangeStart;
         bool disposed;
         Action onClose = null;
         bool isOnCloseExecuted = false;
 
-        public EncryptStream(Stream stream, CoreEncryption coreEncryption, long misalignment, Action onClose = null)
+        public EncryptStream(Stream stream, CoreEncryption coreEncryption, long rangeStart, Action onClose = null)
         {
             this.stream = stream;
             this.coreEncryption = coreEncryption;
-            this.misalignment = misalignment;
+            this.rangeStart = rangeStart;
+            this.misalignment = rangeStart % 512;
             this.onClose = onClose;
         }
 
@@ -26,7 +28,7 @@ namespace DotNetCoreWebsite
 
         public override bool CanWrite => stream.CanWrite;
 
-        public override long Length => stream.Length;
+        public override long Length => stream.Length - rangeStart;
 
         public override long Position { get { return stream.Position; } set { stream.Position = value; } }
 

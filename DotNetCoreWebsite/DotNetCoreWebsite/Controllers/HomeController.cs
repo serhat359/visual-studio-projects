@@ -213,7 +213,7 @@ namespace DotNetCoreWebsite.Controllers
             var rangeStart = GetByteOffset();
 
             long fileLength = new FileInfo(fullPath).Length;
-            var fileStream = new EncryptStream(System.IO.File.OpenRead(fullPath), this.coreEncryption, (rangeStart ?? 0) % 512);
+            var fileStream = new EncryptStream(System.IO.File.OpenRead(fullPath), this.coreEncryption, (rangeStart ?? 0));
 
             if (rangeStart == null)
             {
@@ -226,7 +226,6 @@ namespace DotNetCoreWebsite.Controllers
                 fileStream.Position = startbyte;
 
                 Response.StatusCode = 206;
-                Response.Headers.Add("Content-Length", (fileLength - startbyte).ToString());
                 string contentRange = string.Format("bytes {0}-{1}/{2}", startbyte, fileLength - 1, fileLength);
                 Response.Headers.Add("Content-Range", contentRange);
             }
