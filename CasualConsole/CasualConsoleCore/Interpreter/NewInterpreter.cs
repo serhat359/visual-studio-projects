@@ -585,7 +585,7 @@ public class NewInterpreter
     }
     class MemberAccessChain : ChainExpression
     {
-        private readonly Expression expression;
+        internal readonly Expression expression;
 
         public MemberAccessChain(Expression expression)
         {
@@ -606,7 +606,7 @@ public class NewInterpreter
     }
     class DotAccessChain : ChainExpression
     {
-        private readonly string prop;
+        internal readonly string prop;
 
         public DotAccessChain(string prop)
         {
@@ -622,7 +622,7 @@ public class NewInterpreter
     class Op18Expression : Expression
     {
         private readonly Expression baseExpression;
-        private readonly List<ChainExpression> links = new();
+        internal readonly List<ChainExpression> links = new();
 
         private Op18Expression(Expression baseExpression)
         {
@@ -641,10 +641,20 @@ public class NewInterpreter
             links.Add(expression);
         }
 
+        public CustomValue RunAllButLast(Context context)
+        {
+            var baseValue = baseExpression.Run(context);
+            foreach (var link in CollectionsMarshal.AsSpan(links)[..^1])
+            {
+                baseValue = link.Run(baseValue, context);
+            }
+            return baseValue;
+        }
+
         public override CustomValue Run(Context context)
         {
             var baseValue = baseExpression.Run(context);
-            foreach (var link in links)
+            foreach (var link in CollectionsMarshal.AsSpan(links))
             {
                 baseValue = link.Run(baseValue, context);
             }
@@ -1029,41 +1039,75 @@ public class NewInterpreter
 
         private CustomValue HandleAsignment(Context context)
         {
-            var varName = ((VariableExpression)firstExpression).varName;
-            var (oper, expr) = nextValues[0];
-            switch (oper)
+            if (firstExpression is VariableExpression varex)
             {
-                case Operator.NormalAssign:
-                    {
-                        var val = expr.Run(context);
-                        context.SetExisting(varName, val);
-                        return val;
-                    }
-                case Operator.PlusAssign:
-                    {
-                        var exprVal = expr.Run(context);
-                        return context.Replace(varName, oldVal => AddOrSubtract(oldVal, Operator.Plus, exprVal));
-                    }
-                case Operator.MinusAssign:
-                    {
-                        var exprVal = expr.Run(context);
-                        return context.Replace(varName, oldVal => AddOrSubtract(oldVal, Operator.Minus, exprVal));
-                    }
-                case Operator.MultiplyAssign:
-                    {
-                        var exprVal = expr.Run(context);
-                        return context.Replace(varName, oldVal => MultiplyOrDivide(oldVal, Operator.Multiply, exprVal));
-                    }
-                case Operator.DivideAssign:
-                    {
-                        var exprVal = expr.Run(context);
-                        return context.Replace(varName, oldVal => MultiplyOrDivide(oldVal, Operator.Divide, exprVal));
-                    }
-                case Operator.ModulusAssign:
-                    {
-                        var exprVal = expr.Run(context);
-                        return context.Replace(varName, oldVal => MultiplyOrDivide(oldVal, Operator.Modulus, exprVal));
-                    }
+                var varName = varex.varName;
+                var (oper, expr) = nextValues[0];
+                switch (oper)
+                {
+                    case Operator.NormalAssign:
+                        {
+                            var val = expr.Run(context);
+                            context.SetExisting(varName, val);
+                            return val;
+                        }
+                    case Operator.PlusAssign:
+                        {
+                            var exprVal = expr.Run(context);
+                            return context.Replace(varName, oldVal => AddOrSubtract(oldVal, Operator.Plus, exprVal));
+                        }
+                    case Operator.MinusAssign:
+                        {
+                            var exprVal = expr.Run(context);
+                            return context.Replace(varName, oldVal => AddOrSubtract(oldVal, Operator.Minus, exprVal));
+                        }
+                    case Operator.MultiplyAssign:
+                        {
+                            var exprVal = expr.Run(context);
+                            return context.Replace(varName, oldVal => MultiplyOrDivide(oldVal, Operator.Multiply, exprVal));
+                        }
+                    case Operator.DivideAssign:
+                        {
+                            var exprVal = expr.Run(context);
+                            return context.Replace(varName, oldVal => MultiplyOrDivide(oldVal, Operator.Divide, exprVal));
+                        }
+                    case Operator.ModulusAssign:
+                        {
+                            var exprVal = expr.Run(context);
+                            return context.Replace(varName, oldVal => MultiplyOrDivide(oldVal, Operator.Modulus, exprVal));
+                        }
+                }
+            }
+            else
+            {
+                var op18 = (Op18Expression)firstExpression;
+
+                if (op18.links[^1] is FunctionCallChain)
+                    throw new Exception();
+
+                var baseObj = (IObject)op18.RunAllButLast(context).value;
+                var lastExpression = op18.links[^1];
+                string prop;
+                if (lastExpression is MemberAccessChain memAcc)
+                {
+                    prop = (string)memAcc.expression.Run(context).value;
+                }
+                else if (lastExpression is DotAccessChain dotAcc)
+                {
+                    prop = dotAcc.prop;
+                }
+                else
+                    throw new Exception();
+
+                var (oper, expr) = nextValues[0];
+                if (oper == Operator.NormalAssign)
+                {
+                    var val = expr.Run(context);
+                    baseObj.SetProp(prop, val);
+                    return val;
+                }
+                else
+                    throw new Exception();
             }
 
             throw new Exception();
@@ -1516,6 +1560,7 @@ public class NewInterpreter
     interface IObject
     {
         CustomValue GetProp(string prop);
+        void SetProp(string prop, CustomValue value);
     }
     class PlainObject : IObject
     {
@@ -1531,6 +1576,11 @@ public class NewInterpreter
             if (properties.TryGetValue(prop, out var value))
                 return value;
             return CustomValue.Null;
+        }
+
+        public void SetProp(string prop, CustomValue value)
+        {
+            properties[prop] = value;
         }
     }
     enum Precedence : int
