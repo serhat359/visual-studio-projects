@@ -144,7 +144,7 @@ public class NewInterpreter
                 var functionName = tokenizer.ReadToken();
                 if (!IsVariableName(functionName))
                     throw new Exception();
-                var f = ReadFunction(ref tokenizer);
+                var f = ReadFunction(ref tokenizer); // Read function statement
                 statement = new FunctionStatement(functionName.ToString(), f);
                 return true;
             case "return":
@@ -185,6 +185,11 @@ public class NewInterpreter
             expression = default;
             return false;
         }
+        if (first.SequenceEqual(")"))
+        {
+            expression = default;
+            return false;
+        }
         expression = ReadExpression(first, ref tokenizer);
         return true;
     }
@@ -209,6 +214,14 @@ public class NewInterpreter
             {
                 tokenizer.GiveBack(op);
                 return firstExpression;
+            }
+
+            if (op.SequenceEqual("=>"))
+            {
+                if (!ReadStatement(ref tokenizer, out var statement))
+                    throw new Exception();
+
+                return new FunctionExpression(new List<string> { ((VariableExpression)firstExpression).varName }, statement, isLambda: true);
             }
 
             if (op.SequenceEqual("?"))
@@ -286,7 +299,7 @@ public class NewInterpreter
             case "null": return nullExpression;
             case "true": return trueExpression;
             case "false": return falseExpression;
-            case "function": return ReadFunction(ref tokenizer);
+            case "function": return ReadFunction(ref tokenizer); // Read function expression
         }
 
         if (IsStaticString(firstToken))
@@ -338,7 +351,15 @@ public class NewInterpreter
             if (expressions.Count != 1)
             {
                 // read for arrow for lambda expresion
-                throw new Exception();
+                var next = tokenizer.ReadToken();
+                if (!next.SequenceEqual("=>"))
+                    throw new Exception();
+
+                if (!ReadStatement(ref tokenizer, out var statement))
+                    throw new Exception();
+
+                var parameters = expressions.Select(x => ((VariableExpression)x).varName).ToList();
+                return new FunctionExpression(parameters, statement, isLambda: true);
             }
 
             if (!tokenizer.TryReadToken(out var nextToken))
@@ -397,7 +418,7 @@ public class NewInterpreter
         if (!ReadStatement(ref tokenizer, out var statement))
             throw new Exception();
 
-        return new FunctionExpression(parameters, statement);
+        return new FunctionExpression(parameters, statement, isLambda: false);
     }
 
     private static PlainObjectExpression ReadPlainObject(ref Tokenizer tokenizer)
@@ -1310,11 +1331,13 @@ public class NewInterpreter
     {
         private readonly List<string> parameters;
         private readonly Statement body;
+        private readonly bool isLambda;
 
-        public FunctionExpression(List<string> parameters, Statement body)
+        public FunctionExpression(List<string> parameters, Statement body, bool isLambda)
         {
             this.parameters = parameters;
             this.body = body;
+            this.isLambda = isLambda;
         }
 
         public override CustomValue Run(Context context)
@@ -1553,7 +1576,7 @@ public class NewInterpreter
             if (res.resultType == ResultType.Return)
                 return res.value;
             if (res.resultType == ResultType.Normal)
-                return CustomValue.Null;
+                return res.value;
             throw new Exception();
         }
     }
