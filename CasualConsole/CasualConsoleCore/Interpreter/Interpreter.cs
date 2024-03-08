@@ -623,9 +623,11 @@ public class Interpreter
             ("(function(a,b,...rest){ return rest.length })()", 0),
             ("class Rectangle { constructor(height, width) { this.height = height; this.width = width; } get area() { return this.calcArea(); } calcArea() { return this.height * this.width; } } new Rectangle(10,20).height", 10),
             ("new Rectangle(10,20).area", 200),
+            ("new Rectangle(10,20).calcArea()", 200),
             ("Rectangle != null", true),
             ("Rectangle.prototype.calcArea != null", true),
             ("Rectangle.prototype.isSquare = function(){ return this.width == this.height; }; new Rectangle(20,20).isSquare()", true),
+            ("var r = new Rectangle(10,20); r.calcArea = 'custom'; r.calcArea", "custom"),
             ("var proxy = new Proxy([], {}); proxy.push(12); proxy.length", 1),
             ("var proxy = new Proxy({}, {}); proxy.name = 'Serhat'; proxy.name", "Serhat"),
             ("var proxy = new Proxy({ name(){ return 'Serhat' } }, {}); proxy.name()", "Serhat"),
@@ -657,6 +659,7 @@ public class Interpreter
             ("var [x, ...y] = [1,2,3,4]; y.length", 3),
             ("[1,2,3].map(x => x + 1).length", 3),
             ("var sum = function(arr){ let total = 0; for (let x of arr) total += x; return total }; sum([1,2,3].map(x => x + 1))", 9),
+            ("var arr = [1,2,3]; arr.map = null; arr.map", null),
         };
 
         var interpreter = new Interpreter();
@@ -1164,18 +1167,8 @@ public class Interpreter
 
     private static CustomValue DoIndexingGet(CustomValue baseExpressionValue, CustomValue keyExpressionValue, Context context)
     {
-        if (keyExpressionValue.type == ValueType.String)
-        {
-            var prototype = GetPrototype(baseExpressionValue.type, context);
-            if (prototype.type != ValueType.Null)
-            {
-                var prototypeMap = prototype.GetAsMap();
-                if (prototypeMap.TryGetValue((string)keyExpressionValue.value, out var value))
-                {
-                    return (CustomValue)value;
-                }
-            }
-        }
+        if (baseExpressionValue.type == ValueType.Null)
+            throw new Exception();
 
         if (baseExpressionValue.type == ValueType.Map && keyExpressionValue.type == ValueType.String)
         {
@@ -1215,8 +1208,6 @@ public class Interpreter
                     return GetValue(method, baseExpressionValue);
                 }
             }
-            else
-                return CustomValue.Null;
         }
         else if (baseExpressionValue.type == ValueType.Array)
         {
@@ -1237,8 +1228,6 @@ public class Interpreter
 
                 if (array.map.TryGetValue(fieldName, out CustomValue mapValue))
                     return mapValue;
-                else
-                    return CustomValue.Null;
             }
         }
         else if (baseExpressionValue.type == ValueType.String)
@@ -1258,7 +1247,20 @@ public class Interpreter
                 return classObject.Prototype;
         }
 
-        throw new Exception();
+        if (keyExpressionValue.type == ValueType.String)
+        {
+            var prototype = GetPrototype(baseExpressionValue.type, context);
+            if (prototype.type != ValueType.Null)
+            {
+                var prototypeMap = prototype.GetAsMap();
+                if (prototypeMap.TryGetValue((string)keyExpressionValue.value, out var value))
+                {
+                    return (CustomValue)value;
+                }
+            }
+        }
+
+        return CustomValue.Null;
     }
 
     private static CustomValue GetPrototype(ValueType type, Context context)
