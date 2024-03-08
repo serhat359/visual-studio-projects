@@ -68,6 +68,7 @@ public class Interpreter
                 {
                     { "push", CustomValue.FromFunction(new ArrayPushFunction()) },
                     { "pop", CustomValue.FromFunction(new ArrayPopFunction()) },
+                    { "map", CustomValue.FromFunction(new ArrayMapFunction()) },
                 })
             },
         }), AssignmentType.Const);
@@ -654,6 +655,8 @@ public class Interpreter
             ("var k = ''; var n = null; k &&= n=2; n", null), // Checking optimization
             ("var o = { name:'thisName', getName(){ return (() => this.name)(); } }; o.getName()", "thisName"),
             ("var [x, ...y] = [1,2,3,4]; y.length", 3),
+            ("[1,2,3].map(x => x + 1).length", 3),
+            ("var sum = function(arr){ let total = 0; for (let x of arr) total += x; return total }; sum([1,2,3].map(x => x + 1))", 9),
         };
 
         var interpreter = new Interpreter();
@@ -2106,6 +2109,32 @@ public class Interpreter
             throw new NotImplementedException();
         }
     }
+    class ArrayMapFunction : FunctionObject
+    {
+        private static (string paramName, bool isRest)[] parameters = new[] { ("f", false) };
+
+        public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
+
+        public VariableScope? Scope => null;
+
+        public bool IsLambda => false;
+
+        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        {
+            var thisArray = context.thisOwner.GetAsArray();
+            var f = context.variableScope.GetVariable(Parameters[0].paramName).GetAsFunction();
+            var list = thisArray.list;
+
+            var res = list.Select(x => CallFunction(f, new List<CustomValue> { x }, CustomValue.Null)).ToList();
+            var newList = CustomValue.FromArray(new CustomArray(res));
+            return (newList, false, false, false);
+        }
+
+        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        {
+            throw new NotImplementedException();
+        }
+    }
     class ProxyClassConstructor : FunctionObject
     {
         private IReadOnlyList<(string paramName, bool isRest)> parameters = new[] { ("target", false), ("options", false) };
@@ -2389,10 +2418,25 @@ public class Interpreter
                 throw new Exception();
         }
 
+        internal FunctionObject GetAsFunction()
+        {
+            if (type != ValueType.Function)
+                throw new Exception();
+            return (FunctionObject)this.value;
+        }
+
+        internal CustomArray GetAsArray()
+        {
+            if (type != ValueType.Array)
+                throw new Exception();
+            return (CustomArray)this.value;
+        }
+
         internal Dictionary<string, ValueOrGetterSetter> GetAsMap()
         {
             return ((BaseObject)value).properties;
         }
+
         internal BaseObject GetBaseObject()
         {
             return (BaseObject)value;
