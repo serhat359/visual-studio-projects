@@ -69,6 +69,7 @@ public class Interpreter
                     { "push", CustomValue.FromFunction(new ArrayPushFunction()) },
                     { "pop", CustomValue.FromFunction(new ArrayPopFunction()) },
                     { "map", CustomValue.FromFunction(new ArrayMapFunction()) },
+                    { "filter", CustomValue.FromFunction(new ArrayFilterFunction()) },
                 })
             },
         }), AssignmentType.Const);
@@ -658,6 +659,7 @@ public class Interpreter
             ("var o = { name:'thisName', getName(){ return (() => this.name)(); } }; o.getName()", "thisName"),
             ("var [x, ...y] = [1,2,3,4]; y.length", 3),
             ("[1,2,3].map(x => x + 1).length", 3),
+            ("[1,2,3].filter(x => x < 3).length", 2),
             ("var sum = function(arr){ let total = 0; for (let x of arr) total += x; return total }; sum([1,2,3].map(x => x + 1))", 9),
             ("var arr = [1,2,3]; arr.map = null; arr.map", null),
         };
@@ -2128,6 +2130,32 @@ public class Interpreter
             var list = thisArray.list;
 
             var res = list.Select(x => CallFunction(f, new List<CustomValue> { x }, CustomValue.Null)).ToList();
+            var newList = CustomValue.FromArray(new CustomArray(res));
+            return (newList, false, false, false);
+        }
+
+        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        {
+            throw new NotImplementedException();
+        }
+    }
+    class ArrayFilterFunction : FunctionObject
+    {
+        private static (string paramName, bool isRest)[] parameters = new[] { ("f", false) };
+
+        public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
+
+        public VariableScope? Scope => null;
+
+        public bool IsLambda => false;
+
+        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        {
+            var thisArray = context.thisOwner.GetAsArray();
+            var f = context.variableScope.GetVariable(Parameters[0].paramName).GetAsFunction();
+            var list = thisArray.list;
+
+            var res = list.Where(x => CallFunction(f, new List<CustomValue> { x }, CustomValue.Null).IsTruthy()).ToList();
             var newList = CustomValue.FromArray(new CustomArray(res));
             return (newList, false, false, false);
         }
