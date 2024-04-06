@@ -70,6 +70,7 @@ public class Interpreter
                     { "pop", CustomValue.FromFunction(new ArrayPopFunction()) },
                     { "map", CustomValue.FromFunction(new ArrayMapFunction()) },
                     { "filter", CustomValue.FromFunction(new ArrayFilterFunction()) },
+                    { "join", CustomValue.FromFunction(new ArrayJoinFunction()) },
                 })
             },
         }), AssignmentType.Const);
@@ -662,6 +663,7 @@ public class Interpreter
             ("[1,2,3].filter(x => x < 3).length", 2),
             ("var sum = function(arr){ let total = 0; for (let x of arr) total += x; return total }; sum([1,2,3].map(x => x + 1))", 9),
             ("var arr = [1,2,3]; arr.map = null; arr.map", null),
+            ("[1,2,3].join(',')", "1,2,3"),
         };
 
         var interpreter = new Interpreter();
@@ -2158,6 +2160,29 @@ public class Interpreter
             var res = list.Where(x => CallFunction(f, new List<CustomValue> { x }, CustomValue.Null).IsTruthy()).ToList();
             var newList = CustomValue.FromArray(new CustomArray(res));
             return (newList, false, false, false);
+        }
+
+        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        {
+            throw new NotImplementedException();
+        }
+    }
+    class ArrayJoinFunction : FunctionObject
+    {
+        private static (string paramName, bool isRest)[] parameters = new[] { ("separator", false) };
+
+        public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
+
+        public VariableScope? Scope => null;
+
+        public bool IsLambda => false;
+
+        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        {
+            var thisArray = context.thisOwner.GetAsArray();
+            var separator = (string)context.variableScope.GetVariable(Parameters[0].paramName).value;
+            var res = string.Join(separator, thisArray.list.Select(x => x.ToString()));
+            return (CustomValue.FromParsedString(res), false, false, false);
         }
 
         public IEnumerable<CustomValue> AsEnumerable(Context context)
