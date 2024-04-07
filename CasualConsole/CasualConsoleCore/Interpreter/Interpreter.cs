@@ -1473,24 +1473,24 @@ public class Interpreter
 
     private static Operator ParseOperator(string token)
     {
-        switch (token)
+        return token switch
         {
-            case "+": return Operator.Plus;
-            case "-": return Operator.Minus;
-            case "*": return Operator.Multiply;
-            case "/": return Operator.Divide;
-            case "%": return Operator.Modulus;
-            case "==": return Operator.CheckEquals;
-            case "!=": return Operator.CheckNotEquals;
-            case "<": return Operator.LessThan;
-            case "<=": return Operator.LessThanOrEqual;
-            case ">": return Operator.GreaterThan;
-            case ">=": return Operator.GreaterThanOrEqual;
-            case "&&": return Operator.AndAnd;
-            case "||": return Operator.OrOr;
-            case "??": return Operator.DoubleQuestion;
-            default: throw new Exception();
-        }
+            "+" => Operator.Plus,
+            "-" => Operator.Minus,
+            "*" => Operator.Multiply,
+            "/" => Operator.Divide,
+            "%" => Operator.Modulus,
+            "==" => Operator.CheckEquals,
+            "!=" => Operator.CheckNotEquals,
+            "<" => Operator.LessThan,
+            "<=" => Operator.LessThanOrEqual,
+            ">" => Operator.GreaterThan,
+            ">=" => Operator.GreaterThanOrEqual,
+            "&&" => Operator.AndAnd,
+            "||" => Operator.OrOr,
+            "??" => Operator.DoubleQuestion,
+            _ => throw new Exception(),
+        };
     }
 
     private static bool IsAssignmentType(string operatorToken, out AssignmentType type)
@@ -2205,11 +2205,14 @@ public class Interpreter
             var target = context.variableScope.GetVariable(Parameters[0].paramName);
             var options = context.variableScope.GetVariable(Parameters[1].paramName);
             var optionsProperties = options.GetBaseObject().properties;
-            var hasGetHandler = optionsProperties.TryGetValue("get", out var getSettings);
-            var hasSetHandler = optionsProperties.TryGetValue("set", out var setSettings);
 
-            FunctionObject? getHandler = hasGetHandler ? (FunctionObject)(((CustomValue)getSettings).value) : null;
-            FunctionObject? setHandler = hasSetHandler ? (FunctionObject)(((CustomValue)setSettings).value) : null;
+            FunctionObject? getHandler = null;
+            if (optionsProperties.TryGetValue("get", out var getSettings))
+                getHandler = (FunctionObject)((CustomValue)getSettings).value;
+
+            FunctionObject? setHandler = null;
+            if (optionsProperties.TryGetValue("set", out var setSettings))
+                setHandler = (FunctionObject)((CustomValue)setSettings).value;
 
             var newProxy = new ProxyObjectInstance(target, getHandler, setHandler);
 
@@ -2448,19 +2451,14 @@ public class Interpreter
 
         internal bool IsTruthy()
         {
-            switch (type)
+            return type switch
             {
-                case ValueType.Null:
-                    return false;
-                case ValueType.Number:
-                    return ((double)value) != 0;
-                case ValueType.String:
-                    return !string.IsNullOrEmpty((string)value);
-                case ValueType.Bool:
-                    return (bool)value;
-                default:
-                    return true;
-            }
+                ValueType.Null => false,
+                ValueType.Number => ((double)value) != 0,
+                ValueType.String => !string.IsNullOrEmpty((string)value),
+                ValueType.Bool => (bool)value,
+                _ => true,
+            };
         }
 
         internal IEnumerable<CustomValue> AsMultiValue()
@@ -3295,7 +3293,7 @@ public class Interpreter
 
                 if (precedence == treeExpression.precedence)
                 {
-                    var newExpression = handler(lowestTreeExpression, lowestTreeExpression.precedence);
+                    var _ = handler(lowestTreeExpression, lowestTreeExpression.precedence);
                 }
                 else
                 {
@@ -4557,12 +4555,12 @@ public class Interpreter
     class ForStatement : Statement
     {
         private readonly AssignmentType assignmentType;
-        private readonly IReadOnlyList<Expression> initializationStatements;
+        private readonly Expression[] initializationStatements;
         private readonly Expression conditionExpression;
-        private readonly IReadOnlyList<Statement> iterationStatements;
+        private readonly Statement[] iterationStatements;
         private readonly Statement bodyStatement;
 
-        private ForStatement(AssignmentType assignmentType, IReadOnlyList<Expression> initializationStatements, Expression conditionExpression, IReadOnlyList<Statement> iterationStatements, Statement bodyStatement)
+        private ForStatement(AssignmentType assignmentType, Expression[] initializationStatements, Expression conditionExpression, Statement[] iterationStatements, Statement bodyStatement)
         {
             this.assignmentType = assignmentType;
             this.initializationStatements = initializationStatements;
@@ -4635,14 +4633,14 @@ public class Interpreter
                 var isNewAssignment = allInitializationTokens.Count > 0 && IsAssignmentType(allInitializationTokens[0], out assignmentType);
                 var assignmentTokens = isNewAssignment ? allInitializationTokens[1..] : allInitializationTokens;
                 var initializationTokenGroup = SplitBy(assignmentTokens, ",", allowTrailing: false).ToList();
-                var initializationStatements = initializationTokenGroup.SelectFast(x => AssignmentExpression.FromVarStatement(x, assignmentType));
+                var initializationStatements = initializationTokenGroup.Select(x => AssignmentExpression.FromVarStatement(x, assignmentType)).ToArray();
 
                 var conditionTokens = expressions[1];
                 var conditionExpression = conditionTokens.Count > 0 ? ExpressionMethods.New(conditionTokens) : trueExpression;
 
                 var allIterationTokens = expressions[2];
                 var iterationTokenGroup = SplitBy(allIterationTokens, ",", allowTrailing: false).ToList();
-                var iterationStatements = iterationTokenGroup.SelectFast(StatementMethods.New);
+                var iterationStatements = iterationTokenGroup.Select(StatementMethods.New).ToArray();
 
                 return new ForStatement(assignmentType, initializationStatements, conditionExpression, iterationStatements, bodyStatement);
             }
@@ -4948,13 +4946,13 @@ public class Interpreter
     }
     class FunctionStatement : Statement, Expression
     {
-        private readonly IReadOnlyList<(string paramName, bool isRest)> parametersList;
+        private readonly (string paramName, bool isRest)[] parametersList;
         private readonly Statement body;
         private readonly bool isLambda;
         private readonly bool isAsync;
         private readonly bool isGenerator;
 
-        private FunctionStatement(IReadOnlyList<(string paramName, bool isRest)> parametersList, Statement body, bool isLambda, bool isAsync, bool isGenerator)
+        private FunctionStatement((string paramName, bool isRest)[] parametersList, Statement body, bool isLambda, bool isAsync, bool isGenerator)
         {
             if (!isLambda && body is LineStatement)
                 throw new Exception();
@@ -4975,13 +4973,13 @@ public class Interpreter
         {
         }
 
-        private static IReadOnlyList<(string paramName, bool isRest)> GetParameterList(string singleParameter)
+        private static (string paramName, bool isRest)[] GetParameterList(string singleParameter)
         {
             // Prepare parameters
             return new (string, bool)[] { (singleParameter, false) };
         }
 
-        private static IReadOnlyList<(string paramName, bool isRest)> GetParameterList(ArraySegment<string> parameters)
+        private static (string paramName, bool isRest)[] GetParameterList(ArraySegment<string> parameters)
         {
             if (parameters.Count > 0 && parameters[0] == "(")
                 throw new Exception();
@@ -5012,7 +5010,7 @@ public class Interpreter
                     throw new Exception();
                 parametersList.Add((parameter, isRest));
             }
-            return parametersList;
+            return parametersList.ToArray();
         }
 
         public static FunctionStatement FromParametersAndBody(string singleParameter, ArraySegment<string> bodyTokens, bool isLambda, bool isAsync, bool isGenerator)
@@ -5177,11 +5175,11 @@ public class Interpreter
 
 static class InterpreterExtensions
 {
-    public static int IndexOf<T>(this IReadOnlyList<T> source, T element, int startIndex) where T : IEquatable<T>
+    public static int IndexOf(this ArraySegment<string> source, string element, int startIndex)
     {
         for (int i = startIndex; i < source.Count; i++)
         {
-            T currentElement = source[i];
+            string currentElement = source[i];
             if (currentElement.Equals(element))
                 return i;
         }
@@ -5247,16 +5245,6 @@ static class InterpreterExtensions
             }
         }
         return -1;
-    }
-
-    public static IReadOnlyList<E> SelectFast<T, E>(this IReadOnlyList<T> source, Func<T, E> converter)
-    {
-        var newArr = new E[source.Count];
-        for (int i = 0; i < source.Count; i++)
-        {
-            newArr[i] = converter(source[i]);
-        }
-        return newArr;
     }
 
     public static new bool Equals(object? result, object? expected)
