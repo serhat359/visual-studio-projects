@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -10,14 +11,14 @@ namespace CasualConsoleCore.Interpreter;
 
 public class Interpreter
 {
-    private static readonly HashSet<char> onlyChars = new HashSet<char>() { '(', ')', ',', ';', '{', '}', '[', ']' };
+    private static readonly HashSet<char> onlyChars = new() { '(', ')', ',', ';', '{', '}', '[', ']' };
     private static readonly string[] onlyCharStrings;
-    private static readonly HashSet<string> operators = new HashSet<string>() { "+", "-", "*", "/", "%", "=", "?", ":", "<", ">", "<=", ">=", "&&", "||", "??", "!", "!=", ".", "==", "+=", "-=", "*=", "/=", "%=", "??=", "||=", "&&=", "=>", "++", "--", "...", "?.", "?.[", "?.(" };
-    private static readonly HashSet<string> assignmentSet = new HashSet<string>() { "=", "+=", "-=", "*=", "/=", "%=", "&&=", "||=", "??=" };
-    private static readonly HashSet<string> regularOperatorSet = new HashSet<string>() { "+", "-", "*", "/", "%", "==", "!=", "<", ">", "<=", ">=", "&&", "||", "??" };
-    private static readonly HashSet<string> keywords = new HashSet<string>() { "this", "var", "let", "const", "if", "else", "while", "for", "break", "continue", "function", "class", "async", "await", "return", "yield", "true", "false", "null", "new" };
+    private static readonly HashSet<string> operators = new() { "+", "-", "*", "/", "%", "=", "?", ":", "<", ">", "<=", ">=", "&&", "||", "??", "!", "!=", ".", "==", "+=", "-=", "*=", "/=", "%=", "??=", "||=", "&&=", "=>", "++", "--", "...", "?.", "?.[", "?.(" };
+    private static readonly HashSet<string> assignmentSet = new() { "=", "+=", "-=", "*=", "/=", "%=", "&&=", "||=", "??=" };
+    private static readonly HashSet<string> regularOperatorSet = new() { "+", "-", "*", "/", "%", "==", "!=", "<", ">", "<=", ">=", "&&", "||", "??" };
+    private static readonly HashSet<string> keywords = new() { "this", "var", "let", "const", "if", "else", "while", "for", "break", "continue", "function", "class", "async", "await", "return", "yield", "true", "false", "null", "new" };
     private static readonly Dictionary<char, Dictionary<char, HashSet<char>>> operatorsCompiled;
-    private static readonly Dictionary<char, int> hexToint = new Dictionary<char, int>() { { '0', 0 }, { '1', 1 }, { '2', 2 }, { '3', 3 }, { '4', 4 }, { '5', 5 }, { '6', 6 }, { '7', 7 }, { '8', 8 }, { '9', 9 }, { 'A', 10 }, { 'B', 11 }, { 'C', 12 }, { 'D', 13 }, { 'E', 14 }, { 'F', 15 }, { 'a', 10 }, { 'b', 11 }, { 'c', 12 }, { 'd', 13 }, { 'e', 14 }, { 'f', 15 }, };
+    private static readonly Dictionary<char, int> hexToint = new() { { '0', 0 }, { '1', 1 }, { '2', 2 }, { '3', 3 }, { '4', 4 }, { '5', 5 }, { '6', 6 }, { '7', 7 }, { '8', 8 }, { '9', 9 }, { 'A', 10 }, { 'B', 11 }, { 'C', 12 }, { 'D', 13 }, { 'E', 14 }, { 'F', 15 }, { 'a', 10 }, { 'b', 11 }, { 'c', 12 }, { 'd', 13 }, { 'e', 14 }, { 'f', 15 }, };
 
     private static readonly Expression trueExpression;
     private static readonly Expression falseExpression;
@@ -41,7 +42,7 @@ public class Interpreter
         }
     }
 
-    private Context defaultContext;
+    private readonly Context defaultContext;
 
     public Interpreter()
     {
@@ -847,7 +848,6 @@ public class Interpreter
                     var braceEnd = tokens.IndexOfBracesEnd(braceBegin + 1);
                     if (braceEnd < 0)
                         throw new Exception();
-                    var classtokens = tokens[startingIndex..(braceEnd + 1)];
                     return (braceEnd + 1, new LineStatement(tokens[startingIndex..(braceEnd + 1)]));
                 }
             case "if":
@@ -1690,7 +1690,7 @@ public class Interpreter
     {
         FunctionObject? Constructor { get; }
         CustomValue Prototype { get; }
-        bool TryGetValueMethod(string key, out ValueOrGetterSetter valueOrGetterSetter);
+        bool TryGetValueMethod(string key, [MaybeNullWhen(false)] out ValueOrGetterSetter valueOrGetterSetter);
     }
     class ClassObject : IClassInfoObject
     {
@@ -1705,14 +1705,14 @@ public class Interpreter
             this.Prototype = CustomValue.FromMap(methods);
         }
 
-        public bool TryGetValueMethod(string key, out ValueOrGetterSetter valueOrGetterSetter)
+        public bool TryGetValueMethod(string key, [MaybeNullWhen(false)] out ValueOrGetterSetter valueOrGetterSetter)
         {
             return Methods.TryGetValue(key, out valueOrGetterSetter);
         }
     }
     class ProxyClassObject : IClassInfoObject
     {
-        private FunctionObject constructor = new ProxyClassConstructor();
+        private readonly FunctionObject constructor = new ProxyClassConstructor();
 
         public FunctionObject? Constructor => constructor;
         public CustomValue Prototype => throw new Exception();
@@ -1735,9 +1735,9 @@ public class Interpreter
     }
     class ProxyObjectInstance
     {
-        internal CustomValue target;
-        private FunctionObject? getHandler;
-        private FunctionObject? setHandler;
+        internal readonly CustomValue target;
+        private readonly FunctionObject? getHandler;
+        private readonly FunctionObject? setHandler;
 
         public ProxyObjectInstance(CustomValue target, FunctionObject? getHandler, FunctionObject? setHandler)
         {
@@ -1775,12 +1775,12 @@ public class Interpreter
     }
     class CustomFunction : FunctionObject
     {
-        private IReadOnlyList<(string paramName, bool isRest)> parameters;
-        private Statement body;
-        private VariableScope scope;
-        private bool isLambda;
-        private bool isAsync;
-        private bool isGenerator;
+        private readonly IReadOnlyList<(string paramName, bool isRest)> parameters;
+        private readonly Statement body;
+        private readonly VariableScope scope;
+        private readonly bool isLambda;
+        private readonly bool isAsync;
+        private readonly bool isGenerator;
 
         public CustomFunction(IReadOnlyList<(string paramName, bool isRest)> parameters, Statement body, VariableScope scope, bool isLambda, bool isAsync, bool isGenerator)
         {
@@ -1837,7 +1837,7 @@ public class Interpreter
     }
     class PrintFunction : FunctionObject
     {
-        private static (string paramName, bool isRest)[] parameters = new[] { ("x", false) };
+        private static readonly (string paramName, bool isRest)[] parameters = new[] { ("x", false) };
 
         public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
 
@@ -1860,7 +1860,7 @@ public class Interpreter
     }
     class FunctionCallFunction : FunctionObject
     {
-        private static (string paramName, bool isRest)[] parameters = new[] { ("thisOwner", false), ("args", true) };
+        private static readonly (string paramName, bool isRest)[] parameters = new[] { ("thisOwner", false), ("args", true) };
 
         public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
 
@@ -1886,7 +1886,7 @@ public class Interpreter
     }
     class FunctionApplyFunction : FunctionObject
     {
-        private static (string paramName, bool isRest)[] parameters = new[] { ("thisOwner", false), ("args", false) };
+        private static readonly (string paramName, bool isRest)[] parameters = new[] { ("thisOwner", false), ("args", false) };
 
         public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
 
@@ -1931,7 +1931,7 @@ public class Interpreter
     }
     class MathFloorFunction : FunctionObject
     {
-        private static (string paramName, bool isRest)[] parameters = new[] { ("number", false) };
+        private static readonly (string paramName, bool isRest)[] parameters = new[] { ("number", false) };
 
         public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
 
@@ -1953,7 +1953,7 @@ public class Interpreter
     }
     class GeneratorNextFunction : FunctionObject
     {
-        private static (string paramName, bool isRest)[] parameters = Array.Empty<(string, bool)>();
+        private static readonly (string paramName, bool isRest)[] parameters = Array.Empty<(string, bool)>();
 
         public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
 
@@ -1976,7 +1976,7 @@ public class Interpreter
     }
     class AsyncGeneratorNextFunction : FunctionObject
     {
-        private static (string paramName, bool isRest)[] parameters = Array.Empty<(string, bool)>();
+        private static readonly (string paramName, bool isRest)[] parameters = Array.Empty<(string, bool)>();
 
         public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
 
@@ -1999,7 +1999,7 @@ public class Interpreter
     }
     class CharAtFunction : FunctionObject
     {
-        private static (string paramName, bool isRest)[] parameters = new[] { ("x", false) };
+        private static readonly (string paramName, bool isRest)[] parameters = new[] { ("x", false) };
 
         public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
 
@@ -2032,7 +2032,7 @@ public class Interpreter
     }
     class CharCodeAtFunction : FunctionObject
     {
-        private static (string paramName, bool isRest)[] parameters = new[] { ("x", false) };
+        private static readonly (string paramName, bool isRest)[] parameters = new[] { ("x", false) };
 
         public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
 
@@ -2065,7 +2065,7 @@ public class Interpreter
     }
     class ArrayPushFunction : FunctionObject
     {
-        private static (string paramName, bool isRest)[] parameters = new[] { ("x", false) };
+        private static readonly (string paramName, bool isRest)[] parameters = new[] { ("x", false) };
 
         public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
 
@@ -2091,7 +2091,7 @@ public class Interpreter
     }
     class ArrayPopFunction : FunctionObject
     {
-        private static (string paramName, bool isRest)[] parameters = Array.Empty<(string, bool)>();
+        private static readonly (string paramName, bool isRest)[] parameters = Array.Empty<(string, bool)>();
 
         public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
 
@@ -2117,7 +2117,7 @@ public class Interpreter
     }
     class ArrayMapFunction : FunctionObject
     {
-        private static (string paramName, bool isRest)[] parameters = new[] { ("f", false) };
+        private static readonly (string paramName, bool isRest)[] parameters = new[] { ("f", false) };
 
         public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
 
@@ -2143,7 +2143,7 @@ public class Interpreter
     }
     class ArrayFilterFunction : FunctionObject
     {
-        private static (string paramName, bool isRest)[] parameters = new[] { ("f", false) };
+        private static readonly (string paramName, bool isRest)[] parameters = new[] { ("f", false) };
 
         public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
 
@@ -2169,7 +2169,7 @@ public class Interpreter
     }
     class ArrayJoinFunction : FunctionObject
     {
-        private static (string paramName, bool isRest)[] parameters = new[] { ("separator", false) };
+        private static readonly (string paramName, bool isRest)[] parameters = new[] { ("separator", false) };
 
         public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
 
@@ -2192,7 +2192,7 @@ public class Interpreter
     }
     class ProxyClassConstructor : FunctionObject
     {
-        private IReadOnlyList<(string paramName, bool isRest)> parameters = new[] { ("target", false), ("options", false) };
+        private readonly IReadOnlyList<(string paramName, bool isRest)> parameters = new[] { ("target", false), ("options", false) };
 
         public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
 
@@ -2264,7 +2264,7 @@ public class Interpreter
 
     class Generator : IEnumerable<CustomValue>
     {
-        IEnumerator<CustomValue> enumerator;
+        private readonly IEnumerator<CustomValue> enumerator;
 
         public Generator(Statement statement, Context context)
         {
@@ -2301,7 +2301,7 @@ public class Interpreter
     }
     class AsyncGenerator : IEnumerable<Task<(bool, CustomValue)>>
     {
-        IEnumerator<Task<(bool, CustomValue)>> enumerator;
+        private readonly IEnumerator<Task<(bool, CustomValue)>> enumerator;
 
         public AsyncGenerator(Statement statement, Context context)
         {
@@ -2370,9 +2370,9 @@ public class Interpreter
         public object value;
         public ValueType type;
 
-        public static readonly CustomValue Null = new CustomValue(null!, ValueType.Null);
-        public static readonly CustomValue True = new CustomValue(true, ValueType.Bool);
-        public static readonly CustomValue False = new CustomValue(false, ValueType.Bool);
+        public static readonly CustomValue Null = new(null!, ValueType.Null);
+        public static readonly CustomValue True = new(true, ValueType.Bool);
+        public static readonly CustomValue False = new(false, ValueType.Bool);
         public static readonly CustomValue GeneratorDone = CustomValue.FromMap(new Dictionary<string, ValueOrGetterSetter>
         {
             ["value"] = CustomValue.Null,
@@ -2527,7 +2527,7 @@ public class Interpreter
             }
         }
     }
-    private struct GetterSetter : ValueOrGetterSetter
+    private readonly struct GetterSetter : ValueOrGetterSetter
     {
         private readonly FunctionObject? getter;
         private readonly FunctionObject? setter;
@@ -2633,9 +2633,9 @@ public class Interpreter
 
     class VariableScope
     {
-        private Dictionary<string, (CustomValue, AssignmentType)> variables;
-        private VariableScope? innerScope;
-        private bool isFunctionScope;
+        private readonly Dictionary<string, (CustomValue, AssignmentType)> variables;
+        private readonly VariableScope? innerScope;
+        private readonly bool isFunctionScope;
 
         private VariableScope(Dictionary<string, (CustomValue, AssignmentType)> variables, VariableScope? innerScope, bool isFunctionScope)
         {
@@ -3311,9 +3311,9 @@ public class Interpreter
     }
     class TreeExpression : Expression
     {
-        internal Precedence precedence;
-        private Expression firstExpression;
-        internal List<(Operator operatorToken, Expression expression)> nextValues;
+        internal readonly Precedence precedence;
+        private readonly Expression firstExpression;
+        internal readonly List<(Operator operatorToken, Expression expression)> nextValues;
 
         public TreeExpression(Precedence precedence, Expression firstExpression)
         {
@@ -3389,24 +3389,24 @@ public class Interpreter
 
         public static Precedence GetPrecedence(string operatorToken)
         {
-            switch (operatorToken)
+            return operatorToken switch
             {
-                case "+": return Precedence.AddSubtract;
-                case "-": return Precedence.AddSubtract;
-                case "*": return Precedence.MultiplyDivide;
-                case "/": return Precedence.MultiplyDivide;
-                case "%": return Precedence.MultiplyDivide;
-                case "==": return Precedence.EqualityCheck;
-                case "!=": return Precedence.EqualityCheck;
-                case "<": return Precedence.Comparison;
-                case "<=": return Precedence.Comparison;
-                case ">": return Precedence.Comparison;
-                case ">=": return Precedence.Comparison;
-                case "&&": return Precedence.AndAnd;
-                case "||": return Precedence.OrOr;
-                case "??": return Precedence.DoubleQuestionMark;
-                default: throw new Exception();
-            }
+                "+" => Precedence.AddSubtract,
+                "-" => Precedence.AddSubtract,
+                "*" => Precedence.MultiplyDivide,
+                "/" => Precedence.MultiplyDivide,
+                "%" => Precedence.MultiplyDivide,
+                "==" => Precedence.EqualityCheck,
+                "!=" => Precedence.EqualityCheck,
+                "<" => Precedence.Comparison,
+                "<=" => Precedence.Comparison,
+                ">" => Precedence.Comparison,
+                ">=" => Precedence.Comparison,
+                "&&" => Precedence.AndAnd,
+                "||" => Precedence.OrOr,
+                "??" => Precedence.DoubleQuestionMark,
+                _ => throw new Exception(),
+            };
         }
 
         internal void AddExpression(string newToken, Expression nextExpression)
@@ -3416,8 +3416,8 @@ public class Interpreter
     }
     class Op18Expression : Expression
     {
-        private Expression firstExpression;
-        internal List<(Operator operatorToken, object)> nextValues;
+        private readonly Expression firstExpression;
+        internal readonly List<(Operator operatorToken, object)> nextValues;
 
         public Op18Expression(Expression firstExpression)
         {
@@ -3523,7 +3523,7 @@ public class Interpreter
     }
     class MapExpression : Expression
     {
-        List<(string fieldName, Expression expression, bool hasThreeDot, bool isGetProp, bool isSetProp)> fieldExpressions;
+        private readonly List<(string fieldName, Expression expression, bool hasThreeDot, bool isGetProp, bool isSetProp)> fieldExpressions;
 
         public MapExpression(ArraySegment<string> tokens)
         {
@@ -3615,7 +3615,7 @@ public class Interpreter
     }
     class ArrayExpression : Expression
     {
-        private List<(bool hasThreeDot, Expression expression)> expressionList;
+        private readonly List<(bool hasThreeDot, Expression expression)> expressionList;
 
         public ArrayExpression(ArraySegment<string> tokens)
         {
@@ -3650,7 +3650,7 @@ public class Interpreter
     }
     class ParenthesesExpression : Expression
     {
-        private Expression insideExpression;
+        private readonly Expression insideExpression;
 
         public ParenthesesExpression(ArraySegment<string> parenthesesTokens)
         {
@@ -3735,7 +3735,7 @@ public class Interpreter
     }
     class SingleTokenStringTemplateExpression : Expression
     {
-        private List<object> parts; // Each part can be either a String or an Expression
+        private readonly List<object> parts; // Each part can be either a String or an Expression
 
         public SingleTokenStringTemplateExpression(string token)
         {
@@ -3851,7 +3851,7 @@ public class Interpreter
     }
     class SinglePlusMinusExpression : HasRestExpression
     {
-        private bool isMinus;
+        private readonly bool isMinus;
         private Expression expressionRest;
 
         public Expression ExpressionRest { get { return expressionRest; } set { expressionRest = value; } }
@@ -3901,8 +3901,8 @@ public class Interpreter
     class PrePostIncDecExpression : HasRestExpression
     {
         private Expression expressionRest;
-        bool isPre;
-        bool isInc;
+        private readonly bool isPre;
+        private readonly bool isInc;
 
         public Expression ExpressionRest { get { return expressionRest; } set { expressionRest = value; } }
 
@@ -3916,11 +3916,11 @@ public class Interpreter
         public CustomValue EvaluateExpression(Context context)
         {
             CustomValue value = CustomValue.FromNumber(1);
-            Func<CustomValue?, CustomValue> operation = existingValue => AddOrSubtract(existingValue.Value, isInc ? Operator.Plus : Operator.Minus, value);
+            CustomValue operation(CustomValue? existingValue) => AddOrSubtract(existingValue!.Value, isInc ? Operator.Plus : Operator.Minus, value);
 
             var newValue = ApplyLValueOperation(expressionRest, operation, needOldValue: true, context, out var oldValue);
 
-            return isPre ? newValue : oldValue.Value;
+            return isPre ? newValue : oldValue!.Value;
         }
     }
     class AwaitExpression : HasRestExpression
@@ -3949,8 +3949,8 @@ public class Interpreter
     }
     class NewClassInstanceExpression : Expression
     {
-        private string className;
-        private List<(bool hasThreeDot, Expression expression)> expressionList;
+        private readonly string className;
+        private readonly List<(bool hasThreeDot, Expression expression)> expressionList;
 
         public NewClassInstanceExpression(string className, ArraySegment<string> tokens)
         {
@@ -4166,35 +4166,35 @@ public class Interpreter
                         needOldValue = false;
                         break;
                     case "+=":
-                        operation = existingValue => AddOrSubtract(existingValue.Value, Operator.Plus, rValue.EvaluateExpression(context));
+                        operation = existingValue => AddOrSubtract(existingValue!.Value, Operator.Plus, rValue.EvaluateExpression(context));
                         needOldValue = true;
                         break;
                     case "-=":
-                        operation = existingValue => AddOrSubtract(existingValue.Value, Operator.Minus, rValue.EvaluateExpression(context));
+                        operation = existingValue => AddOrSubtract(existingValue!.Value, Operator.Minus, rValue.EvaluateExpression(context));
                         needOldValue = true;
                         break;
                     case "*=":
-                        operation = existingValue => MultiplyOrDivide(existingValue.Value, Operator.Multiply, rValue.EvaluateExpression(context));
+                        operation = existingValue => MultiplyOrDivide(existingValue!.Value, Operator.Multiply, rValue.EvaluateExpression(context));
                         needOldValue = true;
                         break;
                     case "/=":
-                        operation = existingValue => MultiplyOrDivide(existingValue.Value, Operator.Divide, rValue.EvaluateExpression(context));
+                        operation = existingValue => MultiplyOrDivide(existingValue!.Value, Operator.Divide, rValue.EvaluateExpression(context));
                         needOldValue = true;
                         break;
                     case "%=":
-                        operation = existingValue => MultiplyOrDivide(existingValue.Value, Operator.Modulus, rValue.EvaluateExpression(context));
+                        operation = existingValue => MultiplyOrDivide(existingValue!.Value, Operator.Modulus, rValue.EvaluateExpression(context));
                         needOldValue = true;
                         break;
                     case "&&=":
-                        operation = existingValue => !existingValue.Value.IsTruthy() ? existingValue.Value : rValue.EvaluateExpression(context);
+                        operation = existingValue => !existingValue!.Value.IsTruthy() ? existingValue.Value : rValue.EvaluateExpression(context);
                         needOldValue = true;
                         break;
                     case "||=":
-                        operation = existingValue => existingValue.Value.IsTruthy() ? existingValue.Value : rValue.EvaluateExpression(context);
+                        operation = existingValue => existingValue!.Value.IsTruthy() ? existingValue.Value : rValue.EvaluateExpression(context);
                         needOldValue = true;
                         break;
                     case "??=":
-                        operation = existingValue => existingValue.Value.type != ValueType.Null ? existingValue.Value : rValue.EvaluateExpression(context);
+                        operation = existingValue => existingValue!.Value.type != ValueType.Null ? existingValue.Value : rValue.EvaluateExpression(context);
                         needOldValue = true;
                         break;
                     default:
@@ -4243,9 +4243,9 @@ public class Interpreter
     }
     class TernaryExpression : Expression
     {
-        private Expression conditionExpression;
-        private Expression questionMarkExpression;
-        private Expression colonExpression;
+        private readonly Expression conditionExpression;
+        private readonly Expression questionMarkExpression;
+        private readonly Expression colonExpression;
 
         public TernaryExpression(Expression conditionExpression, Expression questionMarkExpression, Expression colonExpression)
         {
@@ -4318,7 +4318,7 @@ public class Interpreter
     }
     class LineStatement : Statement
     {
-        Func<Context, (CustomValue value, bool isReturn, bool isBreak, bool isContinue)> eval;
+        private readonly Func<Context, (CustomValue value, bool isReturn, bool isBreak, bool isContinue)> eval;
 
         public LineStatement(ArraySegment<string> tokens)
         {
@@ -4512,8 +4512,8 @@ public class Interpreter
     }
     class WhileStatement : Statement
     {
-        Expression conditionExpression;
-        Statement statement;
+        private readonly Expression conditionExpression;
+        private readonly Statement statement;
 
         public WhileStatement(Expression conditionExpression, Statement statement)
         {
@@ -4556,11 +4556,11 @@ public class Interpreter
     }
     class ForStatement : Statement
     {
-        AssignmentType assignmentType;
-        IReadOnlyList<Expression> initializationStatements;
-        Expression conditionExpression;
-        IReadOnlyList<Statement> iterationStatements;
-        Statement bodyStatement;
+        private readonly AssignmentType assignmentType;
+        private readonly IReadOnlyList<Expression> initializationStatements;
+        private readonly Expression conditionExpression;
+        private readonly IReadOnlyList<Statement> iterationStatements;
+        private readonly Statement bodyStatement;
 
         private ForStatement(AssignmentType assignmentType, IReadOnlyList<Expression> initializationStatements, Expression conditionExpression, IReadOnlyList<Statement> iterationStatements, Statement bodyStatement)
         {
@@ -4705,12 +4705,12 @@ public class Interpreter
     }
     class ForInOfStatement : Statement
     {
-        AssignmentType assignmentType;
-        string variableName;
-        Expression sourceExpression;
-        Statement bodyStatement;
-        bool isInStatement;
-        bool isAwait;
+        private readonly AssignmentType assignmentType;
+        private readonly string variableName;
+        private readonly Expression sourceExpression;
+        private readonly Statement bodyStatement;
+        private readonly bool isInStatement;
+        private readonly bool isAwait;
 
         public ForInOfStatement(bool isInStatement, AssignmentType assignmentType, string variableName, Expression sourceExpression, Statement bodyStatement, bool isAwait)
         {
@@ -4842,10 +4842,10 @@ public class Interpreter
     }
     class IfStatement : Statement
     {
-        Expression conditionExpression;
-        internal Statement statementOfIf;
-        internal List<(Expression condition, Statement statement)> elseIfStatements = new();
-        Statement? elseStatement;
+        private readonly Expression conditionExpression;
+        internal readonly Statement statementOfIf;
+        internal readonly List<(Expression condition, Statement statement)> elseIfStatements = new();
+        private Statement? elseStatement;
 
         public IfStatement(Expression conditionExpression, Statement statementOfIf)
         {
@@ -4948,11 +4948,11 @@ public class Interpreter
     }
     class FunctionStatement : Statement, Expression
     {
-        IReadOnlyList<(string paramName, bool isRest)> parametersList;
-        Statement body;
-        bool isLambda;
-        bool isAsync;
-        bool isGenerator;
+        private readonly IReadOnlyList<(string paramName, bool isRest)> parametersList;
+        private readonly Statement body;
+        private readonly bool isLambda;
+        private readonly bool isAsync;
+        private readonly bool isGenerator;
 
         private FunctionStatement(IReadOnlyList<(string paramName, bool isRest)> parametersList, Statement body, bool isLambda, bool isAsync, bool isGenerator)
         {
@@ -5055,8 +5055,8 @@ public class Interpreter
     }
     class ClassStatement : Statement, Expression
     {
-        private FunctionStatement? constructor;
-        private List<(FunctionStatement, string fieldName, bool isGetProp, bool isSetProp)> methodList;
+        private readonly FunctionStatement? constructor;
+        private readonly List<(FunctionStatement, string fieldName, bool isGetProp, bool isSetProp)> methodList;
 
         public ClassStatement(FunctionStatement? constructor, List<(FunctionStatement, string fieldName, bool isGetProp, bool isSetProp)> methodList)
         {
@@ -5107,8 +5107,8 @@ public class Interpreter
     }
     class YieldStatement : Statement
     {
-        Expression expression;
-        bool isMultiYield = false;
+        private readonly Expression expression;
+        private readonly bool isMultiYield = false;
 
         public YieldStatement(ArraySegment<string> tokens)
         {
