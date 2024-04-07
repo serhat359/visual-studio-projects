@@ -974,7 +974,7 @@ public class Interpreter
     private static CustomValue CallFunction(FunctionObject function, List<CustomValue> arguments, CustomValue thisOwner)
     {
         var functionParameterArguments = new Dictionary<string, (CustomValue, AssignmentType)>();
-        for (int i = 0; i < function.Parameters.Count; i++)
+        for (int i = 0; i < function.Parameters.Length; i++)
         {
             var (argName, isRest) = function.Parameters[i];
             if (isRest)
@@ -1039,33 +1039,20 @@ public class Interpreter
     {
         if (first.type != second.type)
             throw new Exception();
-
-        Func<CustomValue, CustomValue, int> comparer;
-        switch (first.type)
+        Func<CustomValue, CustomValue, int> comparer = first.type switch
         {
-            case ValueType.Number:
-                comparer = (f1, f2) => ((double)f1.value).CompareTo((double)f2.value);
-                break;
-            case ValueType.String:
-                comparer = (f1, f2) => ((string)f1.value).CompareTo((string)f2.value);
-                break;
-            default:
-                throw new Exception();
-        }
-
-        switch (operatorType)
+            ValueType.Number => (f1, f2) => ((double)f1.value).CompareTo((double)f2.value),
+            ValueType.String => (f1, f2) => ((string)f1.value).CompareTo((string)f2.value),
+            _ => throw new Exception(),
+        };
+        return operatorType switch
         {
-            case Operator.GreaterThan:
-                return comparer(first, second) > 0;
-            case Operator.LessThan:
-                return comparer(first, second) < 0;
-            case Operator.GreaterThanOrEqual:
-                return comparer(first, second) >= 0;
-            case Operator.LessThanOrEqual:
-                return comparer(first, second) <= 0;
-            default:
-                throw new Exception();
-        }
+            Operator.GreaterThan => comparer(first, second) > 0,
+            Operator.LessThan => comparer(first, second) < 0,
+            Operator.GreaterThanOrEqual => comparer(first, second) >= 0,
+            Operator.LessThanOrEqual => comparer(first, second) <= 0,
+            _ => throw new Exception(),
+        };
     }
 
     private static CustomValue AndOr(CustomValue firstValue, Operator operatorType, Expression tree, Context context)
@@ -1769,20 +1756,20 @@ public class Interpreter
     }
     interface FunctionObject : Statement
     {
-        IReadOnlyList<(string paramName, bool isRest)> Parameters { get; }
+        (string paramName, bool isRest)[] Parameters { get; }
         VariableScope? Scope { get; }
         bool IsLambda { get; }
     }
     class CustomFunction : FunctionObject
     {
-        private readonly IReadOnlyList<(string paramName, bool isRest)> parameters;
+        private readonly (string paramName, bool isRest)[] parameters;
         private readonly Statement body;
         private readonly VariableScope scope;
         private readonly bool isLambda;
         private readonly bool isAsync;
         private readonly bool isGenerator;
 
-        public CustomFunction(IReadOnlyList<(string paramName, bool isRest)> parameters, Statement body, VariableScope scope, bool isLambda, bool isAsync, bool isGenerator)
+        public CustomFunction((string paramName, bool isRest)[] parameters, Statement body, VariableScope scope, bool isLambda, bool isAsync, bool isGenerator)
         {
             this.parameters = parameters;
             this.body = body;
@@ -1792,7 +1779,7 @@ public class Interpreter
             this.isGenerator = isGenerator;
         }
 
-        public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
+        public (string paramName, bool isRest)[] Parameters => parameters;
 
         public VariableScope Scope => scope;
 
@@ -1839,7 +1826,7 @@ public class Interpreter
     {
         private static readonly (string paramName, bool isRest)[] parameters = new[] { ("x", false) };
 
-        public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
+        public (string paramName, bool isRest)[] Parameters => parameters;
 
         public VariableScope? Scope => null;
 
@@ -1862,7 +1849,7 @@ public class Interpreter
     {
         private static readonly (string paramName, bool isRest)[] parameters = new[] { ("thisOwner", false), ("args", true) };
 
-        public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
+        public (string paramName, bool isRest)[] Parameters => parameters;
 
         public VariableScope? Scope => null;
 
@@ -1888,7 +1875,7 @@ public class Interpreter
     {
         private static readonly (string paramName, bool isRest)[] parameters = new[] { ("thisOwner", false), ("args", false) };
 
-        public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
+        public (string paramName, bool isRest)[] Parameters => parameters;
 
         public VariableScope? Scope => null;
 
@@ -1912,7 +1899,7 @@ public class Interpreter
     }
     class MathRandomFunction : FunctionObject
     {
-        public IReadOnlyList<(string paramName, bool isRest)> Parameters => Array.Empty<(string, bool)>();
+        public (string paramName, bool isRest)[] Parameters => Array.Empty<(string, bool)>();
 
         public VariableScope? Scope => null;
 
@@ -1933,7 +1920,7 @@ public class Interpreter
     {
         private static readonly (string paramName, bool isRest)[] parameters = new[] { ("number", false) };
 
-        public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
+        public (string paramName, bool isRest)[] Parameters => parameters;
 
         public VariableScope? Scope => null;
 
@@ -1955,7 +1942,7 @@ public class Interpreter
     {
         private static readonly (string paramName, bool isRest)[] parameters = Array.Empty<(string, bool)>();
 
-        public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
+        public (string paramName, bool isRest)[] Parameters => parameters;
 
         public VariableScope? Scope => null;
 
@@ -1978,7 +1965,7 @@ public class Interpreter
     {
         private static readonly (string paramName, bool isRest)[] parameters = Array.Empty<(string, bool)>();
 
-        public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
+        public (string paramName, bool isRest)[] Parameters => parameters;
 
         public VariableScope? Scope => null;
 
@@ -2001,7 +1988,7 @@ public class Interpreter
     {
         private static readonly (string paramName, bool isRest)[] parameters = new[] { ("x", false) };
 
-        public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
+        public (string paramName, bool isRest)[] Parameters => parameters;
 
         public VariableScope? Scope => null;
 
@@ -2034,7 +2021,7 @@ public class Interpreter
     {
         private static readonly (string paramName, bool isRest)[] parameters = new[] { ("x", false) };
 
-        public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
+        public (string paramName, bool isRest)[] Parameters => parameters;
 
         public VariableScope? Scope => null;
 
@@ -2067,7 +2054,7 @@ public class Interpreter
     {
         private static readonly (string paramName, bool isRest)[] parameters = new[] { ("x", false) };
 
-        public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
+        public (string paramName, bool isRest)[] Parameters => parameters;
 
         public VariableScope? Scope => null;
 
@@ -2093,7 +2080,7 @@ public class Interpreter
     {
         private static readonly (string paramName, bool isRest)[] parameters = Array.Empty<(string, bool)>();
 
-        public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
+        public (string paramName, bool isRest)[] Parameters => parameters;
 
         public VariableScope? Scope => null;
 
@@ -2119,7 +2106,7 @@ public class Interpreter
     {
         private static readonly (string paramName, bool isRest)[] parameters = new[] { ("f", false) };
 
-        public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
+        public (string paramName, bool isRest)[] Parameters => parameters;
 
         public VariableScope? Scope => null;
 
@@ -2145,7 +2132,7 @@ public class Interpreter
     {
         private static readonly (string paramName, bool isRest)[] parameters = new[] { ("f", false) };
 
-        public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
+        public (string paramName, bool isRest)[] Parameters => parameters;
 
         public VariableScope? Scope => null;
 
@@ -2171,7 +2158,7 @@ public class Interpreter
     {
         private static readonly (string paramName, bool isRest)[] parameters = new[] { ("separator", false) };
 
-        public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
+        public (string paramName, bool isRest)[] Parameters => parameters;
 
         public VariableScope? Scope => null;
 
@@ -2192,9 +2179,9 @@ public class Interpreter
     }
     class ProxyClassConstructor : FunctionObject
     {
-        private readonly IReadOnlyList<(string paramName, bool isRest)> parameters = new[] { ("target", false), ("options", false) };
+        private readonly (string paramName, bool isRest)[] parameters = new[] { ("target", false), ("options", false) };
 
-        public IReadOnlyList<(string paramName, bool isRest)> Parameters => parameters;
+        public (string paramName, bool isRest)[] Parameters => parameters;
 
         public VariableScope? Scope => null;
 
@@ -4877,12 +4864,12 @@ public class Interpreter
                 return (CustomValue.Null, false, isBreak, isContinue);
             }
 
-            foreach (var elseIfStatement in elseIfStatements)
+            foreach (var (condition, statement) in elseIfStatements)
             {
-                var elseIfCondition = elseIfStatement.condition.EvaluateExpression(context);
+                var elseIfCondition = condition.EvaluateExpression(context);
                 if (elseIfCondition.IsTruthy())
                 {
-                    var (value, isReturn, isBreak, isContinue) = elseIfStatement.statement.EvaluateStatement(context);
+                    var (value, isReturn, isBreak, isContinue) = statement.EvaluateStatement(context);
                     if (isReturn)
                         return (value, true, false, false);
                     return (CustomValue.Null, false, isBreak, isContinue);
@@ -4906,11 +4893,11 @@ public class Interpreter
             if (conditionValue.IsTruthy())
                 return statementOfIf.AsEnumerable(context);
 
-            foreach (var elseIfStatement in elseIfStatements)
+            foreach (var (condition, statement) in elseIfStatements)
             {
-                var elseIfCondition = elseIfStatement.condition.EvaluateExpression(context);
+                var elseIfCondition = condition.EvaluateExpression(context);
                 if (elseIfCondition.IsTruthy())
-                    return elseIfStatement.statement.AsEnumerable(context);
+                    return statement.AsEnumerable(context);
             }
 
             if (elseStatement != null)
