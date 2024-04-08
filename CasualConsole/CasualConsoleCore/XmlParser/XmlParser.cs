@@ -64,7 +64,11 @@ public class XmlParser
         var index = 1;
 
         if (isHtml && unclosedTags.Contains(tagName))
+        {
+            if (index < tokens.Count && tokens[index].token == "</" + tagName + ">")
+                index++;
             return (parent, index);
+        }
 
         if (isSingleTag)
         {
@@ -103,11 +107,6 @@ public class XmlParser
         int i = 0;
         int lineNumber = 1;
 
-        bool IsWhiteSpace(char c)
-        {
-            if (c == '\n') lineNumber++;
-            return char.IsWhiteSpace(c);
-        }
         static bool ContinuesWith(string s, string text, int index)
         {
             for (int i = 0; i < text.Length; i++)
@@ -262,8 +261,8 @@ public class XmlParser
 
 public class XmlNodeBase
 {
-    private readonly List<object> children = new List<object>();
-    private readonly List<XmlNode> childNodes = new List<XmlNode>();
+    private readonly List<object> children = new();
+    private readonly List<XmlNode> childNodes = new();
 
     public IReadOnlyList<object> Children => children;
     public IReadOnlyList<XmlNode> ChildNodes => childNodes;
