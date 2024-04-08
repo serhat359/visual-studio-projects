@@ -25,13 +25,13 @@ public class XmlParser
             if (partsEnumerable.FirstOrDefault().token.StartsWith("<!"))
                 partsEnumerable = partsEnumerable.Skip(1);
         }
-        ArraySegment<(string, int)> parts = partsEnumerable.ToArray();
-        if (parts.Count > 0 && parts[0].Item1.StartsWith("<?xml"))
+        ReadOnlySpan<(string, int)> parts = partsEnumerable.ToArray();
+        if (parts.Length > 0 && parts[0].Item1.StartsWith("<?xml"))
             parts = parts[1..];
 
         var topDocument = new XmlNodeBase();
 
-        if (parts.Count > 0)
+        if (parts.Length > 0)
         {
             int index = 0;
             while (true)
@@ -41,7 +41,7 @@ public class XmlParser
 
                 if (endIndex < 0)
                     throw new Exception();
-                if (endIndex + index == parts.Count)
+                if (endIndex + index == parts.Length)
                     break;
 
                 index += endIndex;
@@ -51,7 +51,7 @@ public class XmlParser
         return topDocument;
     }
 
-    private static (XmlNode, int) ReadNode(ArraySegment<(string token, int lineNumber)> tokens, bool isHtml)
+    private static (XmlNode, int) ReadNode(ReadOnlySpan<(string token, int lineNumber)> tokens, bool isHtml)
     {
         if (!tokens[0].token.IsBeginTag()) throw new Exception(); // TODO remove later
 
@@ -65,7 +65,7 @@ public class XmlParser
 
         if (isHtml && unclosedTags.Contains(tagName))
         {
-            if (index < tokens.Count && tokens[index].token == "</" + tagName + ">")
+            if (index < tokens.Length && tokens[index].token == "</" + tagName + ">")
                 index++;
             return (parent, index);
         }
