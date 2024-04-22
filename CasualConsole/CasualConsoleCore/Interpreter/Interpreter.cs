@@ -665,6 +665,7 @@ public class Interpreter
             ("var sum = function(arr){ let total = 0; for (let x of arr) total += x; return total }; sum([1,2,3].map(x => x + 1))", 9),
             ("var arr = [1,2,3]; arr.map = null; arr.map", null),
             ("[1,2,3].join(',')", "1,2,3"),
+            ("-({ arr: ()=>[1,2,3] }).arr().map(x => x).length", -3),
         };
 
         var interpreter = new Interpreter();
@@ -2932,7 +2933,7 @@ public class Interpreter
 
                         if (expression is HasRestExpression hasRestExpression)
                         {
-                            var newExpression = new Op18Expression(hasRestExpression.ExpressionRest);
+                            var newExpression = Op18Expression.CastOrNew(hasRestExpression.ExpressionRest);
                             newExpression.AddExpression(@operator, expressionList);
 
                             hasRestExpression.ExpressionRest = newExpression;
@@ -2972,7 +2973,7 @@ public class Interpreter
 
                         if (expression is HasRestExpression hasRestExpression)
                         {
-                            var newExpression = new Op18Expression(hasRestExpression.ExpressionRest);
+                            var newExpression = Op18Expression.CastOrNew(hasRestExpression.ExpressionRest);
                             newExpression.AddExpression(@operator, keyExpression);
 
                             hasRestExpression.ExpressionRest = newExpression;
@@ -3011,7 +3012,7 @@ public class Interpreter
 
                         if (expression is HasRestExpression hasRestExpression)
                         {
-                            var newExpression = new Op18Expression(hasRestExpression.ExpressionRest);
+                            var newExpression = Op18Expression.CastOrNew(hasRestExpression.ExpressionRest);
                             newExpression.AddExpression(@operator, nextExpression);
 
                             hasRestExpression.ExpressionRest = newExpression;
@@ -3504,6 +3505,13 @@ public class Interpreter
         {
             var count = nextValues.Count;
             return count > 1 ? (Expression)nextValues[count - 2].Item2 : firstExpression;
+        }
+
+        public static Op18Expression CastOrNew(Expression expr)
+        {
+            if (expr is Op18Expression op18)
+                return op18;
+            return new Op18Expression(expr);
         }
     }
     class MapExpression : Expression
