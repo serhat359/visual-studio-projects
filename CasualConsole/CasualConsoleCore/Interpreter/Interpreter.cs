@@ -118,16 +118,14 @@ public class Interpreter
         var tokens = GetTokens(code, 16);
 
         CustomValue value = CustomValue.Null;
-        bool isReturn;
-        bool isBreak;
-        bool isContinue;
+        ReturnType type;
 
         var statements = GetStatements(tokens.ToSegment());
 
         for (int i = 0; i < statements.count; i++)
         {
-            (value, isReturn, isBreak, isContinue) = statements.array[i].EvaluateStatement(defaultContext);
-            if (isReturn || isBreak || isContinue)
+            (value, type) = statements.array[i].EvaluateStatement(defaultContext);
+            if (type != ReturnType.None)
                 throw new Exception();
         }
 
@@ -666,6 +664,13 @@ public class Interpreter
             ("var arr = [1,2,3]; arr.map = null; arr.map", null),
             ("[1,2,3].join(',')", "1,2,3"),
             ("-({ arr: ()=>[1,2,3] }).arr().map(x => x).length", -3),
+            ("var gen = function*(){ yield 1; yield 2; return 3; yield 4; yield 5; }; [...gen()].length", 2),
+            ("var gen = function*(){ yield 1; yield 2; { if (true) { return 3; } } yield 4; yield 5; }; [...gen()].length", 2),
+            ("var gen = function*(){ yield 1; return 2; yield 2; }; var g = gen();", null),
+            ("g.next().value", 1),
+            ("g.next().value", null),
+            ("g.next().value", null),
+            ("var f = function*(){ yield 1; for(let x of [3,4,5]){ yield x; break; } yield 10; }; [...f()].length", 3),
         };
 
         var interpreter = new Interpreter();
@@ -1001,8 +1006,8 @@ public class Interpreter
             functionParameterArguments["arguments"] = (CustomValue.FromArray(new CustomArray(arguments)), AssignmentType.Var);
         var newScope = VariableScope.NewWithInner(function.Scope, functionParameterArguments, isFunctionScope: true);
         var newContext = new Context(newScope, thisOwner);
-        var (result, isReturn, isBreak, isContinue) = function.EvaluateStatement(newContext);
-        if (isBreak || isContinue)
+        var (result, type) = function.EvaluateStatement(newContext);
+        if (type == ReturnType.Break || type == ReturnType.Continue)
             throw new Exception();
         return result;
     }
@@ -1786,7 +1791,7 @@ public class Interpreter
 
         public bool IsLambda => isLambda;
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             if (!isGenerator)
             {
@@ -1798,7 +1803,7 @@ public class Interpreter
                 {
                     Task<CustomValue> promiseTask = Task.Run(() => body.EvaluateStatement(context).value);
                     CustomValue promise = CustomValue.FromPromise(promiseTask);
-                    return (promise, false, false, false);
+                    return (promise, ReturnType.None);
                 }
             }
             else
@@ -1807,18 +1812,18 @@ public class Interpreter
                 {
                     var generator = new Generator(body, context);
                     CustomValue generatorValue = CustomValue.FromGenerator(generator);
-                    return (generatorValue, false, false, false);
+                    return (generatorValue, ReturnType.None);
                 }
                 else
                 {
                     var asyncGenerator = new AsyncGenerator(body, context);
                     CustomValue asyncGeneratorValue = CustomValue.FromAsyncGenerator(asyncGenerator);
-                    return (asyncGeneratorValue, false, false, false);
+                    return (asyncGeneratorValue, ReturnType.None);
                 }
             }
         }
 
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
         {
             throw new NotImplementedException();
         }
@@ -1833,15 +1838,15 @@ public class Interpreter
 
         public bool IsLambda => false;
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             var printValue = context.variableScope.GetVariable(Parameters[0].paramName);
             if (printValue.type != ValueType.Null)
                 Console.WriteLine(printValue.ToString());
-            return (CustomValue.Null, false, false, false);
+            return (CustomValue.Null, ReturnType.None);
         }
 
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
         {
             throw new NotImplementedException();
         }
@@ -1856,7 +1861,7 @@ public class Interpreter
 
         public bool IsLambda => false;
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             var thisOwner = context.variableScope.GetVariable(Parameters[0].paramName);
             var args = context.variableScope.GetVariable(Parameters[1].paramName);
@@ -1864,10 +1869,10 @@ public class Interpreter
 
             var returnValue = CallFunction((FunctionObject)context.thisOwner.value, argsList, thisOwner);
 
-            return (returnValue, false, false, false);
+            return (returnValue, ReturnType.None);
         }
 
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
         {
             throw new NotImplementedException();
         }
@@ -1882,7 +1887,7 @@ public class Interpreter
 
         public bool IsLambda => false;
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             var thisOwner = context.variableScope.GetVariable(Parameters[0].paramName);
             var args = context.variableScope.GetVariable(Parameters[1].paramName);
@@ -1890,10 +1895,10 @@ public class Interpreter
 
             var returnValue = CallFunction((FunctionObject)context.thisOwner.value, argsList, thisOwner);
 
-            return (returnValue, false, false, false);
+            return (returnValue, ReturnType.None);
         }
 
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
         {
             throw new NotImplementedException();
         }
@@ -1906,13 +1911,13 @@ public class Interpreter
 
         public bool IsLambda => false;
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             var randomDouble = Random.Shared.NextDouble();
-            return (CustomValue.FromNumber(randomDouble), false, false, false);
+            return (CustomValue.FromNumber(randomDouble), ReturnType.None);
         }
 
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
         {
             throw new NotImplementedException();
         }
@@ -1927,14 +1932,14 @@ public class Interpreter
 
         public bool IsLambda => false;
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             var number = context.variableScope.GetVariable(Parameters[0].paramName);
             var num = (double)number.value;
-            return (CustomValue.FromNumber(Math.Floor(num)), false, false, false);
+            return (CustomValue.FromNumber(Math.Floor(num)), ReturnType.None);
         }
 
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
         {
             throw new NotImplementedException();
         }
@@ -1949,15 +1954,15 @@ public class Interpreter
 
         public bool IsLambda => false;
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             var thisOwner = context.thisOwner;
             var generator = (Generator)thisOwner.value;
             var value = generator.Next();
-            return (value, false, false, false);
+            return (value, ReturnType.None);
         }
 
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
         {
             throw new NotImplementedException();
         }
@@ -1972,15 +1977,15 @@ public class Interpreter
 
         public bool IsLambda => false;
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             var thisOwner = context.thisOwner;
             var asyncGenerator = (AsyncGenerator)thisOwner.value;
             var value = asyncGenerator.Next();
-            return (CustomValue.FromPromise(value), false, false, false);
+            return (CustomValue.FromPromise(value), ReturnType.None);
         }
 
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
         {
             throw new NotImplementedException();
         }
@@ -1995,7 +2000,7 @@ public class Interpreter
 
         public bool IsLambda => false;
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             var thisString = context.thisOwner;
             if (thisString.type != ValueType.String)
@@ -2010,10 +2015,10 @@ public class Interpreter
             int index = (int)(double)indexValue.value;
 
             var newValue = CustomValue.FromParsedString(str[index].ToString());
-            return (newValue, false, false, false);
+            return (newValue, ReturnType.None);
         }
 
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
         {
             throw new NotImplementedException();
         }
@@ -2028,7 +2033,7 @@ public class Interpreter
 
         public bool IsLambda => false;
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             var thisString = context.thisOwner;
             if (thisString.type != ValueType.String)
@@ -2043,10 +2048,10 @@ public class Interpreter
             int index = (int)(double)indexValue.value;
 
             var newValue = (int)str[index];
-            return (CustomValue.FromNumber(newValue), false, false, false);
+            return (CustomValue.FromNumber(newValue), ReturnType.None);
         }
 
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
         {
             throw new NotImplementedException();
         }
@@ -2061,7 +2066,7 @@ public class Interpreter
 
         public bool IsLambda => false;
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             var thisArray = context.thisOwner;
             if (thisArray.type != ValueType.Array)
@@ -2069,10 +2074,10 @@ public class Interpreter
             var array = (CustomArray)thisArray.value;
             var pushValue = context.variableScope.GetVariable(Parameters[0].paramName);
             array.list.Add(pushValue);
-            return (CustomValue.FromNumber(array.list.Count), false, false, false);
+            return (CustomValue.FromNumber(array.list.Count), ReturnType.None);
         }
 
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
         {
             throw new NotImplementedException();
         }
@@ -2087,7 +2092,7 @@ public class Interpreter
 
         public bool IsLambda => false;
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             var thisArray = context.thisOwner;
             if (thisArray.type != ValueType.Array)
@@ -2095,10 +2100,10 @@ public class Interpreter
             var array = (CustomArray)thisArray.value;
             var returnValue = array.list[^1];
             array.list.RemoveAt(array.list.Count - 1);
-            return (returnValue, false, false, false);
+            return (returnValue, ReturnType.None);
         }
 
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
         {
             throw new NotImplementedException();
         }
@@ -2113,7 +2118,7 @@ public class Interpreter
 
         public bool IsLambda => false;
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             var thisArray = context.thisOwner.GetAsArray();
             var f = context.variableScope.GetVariable(Parameters[0].paramName).GetAsFunction();
@@ -2121,10 +2126,10 @@ public class Interpreter
 
             var res = list.Select(x => CallFunction(f, new List<CustomValue> { x }, CustomValue.Null)).ToList();
             var newList = CustomValue.FromArray(new CustomArray(res));
-            return (newList, false, false, false);
+            return (newList, ReturnType.None);
         }
 
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
         {
             throw new NotImplementedException();
         }
@@ -2139,7 +2144,7 @@ public class Interpreter
 
         public bool IsLambda => false;
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             var thisArray = context.thisOwner.GetAsArray();
             var f = context.variableScope.GetVariable(Parameters[0].paramName).GetAsFunction();
@@ -2147,10 +2152,10 @@ public class Interpreter
 
             var res = list.Where(x => CallFunction(f, new List<CustomValue> { x }, CustomValue.Null).IsTruthy()).ToList();
             var newList = CustomValue.FromArray(new CustomArray(res));
-            return (newList, false, false, false);
+            return (newList, ReturnType.None);
         }
 
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
         {
             throw new NotImplementedException();
         }
@@ -2165,15 +2170,15 @@ public class Interpreter
 
         public bool IsLambda => false;
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             var thisArray = context.thisOwner.GetAsArray();
             var separator = (string)context.variableScope.GetVariable(Parameters[0].paramName).value;
             var res = string.Join(separator, thisArray.list.Select(x => x.ToString()));
-            return (CustomValue.FromParsedString(res), false, false, false);
+            return (CustomValue.FromParsedString(res), ReturnType.None);
         }
 
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
         {
             throw new NotImplementedException();
         }
@@ -2188,7 +2193,7 @@ public class Interpreter
 
         public bool IsLambda => false;
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             var target = context.variableScope.GetVariable(Parameters[0].paramName);
             var options = context.variableScope.GetVariable(Parameters[1].paramName);
@@ -2205,10 +2210,10 @@ public class Interpreter
             var newProxy = new ProxyObjectInstance(target, getHandler, setHandler);
 
             var value = CustomValue.FromProxy(newProxy);
-            return (value, false, false, false);
+            return (value, ReturnType.None);
         }
 
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
         {
             throw new NotImplementedException();
         }
@@ -2259,7 +2264,10 @@ public class Interpreter
 
         public Generator(Statement statement, Context context)
         {
-            this.enumerator = statement.AsEnumerable(context).GetEnumerator();
+            var values = statement.AsEnumerable(context)
+                .TakeWhile(x => x.returnType != ReturnType.Return)
+                .Select(x => x.value);
+            this.enumerator = values.GetEnumerator();
         }
 
         internal CustomValue Next()
@@ -2296,7 +2304,10 @@ public class Interpreter
 
         public AsyncGenerator(Statement statement, Context context)
         {
-            this.enumerator = Promisify(statement.AsEnumerable(context)).GetEnumerator();
+            var values = statement.AsEnumerable(context)
+                .TakeWhile(x => x.returnType != ReturnType.Return)
+                .Select(x => x.value);
+            this.enumerator = Promisify(values).GetEnumerator();
         }
 
         private static IEnumerable<Task<(bool, CustomValue)>> Promisify(IEnumerable<CustomValue> source)
@@ -2615,6 +2626,14 @@ public class Interpreter
         Indexing = 18,
         DotAccess = 18,
         LambdaExpression = 9999,
+    }
+    enum ReturnType
+    {
+        None,
+        Return,
+        Yield,
+        Break,
+        Continue,
     }
 
     class VariableScope
@@ -4261,8 +4280,8 @@ public class Interpreter
 
     interface Statement
     {
-        (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context);
-        IEnumerable<CustomValue> AsEnumerable(Context context);
+        (CustomValue value, ReturnType returnType) EvaluateStatement(Context context);
+        IEnumerable<(CustomValue value, ReturnType returnType)> AsEnumerable(Context context);
     }
     static class StatementMethods
     {
@@ -4311,7 +4330,7 @@ public class Interpreter
     }
     class LineStatement : Statement
     {
-        private readonly Func<Context, (CustomValue value, bool isReturn, bool isBreak, bool isContinue)> eval;
+        private readonly Func<Context, (CustomValue value, ReturnType returnType)> eval;
 
         public LineStatement(ArraySegment<string> tokens)
         {
@@ -4322,7 +4341,7 @@ public class Interpreter
 
             if (tokens.Count == 0)
             {
-                eval = context => (CustomValue.Null, false, false, false);
+                eval = context => (CustomValue.Null, ReturnType.None);
             }
             else if (IsAssignmentType(tokens[0], out var assignmentType))
             {
@@ -4332,14 +4351,14 @@ public class Interpreter
                 eval = context =>
                 {
                     var value = assignmentTree.EvaluateExpression(context);
-                    return (CustomValue.Null, false, false, false);
+                    return (CustomValue.Null, ReturnType.None);
                 };
             }
             else if (tokens[0] == "return")
             {
                 if (tokens.Count == 1)
                 {
-                    eval = context => (CustomValue.Null, true, false, false);
+                    eval = context => (CustomValue.Null, ReturnType.Return);
                 }
                 else
                 {
@@ -4347,17 +4366,17 @@ public class Interpreter
                     eval = context =>
                     {
                         var returnValue = returnExpression.EvaluateExpression(context);
-                        return (returnValue, true, false, false);
+                        return (returnValue, ReturnType.Return);
                     };
                 }
             }
             else if (tokens[0] == "break")
             {
-                eval = context => (CustomValue.Null, false, true, false);
+                eval = context => (CustomValue.Null, ReturnType.Break);
             }
             else if (tokens[0] == "continue")
             {
-                eval = context => (CustomValue.Null, false, false, true);
+                eval = context => (CustomValue.Null, ReturnType.Continue);
             }
             else if (tokens[0] == "function" || (tokens[0] == "async" && tokens[1] == "function"))
             {
@@ -4382,7 +4401,7 @@ public class Interpreter
                 {
                     var function = functionStatement.EvaluateExpression(context);
                     context.variableScope.AddVarVariable(variableName, function);
-                    return (CustomValue.Null, false, false, false);
+                    return (CustomValue.Null, ReturnType.None);
                 };
             }
             else if (tokens[0] == "class")
@@ -4439,7 +4458,7 @@ public class Interpreter
                 {
                     var newClass = classStatement.EvaluateExpression(context);
                     context.variableScope.AddConstVariable(className, newClass);
-                    return (CustomValue.Null, false, false, false);
+                    return (CustomValue.Null, ReturnType.None);
                 };
             }
             else
@@ -4449,20 +4468,19 @@ public class Interpreter
                 eval = context =>
                 {
                     var expressionValue = expression.EvaluateExpression(context);
-                    return (expressionValue, false, false, false);
+                    return (expressionValue, ReturnType.None);
                 };
             }
         }
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             return eval(context);
         }
 
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
         {
-            eval(context);
-            yield break;
+            yield return eval(context);
         }
     }
     class BlockStatement : Statement
@@ -4477,30 +4495,34 @@ public class Interpreter
             statements = GetStatements(tokens);
         }
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             var newScope = VariableScope.NewWithInner(context.variableScope, isFunctionScope: false);
             var newContext = new Context(newScope, context.thisOwner);
 
             for (int i = 0; i < statements.count; i++)
             {
-                var (value, isReturn, isBreak, isContinue) = statements.array[i].EvaluateStatement(newContext);
-                if (isReturn)
-                    return (value, true, false, false);
-                if (isBreak)
-                    return (CustomValue.Null, false, true, false);
-                if (isContinue)
-                    return (CustomValue.Null, false, false, true);
+                var (value, type) = statements.array[i].EvaluateStatement(newContext);
+                if (type != ReturnType.None)
+                    return (value, type);
             }
 
-            return (CustomValue.Null, false, false, false);
+            return (CustomValue.Null, ReturnType.None);
         }
 
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
         {
+            var newScope = VariableScope.NewWithInner(context.variableScope, isFunctionScope: false);
+            var newContext = new Context(newScope, context.thisOwner);
+
             for (int i = 0; i < statements.count; i++)
-                foreach (var value in statements.array[i].AsEnumerable(context))
-                    yield return value;
+            {
+                foreach (var (value, type) in statements.array[i].AsEnumerable(newContext))
+                {
+                    if (type != ReturnType.None)
+                        yield return (value, type);
+                }
+            }
         }
     }
     class WhileStatement : Statement
@@ -4514,7 +4536,7 @@ public class Interpreter
             this.statement = statement;
         }
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             while (true)
             {
@@ -4522,19 +4544,17 @@ public class Interpreter
                 if (!conditionValue.IsTruthy())
                     break;
 
-                var (value, isReturn, isBreak, isContinue) = statement.EvaluateStatement(context);
-                if (isReturn)
-                    return (value, true, false, false);
-                if (isBreak)
+                var (value, type) = statement.EvaluateStatement(context);
+                if (type == ReturnType.Return)
+                    return (value, ReturnType.Return);
+                if (type == ReturnType.Break)
                     break;
-                if (isContinue)
-                    continue;
             }
 
-            return (CustomValue.Null, false, false, false);
+            return (CustomValue.Null, ReturnType.None);
         }
 
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
         {
             while (true)
             {
@@ -4542,8 +4562,13 @@ public class Interpreter
                 if (!conditionValue.IsTruthy())
                     break;
 
-                foreach (var value in statement.AsEnumerable(context))
-                    yield return value;
+                foreach (var (value, type) in statement.AsEnumerable(context))
+                {
+                    if (type == ReturnType.Return || type == ReturnType.Yield)
+                        yield return (value, type);
+                    if (type == ReturnType.Break)
+                        yield break;
+                }
             }
         }
     }
@@ -4564,7 +4589,7 @@ public class Interpreter
             this.bodyStatement = bodyStatement;
         }
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             // Body of this function is duplicated into "AsEnumerable" method, when changed make sure to change that method too
             var newScope = VariableScope.NewWithInner(context.variableScope, isFunctionScope: false);
@@ -4585,14 +4610,15 @@ public class Interpreter
                 var loopScope = VariableScope.GetNewLoopScopeCopy(newScope, assignmentType);
                 var loopContext = new Context(loopScope, newContext.thisOwner);
 
-                var (value, isReturn, isBreak, isContinue) = bodyStatement.EvaluateStatement(loopContext);
+                var (value, type) = bodyStatement.EvaluateStatement(loopContext);
+
+                if (type == ReturnType.Return)
+                    return (value, ReturnType.Return);
+                if (type == ReturnType.Break)
+                    break;
+
                 if (assignmentType == AssignmentType.Let)
                     loopScope.ApplyToScope(newScope);
-
-                if (isReturn)
-                    return (value, true, false, false);
-                if (isBreak)
-                    break;
 
                 // Do iteration
                 foreach (var iterationStatement in iterationStatements)
@@ -4601,7 +4627,46 @@ public class Interpreter
                 }
             }
 
-            return (CustomValue.Null, false, false, false);
+            return (CustomValue.Null, ReturnType.None);
+        }
+
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
+        {
+            var newScope = VariableScope.NewWithInner(context.variableScope, isFunctionScope: false);
+            var newContext = new Context(newScope, context.thisOwner);
+
+            // Initialize
+            foreach (var initializationStatement in initializationStatements)
+            {
+                initializationStatement.EvaluateExpression(newContext);
+            }
+
+            while (true)
+            {
+                var conditionValue = conditionExpression.EvaluateExpression(newContext);
+                if (!conditionValue.IsTruthy())
+                    break;
+
+                var loopScope = VariableScope.GetNewLoopScopeCopy(newScope, assignmentType);
+                var loopContext = new Context(loopScope, newContext.thisOwner);
+
+                foreach (var (value, type) in bodyStatement.AsEnumerable(loopContext))
+                {
+                    if (type == ReturnType.Return || type == ReturnType.Yield)
+                        yield return (value, type);
+                    if (type == ReturnType.Break)
+                        yield break;
+                }
+
+                if (assignmentType == AssignmentType.Let)
+                    loopScope.ApplyToScope(newScope);
+
+                // Do iteration
+                foreach (var iterationStatement in iterationStatements)
+                {
+                    iterationStatement.EvaluateStatement(newContext);
+                }
+            }
         }
 
         public static Statement FromTokens(ArraySegment<string> nonBodyTokens, Statement bodyStatement)
@@ -4661,40 +4726,6 @@ public class Interpreter
             }
             throw new Exception();
         }
-
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
-        {
-            var newScope = VariableScope.NewWithInner(context.variableScope, isFunctionScope: false);
-            var newContext = new Context(newScope, context.thisOwner);
-
-            // Initialize
-            foreach (var initializationStatement in initializationStatements)
-            {
-                initializationStatement.EvaluateExpression(newContext);
-            }
-
-            while (true)
-            {
-                var conditionValue = conditionExpression.EvaluateExpression(newContext);
-                if (!conditionValue.IsTruthy())
-                    break;
-
-                var loopScope = VariableScope.GetNewLoopScopeCopy(newScope, assignmentType);
-                var loopContext = new Context(loopScope, newContext.thisOwner);
-
-                foreach (var value in bodyStatement.AsEnumerable(loopContext))
-                    yield return value;
-
-                if (assignmentType == AssignmentType.Let)
-                    loopScope.ApplyToScope(newScope);
-
-                // Do iteration
-                foreach (var iterationStatement in iterationStatements)
-                {
-                    iterationStatement.EvaluateStatement(newContext);
-                }
-            }
-        }
     }
     class ForInOfStatement : Statement
     {
@@ -4715,7 +4746,7 @@ public class Interpreter
             this.isAwait = isAwait;
         }
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             var (scope, elements) = GetElementsAndContext(context);
 
@@ -4725,13 +4756,11 @@ public class Interpreter
                 {
                     var loopScope = VariableScope.GetNewLoopScope(scope, assignmentType, variableName, element);
 
-                    var (value, isReturn, isBreak, isContinue) = bodyStatement.EvaluateStatement(new Context(loopScope, context.thisOwner));
-                    if (isReturn)
-                        return (value, true, false, false);
-                    if (isBreak)
+                    var (value, type) = bodyStatement.EvaluateStatement(new Context(loopScope, context.thisOwner));
+                    if (type == ReturnType.Return)
+                        return (value, ReturnType.Return);
+                    if (type == ReturnType.Break)
                         break;
-                    if (isContinue)
-                        continue;
                 }
             }
             else
@@ -4744,20 +4773,18 @@ public class Interpreter
 
                     var loopScope = VariableScope.GetNewLoopScope(scope, assignmentType, variableName, element);
 
-                    var (value, isReturn, isBreak, isContinue) = bodyStatement.EvaluateStatement(new Context(loopScope, context.thisOwner));
-                    if (isReturn)
-                        return (value, true, false, false);
-                    if (isBreak)
+                    var (value, type) = bodyStatement.EvaluateStatement(new Context(loopScope, context.thisOwner));
+                    if (type == ReturnType.Return)
+                        return (value, ReturnType.Return);
+                    if (type == ReturnType.Break)
                         break;
-                    if (isContinue)
-                        continue;
                 }
             }
 
-            return (CustomValue.Null, false, false, false);
+            return (CustomValue.Null, ReturnType.None);
         }
 
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
         {
             var (scope, elements) = GetElementsAndContext(context);
 
@@ -4767,9 +4794,12 @@ public class Interpreter
                 {
                     var loopScope = VariableScope.GetNewLoopScope(scope, assignmentType, variableName, element);
 
-                    foreach (var value in bodyStatement.AsEnumerable(new Context(loopScope, context.thisOwner)))
+                    foreach (var (value, type) in bodyStatement.AsEnumerable(new Context(loopScope, context.thisOwner)))
                     {
-                        yield return value;
+                        if (type == ReturnType.Return || type == ReturnType.Yield)
+                            yield return (value, type);
+                        if (type == ReturnType.Break)
+                            yield break;
                     }
                 }
             }
@@ -4783,9 +4813,12 @@ public class Interpreter
 
                     var loopScope = VariableScope.GetNewLoopScope(scope, assignmentType, variableName, element);
 
-                    foreach (var value in bodyStatement.AsEnumerable(new Context(loopScope, context.thisOwner)))
+                    foreach (var (value, type) in bodyStatement.AsEnumerable(new Context(loopScope, context.thisOwner)))
                     {
-                        yield return value;
+                        if (type == ReturnType.Return || type == ReturnType.Yield)
+                            yield return (value, type);
+                        if (type == ReturnType.Break)
+                            yield break;
                     }
                 }
             }
@@ -4861,15 +4894,15 @@ public class Interpreter
             elseStatement = statementAfterIf;
         }
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             var conditionValue = conditionExpression.EvaluateExpression(context);
             if (conditionValue.IsTruthy())
             {
-                var (value, isReturn, isBreak, isContinue) = statementOfIf.EvaluateStatement(context);
-                if (isReturn)
-                    return (value, true, false, false);
-                return (CustomValue.Null, false, isBreak, isContinue);
+                var (value, type) = statementOfIf.EvaluateStatement(context);
+                if (type == ReturnType.Return)
+                    return (value, ReturnType.Return);
+                return (CustomValue.Null, type);
             }
 
             foreach (var (condition, statement) in elseIfStatements)
@@ -4877,25 +4910,25 @@ public class Interpreter
                 var elseIfCondition = condition.EvaluateExpression(context);
                 if (elseIfCondition.IsTruthy())
                 {
-                    var (value, isReturn, isBreak, isContinue) = statement.EvaluateStatement(context);
-                    if (isReturn)
-                        return (value, true, false, false);
-                    return (CustomValue.Null, false, isBreak, isContinue);
+                    var (value, type) = statement.EvaluateStatement(context);
+                    if (type == ReturnType.Return)
+                        return (value, ReturnType.Return);
+                    return (CustomValue.Null, type);
                 }
             }
 
             if (elseStatement != null)
             {
-                var (value, isReturn, isBreak, isContinue) = elseStatement.EvaluateStatement(context);
-                if (isReturn)
-                    return (value, true, false, false);
-                return (CustomValue.Null, false, isBreak, isContinue);
+                var (value, type) = elseStatement.EvaluateStatement(context);
+                if (type == ReturnType.Return)
+                    return (value, ReturnType.Return);
+                return (CustomValue.Null, type);
             }
 
-            return (CustomValue.Null, false, false, false);
+            return (CustomValue.Null, ReturnType.None);
         }
 
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
         {
             var conditionValue = conditionExpression.EvaluateExpression(context);
             if (conditionValue.IsTruthy())
@@ -4929,12 +4962,12 @@ public class Interpreter
             this.statement = statement;
         }
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             return statement.EvaluateStatement(context);
         }
 
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
         {
             return statement.AsEnumerable(context);
         }
@@ -5030,10 +5063,10 @@ public class Interpreter
             return new FunctionStatement(parameters, body, isLambda, isAsync, isGenerator);
         }
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             var function = new CustomFunction(parametersList, body, context.variableScope, isLambda, isAsync, isGenerator);
-            return (CustomValue.FromFunction(function), false, false, false);
+            return (CustomValue.FromFunction(function), ReturnType.None);
         }
 
         public CustomValue EvaluateExpression(Context context)
@@ -5041,7 +5074,7 @@ public class Interpreter
             return EvaluateStatement(context).Item1;
         }
 
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
         {
             throw new Exception();
         }
@@ -5057,7 +5090,7 @@ public class Interpreter
             this.methodList = methodList;
         }
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             var methods = new Dictionary<string, ValueOrGetterSetter>();
             foreach (var (fStatement, name, isGet, isSet) in methodList)
@@ -5085,7 +5118,7 @@ public class Interpreter
             }
 
             var newClass = new ClassObject(constructor == null ? null : (FunctionObject)constructor.EvaluateExpression(context).value, methods);
-            return (CustomValue.FromClass(newClass), false, false, false);
+            return (CustomValue.FromClass(newClass), ReturnType.None);
         }
 
         public CustomValue EvaluateExpression(Context context)
@@ -5093,7 +5126,7 @@ public class Interpreter
             return EvaluateStatement(context).Item1;
         }
 
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
         {
             throw new NotImplementedException();
         }
@@ -5120,20 +5153,20 @@ public class Interpreter
             this.expression = ExpressionMethods.New(tokens);
         }
 
-        public (CustomValue value, bool isReturn, bool isBreak, bool isContinue) EvaluateStatement(Context context)
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             throw new NotImplementedException();
         }
 
-        public IEnumerable<CustomValue> AsEnumerable(Context context)
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
         {
             if (!isMultiYield)
-                yield return expression.EvaluateExpression(context);
+                yield return (expression.EvaluateExpression(context), ReturnType.Yield);
             else
             {
                 var multiValue = expression.EvaluateExpression(context);
                 foreach (var value in multiValue.AsMultiValue())
-                    yield return value;
+                    yield return (value, ReturnType.Yield);
             }
         }
     }
