@@ -1,20 +1,17 @@
-﻿using System;
+﻿namespace BackupHomeFolder;
 
-namespace BackupHomeFolder
+class ByteSize
 {
-    class ByteSize
+    private static readonly string[] SizeSuffixes = { "bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB" };
+
+    public static string SizeSuffix(long value)
     {
-        private static readonly string[] SizeSuffixes = { "bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB" };
+        if (value < 0) { return "-" + SizeSuffix(-value); }
+        if (value == 0) { return "0.0 bytes"; }
 
-        public static string SizeSuffix(long value)
-        {
-            if (value < 0) { return "-" + SizeSuffix(-value); }
-            if (value == 0) { return "0.0 bytes"; }
+        int mag = (int)Math.Log(value, 1024);
+        decimal adjustedSize = (decimal)value / (1L << (mag * 10));
 
-            int mag = (int)Math.Log(value, 1024);
-            decimal adjustedSize = (decimal)value / (1L << (mag * 10));
-
-            return string.Format("{0:n1} {1}", adjustedSize, SizeSuffixes[mag]);
-        }
+        return string.Format("{0:n1} {1}", adjustedSize, SizeSuffixes[mag]);
     }
 }

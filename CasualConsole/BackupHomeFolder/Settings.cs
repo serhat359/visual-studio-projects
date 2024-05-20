@@ -1,38 +1,40 @@
-﻿using Newtonsoft.Json;
-using System.IO;
+﻿using System.Text.Json;
 
-namespace BackupHomeFolder
+namespace BackupHomeFolder;
+
+class Settings
 {
-    class Settings
+    private const string settingFileName = "settings.json";
+
+    public static void Set(AppSetting setting)
     {
-        private const string settingFileName = "settings.json";
-
-        public static void Set(AppSetting setting)
+        var options = new JsonSerializerOptions
         {
-            string jsonString = JsonConvert.SerializeObject(setting, Formatting.Indented);
+            WriteIndented = true,
+        };
+        string jsonString = JsonSerializer.Serialize(setting, options);
 
-            File.WriteAllText(settingFileName, jsonString);
-        }
-
-        public static AppSetting Get()
-        {
-            try
-            {
-                string jsonString = File.ReadAllText(settingFileName);
-
-                return JsonConvert.DeserializeObject<AppSetting>(jsonString);
-            }
-            catch (FileNotFoundException)
-            {
-                return new AppSetting();
-            }
-        }
+        File.WriteAllText(settingFileName, jsonString);
     }
 
-    class AppSetting
+    public static AppSetting Get()
     {
-        public string SourceFolder { get; set; }
+        try
+        {
+            string jsonString = File.ReadAllText(settingFileName);
 
-        public string DestinationFolder { get; set; }
+            return JsonSerializer.Deserialize<AppSetting>(jsonString);
+        }
+        catch (FileNotFoundException)
+        {
+            return new AppSetting();
+        }
     }
+}
+
+class AppSetting
+{
+    public string SourceFolder { get; set; }
+
+    public string DestinationFolder { get; set; }
 }
