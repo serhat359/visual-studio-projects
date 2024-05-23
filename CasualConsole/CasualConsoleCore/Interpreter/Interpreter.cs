@@ -671,6 +671,8 @@ public class Interpreter
             ("g.next().value", null),
             ("g.next().value", null),
             ("var f = function*(){ yield 1; for(let x of [3,4,5]){ yield x; break; } yield 10; }; [...f()].length", 3),
+            ("if(true){}else if(true){} var x = 105; x", 105),
+            ("if(true);else if(true); var x = 110; x", 110),
         };
 
         var interpreter = new Interpreter();
@@ -808,7 +810,7 @@ public class Interpreter
         int index = 0;
         while (index < tokens.Count)
         {
-            var (newIndex, statement) = GetStatement(tokens, index, expectingElse: false);
+            var (newIndex, statement) = GetStatement(tokens, index, initialOnly: false);
             if (newIndex <= index)
                 throw new Exception();
             statements.Add(statement);
@@ -817,9 +819,14 @@ public class Interpreter
         return statements;
     }
 
-    private static (int, Statement) GetStatement(ArraySegment<string> tokens, int startingIndex, bool expectingElse)
+    private static (int, Statement) GetStatement(ArraySegment<string> tokens, int startingIndex, bool initialOnly)
     {
         var token = tokens[startingIndex];
+        if (initialOnly && token == "else")
+        {
+            startingIndex++;
+            token = tokens[startingIndex];
+        }
 
         switch (token)
         {
@@ -865,22 +872,26 @@ public class Interpreter
                     if (paranEnd < 0)
                         throw new Exception();
 
-                    var (subEnd, subStatement) = GetStatement(tokens, paranEnd + 1, expectingElse: false);
+                    var (subEnd, subStatement) = GetStatement(tokens, paranEnd + 1, initialOnly);
                     var condition = ExpressionMethods.New(tokens[(paranBegin + 1)..paranEnd]);
                     var ifStatement = new IfStatement(condition, subStatement);
+
+                    if (initialOnly)
+                        return (subEnd, ifStatement);
+
                     while (subEnd < tokens.Count && tokens[subEnd] == "else")
                     {
                         bool isElseIf = tokens[subEnd + 1] == "if";
                         if (isElseIf)
                         {
-                            var (elseIfEnd, elseIfStatement) = GetStatement(tokens, subEnd, expectingElse: true);
+                            var (elseIfEnd, elseIfStatement) = GetStatement(tokens, subEnd, initialOnly: true);
                             ifStatement.AddElseIf(elseIfStatement);
                             subEnd = elseIfEnd;
                             continue;
                         }
                         else
                         {
-                            var (elseEnd, elseStatement) = GetStatement(tokens, subEnd + 1, expectingElse: true);
+                            var (elseEnd, elseStatement) = GetStatement(tokens, subEnd, initialOnly: true);
                             ifStatement.SetElse(elseStatement);
                             subEnd = elseEnd;
                             break;
@@ -897,7 +908,7 @@ public class Interpreter
                     if (paranEnd < 0)
                         throw new Exception();
 
-                    var (subEnd, subStatement) = GetStatement(tokens, paranEnd + 1, expectingElse: false);
+                    var (subEnd, subStatement) = GetStatement(tokens, paranEnd + 1, initialOnly: false);
                     var condition = ExpressionMethods.New(tokens[(paranBegin + 1)..paranEnd]);
                     var whileStatement = new WhileStatement(condition, subStatement);
                     return (subEnd, whileStatement);
@@ -911,13 +922,13 @@ public class Interpreter
                     if (paranEnd < 0)
                         throw new Exception();
 
-                    var (subEnd, subStatement) = GetStatement(tokens, paranEnd + 1, expectingElse: false);
+                    var (subEnd, subStatement) = GetStatement(tokens, paranEnd + 1, initialOnly: false);
                     var forStatement = ForStatement.FromTokens(tokens[startingIndex..(paranEnd + 1)], subStatement);
                     return (subEnd, forStatement);
                 }
         }
 
-        if (token == "else" && !expectingElse)
+        if (token == "else")
             throw new Exception();
 
         int firstIndex = startingIndex;
@@ -4297,10 +4308,7 @@ public class Interpreter
                     }
                 case "else":
                     {
-                        if (tokens[1] == "if")
-                            return new ElseIfStatement(tokens);
-                        else
-                            throw new Exception();
+                        throw new Exception();
                     }
                 case "yield":
                     return new YieldStatement(tokens);
@@ -4868,7 +4876,7 @@ public class Interpreter
     }
     class IfStatement : Statement
     {
-        private readonly Expression conditionExpression;
+        internal readonly Expression conditionExpression;
         internal readonly Statement statementOfIf;
         internal readonly List<(Expression condition, Statement statement)> elseIfStatements = new();
         private Statement? elseStatement;
@@ -4883,8 +4891,8 @@ public class Interpreter
         {
             if (elseStatement != null)
                 throw new Exception();
-            var elseIf = (ElseIfStatement)statementAfterIf;
-            elseIfStatements.Add((elseIf.condition, elseIf.statement));
+            var elseIf = (IfStatement)statementAfterIf;
+            elseIfStatements.Add((elseIf.conditionExpression, elseIf.statementOfIf));
         }
 
         internal void SetElse(Statement statementAfterIf)
@@ -4945,31 +4953,6 @@ public class Interpreter
                 return elseStatement.AsEnumerable(context);
 
             throw new Exception();
-        }
-    }
-    class ElseIfStatement : Statement
-    {
-        internal Expression condition;
-        internal Statement statement;
-
-        public ElseIfStatement(ArraySegment<string> tokens)
-        {
-            if (tokens[2] != "(")
-                throw new Exception();
-            var conditionStartIndex = 3;
-            var (condition, statement) = StatementMethods.GetConditionAndBody(tokens, conditionStartIndex);
-            this.condition = condition;
-            this.statement = statement;
-        }
-
-        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
-        {
-            return statement.EvaluateStatement(context);
-        }
-
-        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
-        {
-            return statement.AsEnumerable(context);
         }
     }
     class FunctionStatement : Statement, Expression
