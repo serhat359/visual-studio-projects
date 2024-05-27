@@ -38,6 +38,7 @@ namespace DotNetCoreWebsite.Controllers
         }
 
         [ActionName("1337")]
+        [HttpGet]
         public async Task<IActionResult> Simple1337(string query)
         {
             string noResultText = "No results were returned. Please refine your search.";
@@ -75,6 +76,22 @@ namespace DotNetCoreWebsite.Controllers
                 TableData = tableData
             };
             return View(model);
+        }
+
+        [ActionName("1337")]
+        [HttpPost]
+        public async Task<IActionResult> Simple1337(string? customLink, object? _ = null)
+        {
+            if (string.IsNullOrEmpty(customLink))
+                return View(new Simple1337Model { ErrorMessage = "Link is empty" });
+
+            var browserPath = configuration.GetSection("BrowserPath").Value;
+            if (string.IsNullOrEmpty(browserPath))
+                return View(new Simple1337Model { ErrorMessage = "Browser path not set" });
+
+            await AddLink(browserPath, link: customLink);
+
+            return View(new Simple1337Model{ SuccessMessage = "Success" });
         }
 
         public async Task<IActionResult> Yts(string query)
@@ -423,6 +440,16 @@ namespace DotNetCoreWebsite.Controllers
 
                 startingPoint = Math.Min(beginFound, endFound) + beginTag.Length;
             }
+        }
+
+        private async Task AddLink(string browserFilePath, string link)
+        {
+            Process process = new Process
+            {
+                StartInfo = new ProcessStartInfo(browserFilePath, new string[]{ "-new-tab", link }),
+            };
+            process.Start();
+            await process.WaitForExitAsync();
         }
         #endregion
     }

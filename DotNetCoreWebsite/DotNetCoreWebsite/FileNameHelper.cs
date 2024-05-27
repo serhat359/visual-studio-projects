@@ -32,7 +32,7 @@ namespace DotNetCoreWebsite
             return newFileName;
         }
 
-        public string GetOriginalFileName(string fileName)
+        public string? GetOriginalFileName(string fileName)
         {
             CheckFileNames();
 
@@ -49,10 +49,7 @@ namespace DotNetCoreWebsite
 
         private void CheckFileNames()
         {
-            if (this.fileNames == null)
-            {
-                this.fileNames = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(repositoryFileName));
-            }
+            this.fileNames ??= JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(repositoryFileName));
         }
     }
 }

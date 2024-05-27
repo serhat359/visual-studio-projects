@@ -6,6 +6,13 @@
 
 <h1>x1337</h1>
 
+@if (Model.ErrorMessage != null){
+    <span class="error">@Model.ErrorMessage</span>
+}
+@if (Model.SuccessMessage != null){
+    <span class="success">@Model.SuccessMessage</span>
+}
+
 <form method="get">
     <input asp-for="Query" placeholder="Search" />
     <button>Go</button>
@@ -13,8 +20,20 @@
 
 @Html.Raw(Model.TableData)
 
+<br>
+<form method="post">
+    <input asp-for="CustomLink" placeholder="Magnet Link" />
+    <button>Add</button>
+</form>
+
 <style>
     span.seeds {
         display: none;
+    }
+    span.error {
+        color: red;
+    }
+    span.success {
+        color: green;
     }
 </style>

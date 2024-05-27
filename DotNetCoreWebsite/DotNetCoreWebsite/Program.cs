@@ -34,7 +34,7 @@ namespace DotNetCoreWebsite
                     {
                         AllowAutoRedirect = true,
                         UseDefaultCredentials = true,
-                        AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
+                        AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate | DecompressionMethods.Brotli
                     });
 
             services.AddResponseCompression(options =>
@@ -52,8 +52,7 @@ namespace DotNetCoreWebsite
                 };
             });
 
-            services.AddControllersWithViews()
-                .AddRazorRuntimeCompilation();
+            services.AddControllersWithViews();
         }
 
         private static void Configure(IApplicationBuilder app, IWebHostEnvironment env)
