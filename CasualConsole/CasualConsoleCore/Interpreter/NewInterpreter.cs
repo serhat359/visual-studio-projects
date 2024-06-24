@@ -1097,6 +1097,8 @@ public class NewInterpreter
                             var exprVal = expr.Run(context);
                             return context.Replace(varName, oldVal => MultiplyOrDivide(oldVal, Operator.Modulus, exprVal));
                         }
+                    default:
+                        throw new Exception(); // TODO Modify the other case too
                 }
             }
             else
@@ -1121,14 +1123,58 @@ public class NewInterpreter
                     throw new Exception();
 
                 var (oper, expr) = nextValues[0];
-                if (oper == Operator.NormalAssign)
+
+                switch (oper)
                 {
-                    var val = expr.Run(context);
-                    baseObj.SetProp(prop, val);
-                    return val;
+                    case Operator.NormalAssign:
+                        {
+                            var val = expr.Run(context);
+                            baseObj.SetProp(prop, val);
+                            return val;
+                        }
+                    case Operator.PlusAssign:
+                        {
+                            var exprVal = expr.Run(context);
+                            var objVal = baseObj.GetProp(prop);
+                            objVal = AddOrSubtract(objVal, Operator.Plus, exprVal);
+                            baseObj.SetProp(prop, objVal);
+                            return objVal;
+                        }
+                    case Operator.MinusAssign:
+                        {
+                            var exprVal = expr.Run(context);
+                            var objVal = baseObj.GetProp(prop);
+                            objVal = AddOrSubtract(objVal, Operator.Minus, exprVal);
+                            baseObj.SetProp(prop, objVal);
+                            return objVal;
+                        }
+                    case Operator.MultiplyAssign:
+                        {
+                            var exprVal = expr.Run(context);
+                            var objVal = baseObj.GetProp(prop);
+                            objVal = MultiplyOrDivide(objVal, Operator.Multiply, exprVal);
+                            baseObj.SetProp(prop, objVal);
+                            return objVal;
+                        }
+                    case Operator.DivideAssign:
+                        {
+                            var exprVal = expr.Run(context);
+                            var objVal = baseObj.GetProp(prop);
+                            objVal = MultiplyOrDivide(objVal, Operator.Divide, exprVal);
+                            baseObj.SetProp(prop, objVal);
+                            return objVal;
+                        }
+                    case Operator.ModulusAssign:
+                        {
+                            var exprVal = expr.Run(context);
+                            var objVal = baseObj.GetProp(prop);
+                            objVal = MultiplyOrDivide(objVal, Operator.ModulusAssign, exprVal);
+                            baseObj.SetProp(prop, objVal);
+                            return objVal;
+                        }
+                    default:
+                        throw new Exception(); // TODO Modify the other case too
                 }
-                else
-                    throw new Exception();
             }
 
             throw new Exception();
