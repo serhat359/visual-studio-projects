@@ -419,6 +419,8 @@ public class Interpreter
             ("var x3 = true && modifier(); x3 == false && x1 == -8", true), // Optimization check
             ("var plusplus7 = 8; var plusplus8 = plusplus7++; plusplus8 == 8 && plusplus7 == 9", true),
             ("var plusplus9 = 10; 2 + plusplus9++", 12),
+            ("var plusplus9 = 10; 2 + 5 * plusplus9++", 52),
+            ("var plusplus9 = 10; 2 * 5 + plusplus9++", 20),
             ("var o9 = { number: 5 }; var n1 = o9['number']++; n1 == 5 && o9['number'] == 6", true),
             ("var o10 = { number: 6 }; var n2 = o10.number++; n2 == 6 && o10.number == 7", true),
             ("var plusplus10 = 9; 2 + plusplus10--", 11),
