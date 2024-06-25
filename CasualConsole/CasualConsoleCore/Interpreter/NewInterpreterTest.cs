@@ -281,6 +281,8 @@ public class NewInterpreterTest
             ("var x3 = true && modifier(); x3 == false && x1 == -8", true), // Optimization check
             ("var plusplus7 = 8; var plusplus8 = plusplus7++; plusplus8 == 8 && plusplus7 == 9", true),
             ("var plusplus9 = 10; 2 + plusplus9++", 12),
+            ("var plusplus9 = 10; 2 + 5 * plusplus9++", 52),
+            ("var plusplus9 = 10; 2 * 5 + plusplus9++", 20),
             ("var o9 = { number: 5 }; var n1 = o9['number']++; n1 == 5 && o9['number'] == 6", true),
             ("var o10 = { number: 6 }; var n2 = o10.number++; n2 == 6 && o10.number == 7", true),
             ("var plusplus10 = 9; 2 + plusplus10--", 11),
@@ -486,9 +488,11 @@ public class NewInterpreterTest
             ("(function(a,b,...rest){ return rest.length })()", 0),
             ("class Rectangle { constructor(height, width) { this.height = height; this.width = width; } get area() { return this.calcArea(); } calcArea() { return this.height * this.width; } } new Rectangle(10,20).height", 10),
             ("new Rectangle(10,20).area", 200),
+            ("new Rectangle(10,20).calcArea()", 200),
             ("Rectangle != null", true),
             ("Rectangle.prototype.calcArea != null", true),
             ("Rectangle.prototype.isSquare = function(){ return this.width == this.height; }; new Rectangle(20,20).isSquare()", true),
+            ("var r = new Rectangle(10,20); r.calcArea = 'custom'; r.calcArea", "custom"),
             ("var proxy = new Proxy([], {}); proxy.push(12); proxy.length", 1),
             ("var proxy = new Proxy({}, {}); proxy.name = 'Serhat'; proxy.name", "Serhat"),
             ("var proxy = new Proxy({ name(){ return 'Serhat' } }, {}); proxy.name()", "Serhat"),
@@ -518,6 +522,21 @@ public class NewInterpreterTest
             ("var k = ''; var n = null; k &&= n=2; n", null), // Checking optimization
             ("var o = { name:'thisName', getName(){ return (() => this.name)(); } }; o.getName()", "thisName"),
             ("var [x, ...y] = [1,2,3,4]; y.length", 3),
+            ("[1,2,3].map(x => x + 1).length", 3),
+            ("[1,2,3].filter(x => x < 3).length", 2),
+            ("var sum = function(arr){ let total = 0; for (let x of arr) total += x; return total }; sum([1,2,3].map(x => x + 1))", 9),
+            ("var arr = [1,2,3]; arr.map = null; arr.map", null),
+            ("[1,2,3].join(',')", "1,2,3"),
+            ("-({ arr: ()=>[1,2,3] }).arr().map(x => x).length", -3),
+            ("var gen = function*(){ yield 1; yield 2; return 3; yield 4; yield 5; }; [...gen()].length", 2),
+            ("var gen = function*(){ yield 1; yield 2; { if (true) { return 3; } } yield 4; yield 5; }; [...gen()].length", 2),
+            ("var gen = function*(){ yield 1; return 2; yield 2; }; var g = gen();", null),
+            ("g.next().value", 1),
+            ("g.next().value", null),
+            ("g.next().value", null),
+            ("var f = function*(){ yield 1; for(let x of [3,4,5]){ yield x; break; } yield 10; }; [...f()].length", 3),
+            ("if(true){}else if(true){} var x = 105; x", 105),
+            ("if(true);else if(true); var x = 110; x", 110),
         };
 
         var interpreter = new NewInterpreter();

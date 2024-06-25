@@ -238,11 +238,21 @@ public class NewInterpreter
             {
                 if (precedence < Precedence.FunctionCall)
                 {
-                    var nextExpression = ReadInitialExpression(ref tokenizer);
-                    if (firstExpression is not TreeExpression tree)
-                        firstExpression = new TreeExpression(precedence, firstExpression, oper, nextExpression);
+                    if (precedence == Precedence.PostfixIncrement)
+                    {
+                        if (firstExpression is TreeExpression tree)
+                            tree.ReplaceLastPostFix(oper == Operator.MinusMinusPostfix);
+                        else
+                            firstExpression = new PostfixIncDecExpression(oper == Operator.MinusMinusPostfix, firstExpression);
+                    }
                     else
-                        firstExpression = tree.Combine(precedence, oper, nextExpression);
+                    {
+                        var nextExpression = ReadInitialExpression(ref tokenizer);
+                        if (firstExpression is TreeExpression tree)
+                            firstExpression = tree.Combine(precedence, oper, nextExpression);
+                        else
+                            firstExpression = new TreeExpression(precedence, firstExpression, oper, nextExpression);
+                    }
                 }
                 else if (oper == Operator.FunctionCall)
                 {
@@ -325,6 +335,13 @@ public class NewInterpreter
             var expr = ReadInitialExpression(ref tokenizer);
             return new SinglePlusMinusExpression(isMinus, expr);
         }
+        bool isPlusPlus = firstToken.SequenceEqual("++");
+        bool isMinusMinus = firstToken.SequenceEqual("--");
+        if (isPlusPlus || isMinusMinus)
+        {
+            var expr = ReadInitialExpression(ref tokenizer);
+            return new PrefixIncDecExpression(isMinusMinus, expr);
+        }
         if (firstToken.SequenceEqual("!"))
         {
             var expr = ReadInitialExpression(ref tokenizer);
@@ -350,7 +367,7 @@ public class NewInterpreter
 
             if (expressions.Count != 1)
             {
-                // read for arrow for lambda expresion
+                // read for arrow for lambda expression
                 var next = tokenizer.ReadToken();
                 if (!next.SequenceEqual("=>"))
                     throw new Exception();
@@ -366,7 +383,7 @@ public class NewInterpreter
                 return new ParanthesesExpression(expressions[0]);
             if (nextToken.SequenceEqual("=>"))
             {
-                // read for arrow for lambda expresion
+                // read for arrow for lambda expression
                 throw new Exception();
             }
             else
@@ -515,10 +532,9 @@ public class NewInterpreter
         public CustomValue GetVariable(string varName)
         {
             var context = this;
-            CustomValue value;
             while (true)
             {
-                if (context.variables.TryGetValue(varName, out value))
+                if (context.variables.TryGetValue(varName, out var value))
                 {
                     return value;
                 }
@@ -533,10 +549,9 @@ public class NewInterpreter
         public void SetExisting(string varName, CustomValue newValue)
         {
             var context = this;
-            CustomValue oldValue;
             while (true)
             {
-                if (context.variables.TryGetValue(varName, out oldValue))
+                if (context.variables.TryGetValue(varName, out var _))
                 {
                     context.variables[varName] = newValue;
                     return;
@@ -549,10 +564,9 @@ public class NewInterpreter
             }
         }
 
-        public CustomValue Replace(string varName, Func<CustomValue, CustomValue> f)
+        public CustomValue Replace(string varName, Func<CustomValue, CustomValue> f, out CustomValue oldValue)
         {
             Context context = this;
-            CustomValue oldValue;
             while (true)
             {
                 if (context.variables.TryGetValue(varName, out oldValue))
@@ -582,6 +596,15 @@ public class NewInterpreter
         (CustomValue, ResultType) Statement.Run(Context context)
         {
             return (Run(context), ResultType.Normal);
+        }
+    }
+    abstract class UnaryExpression : Expression
+    {
+        internal Expression expressionRest;
+
+        protected UnaryExpression(Expression expressionRest)
+        {
+            this.expressionRest = expressionRest;
         }
     }
     interface ChainExpression
@@ -836,8 +859,8 @@ public class NewInterpreter
     }
     class FunctionStatement : Statement
     {
-        string functionName;
-        FunctionExpression expression;
+        private readonly string functionName;
+        private readonly FunctionExpression expression;
 
         public FunctionStatement(string functionName, FunctionExpression expression)
         {
@@ -934,15 +957,13 @@ public class NewInterpreter
             return context.GetVariable(varName);
         }
     }
-    class SinglePlusMinusExpression : Expression
+    class SinglePlusMinusExpression : UnaryExpression
     {
         private readonly bool isMinus;
-        private readonly Expression expressionRest;
 
-        public SinglePlusMinusExpression(bool isMinus, Expression expressionRest)
+        public SinglePlusMinusExpression(bool isMinus, Expression expressionRest) : base(expressionRest)
         {
             this.isMinus = isMinus;
-            this.expressionRest = expressionRest;
         }
 
         public override CustomValue Run(Context context)
@@ -957,13 +978,45 @@ public class NewInterpreter
                 return CustomValue.FromNumber((double)rest.value);
         }
     }
-    class NotExpression : Expression
+    class PrefixIncDecExpression : UnaryExpression
     {
-        private readonly Expression expressionRest;
+        private readonly bool isMinusMinus;
 
-        public NotExpression(Expression expressionRest)
+        public PrefixIncDecExpression(bool isMinusMinus, Expression expressionRest) : base(expressionRest)
         {
-            this.expressionRest = expressionRest;
+            this.isMinusMinus = isMinusMinus;
+        }
+
+        public override CustomValue Run(Context context)
+        {
+            return RunReplaceExpression(expressionRest, oldVal =>
+            {
+                return AddOrSubtract(oldVal, Operator.Plus, CustomValue.FromNumber(isMinusMinus ? -1 : 1));
+            }, context, out var _);
+        }
+    }
+    class PostfixIncDecExpression : UnaryExpression
+    {
+        private readonly bool isMinusMinus;
+
+        public PostfixIncDecExpression(bool isMinusMinus, Expression expressionRest) : base(expressionRest)
+        {
+            this.isMinusMinus = isMinusMinus;
+        }
+
+        public override CustomValue Run(Context context)
+        {
+            RunReplaceExpression(expressionRest, oldVal =>
+            {
+                return AddOrSubtract(oldVal, Operator.Plus, CustomValue.FromNumber(isMinusMinus ? -1 : 1));
+            }, context, out var oldValue);
+            return oldValue;
+        }
+    }
+    class NotExpression : UnaryExpression
+    {
+        public NotExpression(Expression expressionRest) : base(expressionRest)
+        {
         }
 
         public override CustomValue Run(Context context)
@@ -1016,7 +1069,7 @@ public class NewInterpreter
             switch (precedence)
             {
                 case Precedence.Assignment:
-                    return HandleAsignment(context);
+                    return HandleAssignment(context);
                 case Precedence.EqualityCheck:
                     {
                         var value = firstExpression.Run(context);
@@ -1053,131 +1106,73 @@ public class NewInterpreter
                         }
                         return CustomValue.FromNumber(value);
                     }
+                case Precedence.AndAnd:
+                    {
+                        var value = firstExpression.Run(context);
+                        if (!value.IsTruthy())
+                            return CustomValue.False;
+                        foreach (var (_, expression) in nextValues)
+                        {
+                            value = expression.Run(context);
+                            if (!value.IsTruthy())
+                                return CustomValue.False;
+                        }
+                        return CustomValue.True;
+                    }
+                case Precedence.OrOr:
+                    {
+                        var value = firstExpression.Run(context);
+                        foreach (var (op, expression) in nextValues)
+                        {
+                            if (op == Operator.OrOr && value.IsTruthy())
+                                return value;
+                            if (op == Operator.DoubleQuestion && value.type != ValueType.Null)
+                                return value;
+
+                            value = expression.Run(context);
+                        }
+                        return value;
+                    }
             }
 
             throw new NotImplementedException();
         }
 
-        private CustomValue HandleAsignment(Context context)
+        private CustomValue HandleAssignment(Context context)
         {
-            if (firstExpression is VariableExpression varex)
+            var (oper, expr) = nextValues[0];
+            var val = expr.Run(context);
+
+            switch (oper)
             {
-                var varName = varex.varName;
-                var (oper, expr) = nextValues[0];
-                switch (oper)
-                {
-                    case Operator.NormalAssign:
-                        {
-                            var val = expr.Run(context);
-                            context.SetExisting(varName, val);
-                            return val;
-                        }
-                    case Operator.PlusAssign:
-                        {
-                            var exprVal = expr.Run(context);
-                            return context.Replace(varName, oldVal => AddOrSubtract(oldVal, Operator.Plus, exprVal));
-                        }
-                    case Operator.MinusAssign:
-                        {
-                            var exprVal = expr.Run(context);
-                            return context.Replace(varName, oldVal => AddOrSubtract(oldVal, Operator.Minus, exprVal));
-                        }
-                    case Operator.MultiplyAssign:
-                        {
-                            var exprVal = expr.Run(context);
-                            return context.Replace(varName, oldVal => MultiplyOrDivide(oldVal, Operator.Multiply, exprVal));
-                        }
-                    case Operator.DivideAssign:
-                        {
-                            var exprVal = expr.Run(context);
-                            return context.Replace(varName, oldVal => MultiplyOrDivide(oldVal, Operator.Divide, exprVal));
-                        }
-                    case Operator.ModulusAssign:
-                        {
-                            var exprVal = expr.Run(context);
-                            return context.Replace(varName, oldVal => MultiplyOrDivide(oldVal, Operator.Modulus, exprVal));
-                        }
-                    default:
-                        throw new Exception(); // TODO Modify the other case too
-                }
-            }
-            else
-            {
-                var op18 = (Op18Expression)firstExpression;
-
-                if (op18.links[^1] is FunctionCallChain)
+                case Operator.NormalAssign:
+                    {
+                        RunSetExpression(firstExpression, val, context);
+                        return val;
+                    }
+                case Operator.PlusAssign:
+                    {
+                        return RunReplaceExpression(firstExpression, oldVal => AddOrSubtract(oldVal, Operator.Plus, val), context, out var _);
+                    }
+                case Operator.MinusAssign:
+                    {
+                        return RunReplaceExpression(firstExpression, oldVal => AddOrSubtract(oldVal, Operator.Minus, val), context, out var _);
+                    }
+                case Operator.MultiplyAssign:
+                    {
+                        return RunReplaceExpression(firstExpression, oldVal => MultiplyOrDivide(oldVal, Operator.Multiply, val), context, out var _);
+                    }
+                case Operator.DivideAssign:
+                    {
+                        return RunReplaceExpression(firstExpression, oldVal => MultiplyOrDivide(oldVal, Operator.Divide, val), context, out var _);
+                    }
+                case Operator.ModulusAssign:
+                    {
+                        return RunReplaceExpression(firstExpression, oldVal => MultiplyOrDivide(oldVal, Operator.Modulus, val), context, out var _);
+                    }
+                default:
                     throw new Exception();
-
-                var baseObj = (IObject)op18.RunAllButLast(context).value;
-                var lastExpression = op18.links[^1];
-                string prop;
-                if (lastExpression is MemberAccessChain memAcc)
-                {
-                    prop = (string)memAcc.expression.Run(context).value;
-                }
-                else if (lastExpression is DotAccessChain dotAcc)
-                {
-                    prop = dotAcc.prop;
-                }
-                else
-                    throw new Exception();
-
-                var (oper, expr) = nextValues[0];
-
-                switch (oper)
-                {
-                    case Operator.NormalAssign:
-                        {
-                            var val = expr.Run(context);
-                            baseObj.SetProp(prop, val);
-                            return val;
-                        }
-                    case Operator.PlusAssign:
-                        {
-                            var exprVal = expr.Run(context);
-                            var objVal = baseObj.GetProp(prop);
-                            objVal = AddOrSubtract(objVal, Operator.Plus, exprVal);
-                            baseObj.SetProp(prop, objVal);
-                            return objVal;
-                        }
-                    case Operator.MinusAssign:
-                        {
-                            var exprVal = expr.Run(context);
-                            var objVal = baseObj.GetProp(prop);
-                            objVal = AddOrSubtract(objVal, Operator.Minus, exprVal);
-                            baseObj.SetProp(prop, objVal);
-                            return objVal;
-                        }
-                    case Operator.MultiplyAssign:
-                        {
-                            var exprVal = expr.Run(context);
-                            var objVal = baseObj.GetProp(prop);
-                            objVal = MultiplyOrDivide(objVal, Operator.Multiply, exprVal);
-                            baseObj.SetProp(prop, objVal);
-                            return objVal;
-                        }
-                    case Operator.DivideAssign:
-                        {
-                            var exprVal = expr.Run(context);
-                            var objVal = baseObj.GetProp(prop);
-                            objVal = MultiplyOrDivide(objVal, Operator.Divide, exprVal);
-                            baseObj.SetProp(prop, objVal);
-                            return objVal;
-                        }
-                    case Operator.ModulusAssign:
-                        {
-                            var exprVal = expr.Run(context);
-                            var objVal = baseObj.GetProp(prop);
-                            objVal = MultiplyOrDivide(objVal, Operator.ModulusAssign, exprVal);
-                            baseObj.SetProp(prop, objVal);
-                            return objVal;
-                        }
-                    default:
-                        throw new Exception(); // TODO Modify the other case too
-                }
             }
-
-            throw new Exception();
         }
 
         public static bool TryParseOperator(ReadOnlySpan<char> token, out Precedence precedence, out Operator op)
@@ -1304,6 +1299,30 @@ public class NewInterpreter
                         op = Operator.DotMemberAccess;
                         return true;
                     }
+                case "&&":
+                    {
+                        precedence = Precedence.AndAnd;
+                        op = Operator.AndAnd;
+                        return true;
+                    }
+                case "||":
+                    {
+                        precedence = Precedence.OrOr;
+                        op = Operator.OrOr;
+                        return true;
+                    }
+                case "++":
+                    {
+                        precedence = Precedence.PostfixIncrement;
+                        op = Operator.PlusPlusPostfix;
+                        return true;
+                    }
+                case "--":
+                    {
+                        precedence = Precedence.PostfixIncrement;
+                        op = Operator.MinusMinusPostfix;
+                        return true;
+                    }
                 default:
                     throw new Exception();
             }
@@ -1316,6 +1335,7 @@ public class NewInterpreter
                 this.nextValues.Add((oper, nextExpression));
                 return this;
             }
+
             if (precedence < this.precedence)
             {
                 return new TreeExpression(precedence, this, oper, nextExpression);
@@ -1325,21 +1345,38 @@ public class NewInterpreter
             while (true)
             {
                 var nexts = CollectionsMarshal.AsSpan(nextValues);
-                ref var kk = ref nexts[^1];
-                if (kk.expression is not TreeExpression tree)
+                ref var lastNext = ref nexts[^1];
+                if (lastNext.expression is not TreeExpression tree)
                 {
-                    kk.expression = new TreeExpression(precedence, kk.expression, oper, nextExpression);
+                    lastNext.expression = new TreeExpression(precedence, lastNext.expression, oper, nextExpression);
                     return this;
                 }
                 else if (precedence < tree.precedence)
                 {
-                    kk.expression = new TreeExpression(precedence, kk.expression, oper, nextExpression);
+                    lastNext.expression = new TreeExpression(precedence, lastNext.expression, oper, nextExpression);
                     return this;
                 }
                 else if (precedence == tree.precedence)
                 {
                     tree.nextValues.Add((oper, nextExpression));
                     return this;
+                }
+                else
+                    nextValues = tree.nextValues;
+            }
+        }
+
+        internal void ReplaceLastPostFix(bool isMinusMinus)
+        {
+            var nextValues = this.nextValues;
+            while (true)
+            {
+                var nexts = CollectionsMarshal.AsSpan(nextValues);
+                ref var lastNext = ref nexts[^1];
+                if (lastNext.expression is not TreeExpression tree)
+                {
+                    lastNext.expression = new PostfixIncDecExpression(isMinusMinus, lastNext.expression);
+                    return;
                 }
                 else
                     nextValues = tree.nextValues;
@@ -1368,6 +1405,11 @@ public class NewInterpreter
             if (expression is Op18Expression op18)
             {
                 op18.AddChain(chain);
+                return;
+            }
+            if (expression is UnaryExpression unary)
+            {
+                CombineOp18(ref unary.expressionRest, chain);
                 return;
             }
             throw new NotImplementedException();
@@ -1512,6 +1554,51 @@ public class NewInterpreter
         }
 
         throw new Exception();
+    }
+    private static void RunSetExpression(Expression expr, CustomValue value, Context context)
+    {
+        if (expr is VariableExpression varex)
+        {
+            var varName = varex.varName;
+            context.SetExisting(varName, value);
+        }
+        else
+        {
+            var (baseObj, prop) = GetBaseObjAndProp((Op18Expression)expr, context);
+            baseObj.SetProp(prop, value);
+        }
+    }
+    private static CustomValue RunReplaceExpression(Expression expr, Func<CustomValue, CustomValue> converter, Context context, out CustomValue oldValue)
+    {
+        if (expr is VariableExpression varex)
+        {
+            var varName = varex.varName;
+            return context.Replace(varName, converter, out oldValue);
+        }
+        else
+        {
+            var (baseObj, prop) = GetBaseObjAndProp((Op18Expression)expr, context);
+            oldValue = baseObj.GetProp(prop);
+            var newValue = converter(oldValue);
+            baseObj.SetProp(prop, newValue);
+            return newValue;
+        }
+    }
+    private static (IObject, string) GetBaseObjAndProp(Op18Expression op18, Context context)
+    {
+        if (op18.links[^1] is FunctionCallChain)
+            throw new Exception();
+        var baseObj = (IObject)op18.RunAllButLast(context).value;
+        var lastExpression = op18.links[^1];
+        string prop;
+        if (lastExpression is MemberAccessChain memAcc)
+            prop = (string)memAcc.expression.Run(context).value;
+        else if (lastExpression is DotAccessChain dotAcc)
+            prop = dotAcc.prop;
+        else
+            throw new Exception();
+
+        return (baseObj, prop);
     }
     #endregion
 
@@ -1694,6 +1781,8 @@ public class NewInterpreter
         AndAnd,
         OrOr,
         DoubleQuestion,
+        PlusPlusPostfix,
+        MinusMinusPostfix,
         DotMemberAccess,
         ComputedMemberAccess,
         FunctionCall,
