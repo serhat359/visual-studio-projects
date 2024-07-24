@@ -2085,8 +2085,8 @@ public class Interpreter
             if (thisArray.type != ValueType.Array)
                 throw new Exception();
             var array = (CustomArray)thisArray.value;
-            var pushValue = context.variableScope.GetVariable(Parameters[0].paramName);
-            array.list.Add(pushValue);
+            var values = context.variableScope.GetVariable("arguments").AsMultiValue();
+            array.list.AddRange(values);
             return (CustomValue.FromNumber(array.list.Count), ReturnType.None);
         }
 
