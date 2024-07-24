@@ -1,5 +1,4 @@
-﻿using CasualConsoleCore.XmlParser;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
@@ -7,6 +6,8 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 
@@ -14,23 +15,18 @@ namespace CasualConsoleCore;
 
 public class Program
 {
-    private static HttpClient client = new HttpClient(new HttpClientHandler()
+    private static readonly HttpClient client = new(new HttpClientHandler()
     {
-        AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
+        AutomaticDecompression = DecompressionMethods.All,
         ServerCertificateCustomValidationCallback = (httpRequestMessage, cert, cetChain, policyErrors) => true
     });
 
-    static void Main(string[] args)
+    static void Main()
     {
         Console.OutputEncoding = Encoding.UTF8;
         client.DefaultRequestHeaders.Add("User-Agent", "Other");
 
         ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
-
-        //Interpreter.Interpreter.Test();
-        //Interpreter.Interpreter.Benchmark();
-
-        //StartInterpreterConsole();
 
         //XmlParserTest.Test();
 
@@ -40,7 +36,8 @@ public class Program
 
         //FixMovieSubs();
 
-        //HorizonPuzzle.SolveHorizonPuzzle();
+        //Interpreter.Interpreter.Test();
+        //Interpreter.NewInterpreterTest.Test();
 
         return;
         var newFilePath = @"D:\Downloads\decrypted_files\chinesemovie\chinesemovie-Chinese_2.srt";
@@ -59,6 +56,66 @@ public class Program
         var mergedList = chineseParsed.Concat(englishParsed).OrderBy(x => x.TimeBegin).ToList();
 
         WriteSrtLinesToFile(mergedFilePath, mergedList);
+    }
+
+    private static void ImportNotes()
+    {
+        var jsonOptions = new JsonSerializerOptions { WriteIndented = true };
+
+        var basePath = @"C:\Users\Xhertas\Desktop\notes transfer page";
+        var notes = JsonSerializer.Deserialize<string[]>(File.ReadAllText(basePath + "\\notes generated.json"));
+
+        var originalData = JsonSerializer.Deserialize<Dictionary<string, object>>(File.ReadAllText(basePath + "\\manual_backup_orig.txt"));
+        var firstNoteText = ((JsonElement)originalData["notes"])[0].ToString();
+
+        var baseDate = DateTime.Now.AddDays(-1);
+        static string DateToTextForNotes(DateTime dateTime) => dateTime.ToString("yyyy MM dd  HH:mm:ss");
+        int id = 2;
+        var newNotes = new List<Dictionary<string, object>>();
+        foreach (var note in notes)
+        {
+            var newDate = baseDate.AddMinutes(id);
+            var parsedNote = JsonSerializer.Deserialize<Dictionary<string, object>>(firstNoteText);
+            parsedNote["uuid"] = Guid.NewGuid().ToString();
+            parsedNote["id"] = id;
+            parsedNote["content"] = note;
+            parsedNote["createdDate"] = DateToTextForNotes(newDate);
+            parsedNote["lastModifiedDate"] = DateToTextForNotes(newDate);
+            parsedNote["color"] = -769226;
+            var newText = JsonSerializer.Serialize(parsedNote, jsonOptions);
+            id++;
+
+            newNotes.Add(parsedNote);
+        }
+        originalData["notes"] = newNotes;
+        File.WriteAllText(basePath + "\\manual_backup_modified.txt", contents: JsonSerializer.Serialize(originalData, jsonOptions));
+    }
+
+    private static async Task ImportFreecellGame(int gameNo)
+    {
+        var text = await (await client.GetAsync($"https://freecellgamesolutions.com/fcs/?game={gameNo}")).Content.ReadAsStringAsync();
+        var i1 = text.IndexOf("<table id");
+        var end = "</table>";
+        var i2 = text.IndexOf(end, i1);
+        var between = text[i1..(i2 + end.Length)];
+
+        var parts = XmlParser.XmlParser.GetParts(between).ToList();
+
+        parts = parts.Where(x => !x.token.StartsWith('<')).ToList();
+        if (parts.Count != 108)
+            throw new Exception();
+        var cardList = new List<string>(52);
+        for (int i = 0; i < 52 * 2; i += 2)
+        {
+            var group = XmlParser.XmlParser.NormalizeXml(parts[i].token + parts[i + 1].token);
+            cardList.Add(group);
+        }
+        var path = $@"C:\Users\Xhertas\Documents\Visual Studio 2017\Projects\CasualConsole\CasualConsoleCore\FreeCellGames\freecellGame{gameNo}.json";
+        var jsonOptions = new JsonSerializerOptions()
+        {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
+        File.WriteAllText(path: path, JsonSerializer.Serialize(new { cards = cardList }, jsonOptions));
     }
 
     private static void WriteSrtLinesToFile(string filePath, List<SrtParsedLine> lineList)
@@ -178,39 +235,6 @@ public class Program
     {
         return $"{time.Hours:D2}:{time.Minutes:D2}:{time.Seconds:D2},{time.Milliseconds:D3}";
     }
-
-    private static void StartInterpreterConsole()
-    {
-        Console.WriteLine("Welcome to Serhat's JS Interpreter!");
-        var consoleInterpreter = new Interpreter.Interpreter();
-        while (true)
-        {
-            Console.Write("$: ");
-            string line = Console.ReadLine()!;
-            try
-            {
-                var val = consoleInterpreter.InterpretCode(line);
-                if (val is null)
-                {
-                    var oldColor = Console.ForegroundColor;
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
-                    Console.Error.WriteLine("(null)");
-                    Console.ForegroundColor = oldColor;
-                }
-                else if (val is bool valbool)
-                    Console.WriteLine(valbool ? "true" : "false");
-                else
-                    Console.WriteLine(val.ToString());
-            }
-            catch (Exception e)
-            {
-                var oldColor = Console.ForegroundColor;
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.Error.WriteLine(e.Message);
-                Console.ForegroundColor = oldColor;
-            }
-        }
-    }
 }
 
 public static class AsyncExtensions
@@ -315,47 +339,5 @@ public static class AsyncExtensions
 
         for (int i = 0; i < elements.Count; i++)
             yield return await channel.Reader.ReadAsync();
-    }
-}
-
-public static class XmlExtensions
-{
-    public static IEnumerable<XmlNode> GetAllRecursive(this XmlNode node)
-    {
-        yield return node;
-        foreach (var childNode in node.ChildNodes)
-        {
-            foreach (var childChildNode in GetAllRecursive(childNode))
-            {
-                yield return childChildNode;
-            }
-        }
-    }
-}
-public static class StringSpanExtensions
-{
-    public static IReadOnlyList<(int start, int end)> SplitByLines(this ReadOnlySpan<char> text)
-    {
-        var list = new List<(int start, int end)>();
-        int start = 0;
-        for (int i = 0; i < text.Length; i++)
-        {
-            switch (text[i])
-            {
-                case '\n':
-                    list.Add((start, i));
-                    start = i + 1;
-                    break;
-                case '\r':
-                    list.Add((start, i));
-                    start = i + 2;
-                    i++;
-                    break;
-                default:
-                    break;
-            }
-        }
-        list.Add((start, text.Length));
-        return list;
     }
 }

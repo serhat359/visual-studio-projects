@@ -327,9 +327,9 @@ e <c>DData</c>
 </picture>
 ";
 
-            var mydoc = XmlParser.Parse(text, isHtml: true);
-            if (mydoc.ChildNodes.Count != 1) throw new System.Exception();
-            if (mydoc.ChildNodes[0].ChildNodes.Count != 4) throw new System.Exception();
+        var mydoc = XmlParser.Parse(text, isHtml: true);
+        if (mydoc.ChildNodes.Count != 1) throw new System.Exception();
+        if (mydoc.ChildNodes[0].ChildNodes.Count != 4) throw new System.Exception();
     }
 
     private static void AllowSelfClosingToImmediatelyClose()
