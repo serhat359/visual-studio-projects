@@ -1,12 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 
-namespace MVCCore.Controllers
+namespace MVCCore.Controllers;
+
+public class BaseController : Controller
 {
-    public class BaseController : Controller
+    protected MyXmlResult Xml<E>(E obj)
     {
-        protected MyXmlResult Xml<E>(E obj)
-        {
-            return new MyXmlResult(obj);
-        }
+        return new MyXmlResult(obj);
     }
 }

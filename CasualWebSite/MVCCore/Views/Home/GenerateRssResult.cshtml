@@ -1,0 +1,22 @@
+﻿@model System.Collections.Generic.List<(string title, string link)>
+
+@{
+    ViewBag.Title = "GenerateRssResult";
+}
+
+<h2>GenerateRssResult</h2>
+
+<style>
+    .rssLinks a:visited {
+        color: #551A8B;
+    }
+</style>
+
+<div class="rssLinks">
+    <ul>
+        @foreach (var (title, link) in Model)
+        {
+            <li><a href="@link">@title</a></li>
+        }
+    </ul>
+</div>

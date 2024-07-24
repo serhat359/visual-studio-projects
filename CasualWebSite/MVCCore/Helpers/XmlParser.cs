@@ -1,4 +1,7 @@
-﻿using System.Collections.Specialized;
+﻿using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Web;
@@ -22,9 +25,20 @@ namespace MVCCore.Helpers
                 if (partsEnumerable.FirstOrDefault().token.StartsWith("<!"))
                     partsEnumerable = partsEnumerable.Skip(1);
             }
-            ArraySegment<(string, int)> parts = partsEnumerable.ToArray();
 
             var topDocument = new XmlNodeBase();
+
+            if (partsEnumerable.Any())
+            {
+                var firstToken = partsEnumerable.First().token;
+                if (firstToken.StartsWith("<?"))
+                {
+                    topDocument.xmlHeader = firstToken;
+                    partsEnumerable = partsEnumerable.Skip(1);
+                }
+            }
+
+            ArraySegment<(string, int)> parts = partsEnumerable.ToArray();
 
             if (parts.Count > 0)
             {
@@ -220,11 +234,12 @@ namespace MVCCore.Helpers
                 string? attrValue = null;
                 if (s[i] == '=')
                 {
-                    char startCharacter = s[i + 1] switch
+                    char c = s[i + 1];
+                    char startCharacter = c switch
                     {
                         '"' => '"',
                         '\'' => '\'',
-                        _ => throw new Exception(),
+                        _ => throw new Exception($"unexpected characted: {c}"),
                     };
 
                     var attrValueStart = i += 2;
@@ -259,6 +274,7 @@ namespace MVCCore.Helpers
     {
         private readonly List<object> children = new List<object>();
         private readonly List<XmlNode> childNodes = new List<XmlNode>();
+        public string xmlHeader = "";
 
         public IReadOnlyList<object> Children => children;
         public IReadOnlyList<XmlNode> ChildNodes => childNodes;
@@ -297,9 +313,16 @@ namespace MVCCore.Helpers
             children.Add(text);
         }
 
+        public void ClearChildren()
+        {
+            children.Clear();
+            childNodes.Clear();
+        }
+
         public string Beautify(string indentChars = "  ", string newLineChars = "\r\n")
         {
             var sb = new StringBuilder();
+            sb.Append(xmlHeader);
 
             foreach (var item in ChildNodes)
             {

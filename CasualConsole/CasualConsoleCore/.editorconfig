@@ -1,0 +1,9 @@
+[*]
+end_of_line = lf
+
+dotnet_diagnostic.IDE0028.severity = none # Collection can be simplified
+dotnet_diagnostic.IDE0301.severity = none # Collection can be simplified (empty array)
+dotnet_diagnostic.IDE0300.severity = none # Collection can be simplified (normal array)
+dotnet_diagnostic.IDE0305.severity = none # Collection can be simplified (spread operator)
+dotnet_diagnostic.IDE0290.severity = none # Primary constructor
+dotnet_diagnostic.IDE0251.severity = none # Member method can be made readonly

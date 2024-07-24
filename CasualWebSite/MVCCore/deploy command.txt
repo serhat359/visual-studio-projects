@@ -1,0 +1,3 @@
+dotnet build MVCCore.csproj /p:DeployOnBuild=true -c Release /p:PublishProfile="FolderProfile"
+
+!!! run on cmd

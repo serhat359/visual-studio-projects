@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.Caching.Memory;
+using System;
+using System.Threading.Tasks;
 
 namespace MVCCore.Helpers
 {
@@ -18,14 +20,14 @@ namespace MVCCore.Helpers
 
         public IMemoryCache Cache => _cache;
 
-        public T GetNotInit<T>(string cacheKey)
+        public T? GetNotInit<T>(string cacheKey)
         {
             return Cache.Get<T>(cacheKey);
         }
 
         public T Get<T>(string cacheKey, Func<T> initializer, TimeSpan timeSpan)
         {
-            T obj = Cache.Get<T>(cacheKey);
+            T? obj = Cache.Get<T>(cacheKey);
 
             if (obj == null)
             {
@@ -43,7 +45,7 @@ namespace MVCCore.Helpers
 
         public async Task<T> GetAsync<T>(string cacheKey, Func<Task<T>> initializer, TimeSpan timeSpan)
         {
-            T obj = Cache.Get<T>(cacheKey);
+            T? obj = Cache.Get<T>(cacheKey);
 
             if (obj == null)
             {

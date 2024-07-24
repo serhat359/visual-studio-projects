@@ -29,7 +29,7 @@
         {
             <tr>
                 <td><a href="@pair.Key">@pair.Value</a></td>
-                <td><a href="DeleteRssLink?link=@System.Web.HttpUtility.UrlEncode(pair.Key)">Delete</a></td>
+                <td><a href="DeleteRssLink?link=@HttpUtility.UrlEncode(pair.Key)">Delete</a></td>
             </tr>
         }
     </tbody>

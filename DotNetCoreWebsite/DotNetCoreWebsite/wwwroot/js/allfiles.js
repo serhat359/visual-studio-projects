@@ -4,8 +4,8 @@ function onMainCheckboxClick() {
     const allCheckBoxes = document.querySelectorAll(".downloadCheckBox input[type=checkbox]");
 
     isSet = !isSet;
-    for (let i = 0; i < allCheckBoxes.length; i++) {
-        allCheckBoxes[i].checked = isSet;
+    for (const box of allCheckBoxes) {
+        box.checked = isSet;
     }
 
     setDownloadButtonVisibility();
@@ -21,8 +21,8 @@ function getDownloadSelectedUrl() {
     const fileNames = [];
     const allSelectedCheckBoxes = document.querySelectorAll(".downloadCheckBox input[type=checkbox]:checked");
 
-    for (let i = 0; i < allSelectedCheckBoxes.length; i++) {
-        const link = allSelectedCheckBoxes[i].parentElement.parentElement.querySelector(".downloadLink a").href;
+    for (const box of allSelectedCheckBoxes) {
+        const link = box.parentElement.parentElement.querySelector(".downloadLink a").href;
         let fileName = new URL(link).searchParams.get("q");
 
         if (path) {
@@ -110,14 +110,14 @@ function selectText(elementId) {
     }
 }
 
-document.addEventListener("DOMContentLoaded", function (event) {
+addEventListener("load", () => {
     convertDatesToLocal();
 
-    addOnClick('.downloadCheckBoxInput', function (event) {
+    addOnClick('.downloadCheckBoxInput', () => {
         setDownloadButtonVisibility();
     });
     
-    addOnClick('#selectAll', function (event) {
+    addOnClick('#selectAll', () => {
         selectText('linksModalContent');
     });
 
@@ -149,9 +149,11 @@ function allowTableSorting() {
         const comparer = getComparer(whichIndex(this));
         let rows = Array.from(trs).sort(comparer);
         this.asc = !this.asc;
-        if (!this.asc) { rows = rows.reverse() }
-        for (let i = 0; i < rows.length; i++) {
-            tbody.appendChild(rows[i]);
+        if (!this.asc) {
+            rows = rows.reverse();
+        }
+        for (const row of rows) {
+            tbody.appendChild(row);
         }
     });
 }
@@ -166,7 +168,8 @@ function getComparer(index) {
 function getCellValue(row, index) {
     const elem = row.querySelectorAll("td")[index];
     const dataValue = elem.dataset["sortValue"];
-    if (dataValue) return dataValue;
+    if (dataValue)
+        return dataValue;
     return elem.innerText;
 }
 
@@ -188,7 +191,7 @@ function makeModal(selector) {
 
     modal.classList.remove("modal-hidden");
 
-    modal.addEventListener("click", function (e) {
+    modal.addEventListener("click", (e) => {
         if (e.target !== modal && e.target !== container) return;
         modal.classList.add("modal-hidden");
     });

@@ -1,8 +1,7 @@
 ﻿using System;
 
-namespace MVCCore.Models.Attributes
+namespace MVCCore.Models.Attributes;
+
+public class XmlCDataAttribute : Attribute
 {
-    public class XmlCDataAttribute : Attribute
-    {
-    }
 }

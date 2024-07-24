@@ -1,0 +1,11 @@
+﻿@model string[]
+@{
+    Layout = "~/Views/Shared/_LayoutSmall.cshtml";
+}
+
+<ul>
+    @foreach (var x in Model)
+    {
+        <li>@x</li>
+    }
+</ul>

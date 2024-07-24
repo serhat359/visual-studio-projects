@@ -17,7 +17,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapperTextlibrary", "Mapper
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharePointMvc", "SharePointMvc\SharePointMvc.csproj", "{0845AC87-7E06-42EF-A7C9-A2F4591966A4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MVCCore", "MVCCore\MVCCore.csproj", "{FD9612BE-0C6E-4EA9-B2BD-7F5C93733B1A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MVCCore", "MVCCore\MVCCore.csproj", "{FD9612BE-0C6E-4EA9-B2BD-7F5C93733B1A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{15B19A3D-94F5-4A40-ABFB-CD33C23067AF}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
