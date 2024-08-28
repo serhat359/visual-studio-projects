@@ -10,14 +10,17 @@ namespace MVCCore.Models;
 [XmlRoot("rss")]
 public class RssResult
 {
-    public Channel channel = new Channel();
+    public readonly Channel channel;
 
     [XmlAttribute]
     public string version = "2.0";
 
     public RssResult(IEnumerable<RssResultItem> items)
     {
-        channel.items = items.ToList();
+        channel = new Channel
+        {
+            items = items.ToList()
+        };
     }
 
     public RssResult()
@@ -30,7 +33,7 @@ public class RssResult
 public class Channel
 {
     [XmlElement("item")]
-    public List<RssResultItem> items;
+    public required List<RssResultItem> items { get; init; }
 }
 
 public class RssResultItem
