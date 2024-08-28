@@ -6,10 +6,10 @@ namespace MVCCore.Models
 {
     public class PokemonModel
     {
-        public List<Stat> StatList { get; set; }
+        public List<Stat>? StatList { get; set; }
 
         [Required]
-        public string Query { get; set; }
+        public string Query { get; set; } = "";
 
         public Exception? Error { get; set; }
 
@@ -18,11 +18,11 @@ namespace MVCCore.Models
 
     public class Stat
     {
-        public Int32 gen { get; set; }
+        public int gen { get; set; }
 
-        public string id { get; set; }
+        public string id { get; set; } = "";
 
-        public string name { get; set; }
+        public string name { get; set; } = "";
 
         public string nameStripped
         {
@@ -33,26 +33,26 @@ namespace MVCCore.Models
             }
         }
 
-        public Int32 hp { get; set; }
+        public int hp { get; set; }
 
-        public Int32 attack { get; set; }
+        public int attack { get; set; }
 
-        public Int32 defense { get; set; }
+        public int defense { get; set; }
 
-        public Int32 spattack { get; set; }
+        public int spattack { get; set; }
 
-        public Int32 spdefense { get; set; }
+        public int spdefense { get; set; }
 
-        public Int32 speed { get; set; }
+        public int speed { get; set; }
 
-        public Int32 total { get; set; }
+        public int total { get; set; }
 
         public bool sinnoh { get; set; }
 
         public bool hoenn { get; set; }
 
-        public string type1 { get; set; }
+        public string type1 { get; set; } = "";
 
-        public string type2 { get; set; }
+        public string type2 { get; set; } = "";
     }
 }

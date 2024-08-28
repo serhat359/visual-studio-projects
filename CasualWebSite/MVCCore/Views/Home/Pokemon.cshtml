@@ -18,75 +18,78 @@
 }
 
 <br />
-<table class="table table-bordered">
-    <thead>
-        <tr>
-            <th>
-                <a href="http://bulbapedia.bulbagarden.net/wiki/National_Pok%C3%A9dex" title="National Pokédex">
-                    #
-                </a>
-            </th>
-            <th>
-                &nbsp;
-            </th>
-            <th>
-                Pokémon
-            </th>
-            <th class="headerSort" style="background: rgb(255, 0, 0); -moz-border-radius-topleft: 10px;
-                    -moz-border-radius-topright: 10px;">
-                <small>HP</small>
-            </th>
-            <th class="headerSort" style="background: rgb(240, 128, 48); -moz-border-radius-topleft: 10px;
-                    -moz-border-radius-topright: 10px;">
-                <small>Attack</small>
-            </th>
-            <th class="headerSort" style="background: rgb(248, 208, 48); -moz-border-radius-topleft: 10px;
-                    -moz-border-radius-topright: 10px;">
-                <small>Defense</small>
-            </th>
-            <th class="headerSort" style="background: rgb(104, 144, 240); -moz-border-radius-topleft: 10px;
-                    -moz-border-radius-topright: 10px;">
-                <small>Sp. Attack</small>
-            </th>
-            <th class="headerSort" style="background: rgb(120, 200, 80); -moz-border-radius-topleft: 10px;
-                    -moz-border-radius-topright: 10px;">
-                <small>Sp. Defense</small>
-            </th>
-            <th class="headerSort" style="background: rgb(248, 88, 136); -moz-border-radius-topleft: 10px;
-                    -moz-border-radius-topright: 10px;">
-                <small>Speed</small>
-            </th>
-            <th class="headerSort">
-                <small>Total</small>
-            </th>
-            <th class="headerSort">
-                <small>Type</small>
-            </th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var stat in Model.StatList)
-        {
+@if (Model.StatList != null)
+{
+    <table class="table table-bordered">
+        <thead>
             <tr>
-                <td>@stat.id</td>
-                <td>
-                    <img src="/image/pokemonImage/@(stat.id)MS6.png" alt="" />
-                </td>
-                <td align="left">
-                    <a href="http://bulbapedia.bulbagarden.net/wiki/@(stat.nameStripped)_%28Pok%C3%A9mon%29">@(stat.name)</a>
-                </td>
-                <td>@stat.hp</td>
-                <td>@stat.attack</td>
-                <td>@stat.defense</td>
-                <td>@stat.spattack</td>
-                <td>@stat.spdefense</td>
-                <td>@stat.speed</td>
-                <td>@stat.total</td>
-                <td>
-                    <img src="/image/pokemonType/@(stat.type1)IC_XY.png" alt="" />
-                    <img src="/image/pokemonType/@(stat.type2)IC_XY.png" alt="" />
-                </td>
+                <th>
+                    <a href="http://bulbapedia.bulbagarden.net/wiki/National_Pok%C3%A9dex" title="National Pokédex">
+                        #
+                    </a>
+                </th>
+                <th>
+                    &nbsp;
+                </th>
+                <th>
+                    Pokémon
+                </th>
+                <th class="headerSort" style="background: rgb(255, 0, 0); -moz-border-radius-topleft: 10px;
+                        -moz-border-radius-topright: 10px;">
+                    <small>HP</small>
+                </th>
+                <th class="headerSort" style="background: rgb(240, 128, 48); -moz-border-radius-topleft: 10px;
+                        -moz-border-radius-topright: 10px;">
+                    <small>Attack</small>
+                </th>
+                <th class="headerSort" style="background: rgb(248, 208, 48); -moz-border-radius-topleft: 10px;
+                        -moz-border-radius-topright: 10px;">
+                    <small>Defense</small>
+                </th>
+                <th class="headerSort" style="background: rgb(104, 144, 240); -moz-border-radius-topleft: 10px;
+                        -moz-border-radius-topright: 10px;">
+                    <small>Sp. Attack</small>
+                </th>
+                <th class="headerSort" style="background: rgb(120, 200, 80); -moz-border-radius-topleft: 10px;
+                        -moz-border-radius-topright: 10px;">
+                    <small>Sp. Defense</small>
+                </th>
+                <th class="headerSort" style="background: rgb(248, 88, 136); -moz-border-radius-topleft: 10px;
+                        -moz-border-radius-topright: 10px;">
+                    <small>Speed</small>
+                </th>
+                <th class="headerSort">
+                    <small>Total</small>
+                </th>
+                <th class="headerSort">
+                    <small>Type</small>
+                </th>
             </tr>
-        }
-    </tbody>
-</table>
+        </thead>
+        <tbody>
+            @foreach (var stat in Model.StatList)
+            {
+                <tr>
+                    <td>@stat.id</td>
+                    <td>
+                        <img src="/image/pokemonImage/@(stat.id)MS6.png" alt="" />
+                    </td>
+                    <td align="left">
+                        <a href="http://bulbapedia.bulbagarden.net/wiki/@(stat.nameStripped)_%28Pok%C3%A9mon%29">@(stat.name)</a>
+                    </td>
+                    <td>@stat.hp</td>
+                    <td>@stat.attack</td>
+                    <td>@stat.defense</td>
+                    <td>@stat.spattack</td>
+                    <td>@stat.spdefense</td>
+                    <td>@stat.speed</td>
+                    <td>@stat.total</td>
+                    <td>
+                        <img src="/image/pokemonType/@(stat.type1)IC_XY.png" alt="" />
+                        <img src="/image/pokemonType/@(stat.type2)IC_XY.png" alt="" />
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

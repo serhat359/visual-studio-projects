@@ -18,8 +18,6 @@ public class PokemonService
 
     public async Task<PokemonModel> LoadCasual(string queryParam = "")
     {
-        var model = new PokemonModel();
-
         var query = "select * from stats " + queryParam;
 
         try
@@ -27,14 +25,17 @@ public class PokemonService
             using var conn = dataContext.CreateConnection();
             List<Stat> statList = (await conn.QueryAsync<Stat>(new CommandDefinition(commandText: query))).ToList();
 
-            model.StatList = statList;
+            return new PokemonModel
+            {
+                StatList = statList
+            };
         }
         catch (Exception e)
         {
-            model.StatList = new List<Stat>();
-            model.Error = e;
+            return new PokemonModel
+            {
+                Error = e,
+            };
         }
-
-        return model;
     }
 }

@@ -1,6 +1,6 @@
 ﻿using System.Xml;
 
-namespace CasualConsoleCore.XmlParser;
+namespace CasualConsoleCore.Xml;
 
 public class XmlParserTest
 {

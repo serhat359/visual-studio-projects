@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Abstractions;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -99,6 +102,16 @@ public class Program
             endpoints.MapControllerRoute(
                 name: "default",
                 pattern: "{controller=Home}/{action=Index}/{id?}");
+
+            endpoints.MapFallback(async context =>
+            {
+                var notfoundView = new ViewResult
+                {
+                    StatusCode = 404,
+                    ViewName = "NotFound",
+                };
+                await notfoundView.ExecuteResultAsync(new ActionContext(context, new RouteData(), new ActionDescriptor()));
+            });
         });
     }
 }

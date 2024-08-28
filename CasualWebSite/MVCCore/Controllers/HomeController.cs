@@ -36,7 +36,7 @@ public partial class HomeController : BaseController
     [HttpGet]
     public async Task<IActionResult> Index()
     {
-        return Json(new { message = "this page is empty" });
+        return View();
     }
 
     [Route("/test")]
@@ -47,7 +47,7 @@ public partial class HomeController : BaseController
         {
             "/Home/FixTomsArticlesManual",
             "/Home/FixTomsNewsManualParse",
-            "/Home/MangainnParseXml/one-punch-man",
+            "/Home/MangainnAlternative",
             "/Home/TalentlessnanaParseXml",
             "/Home/GenerateRssResult",
             "/Home/CurrencyExchangeRatio",
@@ -258,6 +258,41 @@ public partial class HomeController : BaseController
                 Link = aNode.Attributes["href"],
                 PubDate = releaseDate,
                 Title = chapterName,
+            };
+        }));
+
+        return Xml(rssObject);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> MangainnAlternative()
+    {
+        var today = DateTime.Today;
+
+        var url = "https://w16.one-punsh-man.com/";
+
+        string contents = await GetUrlTextData(url);
+
+        string startTag = "<ul>";
+        string endTag = "</ul>";
+
+        int indexOfStart = contents.IndexOf(startTag, contents.IndexOf("ceo_latest_comics_widget-3"));
+        int indexOfEnd = contents.IndexOf(endTag, indexOfStart);
+
+        string ulPart = contents.Substring(indexOfStart, indexOfEnd - indexOfStart + endTag.Length);
+
+        var document = XmlParser.Parse(ulPart);
+
+        var rssObject = new RssResult(document.ChildNodes[0].ChildNodes.Select(liNode =>
+        {
+            var aNode = liNode.ChildNodes[0];
+
+            return new RssResultItem
+            {
+                Description = "",
+                Link = aNode.Attributes["href"],
+                PubDate = today,
+                Title = aNode.InnerText,
             };
         }));
 
