@@ -47,10 +47,10 @@ public partial class HomeController : BaseController
         {
             "/Home/FixTomsArticlesManual",
             "/Home/FixTomsNewsManualParse",
-            "/Home/MangainnAlternative",
             "/Home/TalentlessnanaParseXml",
             "/Home/GenerateRssResult",
             "/Home/CurrencyExchangeRatio",
+            "/Home/OPMMangaW19",
         };
 
         var baseUrl = "http://" + Request.Host.ToString();
@@ -110,7 +110,8 @@ public partial class HomeController : BaseController
     {
         Func<Task<IActionResult>> initializer = async () =>
         {
-            string[] urls = { "https://www.tomshardware.com/reviews",
+            string[] urls = {
+                              "https://www.tomshardware.com/reviews",
                               "https://www.tomshardware.com/reviews/page/2",
                               "https://www.tomshardware.com/reference",
                               "https://www.tomshardware.com/features",
@@ -119,15 +120,17 @@ public partial class HomeController : BaseController
                               "https://www.tomshardware.com/best-picks",
                             };
 
-            var threads = urls.Select(url => GetUrlTextData(url)).ToList();
+            var tasks = urls.Select(async url =>
+            {
+                var text = await GetUrlTextData(url);
+                return GetRssObjectFromTomsContent(text);
+            }).ToList();
 
-            var elements = (await threads.AwaitAllAsync()).Select(GetRssObjectFromTomsContent).SelectMany(x => x);
+            var elements = (await tasks.AwaitAllAsync()).SelectMany(x => x);
 
             var rssObject = new RssResult(elements.Where(x => !x.Link.Contains("/news/")).OrderByDescending(x => x.PubDate));
 
-            var xmlResult = Xml(rssObject);
-
-            return xmlResult;
+            return Xml(rssObject);
         };
 
         var xmlResultResult = await _cacheHelper.GetAsync(CacheHelper.TomsArticlesKey, initializer, TimeSpan.FromHours(2));
@@ -146,9 +149,9 @@ public partial class HomeController : BaseController
             "https://www.tomshardware.com/news/page/5",
         };
 
-        var threads = urls.Select(url => GetUrlTextData(url)).ToList();
+        var tasks = urls.Select(url => GetUrlTextData(url)).ToList();
 
-        var elements = (await threads.AwaitAllAsync()).Select(GetRssObjectFromTomsContent).SelectMany(x => x);
+        var elements = (await tasks.AwaitAllAsync()).Select(GetRssObjectFromTomsContent).SelectMany(x => x);
         var newData = elements.OrderByDescending(c => c.PubDate).ToList();
 
         var cacheKey = CacheHelper.TomsNewsKey;
@@ -265,37 +268,56 @@ public partial class HomeController : BaseController
     }
 
     [HttpGet]
-    public async Task<IActionResult> MangainnAlternative()
+    public async Task<IActionResult> OPMMangaCubari()
     {
-        var today = DateTime.Today;
+        var contents = await GetUrlTextData("https://cubari.moe/read/gist/OPM/");
+        var startTag = "<script id=\"chapter_list\" type=\"application/json\">";
+        var endTag = "</script>";
+        int start = contents.IndexOf(startTag);
+        int end = contents.IndexOf(endTag, start);
+        var between = contents[(start + startTag.Length)..end];
+        var list = JsonSerializer.Deserialize<JsonElement[][]>(between);
 
-        var url = "https://w16.one-punsh-man.com/";
-
-        string contents = await GetUrlTextData(url);
-
-        string startTag = "<ul>";
-        string endTag = "</ul>";
-
-        int indexOfStart = contents.IndexOf(startTag, contents.IndexOf("ceo_latest_comics_widget-3"));
-        int indexOfEnd = contents.IndexOf(endTag, indexOfStart);
-
-        string ulPart = contents.Substring(indexOfStart, indexOfEnd - indexOfStart + endTag.Length);
-
-        var document = XmlParser.Parse(ulPart);
-
-        var rssObject = new RssResult(document.ChildNodes[0].ChildNodes.Select(liNode =>
+        var rssObject = new RssResult(list.Select(nodeAsArray =>
         {
-            var aNode = liNode.ChildNodes[0];
+            var no = nodeAsArray[0].GetString();
+            var title = nodeAsArray[2].GetString();
+            var dateArray = nodeAsArray[5].Deserialize<int[]>();
+            var date = new DateTime(dateArray[0], dateArray[1] + 1, dateArray[2], dateArray[3], dateArray[4], dateArray[5]);
 
             return new RssResultItem
             {
                 Description = "",
-                Link = aNode.Attributes["href"],
-                PubDate = today,
-                Title = aNode.InnerText,
+                Link = $"https://cubari.moe/read/gist/OPM/{no}/1/",
+                PubDate = date,
+                Title = title,
             };
         }));
 
+        return Xml(rssObject);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> OPMMangaW19()
+    {
+        var contents = await GetUrlTextData("https://w19.read-one-punchman.com/");
+        var i1 = contents.IndexOf("""<li id="ceo_latest_comi""");
+        if (i1 < 0) throw new Exception();
+        var i2 = contents.IndexOf("<ul>", i1);
+        if (i2 < 0) throw new Exception();
+        var end = "</ul>";
+        var i3 = contents.IndexOf(end, i2);
+        if (i3 < 0) throw new Exception();
+        var between = contents[i2..(i3 + end.Length)];
+        var html = XmlParser.ParseHtml(between);
+        var now = DateTime.Now;
+        var rssObject = new RssResult(html.ChildNodes[0].ChildNodes.Select(li => new RssResultItem
+        {
+            Description = li.ChildNodes[0].InnerText,
+            Link = li.ChildNodes[0].Attributes["href"],
+            PubDate = now,
+            Title = li.ChildNodes[0].InnerText,
+        }));
         return Xml(rssObject);
     }
 
@@ -407,7 +429,7 @@ public partial class HomeController : BaseController
         var client = NewClient;
         var tasks = keysParsed.Select(async key =>
         {
-            using var response = await client.GetAsync("https://yts.mx/movies/" + key);
+            using var response = await client.SendWithRetryAsync(() => new HttpRequestMessage(HttpMethod.Get, "https://yts.mx/movies/" + key));
             if (!response.IsSuccessStatusCode)
                 return (key, null);
             var contextText = await response.Content.ReadAsStringAsync();
@@ -515,11 +537,12 @@ public partial class HomeController : BaseController
 
         var divs = document.ChildNodes[0].GetAllNodesRecursive().Where(c =>
         {
-            var classValue = c.Attributes["class"];
+            var classValue = c.Attributes["class"] ?? "";
             var dataPageValue = c.Attributes["data-page"];
-            return classValue?.Contains("listingResult small") == true
+            return classValue.Contains("listingResult")
+                && classValue.Contains("small")
                 && dataPageValue != null
-                && classValue?.Contains("sponsored") != true;
+                && !classValue.Contains("sponsored");
         }).ToList();
 
         var elements = divs.Select(liNode =>

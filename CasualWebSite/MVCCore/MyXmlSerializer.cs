@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 using System.Xml;
+using System.Collections.Concurrent;
 
 namespace MVCCore;
 
@@ -44,18 +45,18 @@ public class MyXmlSerializer
         await writer.FlushAsync();
     }
 
-    private static Dictionary<(string, bool), string> dicEscapeXMLValue = new();
+    private static ConcurrentDictionary<(string, bool), string> escapedXMLValues = new();
     public static string EscapeXMLValue(string? xmlString, bool xmlEncode)
     {
         if (xmlString == null)
             throw new ArgumentNullException("xmlString");
 
         var tuple = (xmlString, xmlEncode);
-        if (dicEscapeXMLValue.TryGetValue(tuple, out var res))
+        if (escapedXMLValues.TryGetValue(tuple, out var res))
             return res;
 
         res = EscapeXMLValueNonCache(xmlString, xmlEncode);
-        dicEscapeXMLValue[tuple] = res;
+        escapedXMLValues[tuple] = res;
         return res;
     }
 
@@ -96,7 +97,10 @@ public class MyXmlSerializer
         {
             XmlFormatAttribute? formatAttribute = GetAttribute<XmlFormatAttribute>(customAttributes);
 
-            string objToString = string.Format("{0" + (formatAttribute == null ? "" : ":" + formatAttribute.Format) + "}", obj);
+            object obj2 = obj;
+            if (obj2 is DateTime dt && dt.Kind == DateTimeKind.Local)
+                obj2 = dt.ToUniversalTime();
+            string objToString = string.Format("{0" + (formatAttribute == null ? "" : ":" + formatAttribute.Format) + "}", obj2);
             bool xmlEncode = GetAttribute<XmlCDataAttribute>(customAttributes) == null;
             objToString = EscapeXMLValue(objToString, xmlEncode);
 
