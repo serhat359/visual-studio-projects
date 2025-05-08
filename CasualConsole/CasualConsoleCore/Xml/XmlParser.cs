@@ -12,12 +12,12 @@ public class XmlParser
 {
     private static readonly IReadOnlySet<string> unclosedTags = new HashSet<string> { "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr", };
 
-    public static XmlNodeBase ParseHtml(string xml)
+    public static XmlNodeBase ParseHtml(ReadOnlySpan<char> xml)
     {
         return Parse(xml, isHtml: true);
     }
 
-    public static XmlNodeBase Parse(string xml, bool isHtml = false)
+    public static XmlNodeBase Parse(ReadOnlySpan<char> xml, bool isHtml = false)
     {
         var partsEnumerable = GetParts(xml).Where(x => !string.IsNullOrWhiteSpace(x.token));
         if (isHtml)
@@ -102,12 +102,13 @@ public class XmlParser
         return (parent, index + 1);
     }
 
-    public static IEnumerable<(string token, int lineNumber)> GetParts(string xml)
+    public static List<(string token, int lineNumber)> GetParts(ReadOnlySpan<char> xml)
     {
         int i = 0;
         int lineNumber = 1;
+        var list = new List<(string token, int lineNumber)>();
 
-        static bool ContinuesWith(string s, string text, int index)
+        static bool ContinuesWith(ReadOnlySpan<char> s, string text, int index)
         {
             for (int i = 0; i < text.Length; i++)
             {
@@ -116,7 +117,7 @@ public class XmlParser
             }
             return true;
         }
-        int IndexOf(string s, string smallText, int startLocation)
+        int IndexOf(ReadOnlySpan<char> s, string smallText, int startLocation)
         {
             for (int i = startLocation; i <= s.Length - smallText.Length; i++)
             {
@@ -163,7 +164,7 @@ public class XmlParser
 
                     i = cdataEndIndex + 3;
                     var cdataToken = xml[(lookupIndex - 3)..i];
-                    yield return (cdataToken, lineNumberStart);
+                    list.Add((cdataToken.ToString(), lineNumberStart));
                 }
                 else
                 {
@@ -179,7 +180,7 @@ public class XmlParser
                     if (xml[i] == '\n') lineNumber++;
                     i++;
                     var token = xml[start..i];
-                    yield return (token, lineNumberStart);
+                    list.Add((token.ToString(), lineNumberStart));
                 }
             }
             else
@@ -197,9 +198,11 @@ public class XmlParser
                 var end = i;
 
                 var token = xml[start..end];
-                yield return (token, lineNumberStart);
+                list.Add((token.ToString(), lineNumberStart));
             }
         }
+
+        return list;
     }
 
     private static (string, NameValueCollection) GetTagAndAttributes(string s)
@@ -224,11 +227,12 @@ public class XmlParser
             string? attrValue = null;
             if (s[i] == '=')
             {
-                char startCharacter = s[i + 1] switch
+                char c = s[i + 1];
+                char startCharacter = c switch
                 {
                     '"' => '"',
                     '\'' => '\'',
-                    _ => throw new Exception(),
+                    _ => throw new Exception($"unexpected characted: {c}"),
                 };
 
                 var attrValueStart = i += 2;

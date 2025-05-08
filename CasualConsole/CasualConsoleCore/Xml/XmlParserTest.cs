@@ -1,4 +1,5 @@
-﻿using System.Xml;
+﻿using System;
+using System.Xml;
 
 namespace CasualConsoleCore.Xml;
 
@@ -29,6 +30,8 @@ public class XmlParserTest
         MultiRootTest();
         UnclosedTagHtmlTag();
         AllowSelfClosingToImmediatelyClose();
+
+        Console.WriteLine("All xml tests are successful!");
     }
 
     private static void EmptyTest()
