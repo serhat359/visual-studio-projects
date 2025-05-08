@@ -1,6 +1,9 @@
-﻿using System;
+using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -10,6 +13,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using CasualConsoleCore.Xml;
 
 namespace CasualConsoleCore;
 
@@ -26,36 +30,90 @@ public class Program
         Console.OutputEncoding = Encoding.UTF8;
         client.DefaultRequestHeaders.Add("User-Agent", "Other");
 
-        ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
-
         //XmlParserTest.Test();
-
-        //FixSubtitleTimings();
 
         //GeneratePinyinSrt();
 
         //FixMovieSubs();
 
+        //await CutVideo();
+
         //Interpreter.Interpreter.Test();
         //Interpreter.NewInterpreterTest.Test();
 
-        return;
-        var newFilePath = @"D:\Downloads\decrypted_files\chinesemovie\chinesemovie-Chinese_2.srt";
-        var englishFilePath = @"D:\Downloads\decrypted_files\chinesemovie\chinesemovie_English.srt";
-        var mergedFilePath = @"D:\Downloads\decrypted_files\chinesemovie\chinesemovie_merged.srt";
+        //Interpreter.Interpreter.Benchmark();
 
-        var chineseSrt = File.ReadAllText(newFilePath).Replace("\r", "");
-        var englishSrt = File.ReadAllText(englishFilePath).Replace("\r", "");
+        //ZeldaTwilightPrincessPuzzle.Solve();
 
-        var chineseParsed = ParseSrtSubtitles(chineseSrt);
-        var englishParsed = ParseSrtSubtitles(englishSrt);
-        foreach (var englishParsedItem in englishParsed)
-            if (englishParsedItem.Lines.Count > 1)
-                englishParsedItem.Lines = new List<string> { string.Join(" ", englishParsedItem.Lines) };
+        //CategorizeUbuntuWallpapers();
+    }
 
-        var mergedList = chineseParsed.Concat(englishParsed).OrderBy(x => x.TimeBegin).ToList();
+    private static void CategorizeUbuntuWallpapers()
+    {
+        var basePath = @"C:\Users\Xhertas\Downloads\ubuntu-wallpapers-25.04.2";
+        var xmlFiles = Directory.GetFiles(basePath).Where(x => x.EndsWith(".xml.in")).ToList();
+        foreach (var xmlFile in xmlFiles)
+        {
+            var newFolderPath = Path.Combine(basePath, GetFileName(xmlFile).Replace(".xml.in", ""));
+            Directory.CreateDirectory(newFolderPath);
 
-        WriteSrtLinesToFile(mergedFilePath, mergedList);
+            var parsed = XmlParser.Parse(File.ReadAllText(xmlFile)
+                .Replace("""<?xml version="1.0"?>""", "")
+                .Replace("""<!DOCTYPE wallpapers SYSTEM "gnome-wp-list.dtd">""", ""));
+
+            var wallpaperNames = parsed.ChildNodes[0].ChildNodes
+                .Select(x => GetFileName(x.ChildNodes.First(x => x.TagName == "filename").InnerText))
+                .ToList();
+            foreach (var wallpaperName in wallpaperNames)
+            {
+                var existingFilePath = Path.Combine(basePath, wallpaperName);
+                if (File.Exists(existingFilePath))
+                {
+                    File.Move(sourceFileName: existingFilePath, destFileName: Path.Combine(newFolderPath, wallpaperName));
+                }
+            }
+        }
+    }
+
+    private static readonly char[] chars = { '/', '\\' };
+    private static string GetFileName(string path)
+    {
+        int index = path.LastIndexOfAny(chars);
+        if (index < 0)
+            return path;
+        return path[(index + 1)..];
+    }
+
+    private static async Task CutVideo()
+    {
+        var timeStart = "00:00:00";
+        var timeEnd = "00:00:00";
+        var originalFileName = ".mp4";
+        var outputFileName = ".mp4";
+        var videoFolder = @"C:\Users\Xhertas\Downloads";
+        var ffmpegLocation = @"C:\Users\Xhertas\Downloads\ffmpeg.exe";
+
+        static TimeSpan parseTime(string s)
+        {
+            var p = s.Split(":").Select(int.Parse).ToArray();
+            if (p.Length != 3)
+                throw new Exception();
+            return new TimeSpan(hours: p[0], minutes: p[1], seconds: p[2]);
+        }
+        static string timespanToString(TimeSpan t)
+        {
+            return $"{t.Hours:D2}:{t.Minutes:D2}:{t.Seconds:D2}";
+        }
+        TimeSpan diff = parseTime(timeEnd) - parseTime(timeStart);
+
+        var commandArgs = $"-ss {timeStart}.0 -i {originalFileName} -c copy -t {timespanToString(diff)}.0 {outputFileName}";
+        var proc = Process.Start(new ProcessStartInfo
+        {
+            WorkingDirectory = videoFolder,
+            Arguments = commandArgs,
+            FileName = ffmpegLocation,
+        });
+        await proc!.WaitForExitAsync();
     }
 
     private static void ImportNotes()
@@ -63,9 +121,11 @@ public class Program
         var jsonOptions = new JsonSerializerOptions { WriteIndented = true };
 
         var basePath = @"C:\Users\Xhertas\Desktop\notes transfer page";
-        var notes = JsonSerializer.Deserialize<string[]>(File.ReadAllText(basePath + "\\notes generated.json"));
+        var notes = JsonSerializer.Deserialize<string[]>(File.ReadAllText(basePath + "\\notes generated.json"))
+            ?? throw new Exception("notes was null");
 
-        var originalData = JsonSerializer.Deserialize<Dictionary<string, object>>(File.ReadAllText(basePath + "\\manual_backup_orig.txt"));
+        var originalData = JsonSerializer.Deserialize<Dictionary<string, object>>(File.ReadAllText(basePath + "\\manual_backup_orig.txt"))
+            ?? throw new Exception("originalData was null");
         var firstNoteText = ((JsonElement)originalData["notes"])[0].ToString();
 
         var baseDate = DateTime.Now.AddDays(-1);
@@ -75,7 +135,8 @@ public class Program
         foreach (var note in notes)
         {
             var newDate = baseDate.AddMinutes(id);
-            var parsedNote = JsonSerializer.Deserialize<Dictionary<string, object>>(firstNoteText);
+            var parsedNote = JsonSerializer.Deserialize<Dictionary<string, object>>(firstNoteText)
+                ?? throw new Exception("parsedNote was null");
             parsedNote["uuid"] = Guid.NewGuid().ToString();
             parsedNote["id"] = id;
             parsedNote["content"] = note;
@@ -99,7 +160,7 @@ public class Program
         var i2 = text.IndexOf(end, i1);
         var between = text[i1..(i2 + end.Length)];
 
-        var parts = XmlParser.XmlParser.GetParts(between).ToList();
+        var parts = XmlParser.GetParts(between).ToList();
 
         parts = parts.Where(x => !x.token.StartsWith('<')).ToList();
         if (parts.Count != 108)
@@ -107,7 +168,7 @@ public class Program
         var cardList = new List<string>(52);
         for (int i = 0; i < 52 * 2; i += 2)
         {
-            var group = XmlParser.XmlParser.NormalizeXml(parts[i].token + parts[i + 1].token);
+            var group = XmlParser.NormalizeXml(parts[i].token + parts[i + 1].token);
             cardList.Add(group);
         }
         var path = $@"C:\Users\Xhertas\Documents\Visual Studio 2017\Projects\CasualConsole\CasualConsoleCore\FreeCellGames\freecellGame{gameNo}.json";
@@ -198,25 +259,22 @@ public class Program
         var oldFilePath = @"D:\Downloads\decrypted_files\chinesemovie\chinesemovie-Chinese.srt";
         var newFilePath = @"D:\Downloads\decrypted_files\chinesemovie\chinesemovie-Chinese_2.srt";
 
-        using (var openWrite = File.OpenWrite(newFilePath))
+        using var openWrite = File.Open(newFilePath, FileMode.Create);
+        using var writer = new StreamWriter(openWrite);
+        foreach (var line in File.ReadAllLines(oldFilePath))
         {
-            void WriteToFile(string s) => openWrite.Write(Encoding.UTF8.GetBytes(s));
+            var charLength = line.Length;
+            var bytes = Encoding.UTF8.GetBytes(line);
+            var byteLength = bytes.Length;
 
-            foreach (var line in File.ReadAllLines(oldFilePath))
+            if (charLength != byteLength)
             {
-                var charLength = line.Length;
-                var bytes = Encoding.UTF8.GetBytes(line);
-                var byteLength = bytes.Length;
-
-                if (charLength != byteLength)
-                {
-                    var converted = PinyinConverter.Convert(line);
-                    WriteToFile(converted);
-                    WriteToFile("\n");
-                }
-                WriteToFile(line);
-                WriteToFile("\n");
+                var converted = PinyinConverter.Convert(line);
+                writer.Write(converted);
+                writer.Write("\n");
             }
+            writer.Write(line);
+            writer.Write("\n");
         }
     }
 
@@ -234,6 +292,40 @@ public class Program
     private static string StringifySrtTimeSpan(TimeSpan time)
     {
         return $"{time.Hours:D2}:{time.Minutes:D2}:{time.Seconds:D2},{time.Milliseconds:D3}";
+    }
+}
+
+public static class JsonExtensions
+{
+    public static List<JsonElement> ToList(this JsonElement element)
+    {
+        var list = new List<JsonElement>(element.GetArrayLength());
+        foreach (var x in element.EnumerateArray())
+        {
+            list.Add(x);
+        }
+        return list;
+    }
+
+    public static IEnumerable<T> EmptyIfNull<T>(this IEnumerable<T>? source)
+    {
+        if (source == null)
+            return Enumerable.Empty<T>();
+        return source;
+    }
+
+    public static bool TryFirst<T>(this IEnumerable<T> source, Func<T, bool> predicate, [MaybeNullWhen(false)] out T value)
+    {
+        foreach (var item in source)
+        {
+            if (predicate(item))
+            {
+                value = item;
+                return true;
+            }
+        }
+        value = default;
+        return false;
     }
 }
 
