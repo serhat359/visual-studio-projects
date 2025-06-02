@@ -1,0 +1,27 @@
+﻿@model PrivacyModel
+@{
+    ViewData["Title"] = "Privacy Policy";
+}
+<h1>@ViewData["Title"]</h1>
+
+<p>Use this page to detail your site's privacy policy.</p>
+
+<form method="post">
+    <div class="mb-3">
+        <label for="Email" class="form-label">Email address</label>
+        <input asp-for="Email" class="form-control @Html.ValidationClass(x => x.Email)">
+        @Html.ValidationFor(x => x.Email)
+    </div>
+    <div class="mb-3">
+        <label for="Month" class="form-label">Choose birth month</label>
+        <select asp-for="@Model.Month" class="form-select @Html.ValidationClass(x => x.Month)">
+            <option></option>
+            @foreach (var item in Model.MonthList)
+            {
+                <option value="@item.Value">@item.Text</option>
+            }
+        </select>
+        @Html.ValidationFor(x => x.Month)
+    </div>
+    <button type="submit" class="btn btn-primary">Submit</button>
+</form>
