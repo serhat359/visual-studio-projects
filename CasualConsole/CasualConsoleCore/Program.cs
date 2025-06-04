@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -19,16 +20,20 @@ namespace CasualConsoleCore;
 
 public class Program
 {
-    private static readonly HttpClient client = new(new HttpClientHandler()
+    private static readonly Lazy<HttpClient> client = new(() =>
     {
-        AutomaticDecompression = DecompressionMethods.All,
-        ServerCertificateCustomValidationCallback = (httpRequestMessage, cert, cetChain, policyErrors) => true
+        var client = new HttpClient(new HttpClientHandler()
+        {
+            AutomaticDecompression = DecompressionMethods.All,
+            ServerCertificateCustomValidationCallback = (httpRequestMessage, cert, cetChain, policyErrors) => true
+        });
+        client.DefaultRequestHeaders.Add("User-Agent", "Other");
+        return client;
     });
 
     static void Main()
     {
         Console.OutputEncoding = Encoding.UTF8;
-        client.DefaultRequestHeaders.Add("User-Agent", "Other");
 
         //XmlParserTest.Test();
 
@@ -154,7 +159,7 @@ public class Program
 
     private static async Task ImportFreecellGame(int gameNo)
     {
-        var text = await (await client.GetAsync($"https://freecellgamesolutions.com/fcs/?game={gameNo}")).Content.ReadAsStringAsync();
+        var text = await (await client.Value.GetAsync($"https://freecellgamesolutions.com/fcs/?game={gameNo}")).Content.ReadAsStringAsync();
         var i1 = text.IndexOf("<table id");
         var end = "</table>";
         var i2 = text.IndexOf(end, i1);
@@ -314,6 +319,13 @@ public static class JsonExtensions
         return source;
     }
 
+    public static T[] EmptyIfNull<T>(this T[]? source)
+    {
+        if (source == null)
+            return Array.Empty<T>();
+        return source;
+    }
+
     public static bool TryFirst<T>(this IEnumerable<T> source, Func<T, bool> predicate, [MaybeNullWhen(false)] out T value)
     {
         foreach (var item in source)
@@ -431,5 +443,50 @@ public static class AsyncExtensions
 
         for (int i = 0; i < elements.Count; i++)
             yield return await channel.Reader.ReadAsync();
+    }
+}
+
+public static class Expressions
+{
+    public static Expression<Func<T, bool>> Or<T>(IEnumerable<Expression<Func<T, bool>>> expressions)
+    {
+        var enumerator = expressions.GetEnumerator();
+        if (!enumerator.MoveNext())
+        {
+            throw new Exception("Expression list cannot be empty");
+        }
+
+        var expr = enumerator.Current.Body;
+        while (enumerator.MoveNext())
+            expr = Expression.OrElse(expr, enumerator.Current.Body);
+
+        var parameter = Expression.Parameter(typeof(T), "p");
+        var combined = new ParameterReplacer(parameter).Visit(expr);
+        return Expression.Lambda<Func<T, bool>>(combined, parameter);
+    }
+
+    public static Expression<Func<T, bool>> And<T>(IEnumerable<Expression<Func<T, bool>>> expressions)
+    {
+        var enumerator = expressions.GetEnumerator();
+        if (!enumerator.MoveNext())
+        {
+            throw new Exception("Expression list cannot be empty");
+        }
+
+        var expr = enumerator.Current.Body;
+        while (enumerator.MoveNext())
+            expr = Expression.AndAlso(expr, enumerator.Current.Body);
+
+        var parameter = Expression.Parameter(typeof(T), "p");
+        var combined = new ParameterReplacer(parameter).Visit(expr);
+        return Expression.Lambda<Func<T, bool>>(combined, parameter);
+    }
+
+    class ParameterReplacer(ParameterExpression parameter) : ExpressionVisitor
+    {
+        protected override Expression VisitParameter(ParameterExpression node)
+        {
+            return parameter;
+        }
     }
 }
