@@ -1,10 +1,12 @@
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace CasualConsoleCore.Interpreter;
@@ -23,6 +25,8 @@ public class Interpreter
     private static readonly Expression trueExpression;
     private static readonly Expression falseExpression;
     private static readonly Expression nullExpression;
+    private static readonly Expression nanExpression;
+    private static readonly Expression infinityExpression;
     private static readonly Expression thisExpression;
 
     static Interpreter()
@@ -30,6 +34,8 @@ public class Interpreter
         trueExpression = new CustomValueExpression(CustomValue.True);
         falseExpression = new CustomValueExpression(CustomValue.False);
         nullExpression = new CustomValueExpression(CustomValue.Null);
+        nanExpression = new CustomValueExpression(CustomValue.NaN);
+        infinityExpression = new CustomValueExpression(CustomValue.Infinity);
         thisExpression = new ThisExpression();
 
         operatorsCompiled = operators.GroupBy(x => x[0]).ToDictionary(x => x.Key, x => x.Where(y => y.Length > 1).GroupBy(y => y[1]).ToDictionary(y => y.Key, y => y.Where(z => z.Length > 2).Select(z => z[2]).ToHashSet()));
@@ -43,6 +49,8 @@ public class Interpreter
     }
 
     private readonly Context defaultContext;
+    private int timeoutNumber = 0;
+    private readonly ConcurrentDictionary<int, CancelableFunctionCall> timeOuts = new();
 
     public Interpreter()
     {
@@ -57,6 +65,9 @@ public class Interpreter
             { "log", printFunctionCustomValue },
         }), AssignmentType.Const);
         defaultvariables["print"] = (printFunctionCustomValue, AssignmentType.Const);
+        defaultvariables["parseNumber"] = (CustomValue.FromFunction(new ParseNumberFunction()), AssignmentType.Const);
+        defaultvariables["setTimeout"] = (CustomValue.FromFunction(new SetTimeoutFunction(this)), AssignmentType.Const);
+        defaultvariables["clearTimeout"] = (CustomValue.FromFunction(new ClearTimeoutFunction(this)), AssignmentType.Const);
 
         defaultvariables["Math"] = (CustomValue.FromMap(new Dictionary<string, ValueOrGetterSetter>
         {
@@ -134,8 +145,6 @@ public class Interpreter
 
     public static void Test(bool verbose = true)
     {
-        CustomValue.Test();
-
         DoPositiveTests();
         DoNegativeTests();
 
@@ -660,9 +669,13 @@ public class Interpreter
             ("var k = ''; var n = null; k &&= n=2; n", null), // Checking optimization
             ("var o = { name:'thisName', getName(){ return (() => this.name)(); } }; o.getName()", "thisName"),
             ("var [x, ...y] = [1,2,3,4]; y.length", 3),
+            ("var sum = function(arr){ let sum = 0; for (let x of arr) sum += x; return sum; };;", null),
             ("[1,2,3].map(x => x + 1).length", 3),
+            ("sum([1,2,3].map(x => x + 1))", 9),
+            ("sum([1,2,3].map((x,i) => i))", 3),
+            ("sum([1,2,3].map((x,i,arr) => arr[i]))", 6),
             ("[1,2,3].filter(x => x < 3).length", 2),
-            ("var sum = function(arr){ let total = 0; for (let x of arr) total += x; return total }; sum([1,2,3].map(x => x + 1))", 9),
+            ("sum([1,2,3].filter((x,i) => i < 2))", 3),
             ("var arr = [1,2,3]; arr.map = null; arr.map", null),
             ("[1,2,3].join(',')", "1,2,3"),
             ("-({ arr: ()=>[1,2,3] }).arr().map(x => x).length", -3),
@@ -675,6 +688,18 @@ public class Interpreter
             ("var f = function*(){ yield 1; for(let x of [3,4,5]){ yield x; break; } yield 10; }; [...f()].length", 3),
             ("if(true){}else if(true){} var x = 105; x", 105),
             ("if(true);else if(true); var x = 110; x", 110),
+            ("(function(){ let a = { name: 'inner', getName: () => { return this.name } }; return a.getName()  }).call({ name: 'outer' }) ", "outer"),
+            ("'' + [1,2,3]", "1,2,3"),
+            ("'' + NaN", "NaN"),
+            ("'' + Infinity", "Infinity"),
+            ("'' + (1/0)", "Infinity"),
+            ("'' + (-1/0)", "-Infinity"),
+            ("0/0", double.NaN),
+            ("1/0", double.PositiveInfinity),
+            ("-1/0", double.NegativeInfinity),
+            ("'test'[0]", "t"),
+            ("'test'[1]", "e"),
+            ("[...'日本語𤭢'][3] ", "𤭢"),
         };
 
         var interpreter = new Interpreter();
@@ -1249,6 +1274,11 @@ public class Interpreter
                 if (fieldName == "length")
                     return CustomValue.FromNumber(str.Length);
             }
+            else if (keyExpressionValue.type == ValueType.Number)
+            {
+                var index = (int)(double)keyExpressionValue.value;
+                return CustomValue.FromParsedString(str[index..(index + 1)]);
+            }
         }
         else if (baseExpressionValue.type == ValueType.Class && keyExpressionValue.type == ValueType.String)
         {
@@ -1773,6 +1803,33 @@ public class Interpreter
             }
         }
     }
+
+    class CancelableFunctionCall
+    {
+        public FunctionObject f;
+        public List<CustomValue> args;
+        public CustomValue thisOwner;
+
+        private bool isCanceled = false;
+
+        public bool IsCanceled => isCanceled;
+
+        public CancelableFunctionCall(FunctionObject f, List<CustomValue> args, CustomValue thisOwner)
+        {
+            this.f = f;
+            this.args = args;
+            this.thisOwner = thisOwner;
+        }
+
+        public void Cancel()
+        {
+            isCanceled = true;
+            this.f = default!;
+            this.args = default!;
+            this.thisOwner = default;
+        }
+    }
+
     interface FunctionObject : Statement
     {
         (string paramName, bool isRest)[] Parameters { get; }
@@ -1856,6 +1913,108 @@ public class Interpreter
             var printValue = context.variableScope.GetVariable(Parameters[0].paramName);
             if (printValue.type != ValueType.Null)
                 Console.WriteLine(printValue.ToString());
+            return (CustomValue.Null, ReturnType.None);
+        }
+
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
+        {
+            throw new NotImplementedException();
+        }
+    }
+    class ParseNumberFunction : FunctionObject
+    {
+        private static readonly (string paramName, bool isRest)[] parameters = new[] { ("s", false), };
+
+        public (string paramName, bool isRest)[] Parameters => parameters;
+
+        public VariableScope? Scope => null;
+
+        public bool IsLambda => false;
+
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
+        {
+            var f = (string)context.variableScope.GetVariable(Parameters[0].paramName).value;
+            if (double.TryParse(f, out var d))
+                return (CustomValue.FromNumber(d), ReturnType.None);
+            else
+                return (CustomValue.Null, ReturnType.None);
+        }
+
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
+        {
+            throw new NotImplementedException();
+        }
+    }
+    class SetTimeoutFunction : FunctionObject
+    {
+        private readonly Interpreter interpreter;
+
+        private static readonly (string paramName, bool isRest)[] parameters = new[] { ("f", false), ("millis", false) };
+
+        public (string paramName, bool isRest)[] Parameters => parameters;
+
+        public VariableScope? Scope => null;
+
+        public bool IsLambda => false;
+
+        public SetTimeoutFunction(Interpreter interpreter)
+        {
+            this.interpreter = interpreter;
+        }
+
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
+        {
+            var f = context.variableScope.GetVariable(Parameters[0].paramName).GetAsFunction();
+            var millis = (int)(double)context.variableScope.GetVariable(Parameters[1].paramName).value;
+
+            var allArguments = context.variableScope.GetVariable("arguments").GetAsArray();
+            var args = allArguments.Length > 2 ? allArguments.list.Skip(2).ToList() : new List<CustomValue>();
+
+            var cancelable = new CancelableFunctionCall(f, args, context.thisOwner);
+
+            var cancelNumber = Interlocked.Increment(ref interpreter.timeoutNumber);
+            interpreter.timeOuts[cancelNumber] = cancelable;
+            Task.Run(async () =>
+            {
+                await Task.Delay(millis);
+                if (!cancelable.IsCanceled)
+                    CallFunction(cancelable.f, cancelable.args, cancelable.thisOwner);
+                this.interpreter.timeOuts.Remove(cancelNumber, out var _);
+            });
+            return (CustomValue.FromNumber(cancelNumber), ReturnType.None);
+        }
+
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
+        {
+            throw new NotImplementedException();
+        }
+    }
+    class ClearTimeoutFunction : FunctionObject
+    {
+        private readonly Interpreter interpreter;
+
+        private static readonly (string paramName, bool isRest)[] parameters = new[] { ("timeout", false) };
+
+        public (string paramName, bool isRest)[] Parameters => parameters;
+
+        public VariableScope? Scope => null;
+
+        public bool IsLambda => false;
+
+        public ClearTimeoutFunction(Interpreter interpreter)
+        {
+            this.interpreter = interpreter;
+        }
+
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
+        {
+            var cancelNumber = (int)(double)context.variableScope.GetVariable(Parameters[0].paramName).value;
+            if (interpreter.timeOuts.TryGetValue(cancelNumber, out var cancelable))
+            {
+                cancelable.Cancel();
+                interpreter.timeOuts.Remove(cancelNumber, out var _);
+            }
+
             return (CustomValue.Null, ReturnType.None);
         }
 
@@ -2137,7 +2296,7 @@ public class Interpreter
             var f = context.variableScope.GetVariable(Parameters[0].paramName).GetAsFunction();
             var list = thisArray.list;
 
-            var res = list.Select(x => CallFunction(f, new List<CustomValue> { x }, CustomValue.Null)).ToList();
+            var res = list.Select((x, i) => CallFunction(f, new List<CustomValue> { x, CustomValue.FromNumber(i), context.thisOwner }, CustomValue.Null)).ToList();
             var newList = CustomValue.FromArray(new CustomArray(res));
             return (newList, ReturnType.None);
         }
@@ -2163,7 +2322,7 @@ public class Interpreter
             var f = context.variableScope.GetVariable(Parameters[0].paramName).GetAsFunction();
             var list = thisArray.list;
 
-            var res = list.Where(x => CallFunction(f, new List<CustomValue> { x }, CustomValue.Null).IsTruthy()).ToList();
+            var res = list.Where((x, i) => CallFunction(f, new List<CustomValue> { x, CustomValue.FromNumber(i), context.thisOwner }, CustomValue.Null).IsTruthy()).ToList();
             var newList = CustomValue.FromArray(new CustomArray(res));
             return (newList, ReturnType.None);
         }
@@ -2388,6 +2547,8 @@ public class Interpreter
         public static readonly CustomValue Null = new(null!, ValueType.Null);
         public static readonly CustomValue True = new(true, ValueType.Bool);
         public static readonly CustomValue False = new(false, ValueType.Bool);
+        public static readonly CustomValue NaN = new(double.NaN, ValueType.Number);
+        public static readonly CustomValue Infinity = new(double.PositiveInfinity, ValueType.Number);
         public static readonly CustomValue GeneratorDone = CustomValue.FromMap(new Dictionary<string, ValueOrGetterSetter>
         {
             ["value"] = CustomValue.Null,
@@ -2466,7 +2627,7 @@ public class Interpreter
             return type switch
             {
                 ValueType.Null => false,
-                ValueType.Number => ((double)value) != 0,
+                ValueType.Number => ((double)value) != 0 && !double.IsNaN((double)value),
                 ValueType.String => !string.IsNullOrEmpty((string)value),
                 ValueType.Bool => (bool)value,
                 _ => true,
@@ -2479,6 +2640,8 @@ public class Interpreter
                 return ((CustomArray)this.value).list;
             else if (this.type == ValueType.Generator)
                 return (Generator)this.value;
+            else if (this.type == ValueType.String)
+                return StringAsMultiValue((string)this.value);
             else
                 throw new Exception();
         }
@@ -2513,26 +2676,35 @@ public class Interpreter
                 return "null";
             if (value is bool b)
                 return b ? "true" : "false";
+            if (value is double d)
+            {
+                if (double.IsPositiveInfinity(d))
+                    return "Infinity";
+                if (double.IsNegativeInfinity(d))
+                    return "-Infinity";
+            }
+            if (type == ValueType.Array)
+            {
+                var arr = (CustomArray)value;
+                return string.Join(",", arr.list);
+            }
             return value.ToString()!;
         }
 
-        internal static void Test()
+        private static IEnumerable<CustomValue> StringAsMultiValue(string s)
         {
-            var stringTestCases = new List<(string token, string value)>()
+            int i = 0;
+            while (i < s.Length)
             {
-                ("\"2\"", "2"),
-                ("\"Hello world\"", "Hello world"),
-                ("\"foo\"", "foo"),
-                ("\"\\\"foo\\\"\"", "\"foo\""),
-                ("\"\\t\"", "\t"),
-            };
-
-            foreach (var stringTestCase in stringTestCases)
-            {
-                var result = CustomValue.FromStaticString(stringTestCase.token);
-                if (!string.Equals(result.value, stringTestCase.value))
+                if (char.IsHighSurrogate(s[i]))
                 {
-                    throw new Exception();
+                    yield return CustomValue.FromParsedString(s[i..(i + 2)]);
+                    i += 2;
+                }
+                else
+                {
+                    yield return CustomValue.FromParsedString(s[i..(i + 1)]);
+                    i += 1;
                 }
             }
         }
@@ -3190,6 +3362,14 @@ public class Interpreter
             if (token == "null")
             {
                 return (nullExpression, index + 1);
+            }
+            if (token == "NaN")
+            {
+                return (nanExpression, index + 1);
+            }
+            if (token == "Infinity")
+            {
+                return (infinityExpression, index + 1);
             }
             if (tokens[index] == "function" || (tokens[index] == "async" && tokens[index + 1] == "function"))
             {

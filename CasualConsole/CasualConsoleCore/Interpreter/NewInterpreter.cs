@@ -1644,7 +1644,8 @@ public class NewInterpreter
                 case ValueType.Null:
                     return false;
                 case ValueType.Number:
-                    return ((double)value) != 0;
+                    double d = (double)value;
+                    return d != 0 && !double.IsNaN(d);
                 case ValueType.String:
                     return !string.IsNullOrEmpty((string)value);
                 case ValueType.Bool:
@@ -1830,7 +1831,7 @@ public class NewInterpreter
             }
 
         begin:
-            while (i < code.Length && isWhiteSpace(code[i]))
+            while (i < code.Length && IsWhiteSpace(code[i]))
                 i++;
             if (i < code.Length - 1)
             {
@@ -1866,19 +1867,19 @@ public class NewInterpreter
             }
 
             char c = code[i];
-            if (isCharOrUnderscore(c))
+            if (IsCharOrUnderscore(c))
             {
                 int start = i++;
-                while (i < code.Length && isCharOrDigitOrUnderscore(code[i]))
+                while (i < code.Length && IsCharOrDigitOrUnderscore(code[i]))
                     i++;
 
                 token = code[start..i];
                 return true;
             }
-            if (isDigit(c))
+            if (IsDigit(c))
             {
                 int start = i++;
-                while (i < code.Length && isDigitOrDot(code[i]))
+                while (i < code.Length && IsDigitOrDot(code[i]))
                     i++;
 
                 token = code[start..i];
@@ -1935,43 +1936,43 @@ public class NewInterpreter
         }
     }
 
-    static SearchValues<char> chars = SearchValues.Create("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_");
-    static bool isCharOrUnderscore(char c)
+    static readonly SearchValues<char> chars = SearchValues.Create("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_");
+    static bool IsCharOrUnderscore(char c)
     {
         return chars.Contains(c);
     }
 
-    static SearchValues<char> charsDigit = SearchValues.Create("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_");
-    static bool isCharOrDigitOrUnderscore(char c)
+    static readonly SearchValues<char> charsDigit = SearchValues.Create("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_");
+    static bool IsCharOrDigitOrUnderscore(char c)
     {
         return charsDigit.Contains(c);
     }
 
-    static SearchValues<char> digit = SearchValues.Create("0123456789");
-    static bool isDigit(char c)
+    static readonly SearchValues<char> digit = SearchValues.Create("0123456789");
+    static bool IsDigit(char c)
     {
         return digit.Contains(c);
     }
 
-    static SearchValues<char> digitOrDot = SearchValues.Create("0123456789.");
-    static bool isDigitOrDot(char c)
+    static readonly SearchValues<char> digitOrDot = SearchValues.Create("0123456789.");
+    static bool IsDigitOrDot(char c)
     {
         return digitOrDot.Contains(c);
     }
 
-    static SearchValues<char> ws = SearchValues.Create(" \t\r\n");
-    static bool isWhiteSpace(char c)
+    static readonly SearchValues<char> ws = SearchValues.Create(" \t\r\n");
+    static bool IsWhiteSpace(char c)
     {
         return ws.Contains(c);
     }
 
     private static bool IsNumber(ReadOnlySpan<char> token)
     {
-        return isDigit(token[0]);
+        return IsDigit(token[0]);
     }
     private static bool IsVariableName(ReadOnlySpan<char> token)
     {
-        return isCharOrUnderscore(token[0]);
+        return IsCharOrUnderscore(token[0]);
     }
     private static bool IsStaticString(ReadOnlySpan<char> token)
     {
