@@ -668,6 +668,7 @@ public class Interpreter
             ("var k = 'hello'; k &&= 2; k", 2),
             ("var k = ''; var n = null; k &&= n=2; n", null), // Checking optimization
             ("var o = { name:'thisName', getName(){ return (() => this.name)(); } }; o.getName()", "thisName"),
+            ("var o = { name:'thisName', 'getName'(){ return (() => this.name)(); } }; o.getName()", "thisName"),
             ("var [x, ...y] = [1,2,3,4]; y.length", 3),
             ("var sum = function(arr){ let sum = 0; for (let x of arr) sum += x; return sum; };;", null),
             ("[1,2,3].map(x => x + 1).length", 3),
@@ -1910,9 +1911,8 @@ public class Interpreter
 
         public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
-            var printValue = context.variableScope.GetVariable(Parameters[0].paramName);
-            if (printValue.type != ValueType.Null)
-                Console.WriteLine(printValue.ToString());
+            var arguments = context.variableScope.GetVariable("arguments").GetAsArray();
+            Console.WriteLine(string.Join(" ", arguments.list));
             return (CustomValue.Null, ReturnType.None);
         }
 
