@@ -447,10 +447,8 @@ public class Interpreter
             ("arr1[3]", null),
             ("arr1[4]", null),
             ("arr1.name", null),
-            ("arr1.name = 'hello'", "hello"),
-            ("arr1.name", "hello"),
             ("var o13 = { 'name': 'some name', nameGetter: function(){ return this.name; } }; o13.nameGetter()", "some name"),
-            ("var indexer = function(i){ return this[i]; }; var arr2 = [4,5,6]; arr2.get = indexer; arr2.get(0)", 4),
+            ("Array.prototype.get = function(i){ return this[i]; }; var arr2 = [4,5,6]; arr2.get(0)", 4),
             ("var arr3 = [];", null),
             ("arr3.length", 0),
             ("arr3.push(5)", 1),
@@ -677,7 +675,6 @@ public class Interpreter
             ("sum([1,2,3].map((x,i,arr) => arr[i]))", 6),
             ("[1,2,3].filter(x => x < 3).length", 2),
             ("sum([1,2,3].filter((x,i) => i < 2))", 3),
-            ("var arr = [1,2,3]; arr.map = null; arr.map", null),
             ("[1,2,3].join(',')", "1,2,3"),
             ("-({ arr: ()=>[1,2,3] }).arr().map(x => x).length", -3),
             ("var gen = function*(){ yield 1; yield 2; return 3; yield 4; yield 5; }; [...gen()].length", 2),
@@ -701,6 +698,11 @@ public class Interpreter
             ("'test'[0]", "t"),
             ("'test'[1]", "e"),
             ("[...'日本語𤭢'][3] ", "𤭢"),
+            ("var sum = 0; for (let {n} of [{n:1},{n:2}]) sum += n; sum", 3),
+            ("function entries(o){ let arr = []; for (let key in o) arr.push([key, o[key]]); return arr; } null", null),
+            ("var sum = 0; for (let [key,value] of entries({a:1,b:2,c:3})) sum += value; sum", 6),
+            ("var t = ''; for (let [key,value] of entries({a:1,b:2,c:3})) t += key; t", "abc"),
+            ("var o = { get n(){ return 'test' } }; var { n } = o; n", "test"),
         };
 
         var interpreter = new Interpreter();
@@ -1234,10 +1236,10 @@ public class Interpreter
             {
                 return GetValue(value, baseExpressionValue);
             }
-            else if (baseObject.name != "")
+            else if (baseObject.className != "")
             {
                 // Not a regular object, an instance of a class
-                var classInfo = context.variableScope.GetVariable(baseObject.name);
+                var classInfo = context.variableScope.GetVariable(baseObject.className);
                 var classObject = (IClassInfoObject)classInfo.value;
                 if (classObject.TryGetValueMethod(key, out var method))
                 {
@@ -1261,9 +1263,6 @@ public class Interpreter
                 var fieldName = (string)keyExpressionValue.value;
                 if (fieldName == "length")
                     return CustomValue.FromNumber(array.Length);
-
-                if (array.map.TryGetValue(fieldName, out CustomValue mapValue))
-                    return mapValue;
             }
         }
         else if (baseExpressionValue.type == ValueType.String)
@@ -1382,11 +1381,6 @@ public class Interpreter
                 {
                     int newLength = (int)(double)value.value;
                     array.Length = newLength;
-                    return value;
-                }
-                else
-                {
-                    array.map[fieldName] = value;
                     return value;
                 }
             }
@@ -1761,12 +1755,12 @@ public class Interpreter
     }
     class BaseObject
     {
-        internal readonly string name;
+        internal readonly string className;
         internal readonly Dictionary<string, ValueOrGetterSetter> properties;
 
         public BaseObject(string name, Dictionary<string, ValueOrGetterSetter> properties)
         {
-            this.name = name;
+            this.className = name;
             this.properties = properties;
         }
     }
@@ -2392,8 +2386,7 @@ public class Interpreter
     }
     class CustomArray
     {
-        internal List<CustomValue> list;
-        internal Dictionary<string, CustomValue> map;
+        internal readonly List<CustomValue> list;
 
         public int Length
         {
@@ -2426,7 +2419,6 @@ public class Interpreter
         public CustomArray(List<CustomValue> list)
         {
             this.list = list;
-            this.map = new Dictionary<string, CustomValue>();
         }
     }
 
@@ -2541,8 +2533,8 @@ public class Interpreter
     }
     private struct CustomValue : ValueOrGetterSetter
     {
-        public object value;
-        public ValueType type;
+        public readonly object value;
+        public readonly ValueType type;
 
         public static readonly CustomValue Null = new(null!, ValueType.Null);
         public static readonly CustomValue True = new(true, ValueType.Bool);
@@ -2933,10 +2925,10 @@ public class Interpreter
         {
             return new VariableScope(values, innerScope, isFunctionScope);
         }
-        public static VariableScope GetNewLoopScope(VariableScope scope, AssignmentType assignmentType, string variableName, CustomValue variableValue)
+        public static VariableScope GetNewLoopScope(VariableScope scope, AssignmentType assignmentType, LValue lValue, CustomValue variableValue)
         {
             var loopScope = ScopeForLoop(scope, assignmentType);
-            loopScope.AssignVariable(assignmentType, variableName, variableValue);
+            lValue.Assign(variableValue, loopScope, assignmentType);
             return loopScope;
         }
         public static VariableScope GetNewLoopScopeCopy(VariableScope scope, AssignmentType assignmentType)
@@ -2997,7 +2989,7 @@ public class Interpreter
                 scope.variables[item.Key] = item.Value;
         }
     }
-    record Context
+    class Context
     {
         public readonly VariableScope variableScope;
         public readonly CustomValue thisOwner;
@@ -3006,6 +2998,139 @@ public class Interpreter
         {
             this.variableScope = variableScope;
             this.thisOwner = thisOwner;
+        }
+    }
+
+    class LValueMethods
+    {
+        public static LValue New(ArraySegment<string> tokens)
+        {
+            if (tokens.Count == 1)
+            {
+                if (!IsVariableName(tokens[0]))
+                    throw new Exception();
+
+                return new VariableAssingLValue(tokens[0]);
+            }
+
+            if (tokens[0] == "{")
+            {
+                if (tokens[^1] != "}")
+                    throw new Exception();
+
+                var variableGroups = SplitBy(tokens[1..^1], ",", allowTrailing: true);
+                var variableNames = variableGroups.Select(x =>
+                {
+                    if (x.Count == 1)
+                        return (x[0], x[0]);
+                    if (x.Count == 3 && x[1] == ":")
+                        return (x[0], x[2]);
+                    throw new Exception();
+                }).ToArray();
+                return new MapAssignLValue(variableNames);
+            }
+
+            if (tokens[0] == "[")
+            {
+                if (tokens[^1] != "]")
+                    throw new Exception();
+
+                var variableGroups = SplitBy(tokens[1..^1], ",", allowTrailing: true);
+                var variableNames = variableGroups.Select(x =>
+                {
+                    if (x.Count == 1)
+                        return (x[0], false);
+                    if (x.Count == 2 && x[0] == "...")
+                        return (x[1], true);
+                    throw new Exception();
+                }).ToArray();
+                return new ArrayAssignLValue(variableNames);
+            }
+
+            throw new Exception();
+        }
+    }
+    interface LValue
+    {
+        void Assign(CustomValue value, VariableScope scope, AssignmentType assignmentType);
+    }
+    class VariableAssingLValue : LValue
+    {
+        public readonly string variableName;
+
+        public VariableAssingLValue(string variableName)
+        {
+            this.variableName = variableName;
+        }
+
+        public void Assign(CustomValue value, VariableScope scope, AssignmentType assignmentType)
+        {
+            scope.AssignVariable(assignmentType, variableName, value);
+        }
+    }
+    class MapAssignLValue : LValue
+    {
+        public readonly (string sourceName, string targetName)[] variableNames;
+
+        public MapAssignLValue((string sourceName, string targetName)[] variableNames)
+        {
+            this.variableNames = variableNames;
+        }
+
+        public void Assign(CustomValue mapValue, VariableScope scope, AssignmentType assignmentType)
+        {
+            if (mapValue.type != ValueType.Map)
+                throw new Exception();
+            var underlyingMap = mapValue.GetAsMap();
+            foreach (var (sourceName, targetName) in variableNames)
+            {
+                if (!underlyingMap.TryGetValue(sourceName, out var value))
+                {
+                    scope.AssignVariable(assignmentType, targetName, CustomValue.Null);
+                }
+                else if (value is CustomValue customValue)
+                {
+                    scope.AssignVariable(assignmentType, targetName, customValue);
+                }
+                else
+                {
+                    var getterSetter = (GetterSetter)value;
+                    var res = CallFunction(getterSetter.GetGetter(), new List<CustomValue>(), mapValue);
+                    scope.AssignVariable(assignmentType, targetName, res);
+                }
+            }
+        }
+    }
+    class ArrayAssignLValue : LValue
+    {
+        public readonly (string, bool)[] variableNames;
+
+        public ArrayAssignLValue((string, bool)[] variableNames)
+        {
+            this.variableNames = variableNames;
+        }
+
+        public void Assign(CustomValue mapValue, VariableScope scope, AssignmentType assignmentType)
+        {
+            if (mapValue.type != ValueType.Array)
+                throw new Exception();
+            var underlyingArray = ((CustomArray)mapValue.value).list;
+
+            for (int i = 0; i < variableNames.Length; i++)
+            {
+                var (varName, isRest) = variableNames[i];
+                if (!isRest)
+                {
+                    var value = i < underlyingArray.Count ? underlyingArray[i] : CustomValue.Null;
+                    scope.AssignVariable(assignmentType, varName, value);
+                }
+                else
+                {
+                    var values = underlyingArray.Skip(i).ToList();
+                    var value = CustomValue.FromArray(new CustomArray(values));
+                    scope.AssignVariable(assignmentType, varName, value);
+                }
+            }
         }
     }
 
@@ -3035,7 +3160,8 @@ public class Interpreter
                 if (assignmentSet.Contains(newToken))
                 {
                     var restTokens = tokens[(index + 1)..];
-                    return new AssignmentExpression(previousExpression, newToken, restTokens, AssignmentType.None);
+                    var restExpr = ExpressionMethods.New(restTokens);
+                    return new AssignmentExpression(previousExpression, newToken, restExpr, AssignmentType.None);
                 }
 
                 if (regularOperatorSet.Contains(newToken))
@@ -3321,7 +3447,7 @@ public class Interpreter
                 if (braceEndIndex + 1 < tokens.Count && tokens[braceEndIndex + 1] == "=")
                 {
                     // Map assignment without var, let or const
-                    var mapExpression = MapAssignmentExpression.FromBody(tokens, braceEndIndex, AssignmentType.None);
+                    var mapExpression = DestructuringExpression.FromBody(tokens, braceEndIndex, AssignmentType.None);
                     return (mapExpression, tokens.Count);
                 }
                 else
@@ -3340,7 +3466,7 @@ public class Interpreter
                 if (bracketsEndIndex + 1 < tokens.Count && tokens[bracketsEndIndex + 1] == "=")
                 {
                     // Array assignment without var, let or const
-                    var arrayExpression = ArrayAssignmentExpression.FromBody(tokens, bracketsEndIndex, AssignmentType.None);
+                    var arrayExpression = DestructuringExpression.FromBody(tokens, bracketsEndIndex, AssignmentType.None);
                     return (arrayExpression, tokens.Count);
                 }
                 else
@@ -3871,7 +3997,7 @@ public class Interpreter
     }
     class SingleTokenNumberExpression : Expression
     {
-        private CustomValue number;
+        private readonly CustomValue number;
 
         public SingleTokenNumberExpression(string token)
         {
@@ -3885,7 +4011,7 @@ public class Interpreter
     }
     class SingleTokenStringExpression : Expression
     {
-        private CustomValue value;
+        private readonly CustomValue value;
 
         public SingleTokenStringExpression(string token)
         {
@@ -4021,7 +4147,7 @@ public class Interpreter
     }
     class SingleTokenVariableExpression : Expression
     {
-        internal string token;
+        internal readonly string token;
 
         public SingleTokenVariableExpression(string token)
         {
@@ -4042,7 +4168,7 @@ public class Interpreter
     }
     class CustomValueExpression : Expression
     {
-        private CustomValue value;
+        private readonly CustomValue value;
 
         public CustomValueExpression(CustomValue value)
         {
@@ -4183,15 +4309,15 @@ public class Interpreter
             return newObject;
         }
     }
-    class MapAssignmentExpression : Expression
+    class DestructuringExpression : Expression
     {
-        public (string sourceName, string targetName)[] variableNames;
-        public Expression rValue;
-        public AssignmentType assignmentType;
+        public readonly LValue lValue;
+        public readonly Expression rValue;
+        public readonly AssignmentType assignmentType;
 
-        public MapAssignmentExpression((string sourceName, string targetName)[] variableNames, Expression rValue, AssignmentType assignmentType)
+        public DestructuringExpression(LValue lValue, Expression rValue, AssignmentType assignmentType)
         {
-            this.variableNames = variableNames;
+            this.lValue = lValue;
             this.rValue = rValue;
             this.assignmentType = assignmentType;
         }
@@ -4199,112 +4325,24 @@ public class Interpreter
         public CustomValue EvaluateExpression(Context context)
         {
             CustomValue mapValue = rValue.EvaluateExpression(context);
-            if (mapValue.type != ValueType.Map)
-                throw new Exception();
-            var underlyingMap = mapValue.GetAsMap();
-            foreach (var (sourceName, targetName) in variableNames)
-            {
-                if (!underlyingMap.TryGetValue(sourceName, out var value))
-                {
-                    context.variableScope.AssignVariable(assignmentType, targetName, CustomValue.Null);
-                }
-                else
-                {
-                    if (value is CustomValue customValue)
-                    {
-                        context.variableScope.AssignVariable(assignmentType, targetName, customValue);
-                    }
-                    else
-                    {
-                        var getterSetter = (GetterSetter)value;
-                        var res = CallFunction(getterSetter.GetGetter(), new List<CustomValue>(), mapValue);
-                        context.variableScope.AssignVariable(assignmentType, targetName, res);
-                    }
-                }
-            }
-
+            lValue.Assign(mapValue, context.variableScope, assignmentType);
             return CustomValue.Null;
         }
 
-        public static MapAssignmentExpression FromBody(ArraySegment<string> tokens, int braceEndIndex, AssignmentType assignmentType)
+        public static DestructuringExpression FromBody(ArraySegment<string> tokens, int bracketsEndIndex, AssignmentType assignmentType)
         {
-            var variableGroups = SplitBy(tokens[1..braceEndIndex], ",", allowTrailing: true);
-            var variableNames = variableGroups.Select(x =>
-            {
-                if (x.Count == 1)
-                    return (x[0], x[0]);
-                if (x.Count == 3 && x[1] == ":")
-                    return (x[0], x[2]);
-                throw new Exception();
-            }).ToArray();
-
-            var rValueTokens = tokens[(braceEndIndex + 2)..];
-            var rvalueExpression = ExpressionMethods.New(rValueTokens);
-            return new MapAssignmentExpression(variableNames, rvalueExpression, assignmentType);
-        }
-    }
-    class ArrayAssignmentExpression : Expression
-    {
-        public (string varName, bool isRest)[] variableNames;
-        public Expression rValue;
-        public AssignmentType assignmentType;
-
-        public ArrayAssignmentExpression((string, bool)[] variableNames, Expression rValue, AssignmentType assignmentType)
-        {
-            this.variableNames = variableNames;
-            this.rValue = rValue;
-            this.assignmentType = assignmentType;
-        }
-
-        public CustomValue EvaluateExpression(Context context)
-        {
-            CustomValue mapValue = rValue.EvaluateExpression(context);
-            if (mapValue.type != ValueType.Array)
-                throw new Exception();
-            var underlyingArray = ((CustomArray)mapValue.value).list;
-
-            for (int i = 0; i < variableNames.Length; i++)
-            {
-                var (varName, isRest) = variableNames[i];
-                if (!isRest)
-                {
-                    var value = i < underlyingArray.Count ? underlyingArray[i] : CustomValue.Null;
-                    context.variableScope.AssignVariable(assignmentType, varName, value);
-                }
-                else
-                {
-                    var values = underlyingArray.Skip(i).ToList();
-                    var value = CustomValue.FromArray(new CustomArray(values));
-                    context.variableScope.AssignVariable(assignmentType, varName, value);
-                }
-            }
-
-            return CustomValue.Null;
-        }
-
-        public static ArrayAssignmentExpression FromBody(ArraySegment<string> tokens, int bracketsEndIndex, AssignmentType assignmentType)
-        {
-            var variableGroups = SplitBy(tokens[1..bracketsEndIndex], ",", allowTrailing: true);
-            var variableNames = variableGroups.Select(x =>
-            {
-                if (x.Count == 1)
-                    return (x[0], false);
-                if (x.Count == 2 && x[0] == "...")
-                    return (x[1], true);
-                throw new Exception();
-            }).ToArray();
-
+            var lValue = LValueMethods.New(tokens[..(bracketsEndIndex + 1)]);
             var rValueTokens = tokens[(bracketsEndIndex + 2)..];
             var rvalueExpression = ExpressionMethods.New(rValueTokens);
-            return new ArrayAssignmentExpression(variableNames, rvalueExpression, assignmentType);
+            return new DestructuringExpression(lValue, rvalueExpression, assignmentType);
         }
     }
     class AssignmentExpression : Expression
     {
-        public Expression lValue;
-        public string assignmentOperator;
-        public Expression rValue;
-        public AssignmentType assignmentType;
+        public readonly Expression lValue;
+        public readonly string assignmentOperator;
+        public readonly Expression rValue;
+        public readonly AssignmentType assignmentType;
 
         public AssignmentExpression(Expression lValue, string assignmentOperator, Expression valueExpression, AssignmentType assignmentType)
         {
@@ -4315,21 +4353,6 @@ public class Interpreter
             this.assignmentOperator = assignmentOperator;
             this.rValue = valueExpression;
             this.assignmentType = assignmentType;
-        }
-
-        public AssignmentExpression(Expression lValue, string assignmentOperator, ArraySegment<string> rValueTokens, AssignmentType assignmentType)
-            : this(lValue, assignmentOperator, ExpressionMethods.New(rValueTokens), assignmentType)
-        {
-        }
-
-        public AssignmentExpression(string variableName, string assignmentOperator, Expression valueExpression, AssignmentType assignmentType)
-            : this(new SingleTokenVariableExpression(variableName), assignmentOperator, valueExpression, assignmentType)
-        {
-        }
-
-        public AssignmentExpression(string variableName, string assignmentOperator, ArraySegment<string> rValueTokens, AssignmentType assignmentType)
-            : this(new SingleTokenVariableExpression(variableName), assignmentOperator, rValueTokens, assignmentType)
-        {
         }
 
         public CustomValue EvaluateExpression(Context context)
@@ -4412,13 +4435,15 @@ public class Interpreter
 
         public static Expression FromVarStatement(ArraySegment<string> tokens, AssignmentType assignmentType)
         {
-            if (tokens.Count == 1 || tokens[1] == "=")
+            if (tokens.Count == 1)
+            {
+                return new AssignmentExpression(new SingleTokenVariableExpression(tokens[0]), "=", nullExpression, assignmentType);
+            }
+            if (tokens[1] == "=")
             {
                 var variableName = tokens[0];
-                if (tokens.Count == 1)
-                    return new AssignmentExpression(variableName, "=", nullExpression, assignmentType);
-                else
-                    return new AssignmentExpression(variableName, tokens[1], tokens[2..], assignmentType);
+                var expr = ExpressionMethods.New(tokens[2..]);
+                return new AssignmentExpression(new SingleTokenVariableExpression(variableName), tokens[1], expr, assignmentType);
             }
             else if (tokens[0] == "{")
             {
@@ -4428,7 +4453,7 @@ public class Interpreter
                 if (tokens[braceEndIndex + 1] != "=")
                     throw new Exception();
 
-                return MapAssignmentExpression.FromBody(tokens, braceEndIndex, assignmentType);
+                return DestructuringExpression.FromBody(tokens, braceEndIndex, assignmentType);
             }
             else if (tokens[0] == "[")
             {
@@ -4438,7 +4463,7 @@ public class Interpreter
                 if (tokens[bracketEndIndex + 1] != "=")
                     throw new Exception();
 
-                return ArrayAssignmentExpression.FromBody(tokens, bracketEndIndex, assignmentType);
+                return DestructuringExpression.FromBody(tokens, bracketEndIndex, assignmentType);
             }
             else
             {
@@ -4675,7 +4700,7 @@ public class Interpreter
     }
     class BlockStatement : Statement
     {
-        Slice<Statement> statements;
+        private readonly Slice<Statement> statements;
 
         public BlockStatement(ArraySegment<string> tokens)
         {
@@ -4899,18 +4924,22 @@ public class Interpreter
                 var parenthesesTokens = expressions[0];
                 var isNewAssignment = IsAssignmentType(parenthesesTokens[0], out var assignmentType);
                 var index = isNewAssignment ? 1 : 0;
-                var variableName = parenthesesTokens[index];
-                var operationType = parenthesesTokens[index + 1];
-                var restTokens = parenthesesTokens[(index + 2)..];
+                var inOfIndex = index;
+                while (parenthesesTokens[inOfIndex] != "in" && parenthesesTokens[inOfIndex] != "of")
+                    inOfIndex++;
+                var variableTokens = parenthesesTokens[index..inOfIndex];
+                var lValue = LValueMethods.New(variableTokens);
+                var operationType = parenthesesTokens[inOfIndex];
+                var restTokens = parenthesesTokens[(inOfIndex + 1)..];
                 var restExpression = ExpressionMethods.New(restTokens);
 
                 if (operationType == "in")
                 {
-                    return new ForInOfStatement(true, assignmentType, variableName, restExpression, bodyStatement, isAwaitFor);
+                    return new ForInOfStatement(true, assignmentType, lValue, restExpression, bodyStatement, isAwaitFor);
                 }
                 else if (operationType == "of")
                 {
-                    return new ForInOfStatement(false, assignmentType, variableName, restExpression, bodyStatement, isAwaitFor);
+                    return new ForInOfStatement(false, assignmentType, lValue, restExpression, bodyStatement, isAwaitFor);
                 }
                 throw new Exception();
             }
@@ -4920,16 +4949,16 @@ public class Interpreter
     class ForInOfStatement : Statement
     {
         private readonly AssignmentType assignmentType;
-        private readonly string variableName;
+        private readonly LValue lValue;
         private readonly Expression sourceExpression;
         private readonly Statement bodyStatement;
         private readonly bool isInStatement;
         private readonly bool isAwait;
 
-        public ForInOfStatement(bool isInStatement, AssignmentType assignmentType, string variableName, Expression sourceExpression, Statement bodyStatement, bool isAwait)
+        public ForInOfStatement(bool isInStatement, AssignmentType assignmentType, LValue lValue, Expression sourceExpression, Statement bodyStatement, bool isAwait)
         {
             this.assignmentType = assignmentType;
-            this.variableName = variableName;
+            this.lValue = lValue;
             this.sourceExpression = sourceExpression;
             this.bodyStatement = bodyStatement;
             this.isInStatement = isInStatement;
@@ -4944,7 +4973,7 @@ public class Interpreter
             {
                 foreach (var element in (IEnumerable<CustomValue>)elements)
                 {
-                    var loopScope = VariableScope.GetNewLoopScope(scope, assignmentType, variableName, element);
+                    var loopScope = VariableScope.GetNewLoopScope(scope, assignmentType, lValue, element);
 
                     var (value, type) = bodyStatement.EvaluateStatement(new Context(loopScope, context.thisOwner));
                     if (type == ReturnType.Return)
@@ -4961,7 +4990,7 @@ public class Interpreter
                     if (!success)
                         break;
 
-                    var loopScope = VariableScope.GetNewLoopScope(scope, assignmentType, variableName, element);
+                    var loopScope = VariableScope.GetNewLoopScope(scope, assignmentType, lValue, element);
 
                     var (value, type) = bodyStatement.EvaluateStatement(new Context(loopScope, context.thisOwner));
                     if (type == ReturnType.Return)
@@ -4982,7 +5011,7 @@ public class Interpreter
             {
                 foreach (var element in (IEnumerable<CustomValue>)elements)
                 {
-                    var loopScope = VariableScope.GetNewLoopScope(scope, assignmentType, variableName, element);
+                    var loopScope = VariableScope.GetNewLoopScope(scope, assignmentType, lValue, element);
 
                     foreach (var (value, type) in bodyStatement.AsEnumerable(new Context(loopScope, context.thisOwner)))
                     {
@@ -5001,7 +5030,7 @@ public class Interpreter
                     if (!success)
                         break;
 
-                    var loopScope = VariableScope.GetNewLoopScope(scope, assignmentType, variableName, element);
+                    var loopScope = VariableScope.GetNewLoopScope(scope, assignmentType, lValue, element);
 
                     foreach (var (value, type) in bodyStatement.AsEnumerable(new Context(loopScope, context.thisOwner)))
                     {
