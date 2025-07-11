@@ -697,7 +697,10 @@ public class Interpreter
             ("-1/0", double.NegativeInfinity),
             ("'test'[0]", "t"),
             ("'test'[1]", "e"),
-            ("[...'日本語𤭢'][3] ", "𤭢"),
+            ("'日本語𤭢'.length", 5),
+            ("[...'日本語𤭢'].length", 4),
+            ("[...'日本語𤭢'][3]", "𤭢"),
+            ("var sum = 0; for (let c of '日本語𤭢') sum+=1; sum", 4),
             ("var sum = 0; for (let {n} of [{n:1},{n:2}]) sum += n; sum", 3),
             ("function entries(o){ let arr = []; for (let key in o) arr.push([key, o[key]]); return arr; } null", null),
             ("var sum = 0; for (let [key,value] of entries({a:1,b:2,c:3})) sum += value; sum", 6),
@@ -1473,9 +1476,15 @@ public class Interpreter
         return expressionList;
     }
 
-    private static IEnumerable<CustomValue> StringAsEnumerable(string str)
+    private static IEnumerable<CustomValue> StringAsMultiValue(string s)
     {
-        return str.Select(c => CustomValue.FromParsedString(c.ToString()));
+        int i = 0;
+        while (i < s.Length)
+        {
+            var iEnd = i + (char.IsHighSurrogate(s[i]) ? 2 : 1);
+            yield return CustomValue.FromParsedString(s[i..iEnd]);
+            i = iEnd;
+        }
     }
 
     private static bool IsVariableName(string token)
@@ -2681,24 +2690,6 @@ public class Interpreter
                 return string.Join(",", arr.list);
             }
             return value.ToString()!;
-        }
-
-        private static IEnumerable<CustomValue> StringAsMultiValue(string s)
-        {
-            int i = 0;
-            while (i < s.Length)
-            {
-                if (char.IsHighSurrogate(s[i]))
-                {
-                    yield return CustomValue.FromParsedString(s[i..(i + 2)]);
-                    i += 2;
-                }
-                else
-                {
-                    yield return CustomValue.FromParsedString(s[i..(i + 1)]);
-                    i += 1;
-                }
-            }
         }
     }
     private readonly struct GetterSetter : ValueOrGetterSetter
@@ -5045,10 +5036,8 @@ public class Interpreter
 
         private (VariableScope, object) GetElementsAndContext(Context context)
         {
-            VariableScope scope;
-
             bool isOfStatement = !isInStatement;
-            scope = context.variableScope;
+            var scope = context.variableScope;
             var sourceValue = sourceExpression.EvaluateExpression(context);
             if (isInStatement)
             {
@@ -5058,28 +5047,36 @@ public class Interpreter
             }
             else if (isOfStatement)
             {
-                if (sourceValue.type == ValueType.String && !isAwait)
+                if (!isAwait)
                 {
-                    var str = (string)sourceValue.value;
-                    return (scope, StringAsEnumerable(str));
-                }
-                else if (sourceValue.type == ValueType.Array && !isAwait)
-                {
-                    var array = (CustomArray)sourceValue.value;
-                    return (scope, array.list);
-                }
-                else if (sourceValue.type == ValueType.Generator && !isAwait)
-                {
-                    var generator = (Generator)sourceValue.value;
-                    return (scope, generator);
-                }
-                else if (sourceValue.type == ValueType.AsyncGenerator && isAwait)
-                {
-                    var asyncGenerator = (AsyncGenerator)sourceValue.value;
-                    return (scope, asyncGenerator);
+                    if (sourceValue.type == ValueType.String)
+                    {
+                        var str = (string)sourceValue.value;
+                        return (scope, StringAsMultiValue(str));
+                    }
+                    else if (sourceValue.type == ValueType.Array)
+                    {
+                        var array = (CustomArray)sourceValue.value;
+                        return (scope, array.list);
+                    }
+                    else if (sourceValue.type == ValueType.Generator)
+                    {
+                        var generator = (Generator)sourceValue.value;
+                        return (scope, generator);
+                    }
+                    else
+                        throw new Exception();
                 }
                 else
-                    throw new Exception();
+                {
+                    if (sourceValue.type == ValueType.AsyncGenerator)
+                    {
+                        var asyncGenerator = (AsyncGenerator)sourceValue.value;
+                        return (scope, asyncGenerator);
+                    }
+                    else
+                        throw new Exception();
+                }
             }
             else
                 throw new Exception();
