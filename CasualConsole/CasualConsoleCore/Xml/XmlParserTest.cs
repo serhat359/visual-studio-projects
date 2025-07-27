@@ -30,6 +30,7 @@ public class XmlParserTest
         MultiRootTest();
         UnclosedTagHtmlTag();
         AllowSelfClosingToImmediatelyClose();
+        AllowScriptTag();
 
         Console.WriteLine("All xml tests are successful!");
     }
@@ -51,7 +52,7 @@ public class XmlParserTest
         XmlDocument doc = new XmlDocument();
         doc.LoadXml(text);
 
-        var regularData = doc.ChildNodes[0].InnerText;
+        var regularData = doc.ChildNodes[0]!.InnerText;
 
         var mydoc = XmlParser.Parse(text);
         var myData = mydoc.ChildNodes[0].InnerText;
@@ -74,9 +75,9 @@ public class XmlParserTest
 
         var mydoc = XmlParser.Parse(text);
 
-        if (doc.ChildNodes[0].ChildNodes[0].InnerText != mydoc.ChildNodes[0].ChildNodes[0].InnerText) throw new System.Exception();
-        if (doc.ChildNodes[0].ChildNodes[1].InnerText != mydoc.ChildNodes[0].ChildNodes[1].InnerText) throw new System.Exception();
-        if (doc.ChildNodes[0].ChildNodes[2].InnerText != mydoc.ChildNodes[0].ChildNodes[2].InnerText) throw new System.Exception();
+        if (doc.ChildNodes[0]!.ChildNodes[0]!.InnerText != mydoc.ChildNodes[0].ChildNodes[0].InnerText) throw new System.Exception();
+        if (doc.ChildNodes[0]!.ChildNodes[1]!.InnerText != mydoc.ChildNodes[0].ChildNodes[1].InnerText) throw new System.Exception();
+        if (doc.ChildNodes[0]!.ChildNodes[2]!.InnerText != mydoc.ChildNodes[0].ChildNodes[2].InnerText) throw new System.Exception();
     }
 
     private static void InnerTextTest()
@@ -100,7 +101,7 @@ public class XmlParserTest
 
         var mydoc = XmlParser.Parse(text);
 
-        if (doc.ChildNodes[0].InnerText != "R&D") throw new System.Exception();
+        if (doc.ChildNodes[0]!.InnerText != "R&D") throw new System.Exception();
         if (mydoc.ChildNodes[0].InnerText != "R&D") throw new System.Exception();
     }
 
@@ -115,7 +116,7 @@ public class XmlParserTest
 
         var mydoc = XmlParser.Parse(text);
 
-        if (doc.ChildNodes[0].InnerText != "I'm gone") throw new System.Exception();
+        if (doc.ChildNodes[0]!.InnerText != "I'm gone") throw new System.Exception();
         if (mydoc.ChildNodes[0].InnerText != "I'm gone") throw new System.Exception();
     }
 
@@ -130,7 +131,7 @@ public class XmlParserTest
 
         var mydoc = XmlParser.Parse(text);
 
-        if (doc.ChildNodes[0].InnerText != "I'm gone") throw new System.Exception();
+        if (doc.ChildNodes[0]!.InnerText != "I'm gone") throw new System.Exception();
         if (mydoc.ChildNodes[0].InnerText != "I'm gone") throw new System.Exception();
     }
 
@@ -144,8 +145,8 @@ public class XmlParserTest
         XmlDocument doc = new XmlDocument();
         doc.LoadXml(text);
 
-        var data = doc.ChildNodes[0].Attributes["text"];
-        if (data.Name != "text") throw new System.Exception();
+        var data = doc.ChildNodes[0]!.Attributes!["text"];
+        if (data!.Name != "text") throw new System.Exception();
         if (data.Value != "somedata") throw new System.Exception();
 
         var mydoc = XmlParser.Parse(text);
@@ -178,7 +179,7 @@ public class XmlParserTest
 
         XmlDocument doc = new XmlDocument();
         doc.LoadXml(text);
-        if (doc.ChildNodes[0].Attributes["text"].Value != "R&D") throw new System.Exception();
+        if (doc.ChildNodes[0]!.Attributes!["text"]!.Value != "R&D") throw new System.Exception();
 
         var mydoc = XmlParser.Parse(text);
         var attributes = mydoc.ChildNodes[0].Attributes;
@@ -343,5 +344,26 @@ e <c>DData</c>
         </dd>
         ";
         var mydoc = XmlParser.Parse(text, isHtml: true);
+    }
+
+    private static void AllowScriptTag()
+    {
+        var text = @"
+        <dd>
+        <script>
+            let o = ""<start>"";
+        </script>
+        <script>
+            let o2 = ""<other>"";
+        </script>
+        </dd>
+        ";
+        var mydoc = XmlParser.Parse(text, isHtml: true);
+        var scripts = mydoc.ChildNodes[0].ChildNodes;
+        if (scripts.Count != 2) throw new System.Exception();
+        if (scripts[0].TagName != "script") throw new System.Exception();
+        if (!scripts[0].InnerText.Contains("<start>")) throw new System.Exception();
+        if (scripts[1].TagName != "script") throw new System.Exception();
+        if (!scripts[1].InnerText.Contains("<other>")) throw new System.Exception();
     }
 }

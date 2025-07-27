@@ -181,6 +181,23 @@ public class XmlParser
                     i++;
                     var token = xml[start..i];
                     list.Add((token.ToString(), lineNumberStart));
+
+                    bool isScript = false;
+                    bool isStyle = false;
+                    if ((isScript = token.StartsWith("<script")) || (isStyle = token.StartsWith("<style")))
+                    {
+                        lineNumberStart = lineNumber;
+                        var scriptEndTag = isScript ? "</script>"
+                            : isStyle ? "</style>"
+                            : throw new Exception();
+                        var scriptEnd = IndexOf(xml, scriptEndTag, i);
+                        if (scriptEnd < 0)
+                            throw new Exception();
+                        var scriptContent = xml[i..scriptEnd];
+                        list.Add((scriptContent.ToString(), lineNumberStart));
+                        list.Add((scriptEndTag, lineNumber));
+                        i = scriptEnd + scriptEndTag.Length;
+                    }
                 }
             }
             else
