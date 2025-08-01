@@ -8,7 +8,6 @@
   <ItemGroup>
     <Folder Include="Models\Attributes\" />
     <Folder Include="wwwroot\image\pokemonImage\" />
-    <Folder Include="wwwroot\wasm\" />
   </ItemGroup>
 
   <ItemGroup>

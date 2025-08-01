@@ -11,10 +11,11 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
 namespace MVCCore.Controllers;
 
-public partial class HomeController : BaseController
+public partial class HomeController : Controller
 {
     private readonly ILogger<HomeController> _logger;
     private readonly IHttpClientFactory _httpClientFactory;
@@ -22,7 +23,12 @@ public partial class HomeController : BaseController
     private readonly MyTorrentRssHelper _myTorrentRssHelper;
     private readonly PokemonService _pokemonService;
 
-    private HttpClient NewClient => _httpClientFactory.CreateClient();
+    private static readonly Regex nanaRegex = new(@"<ul class=""su-posts.*?</ul>", RegexOptions.Compiled | RegexOptions.Singleline);
+
+    private HttpClient CreateClient()
+    {
+        return _httpClientFactory.CreateClient();
+    }
 
     public HomeController(ILogger<HomeController> logger, IHttpClientFactory httpClientFactory, CacheHelper cacheHelper, MyTorrentRssHelper myTorrentRssHelper, PokemonService pokemonService)
     {
@@ -55,7 +61,7 @@ public partial class HomeController : BaseController
 
         var baseUrl = "http://" + Request.Host.ToString();
 
-        var client = NewClient;
+        var client = CreateClient();
         await Parallel.ForEachAsync(paths, async (path, ct) =>
         {
             var url = baseUrl + path;
@@ -80,8 +86,8 @@ public partial class HomeController : BaseController
             { ("TRY", "https://www.google.com/finance/quote/EUR-TRY") },
         };
 
-        var urlTasks = urls.Select(x => (x.key, data: ExtractRatio(url: x.url))).ToList();
-        var dataRatioEurUsd = decimal.Parse(await urlTasks[0].data);
+        var urlTasks = urls.Select(x => (x.key, task: ExtractRatio(url: x.url))).ToList();
+        var dataRatioEurUsd = decimal.Parse(await urlTasks[0].task);
 
         var resultData = new Dictionary<string, CurrencyElement>();
         resultData["EUR"] = new CurrencyElement
@@ -108,7 +114,7 @@ public partial class HomeController : BaseController
     [HttpGet]
     public async Task<IActionResult> FixTomsArticlesManual()
     {
-        Func<Task<IActionResult>> initializer = async () =>
+        async Task<IActionResult> initializer()
         {
             string[] urls = {
                               "https://www.tomshardware.com/reviews",
@@ -120,9 +126,10 @@ public partial class HomeController : BaseController
                               "https://www.tomshardware.com/best-picks",
                             };
 
+            var client = CreateClient();
             var tasks = urls.Select(async url =>
             {
-                var text = await GetUrlTextData(url);
+                var text = await GetUrlTextData(client, url);
                 return GetRssObjectFromTomsContent(text);
             }).ToList();
 
@@ -130,8 +137,8 @@ public partial class HomeController : BaseController
 
             var rssObject = new RssResult(elements.Where(x => !x.Link.Contains("/news/")).OrderByDescending(x => x.PubDate));
 
-            return Xml(rssObject);
-        };
+            return this.Xml(rssObject);
+        }
 
         var xmlResultResult = await _cacheHelper.GetAsync(CacheHelper.TomsArticlesKey, initializer, TimeSpan.FromHours(2));
 
@@ -147,9 +154,11 @@ public partial class HomeController : BaseController
             "https://www.tomshardware.com/news/page/3",
             "https://www.tomshardware.com/news/page/4",
             "https://www.tomshardware.com/news/page/5",
+            "https://www.tomshardware.com/news/page/6",
         };
 
-        var tasks = urls.Select(url => GetUrlTextData(url)).ToList();
+        var client = CreateClient();
+        var tasks = urls.Select(url => GetUrlTextData(client, url)).ToList();
 
         var elements = (await tasks.AwaitAllAsync()).Select(GetRssObjectFromTomsContent).SelectMany(x => x);
         var newData = elements.OrderByDescending(c => c.PubDate).ToList();
@@ -180,7 +189,7 @@ public partial class HomeController : BaseController
         _cacheHelper.Set(cacheKey, data, TimeSpan.FromHours(12));
         var rssObject = new RssResult(data);
 
-        return Xml(rssObject);
+        return this.Xml(rssObject);
     }
 
     [HttpGet]
@@ -191,11 +200,11 @@ public partial class HomeController : BaseController
         if (string.IsNullOrWhiteSpace(mangaName))
             throw new Exception("manganame can't be empty");
 
-        var today = DateTime.Today;
+        var today = DateTime.UtcNow.Date;
 
-        string url = "http://www.mangainn.net/" + mangaName;
+        string url = "https://www.mangainn.net/" + mangaName;
 
-        string contents = await GetUrlTextData(url);
+        string contents = await GetUrlTextData(CreateClient(), url);
 
         string startTag = "<ul class=\"chapter-list\">";
         string endTag = "</ul>";
@@ -213,33 +222,24 @@ public partial class HomeController : BaseController
             var span1 = aNode.ChildNodes[0];
             var span2 = aNode.ChildNodes[1];
 
-            Func<string, int> getDaysSinceRelease = s =>
+            static int getDaysSinceRelease(string s)
             {
                 try
                 {
                     var parts = s.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                     var num = int.Parse(parts[0]);
 
-                    Func<string, int> parseToDays = t =>
+                    static int parseToDays(string t)
                     {
-                        switch (t)
+                        return t switch
                         {
-                            case "Year":
-                            case "Years":
-                                return 365;
-                            case "Month":
-                            case "Months":
-                                return 30;
-                            case "Week":
-                            case "Weeks":
-                                return 7;
-                            case "Day":
-                            case "Days":
-                                return 1;
-                            default:
-                                return 0;
-                        }
-                    };
+                            "Year" or "Years" => 365,
+                            "Month" or "Months" => 30,
+                            "Week" or "Weeks" => 7,
+                            "Day" or "Days" => 1,
+                            _ => 0,
+                        };
+                    }
 
                     int days = parseToDays(parts[1]);
                     return num * days;
@@ -248,7 +248,7 @@ public partial class HomeController : BaseController
                 {
                     return 0;
                 }
-            };
+            }
 
             var chapterName = span1.InnerText;
             var dateText = span2.InnerText;
@@ -258,31 +258,31 @@ public partial class HomeController : BaseController
             return new RssResultItem
             {
                 Description = "This was parsed from mangainn.net",
-                Link = aNode.Attributes["href"],
+                Link = aNode.Attributes["href"] ?? throw new Exception(),
                 PubDate = releaseDate,
                 Title = chapterName,
             };
         }));
 
-        return Xml(rssObject);
+        return this.Xml(rssObject);
     }
 
     [HttpGet]
     public async Task<IActionResult> OPMMangaCubari()
     {
-        var contents = await GetUrlTextData("https://cubari.moe/read/gist/OPM/");
+        var contents = await GetUrlTextData(CreateClient(), "https://cubari.moe/read/gist/OPM/");
         var startTag = "<script id=\"chapter_list\" type=\"application/json\">";
         var endTag = "</script>";
         int start = contents.IndexOf(startTag);
         int end = contents.IndexOf(endTag, start);
         var between = contents[(start + startTag.Length)..end];
-        var list = JsonSerializer.Deserialize<JsonElement[][]>(between);
+        var list = JsonSerializer.Deserialize<JsonElement[][]>(between) ?? throw new Exception();
 
         var rssObject = new RssResult(list.Select(nodeAsArray =>
         {
             var no = nodeAsArray[0].GetString();
             var title = nodeAsArray[2].GetString();
-            var dateArray = nodeAsArray[5].Deserialize<int[]>();
+            var dateArray = nodeAsArray[5].Deserialize<int[]>() ?? throw new Exception();
             var date = new DateTime(dateArray[0], dateArray[1] + 1, dateArray[2], dateArray[3], dateArray[4], dateArray[5]);
 
             return new RssResultItem
@@ -290,17 +290,17 @@ public partial class HomeController : BaseController
                 Description = "",
                 Link = $"https://cubari.moe/read/gist/OPM/{no}/1/",
                 PubDate = date,
-                Title = title,
+                Title = title ?? "",
             };
         }));
 
-        return Xml(rssObject);
+        return this.Xml(rssObject);
     }
 
     [HttpGet]
     public async Task<IActionResult> OPMMangaW19()
     {
-        var contents = await GetUrlTextData("https://w19.read-one-punchman.com/");
+        var contents = await GetUrlTextData(CreateClient(), "https://w19.read-one-punchman.com/");
         var i1 = contents.IndexOf("""<li id="ceo_latest_comi""");
         if (i1 < 0) throw new Exception();
         var i2 = contents.IndexOf("<ul>", i1);
@@ -310,52 +310,54 @@ public partial class HomeController : BaseController
         if (i3 < 0) throw new Exception();
         var between = contents[i2..(i3 + end.Length)];
         var html = XmlParser.ParseHtml(between);
-        var now = DateTime.Now;
+        var now = DateTime.UtcNow;
         var rssObject = new RssResult(html.ChildNodes[0].ChildNodes.Select(li => new RssResultItem
         {
             Description = li.ChildNodes[0].InnerText,
-            Link = li.ChildNodes[0].Attributes["href"],
+            Link = li.ChildNodes[0].Attributes["href"] ?? throw new Exception(),
             PubDate = now,
             Title = li.ChildNodes[0].InnerText,
         }));
-        return Xml(rssObject);
+        return this.Xml(rssObject);
     }
 
     [HttpGet]
     public async Task<IActionResult> TalentlessnanaParseXml()
     {
-        var today = DateTime.Today;
+        var today = DateTime.UtcNow.Date;
 
         var url = "https://talentlessnana.com/";
 
-        string contents = await GetUrlTextData(url);
+        string contents = await GetUrlTextData(CreateClient(), url);
 
-        string startTag = "<ul class=\"su-posts su-posts-list-loop \">";
-        string endTag = "</ul>";
-
-        int indexOfStart = contents.IndexOf(startTag);
-        int indexOfEnd = contents.IndexOf(endTag, indexOfStart);
-
-        string ulPart = contents.Substring(indexOfStart, indexOfEnd - indexOfStart + endTag.Length);
-
-        var document = XmlParser.Parse(ulPart);
-
-        var rssObject = new RssResult(document.ChildNodes[0].ChildNodes.Select(liNode =>
-        {
-            var aNode = liNode.ChildNodes[0];
-
-            var chapterName = aNode.InnerText;
-
-            return new RssResultItem
+        var items = nanaRegex.Matches(contents)
+            .Select(x => x.Value)
+            .Select(ulPart =>
             {
-                Description = "This was parsed from talentlessnana.com",
-                Link = aNode.Attributes["href"],
-                PubDate = today,
-                Title = chapterName,
-            };
-        }));
+                var document = XmlParser.Parse(ulPart);
 
-        return Xml(rssObject);
+                var items = document.ChildNodes[0].ChildNodes.Select(liNode =>
+                {
+                    var aNode = liNode.ChildNodes[0];
+
+                    var chapterName = aNode.InnerText;
+
+                    return new RssResultItem
+                    {
+                        Description = "This was parsed from talentlessnana.com",
+                        Link = aNode.Attributes["href"] ?? throw new Exception(),
+                        PubDate = today,
+                        Title = chapterName,
+                    };
+                });
+                return items;
+            })
+            .SelectMany(x => x)
+            .ToList();
+
+        var rssObject = new RssResult(items);
+
+        return this.Xml(rssObject);
     }
 
     [HttpGet]
@@ -426,7 +428,7 @@ public partial class HomeController : BaseController
         if (keysParsed == null)
             return BadRequest();
 
-        var client = NewClient;
+        var client = CreateClient();
         var tasks = keysParsed.Select(async key =>
         {
             using var response = await client.SendWithRetryAsync(() => new HttpRequestMessage(HttpMethod.Get, "https://yts.mx/movies/" + key));
@@ -438,7 +440,8 @@ public partial class HomeController : BaseController
             if (i1 < 0) return (key, null);
             var i2 = contextText.IndexOf('<', i1);
             if (i2 < 0) return (key, null);
-            return (key, (string?)contextText[(i1 + searchPhrase.Length)..i2]);
+            var score = contextText[(i1 + searchPhrase.Length)..i2];
+            return (key, (string?)score);
         }).ToList();
 
         var map = new Dictionary<string, string>();
@@ -463,12 +466,12 @@ public partial class HomeController : BaseController
     }
 
     #region Private Methods
-    private async Task<string> GetUrlTextData(string url, Action<HttpRequestMessage>? extraAction = null)
+    private static async Task<string> GetUrlTextData(HttpClient client, string url, Action<HttpRequestMessage>? extraAction = null)
     {
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         extraAction?.Invoke(requestMessage);
 
-        using var response = await NewClient.SendAsync(requestMessage);
+        using var response = await client.SendAsync(requestMessage);
         if (!response.IsSuccessStatusCode)
             throw new Exception($"Error status code: {(int)response.StatusCode}");
 
@@ -481,7 +484,7 @@ public partial class HomeController : BaseController
         {
             var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/110.0");
-            using var response = await NewClient.SendAsync(request);
+            using var response = await CreateClient().SendAsync(request);
             response.EnsureSuccessStatusCode();
             var data = await response.Content.ReadAsStringAsync();
             var classIndex = data.IndexOf(" fxKbKc");
@@ -504,14 +507,13 @@ public partial class HomeController : BaseController
 
     private async Task<string> GetUrlTextDataWithRetry(string url, Action<HttpRequestMessage>? extraAction = null)
     {
-        Func<HttpRequestMessage> requestMessageCreator = () =>
+        using var response = await CreateClient().SendWithRetryAsync(() =>
         {
             var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
             extraAction?.Invoke(requestMessage);
             return requestMessage;
-        };
+        });
 
-        using var response = await NewClient.SendWithRetryAsync(requestMessageCreator);
         if (!response.IsSuccessStatusCode)
             throw new Exception($"Error status code: {(int)response.StatusCode}");
 
@@ -547,10 +549,10 @@ public partial class HomeController : BaseController
 
         var elements = divs.Select(liNode =>
         {
-            var aNode = liNode.SearchByTag("a");
+            var aNode = liNode.SearchByTag("a") ?? throw new Exception();
             var link = aNode.Attributes["href"];
 
-            var imgNode = liNode.SearchByTag("img");
+            var imgNode = liNode.SearchByTag("img") ?? throw new Exception();
             var imgSrc = imgNode.Attributes["data-srcset"]?.BeforeFirst(" ") ?? imgNode.Attributes["data-src"] ?? imgNode.Attributes["src"];
 
             var img = $"<a href=\"{link}\"><img src=\"{imgSrc}\" /></a>";
@@ -558,9 +560,9 @@ public partial class HomeController : BaseController
             return new RssResultItem
             {
                 Description = $"<![CDATA[{img}]]>",
-                Link = link,
-                PubDate = DateTime.Parse(liNode.SearchByTag("time").Attributes["datetime"]),
-                Title = liNode.SearchByTag("h3").InnerText,
+                Link = link ?? "",
+                PubDate = DateTime.Parse(liNode.SearchByTag("time")!.Attributes["datetime"]!),
+                Title = liNode.SearchByTag("h3")!.InnerText,
             };
         });
 
@@ -624,7 +626,7 @@ public partial class HomeController : BaseController
                 var itemNodes = xml.ChildNodes[0].ChildNodes[0].ChildNodes.Where(x => x.TagName == "item").ToList();
                 foreach (var itemNode in itemNodes)
                 {
-                    var date = DateTime.Parse(itemNode.SearchByTag("pubDate").InnerText);
+                    var date = DateTime.Parse(itemNode.SearchByTag("pubDate")!.InnerText);
 
                     var newChildNodes = itemNode.ChildNodes.Where(x => !x.TagName.StartsWith("nyaa:")).ToList();
                     itemNode.ClearChildren();
@@ -635,7 +637,7 @@ public partial class HomeController : BaseController
 
                     // This line was added for browser compatibility, should not be used with bittorrent clients
                     if (!useRealLinks)
-                        itemNode.SearchByTag("link").InnerText = itemNode.SearchByTag("guid").InnerText;
+                        itemNode.SearchByTag("link")!.InnerText = itemNode.SearchByTag("guid")!.InnerText;
 
                     allLinks.Add((date, itemNode));
                 }
@@ -665,8 +667,8 @@ public partial class HomeController : BaseController
         {
             var data = allNodes.Select(x =>
             {
-                var title = x.SearchByTag("title").InnerText;
-                var link = x.SearchByTag("link").InnerText;
+                var title = x.SearchByTag("title")!.InnerText;
+                var link = x.SearchByTag("link")!.InnerText;
                 return (title, link);
             }).ToList();
             return View(data);

@@ -1,5 +1,6 @@
 ﻿using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
+using System;
 using System.Data;
 
 namespace MVCCore.Helpers;
@@ -10,7 +11,7 @@ public class DataContext
 
     public DataContext(IConfiguration configuration)
     {
-        this.connectionString = configuration.GetConnectionString("SqliteDatabase");
+        this.connectionString = configuration.GetConnectionString("SqliteDatabase") ?? throw new Exception("Could not get config for SqliteDatabase");
     }
 
     public IDbConnection CreateConnection()

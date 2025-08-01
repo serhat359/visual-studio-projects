@@ -5,7 +5,7 @@ namespace MVCCore;
 
 public class MyXmlResult : IActionResult
 {
-    private object obj;
+    private readonly object obj;
 
     public MyXmlResult(object obj)
     {

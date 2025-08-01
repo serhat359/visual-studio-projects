@@ -10,7 +10,7 @@ namespace MVCCore.Models;
 [XmlRoot("rss")]
 public class RssResult
 {
-    public readonly Channel channel;
+    public readonly Channel? channel;
 
     [XmlAttribute]
     public string version = "2.0";
