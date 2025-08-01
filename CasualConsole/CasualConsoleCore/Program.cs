@@ -20,7 +20,7 @@ namespace CasualConsoleCore;
 
 public class Program
 {
-    private static readonly Lazy<HttpClient> client = new(() =>
+    private static readonly Lazy<HttpClient> clientLazy = new(() =>
     {
         var client = new HttpClient(new HttpClientHandler()
         {
@@ -31,7 +31,7 @@ public class Program
         return client;
     });
 
-    static void Main()
+    static async Task Main()
     {
         Console.OutputEncoding = Encoding.UTF8;
 
@@ -159,7 +159,7 @@ public class Program
 
     private static async Task ImportFreecellGame(int gameNo)
     {
-        var text = await (await client.Value.GetAsync($"https://freecellgamesolutions.com/fcs/?game={gameNo}")).Content.ReadAsStringAsync();
+        var text = await (await clientLazy.Value.GetAsync($"https://freecellgamesolutions.com/fcs/?game={gameNo}")).Content.ReadAsStringAsync();
         var i1 = text.IndexOf("<table id");
         var end = "</table>";
         var i2 = text.IndexOf(end, i1);
@@ -188,6 +188,7 @@ public class Program
     {
         using var openWrite = File.OpenWrite(filePath);
         using var streamWriter = new StreamWriter(openWrite, Encoding.UTF8);
+        streamWriter.NewLine = "\n";
         for (int i = 0; i < lineList.Count; i++)
         {
             int lineNumber = i + 1;
@@ -201,22 +202,23 @@ public class Program
         }
     }
 
+    private static string AddSrtDuration(string s, TimeSpan duration)
+    {
+        var beginParsed = SrtTimeParse(s);
+        beginParsed += duration;
+        return StringifySrtTimeSpan(beginParsed);
+    }
+
     private static void FixMovieSubs()
     {
         var data = File.ReadAllText(@"D:\Downloads\decrypted_files\movie-English.srt");
         var lines = ParseSrtSubtitles(data.Replace("\r", ""));
 
-        static string AddSeconds(string s)
-        {
-            var beginParsed = SrtTimeParse(s);
-            beginParsed += TimeSpan.FromSeconds(31);
-            return StringifySrtTimeSpan(beginParsed);
-        }
-
+        var duration = TimeSpan.FromSeconds(31);
         foreach (var item in lines)
         {
-            item.TimeBegin = AddSeconds(item.TimeBegin);
-            item.TimeEnd = AddSeconds(item.TimeEnd);
+            item.TimeBegin = AddSrtDuration(item.TimeBegin, duration);
+            item.TimeEnd = AddSrtDuration(item.TimeEnd, duration);
         }
 
         WriteSrtLinesToFile(@"D:\Downloads\decrypted_files\movie-English2.srt", lines);
@@ -228,11 +230,11 @@ public class Program
         public required string TimeEnd { get; set; }
         public required List<string> Lines { get; set; }
     }
-    private static List<SrtParsedLine> ParseSrtSubtitles(string s)
+    private static List<SrtParsedLine> ParseSrtSubtitles(string text)
     {
         var parsedLines = new List<SrtParsedLine>();
 
-        var lines = s.Split("\n");
+        var lines = text.Split("\n");
         for (int i = 0; i < lines.Length; i++)
         {
             var line = lines[i];
