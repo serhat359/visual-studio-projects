@@ -88,9 +88,9 @@ async function getFolderSizes() {
     const rows = document.querySelectorAll("table tbody tr.xfolder");
     for (const row of rows) {
         const tds = row.querySelectorAll("td");
-        const folderName = tds[1].querySelector("a").innerText;
+        const folderName = tds[1].querySelector("a").textContent;
         const sizeInfo = data[folderName];
-        tds[2].innerText = sizeInfo.fileSizeString;
+        tds[2].textContent = sizeInfo.fileSizeString;
         tds[2].dataset["sortValue"] = sizeInfo.fileSize;
     }
 }
@@ -109,22 +109,6 @@ function selectText(elementId) {
         selection.addRange(range);
     }
 }
-
-addEventListener("load", () => {
-    convertDatesToLocal();
-
-    addOnClick('.downloadCheckBoxInput', () => {
-        setDownloadButtonVisibility();
-    });
-    
-    addOnClick('#selectAll', () => {
-        selectText('linksModalContent');
-    });
-
-    getFolderSizes();
-
-    allowTableSorting();
-});
 
 function setVisible(selector, isVisible) {
     const elems = document.querySelectorAll(selector);
@@ -170,7 +154,7 @@ function getCellValue(row, index) {
     const dataValue = elem.dataset["sortValue"];
     if (dataValue)
         return dataValue;
-    return elem.innerText;
+    return elem.textContent;
 }
 
 function isNumeric(text) {
@@ -196,3 +180,31 @@ function makeModal(selector) {
         modal.classList.add("modal-hidden");
     });
 }
+
+function runOnLoad(f){
+    addEventListener("load", f);
+}
+
+runOnLoad(() => {
+    convertDatesToLocal();
+});
+
+runOnLoad(() => {
+    addOnClick('.downloadCheckBoxInput', () => {
+        setDownloadButtonVisibility();
+    });
+});
+
+runOnLoad(() => {
+    addOnClick('#selectAll', () => {
+        selectText('linksModalContent');
+    });
+});
+
+runOnLoad(() => {
+    getFolderSizes();
+});
+
+runOnLoad(() => {
+    allowTableSorting();
+});

@@ -14,7 +14,7 @@ namespace DotNetCoreWebsite
         {
             if (!File.Exists(repositoryFileName))
             {
-                fileNames = new Dictionary<string, string>();
+                fileNames = new();
                 SaveFileNames();
             }
         }

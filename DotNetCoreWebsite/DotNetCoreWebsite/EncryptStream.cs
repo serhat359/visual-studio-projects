@@ -10,7 +10,7 @@ namespace DotNetCoreWebsite
         private readonly long misalignment;
         private readonly long rangeStart;
         bool disposed;
-        Action onClose = null;
+        Action? onClose = null;
         bool isOnCloseExecuted = false;
 
         public EncryptStream(Stream stream, CoreEncryption coreEncryption, long rangeStart, Action onClose = null)

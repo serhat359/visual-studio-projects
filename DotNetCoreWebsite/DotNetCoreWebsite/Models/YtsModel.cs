@@ -6,6 +6,6 @@ namespace DotNetCoreWebsite.Models
     {
         public string Query { get; set; }
 
-        public List<YtsResponseDataModel> ResponseData { get; set; } = new List<YtsResponseDataModel>();
+        public List<YtsResponseDataModel> ResponseData { get; set; } = new();
     }
 }

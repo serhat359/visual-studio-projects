@@ -5,9 +5,9 @@ namespace DotNetCoreWebsite.Models
 {
     public class AllFilesModel
     {
-        public List<FileInfoModel> FileList { get; set; }
-        public string BackFolderPath { get; set; }
-        public string CurrentPath { get; set; }
+        public required List<FileInfoModel> FileList { get; set; }
+        public required string? BackFolderPath { get; set; }
+        public required string CurrentPath { get; set; }
     }
 
     public class FileInfoModel

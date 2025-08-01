@@ -39,11 +39,11 @@ namespace DotNetCoreWebsite.Controllers
 
         [ActionName("1337")]
         [HttpGet]
-        public async Task<IActionResult> Simple1337(string query)
+        public async Task<IActionResult> Simple1337(string? query)
         {
             string noResultText = "No results were returned. Please refine your search.";
 
-            string tableData = null;
+            string? tableData = null;
             if (query != null)
             {
                 var link = $"https://1337x.to/search/{Uri.EscapeDataString(query)}/1/";
@@ -62,7 +62,7 @@ namespace DotNetCoreWebsite.Controllers
                     tableData = responseContent.Substring(indexBegin, length: indexEnd - indexBegin + endPattern.Length);
                     tableData = tableData.Replace("<i class=\"flaticon-message\"></i>", "💬");
                 }
-                else if (responseContent.IndexOf(noResultText) >= 0)
+                else if (responseContent.Contains(noResultText))
                 {
                     tableData = "<p>" + noResultText + "</p>";
                 }
@@ -109,7 +109,7 @@ namespace DotNetCoreWebsite.Controllers
                 if (response.IsSuccessStatusCode)
                 {
                     var responseParsed = JsonSerializer.Deserialize<YtsResponseModel>(await response.Content.ReadAsStringAsync());
-                    if (responseParsed.status == "ok")
+                    if (responseParsed!.status == "ok")
                     {
                         model.ResponseData = responseParsed.data;
                     }
@@ -143,7 +143,7 @@ namespace DotNetCoreWebsite.Controllers
             return Content("");
         }
 
-        public async Task<IActionResult> Torrent(string id1, string id2)
+        public async Task<IActionResult?> Torrent(string id1, string id2)
         {
             var path = Request.Path.ToString();
             var link = "https://1337x.to" + path;
@@ -175,7 +175,7 @@ namespace DotNetCoreWebsite.Controllers
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
 
-        public IActionResult AllFiles(string q = null)
+        public IActionResult AllFiles(string? q = null)
         {
             var now = DateTime.Now;
 
@@ -230,7 +230,7 @@ namespace DotNetCoreWebsite.Controllers
             var rangeStart = GetByteOffset();
 
             long fileLength = new FileInfo(fullPath).Length;
-            var fileStream = new EncryptStream(System.IO.File.OpenRead(fullPath), this.coreEncryption, (rangeStart ?? 0));
+            var fileStream = new EncryptStream(System.IO.File.OpenRead(fullPath), this.coreEncryption, rangeStart ?? 0);
 
             if (rangeStart == null)
             {
@@ -274,7 +274,7 @@ namespace DotNetCoreWebsite.Controllers
             return File(fileStream, "application/unknown", fileNameHelper.CreateAlternativeFileName(newGuidFileName) + extension);
         }
 
-        public IActionResult GetFolderSize(string q = null)
+        public IActionResult GetFolderSize(string? q = null)
         {
             var rootPath = GetSafePath(q);
 
@@ -293,7 +293,7 @@ namespace DotNetCoreWebsite.Controllers
         [HttpPost]
         public IActionResult GetOriginalFileNames([FromBody] string[] names)
         {
-            var dic = new Dictionary<string, string>();
+            var dic = new Dictionary<string, string?>();
 
             foreach (var name in names)
             {
@@ -307,7 +307,7 @@ namespace DotNetCoreWebsite.Controllers
         #region Private Methods
         private string GetPathConfig()
         {
-            return configuration.GetSection("AllFilesRoot").Value;
+            return configuration.GetSection("AllFilesRoot").Value!;
         }
 
         private string GetTempPathConfig()
@@ -315,11 +315,11 @@ namespace DotNetCoreWebsite.Controllers
             return SafeCombine(GetPathConfig(), "temp");
         }
 
-        private string GetSafePath(string q)
+        private string GetSafePath(string? q)
         {
             var basePath = GetPathConfig();
 
-            string pathFunc(string s) => SafeCombine(basePath, s);
+            string pathFunc(string? s) => SafeCombine(basePath, s);
 
             var path = pathFunc(q);
             if (!new DirectoryInfo(path).FullName.Contains(basePath))
@@ -330,9 +330,9 @@ namespace DotNetCoreWebsite.Controllers
             return path;
         }
 
-        private static string GetBackFolderPath(string q)
+        private static string? GetBackFolderPath(string? q)
         {
-            string backFolderPath;
+            string? backFolderPath;
             if (string.IsNullOrEmpty(q))
             {
                 backFolderPath = null;
@@ -341,7 +341,7 @@ namespace DotNetCoreWebsite.Controllers
             {
                 int index = q.LastIndexOf('/');
                 if (index >= 0)
-                    backFolderPath = q.Substring(0, index);
+                    backFolderPath = q[..index];
                 else
                     backFolderPath = "";
             }
@@ -359,7 +359,7 @@ namespace DotNetCoreWebsite.Controllers
             {
                 var index = rangeResult.IndexOf('-');
                 if (index >= 0)
-                    rangeResult = rangeResult.Substring(0, index);
+                    rangeResult = rangeResult[..index];
 
                 long startbyte = long.Parse(Regex.Match(rangeResult, @"\d+").Value, NumberFormatInfo.InvariantInfo);
 
@@ -389,7 +389,7 @@ namespace DotNetCoreWebsite.Controllers
             return data;
         }
 
-        private void AddFilesRecursively(ZipArchive zip, string folderHeader, string filePath)
+        private static void AddFilesRecursively(ZipArchive zip, string folderHeader, string filePath)
         {
             var attr = System.IO.File.GetAttributes(filePath);
             var isfile = !attr.HasFlag(FileAttributes.Directory);
@@ -410,7 +410,7 @@ namespace DotNetCoreWebsite.Controllers
             }
         }
 
-        private static string SafeCombine(string param1, string param2)
+        private static string SafeCombine(string? param1, string? param2)
         {
             if (param1 == null) return param2;
             if (param2 == null) return param1;

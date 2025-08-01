@@ -75,7 +75,7 @@ namespace DotNetCoreWebsite
             return "0 seconds ago";
         }
 
-        public static string NullIfEmpty(this string s)
+        public static string? NullIfEmpty(this string s)
         {
             if (s == "")
                 return null;
