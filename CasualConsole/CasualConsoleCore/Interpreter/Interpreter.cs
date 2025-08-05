@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -101,6 +102,7 @@ public class Interpreter
                 {
                     { "charAt", CustomValue.FromFunction(new CharAtFunction()) },
                     { "charCodeAt", CustomValue.FromFunction(new CharCodeAtFunction()) },
+                    { "endsWith", CustomValue.FromFunction(new EndsWithFunction()) },
                 })
             },
         }), AssignmentType.Const);
@@ -140,6 +142,10 @@ public class Interpreter
                 throw new Exception();
         }
 
+        if (value.value is StringSlice s)
+        {
+            return s.ToString();
+        }
         return value.value;
     }
 
@@ -706,6 +712,25 @@ public class Interpreter
             ("var sum = 0; for (let [key,value] of entries({a:1,b:2,c:3})) sum += value; sum", 6),
             ("var t = ''; for (let [key,value] of entries({a:1,b:2,c:3})) t += key; t", "abc"),
             ("var o = { get n(){ return 'test' } }; var { n } = o; n", "test"),
+            ("var sb = 'a'; sb += 'b'", "ab"),
+            ("sb == 'ab'", true),
+            ("sb != 'ab'", false),
+            ("!sb", false),
+            ("!!sb", true),
+            ("sb == sb", true),
+            ("sb != sb", false),
+            ("({}[sb])", null),
+            ("sb > 'aa'", true),
+            ("sb[0]", "a"),
+            ("sb[1]", "b"),
+            ("sb.charAt(0)", "a"),
+            ("var o = {}; o[sb] = 1; o[sb]", 1),
+            ("parseNumber(sb)", null),
+            ("[1,2].join(sb)", "1ab2"),
+            ("for (let e of sb){}", null),
+            ("[...sb].length", 2),
+            ("({ ab: sb })[sb]", "ab"),
+            ("'hello'.endsWith('llo')", true),
         };
 
         var interpreter = new Interpreter();
@@ -1092,7 +1117,7 @@ public class Interpreter
         Func<CustomValue, CustomValue, int> comparer = first.type switch
         {
             ValueType.Number => (f1, f2) => ((double)f1.value).CompareTo((double)f2.value),
-            ValueType.String => (f1, f2) => ((string)f1.value).CompareTo((string)f2.value),
+            ValueType.String => (f1, f2) => f1.AsSpan().CompareTo(f2.AsSpan(), StringComparison.InvariantCulture),
             _ => throw new Exception(),
         };
         return operatorType switch
@@ -1138,9 +1163,9 @@ public class Interpreter
 
         bool result;
         if (operatorType == Operator.CheckEquals)
-            result = object.Equals(firstValue.value, value.value);
+            result = Equals(firstValue, value);
         else if (operatorType == Operator.CheckNotEquals)
-            result = !object.Equals(firstValue.value, value.value);
+            result = !Equals(firstValue, value);
         else if (operatorType == Operator.LessThan
             || operatorType == Operator.GreaterThan
             || operatorType == Operator.LessThanOrEqual
@@ -1150,6 +1175,14 @@ public class Interpreter
             throw new Exception();
 
         return result ? CustomValue.True : CustomValue.False;
+    }
+
+    private static bool Equals(CustomValue firstValue, CustomValue value)
+    {
+        if (firstValue.type == ValueType.String && value.type == ValueType.String)
+            return firstValue.AsSpan().SequenceEqual(value.AsSpan());
+        else
+            return object.Equals(firstValue.value, value.value);
     }
 
     private static CustomValue MultiplyOrDivide(CustomValue firstValue, Operator operatorType, CustomValue value)
@@ -1177,8 +1210,20 @@ public class Interpreter
             }
             else if (firstValue.type == ValueType.String || value.type == ValueType.String)
             {
-                string totalString = firstValue.ToString() + value.ToString();
-                return CustomValue.FromParsedString(totalString);
+                if (firstValue.value is string s)
+                {
+                    var slice = StringSlice.New2(s, value.ToSpan());
+                    return CustomValue.FromStringSlice(slice);
+                }
+                else if (firstValue.value is StringSlice slice)
+                {
+                    return CustomValue.FromStringSlice(slice + value.ToSpan());
+                }
+                else
+                {
+                    var newSlice = StringSlice.New2(firstValue.ToString(), value.AsSpan());
+                    return CustomValue.FromStringSlice(newSlice);
+                }
             }
             else
                 throw new Exception();
@@ -1219,7 +1264,7 @@ public class Interpreter
             }
 
             var baseObject = baseExpressionValue.GetBaseObject();
-            var key = (string)keyExpressionValue.value;
+            var key = keyExpressionValue.ToString();
 
             static CustomValue GetValue(ValueOrGetterSetter value, CustomValue baseExpressionValue)
             {
@@ -1263,30 +1308,30 @@ public class Interpreter
             }
             else if (keyExpressionValue.type == ValueType.String)
             {
-                var fieldName = (string)keyExpressionValue.value;
-                if (fieldName == "length")
+                var fieldName = keyExpressionValue.AsSpan();
+                if (fieldName.SequenceEqual("length"))
                     return CustomValue.FromNumber(array.Length);
             }
         }
         else if (baseExpressionValue.type == ValueType.String)
         {
-            var str = (string)baseExpressionValue.value;
+            var str = baseExpressionValue.AsSpan();
             if (keyExpressionValue.type == ValueType.String)
             {
-                var fieldName = (string)keyExpressionValue.value;
-                if (fieldName == "length")
+                var fieldName = keyExpressionValue.AsSpan();
+                if (fieldName.SequenceEqual("length"))
                     return CustomValue.FromNumber(str.Length);
             }
             else if (keyExpressionValue.type == ValueType.Number)
             {
                 var index = (int)(double)keyExpressionValue.value;
-                return CustomValue.FromParsedString(str[index..(index + 1)]);
+                return CustomValue.FromParsedString(str[index..(index + 1)].ToString());
             }
         }
         else if (baseExpressionValue.type == ValueType.Class && keyExpressionValue.type == ValueType.String)
         {
             var classObject = (IClassInfoObject)baseExpressionValue.value;
-            if ((string)keyExpressionValue.value == "prototype")
+            if (keyExpressionValue.AsSpan().SequenceEqual("prototype"))
                 return classObject.Prototype;
         }
 
@@ -1296,7 +1341,7 @@ public class Interpreter
             if (prototype.type != ValueType.Null)
             {
                 var prototypeMap = prototype.GetAsMap();
-                if (prototypeMap.TryGetValue((string)keyExpressionValue.value, out var value))
+                if (prototypeMap.TryGetValue(keyExpressionValue.ToString(), out var value))
                 {
                     return (CustomValue)value;
                 }
@@ -1350,7 +1395,7 @@ public class Interpreter
             }
 
             var map = baseExpressionValue.GetAsMap();
-            var key = (string)keyExpressionValue.value;
+            var key = keyExpressionValue.ToString();
             if (map.TryGetValue(key, out var previousValue))
             {
                 if (previousValue is GetterSetter getterSetter)
@@ -1379,8 +1424,8 @@ public class Interpreter
             }
             else if (keyExpressionValue.type == ValueType.String)
             {
-                var fieldName = (string)keyExpressionValue.value;
-                if (fieldName == "length")
+                var fieldName = keyExpressionValue.AsSpan();
+                if (fieldName.SequenceEqual("length"))
                 {
                     int newLength = (int)(double)value.value;
                     array.Length = newLength;
@@ -1476,15 +1521,18 @@ public class Interpreter
         return expressionList;
     }
 
-    private static IEnumerable<CustomValue> StringAsMultiValue(string s)
+    private static List<CustomValue> StringAsMultiValue(ReadOnlySpan<char> s)
     {
+        var list = new List<CustomValue>(s.Length);
+
         int i = 0;
         while (i < s.Length)
         {
             var iEnd = i + (char.IsHighSurrogate(s[i]) ? 2 : 1);
-            yield return CustomValue.FromParsedString(s[i..iEnd]);
+            list.Add(CustomValue.FromParsedString(s[i..iEnd].ToString()));
             i = iEnd;
         }
+        return list;
     }
 
     private static bool IsVariableName(string token)
@@ -1773,6 +1821,65 @@ public class Interpreter
             this.properties = properties;
         }
     }
+    readonly struct StringSlice
+    {
+        public readonly List<char> chars = new();
+        public readonly int length;
+
+        public StringSlice()
+        {
+        }
+
+        public StringSlice(List<char> chars, int length)
+        {
+            this.chars = chars;
+            this.length = length;
+        }
+
+        public static StringSlice operator +(StringSlice slice, StringSlice s)
+        {
+            return slice + s.AsSpan();
+        }
+
+        public static StringSlice operator +(StringSlice slice, string s)
+        {
+            return slice + s.AsSpan();
+        }
+
+        public static StringSlice operator +(StringSlice slice, ReadOnlySpan<char> s)
+        {
+            if (slice.chars.Count == slice.length)
+            {
+                slice.chars.AddRange(s);
+                return new StringSlice(slice.chars, slice.chars.Count);
+            }
+            else
+            {
+                var newList = new List<char>(slice.AsSpan().Length + s.Length);
+                newList.AddRange(slice.AsSpan());
+                newList.AddRange(s);
+                return new StringSlice(newList, newList.Count);
+            }
+        }
+
+        public static StringSlice New2(ReadOnlySpan<char> s, ReadOnlySpan<char> s2)
+        {
+            var list = new List<char>(s.Length + s2.Length);
+            list.AddRange(s);
+            list.AddRange(s2);
+            return new StringSlice(list, list.Count);
+        }
+
+        public ReadOnlySpan<char> AsSpan()
+        {
+            return CollectionsMarshal.AsSpan(chars)[..length];
+        }
+
+        public override string ToString()
+        {
+            return new string(AsSpan());
+        }
+    }
     class ProxyObjectInstance
     {
         internal readonly CustomValue target;
@@ -1936,7 +2043,7 @@ public class Interpreter
 
         public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
-            var f = (string)context.variableScope.GetVariable(Parameters[0].paramName).value;
+            var f = context.variableScope.GetVariable(Parameters[0].paramName).AsSpan();
             if (double.TryParse(f, out var d))
                 return (CustomValue.FromNumber(d), ReturnType.None);
             else
@@ -2181,7 +2288,7 @@ public class Interpreter
             if (thisString.type != ValueType.String)
                 throw new Exception();
 
-            var str = (string)thisString.value;
+            var str = thisString.AsSpan();
 
             var indexValue = context.variableScope.GetVariable(Parameters[0].paramName);
             if (indexValue.type != ValueType.Number)
@@ -2214,7 +2321,7 @@ public class Interpreter
             if (thisString.type != ValueType.String)
                 throw new Exception();
 
-            var str = (string)thisString.value;
+            var str = thisString.AsSpan();
 
             var indexValue = context.variableScope.GetVariable(Parameters[0].paramName);
             if (indexValue.type != ValueType.Number)
@@ -2224,6 +2331,29 @@ public class Interpreter
 
             var newValue = (int)str[index];
             return (CustomValue.FromNumber(newValue), ReturnType.None);
+        }
+
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
+        {
+            throw new NotImplementedException();
+        }
+    }
+    class EndsWithFunction : FunctionObject
+    {
+        private static readonly (string paramName, bool isRest)[] parameters = new[] { ("x", false) };
+
+        public (string paramName, bool isRest)[] Parameters => parameters;
+
+        public VariableScope? Scope => null;
+
+        public bool IsLambda => false;
+
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
+        {
+            var str = context.thisOwner.AsSpan();
+            var subStr = context.variableScope.GetVariable(Parameters[0].paramName).AsSpan();
+            var res = str.EndsWith(subStr) ? CustomValue.True : CustomValue.False;
+            return (res, ReturnType.None);
         }
 
         public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
@@ -2348,7 +2478,7 @@ public class Interpreter
         public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
         {
             var thisArray = context.thisOwner.GetAsArray();
-            var separator = (string)context.variableScope.GetVariable(Parameters[0].paramName).value;
+            var separator = context.variableScope.GetVariable(Parameters[0].paramName).ToString();
             var res = string.Join(separator, thisArray.list.Select(x => x.ToString()));
             return (CustomValue.FromParsedString(res), ReturnType.None);
         }
@@ -2583,6 +2713,11 @@ public class Interpreter
             return new CustomValue(s, ValueType.String);
         }
 
+        public static CustomValue FromStringSlice(StringSlice slice)
+        {
+            return new CustomValue(slice, ValueType.String);
+        }
+
         internal static CustomValue FromFunction(FunctionObject func)
         {
             return new CustomValue(func, ValueType.Function);
@@ -2629,7 +2764,7 @@ public class Interpreter
             {
                 ValueType.Null => false,
                 ValueType.Number => ((double)value) != 0 && !double.IsNaN((double)value),
-                ValueType.String => !string.IsNullOrEmpty((string)value),
+                ValueType.String => AsSpan().Length > 0,
                 ValueType.Bool => (bool)value,
                 _ => true,
             };
@@ -2642,7 +2777,7 @@ public class Interpreter
             else if (this.type == ValueType.Generator)
                 return (Generator)this.value;
             else if (this.type == ValueType.String)
-                return StringAsMultiValue((string)this.value);
+                return StringAsMultiValue(this.AsSpan());
             else
                 throw new Exception();
         }
@@ -2671,6 +2806,22 @@ public class Interpreter
             return (BaseObject)value;
         }
 
+        public ReadOnlySpan<char> AsSpan()
+        {
+            if (this.type != ValueType.String)
+                throw new Exception();
+            if (value is string s)
+                return s;
+            return ((StringSlice)value).AsSpan();
+        }
+
+        public ReadOnlySpan<char> ToSpan()
+        {
+            if (this.type == ValueType.String)
+                return AsSpan();
+            return this.ToString();
+        }
+
         public override string ToString()
         {
             if (value is null)
@@ -2689,6 +2840,10 @@ public class Interpreter
                 var arr = (CustomArray)value;
                 return string.Join(",", arr.list);
             }
+            if (value is string s)
+                return s;
+            if (value is StringSlice slice)
+                return slice.ToString();
             return value.ToString()!;
         }
     }
@@ -3855,7 +4010,7 @@ public class Interpreter
             foreach (var item in res)
             {
                 var firstToken = item[0];
-                var fieldName = IsVariableName(firstToken) ? firstToken : (string)CustomValue.FromStaticString(firstToken).value;
+                var fieldName = IsVariableName(firstToken) ? firstToken : CustomValue.FromStaticString(firstToken).ToString();
 
                 Expression expression;
                 bool hasThreeDot = false;
@@ -5051,7 +5206,7 @@ public class Interpreter
                 {
                     if (sourceValue.type == ValueType.String)
                     {
-                        var str = (string)sourceValue.value;
+                        var str = sourceValue.AsSpan();
                         return (scope, StringAsMultiValue(str));
                     }
                     else if (sourceValue.type == ValueType.Array)
