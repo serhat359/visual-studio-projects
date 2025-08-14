@@ -80,6 +80,7 @@ public partial class JSONPathForm : Form
     {
         WriteIndented = true,
         IndentCharacter = ' ',
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
     private void RerenderJson()
     {
