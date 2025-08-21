@@ -167,9 +167,19 @@ public partial class JSONPathForm : Form
 
     private static IEnumerable<JsonElement> GetFiltered(string filterExpression, IEnumerable<JsonElement> mapped)
     {
+        var mappedValues = mapped.SelectMany(x =>
+        {
+            if (x.ValueKind == JsonValueKind.Array)
+                return x.EnumerateArray();
+            else if (x.ValueKind == JsonValueKind.Object)
+                return x.EnumerateObject().Select(x => x.Value);
+            else
+                throw new Exception();
+        });
+
         if (filterExpression == "[*]")
         {
-            return mapped.SelectMany(x => x.EnumerateArray());
+            return mappedValues;
         }
         else
         {
