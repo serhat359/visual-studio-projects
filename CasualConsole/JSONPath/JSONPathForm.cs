@@ -45,7 +45,7 @@ public partial class JSONPathForm : Form
 
         this.jsonPathTextBox = new TextBox
         {
-            PlaceholderText = "$.store.books[*].author%c%k%u%kc%uc",
+            PlaceholderText = "$.store[?(@.id > 5)].books[*].author%c%k%u%kc%uc",
         };
         this.jsonPathTextBox.KeyPress += (object? sender, KeyPressEventArgs e) =>
         {
