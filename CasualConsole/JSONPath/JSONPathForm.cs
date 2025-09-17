@@ -250,6 +250,11 @@ public partial class JSONPathForm : Form
                                     returnList.Add(item);
                             }
                         }
+                        else if (item.ValueKind == JsonValueKind.True || item.ValueKind == JsonValueKind.False)
+                        {
+                            if (set.Add(item.ValueKind == JsonValueKind.True ? "true" : "false"))
+                                returnList.Add(item);
+                        }
                     }
                     return returnList;
                 }
@@ -272,6 +277,12 @@ public partial class JSONPathForm : Form
                                 counts.TryGetValue(key, out int n);
                                 counts[key] = n + 1;
                             }
+                        }
+                        else if (item.ValueKind == JsonValueKind.True || item.ValueKind == JsonValueKind.False)
+                        {
+                            var key = item.ValueKind == JsonValueKind.True ? "true" : "false";
+                            counts.TryGetValue(key, out int n);
+                            counts[key] = n + 1;
                         }
                     }
                     return [ConvertMapToJsonElement(counts)];
@@ -524,6 +535,10 @@ public partial class JSONPathForm : Form
                 return je.GetString();
             if (je.ValueKind == JsonValueKind.Null)
                 return null;
+            if (je.ValueKind == JsonValueKind.True)
+                return true;
+            if (je.ValueKind == JsonValueKind.False)
+                return false;
         }
         return o;
     }
