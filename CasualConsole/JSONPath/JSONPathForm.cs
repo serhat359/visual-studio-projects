@@ -369,19 +369,22 @@ public partial class JSONPathForm : Form
     private static IExpression ToExpressionTree(string s)
     {
         var tokens = GetTokens(s);
-        IExpression firstExpr = tokens[0] == "@" ? new AtExpression() : throw new Exception("Expected '@' character");
+        IExpression firstExpr = GetExpression(tokens[0]);
         int i = 1;
         while (i < tokens.Count)
         {
             var op = tokens[i++];
+            var precedence = GetPrecedence(op);
             if (op == ".")
             {
                 var prop = tokens[i++];
-                firstExpr = new DotAccessExpression { Expression = firstExpr, Prop = prop };
+                AddToNode(ref firstExpr, precedence, expression =>
+                {
+                    return new DotAccessExpression { Expression = expression, Prop = prop };
+                });
                 continue;
             }
 
-            var precedence = GetPrecedence(op);
             var expr = GetExpression(tokens[i++]);
             AddToNode(ref firstExpr, precedence, expression =>
             {
@@ -399,7 +402,7 @@ public partial class JSONPathForm : Form
     }
 
     private static char[] singleCharOperators = { '@', '.', '<', '>' };
-    private static string[] doubleCharOperators = { "==", "!=", ">=", "<=" };
+    private static string[] doubleCharOperators = { "==", "!=", ">=", "<=", "&&", "||" };
     private static List<string> GetTokens(string s)
     {
         var tokens = new List<string>();
@@ -473,12 +476,16 @@ public partial class JSONPathForm : Form
             "<=" => 9,
             "==" => 9,
             "!=" => 9,
+            "&&" => 4,
+            "||" => 3,
             _ => throw new Exception($"Unknown operator: '{s}'"),
         };
     }
 
     private static IExpression GetExpression(string s)
     {
+        if (s == "@")
+            return new AtExpression();
         if (s == "null")
             return new ValueExpression { Value = null };
         if (s == "true")
@@ -601,6 +608,8 @@ public partial class JSONPathForm : Form
                     "<=" => Compare(value, token, exprValue),
                     "==" => Compare(value, token, exprValue),
                     "!=" => Compare(value, token, exprValue),
+                    "&&" => IsTruthy(value) && IsTruthy(exprValue),
+                    "||" => IsTruthy(value) || IsTruthy(exprValue),
                     _ => throw new Exception(),
                 };
             }
