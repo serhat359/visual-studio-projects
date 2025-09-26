@@ -11,6 +11,7 @@ public partial class JSONPathForm : Form
 
     private bool ignoreNextChange = false;
     private RichTextBox richTextBox;
+    private RichTextBox richTextBox2;
     private TextBox jsonPathTextBox;
     private CheckBox nullIfNotExistentCheckBox;
     private Label errorMessage;
@@ -26,7 +27,7 @@ public partial class JSONPathForm : Form
         jsonOptionsIgnoreNull = CreateOptions();
         jsonOptionsIgnoreNull.Converters.Add(new JsonObjectConverter(jsonOptions));
 
-        this.ClientSize = new Size(700, 700);
+        this.ClientSize = new Size(1100, 750);
         this.Text = "JSONPath";
 
         this.richTextBox = new RichTextBox
@@ -44,6 +45,7 @@ public partial class JSONPathForm : Form
                 }
 
                 parsed = JsonSerializer.Deserialize<JsonElement>(richTextBox.Text);
+                richTextBox.Text = JsonSerializer.Serialize(parsed, jsonOptions);
                 RerenderJson();
             }
             catch (Exception)
@@ -52,9 +54,14 @@ public partial class JSONPathForm : Form
             }
         };
 
+        this.richTextBox2 = new RichTextBox
+        {
+            Multiline = true,
+        };
+
         this.jsonPathTextBox = new TextBox
         {
-            PlaceholderText = "$.store[?(@.id > 5)].books[*].author%c%k%u%kc%uc",
+            PlaceholderText = "$.store[*].books[?(@.id > 5)].author%c%k%u%kc%uc",
         };
         this.jsonPathTextBox.KeyPress += (object? sender, KeyPressEventArgs e) =>
         {
@@ -91,6 +98,7 @@ public partial class JSONPathForm : Form
         SetSizes();
 
         this.Controls.Add(this.richTextBox);
+        this.Controls.Add(this.richTextBox2);
         this.Controls.Add(this.jsonPathTextBox);
         this.Controls.Add(this.nullIfNotExistentCheckBox);
         this.Controls.Add(this.ignoreNullCheckBox);
@@ -107,23 +115,30 @@ public partial class JSONPathForm : Form
         var width = this.ClientSize.Width;
         var height = this.ClientSize.Height;
 
+        var halfWidth = (width - 30) / 2;
+
         int richTextBoxYStart = 10;
         int richTextBoxHeight = height - 95;
         richTextBox.Location = new Point(10, richTextBoxYStart);
-        richTextBox.Width = width - 20;
+        richTextBox.Width = halfWidth;
         richTextBox.Height = richTextBoxHeight;
 
-        jsonPathTextBox.Location = new Point(10, richTextBoxYStart + richTextBoxHeight + 10);
-        jsonPathTextBox.Width = width - 20;
+        var rightSideX = halfWidth + 20;
+        richTextBox2.Location = new Point(rightSideX, richTextBoxYStart);
+        richTextBox2.Width = halfWidth;
+        richTextBox2.Height = richTextBoxHeight;
+
+        jsonPathTextBox.Location = new Point(rightSideX, richTextBoxYStart + richTextBoxHeight + 10);
+        jsonPathTextBox.Width = halfWidth;
 
         var nullIfNotExistentCheckBoxWidth = 200;
-        nullIfNotExistentCheckBox.Location = new Point(10, richTextBoxYStart + richTextBoxHeight + 35);
+        nullIfNotExistentCheckBox.Location = new Point(rightSideX, richTextBoxYStart + richTextBoxHeight + 35);
         nullIfNotExistentCheckBox.Width = nullIfNotExistentCheckBoxWidth;
 
-        errorMessage.Location = new Point(nullIfNotExistentCheckBoxWidth + 35, richTextBoxYStart + richTextBoxHeight + 38);
+        errorMessage.Location = new Point(10, richTextBoxYStart + richTextBoxHeight + 10);
         errorMessage.Width = 900;
 
-        ignoreNullCheckBox.Location = new Point(10, richTextBoxYStart + richTextBoxHeight + 55);
+        ignoreNullCheckBox.Location = new Point(rightSideX, richTextBoxYStart + richTextBoxHeight + 55);
         ignoreNullCheckBox.Width = nullIfNotExistentCheckBoxWidth;
     }
 
@@ -140,7 +155,7 @@ public partial class JSONPathForm : Form
 
     class JsonObjectConverter : JsonConverter<JsonElement>
     {
-        JsonSerializerOptions regularOptions;
+        private JsonSerializerOptions regularOptions;
 
         public JsonObjectConverter(JsonSerializerOptions regularOptions)
         {
@@ -193,7 +208,7 @@ public partial class JSONPathForm : Form
             if (jsonPath == "")
             {
                 ignoreNextChange = true;
-                richTextBox.Text = JsonSerializer.Serialize(this.parsed, jsonOptions);
+                richTextBox2.Text = JsonSerializer.Serialize(this.parsed, ignoreNullCheckBox.Checked ? jsonOptionsIgnoreNull : jsonOptions);
                 return;
             }
 
@@ -227,11 +242,11 @@ public partial class JSONPathForm : Form
 
             var text = JsonSerializer.Serialize(parsedList, ignoreNullCheckBox.Checked ? jsonOptionsIgnoreNull : jsonOptions);
             ignoreNextChange = true;
-            richTextBox.Text = text;
+            richTextBox2.Text = text;
         }
         catch (Exception e)
         {
-            errorMessage.Text = $"There was an error: {e.Message}";
+            errorMessage.Text = $"Error: {e.Message}";
         }
     }
 
