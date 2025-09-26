@@ -222,8 +222,8 @@ public partial class JSONPathForm : Form
                 if (first != "$")
                     throw new Exception();
 
-                if (rest != "")
-                    parsedList = GetFiltered(rest, parsedList);
+                foreach (var restPart in rest)
+                    parsedList = GetFiltered(restPart, parsedList);
             }
 
             var nullIfNotExistent = nullIfNotExistentCheckBox.Checked;
@@ -236,8 +236,8 @@ public partial class JSONPathForm : Form
                 else if (type == '%')
                     parsedList = ApplyDirective(part, parsedList);
 
-                if (rest != "")
-                    parsedList = GetFiltered(rest, parsedList);
+                foreach (var restPart in rest)
+                    parsedList = GetFiltered(restPart, parsedList);
             }
 
             var text = JsonSerializer.Serialize(parsedList, ignoreNullCheckBox.Checked ? jsonOptionsIgnoreNull : jsonOptions);
@@ -395,13 +395,26 @@ public partial class JSONPathForm : Form
         return JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(o));
     }
 
-    private static (string first, string rest) SplitFilter(string part)
+    private static (string first, List<string> rest) SplitFilter(string part)
     {
         var i = part.IndexOf('[');
         if (i < 0)
-            return (part, "");
-        else
-            return (part[..i], part[i..]);
+            return (part, []);
+
+        var first = part[..i];
+        var parts = new List<string>();
+        while (true)
+        {
+            var i2 = part.IndexOf('[', i + 1);
+            if (i2 < 0)
+            {
+                parts.Add(part[i..]);
+                return (first, parts);
+            }
+
+            parts.Add(part[i..i2]);
+            i = i2;
+        }
     }
 
     private static bool TryGetNumber(JsonElement je, out double value)
