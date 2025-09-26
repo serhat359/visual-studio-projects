@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace JSONPath;
 
@@ -13,10 +14,18 @@ public partial class JSONPathForm : Form
     private TextBox jsonPathTextBox;
     private CheckBox nullIfNotExistentCheckBox;
     private Label errorMessage;
+    private CheckBox ignoreNullCheckBox;
     private JsonElement parsed;
+
+    private JsonSerializerOptions jsonOptions;
+    private JsonSerializerOptions jsonOptionsIgnoreNull;
 
     public JSONPathForm()
     {
+        jsonOptions = CreateOptions();
+        jsonOptionsIgnoreNull = CreateOptions();
+        jsonOptionsIgnoreNull.Converters.Add(new JsonObjectConverter(jsonOptions));
+
         this.ClientSize = new Size(700, 700);
         this.Text = "JSONPath";
 
@@ -64,6 +73,16 @@ public partial class JSONPathForm : Form
         {
             RerenderJson();
         };
+
+        this.ignoreNullCheckBox = new CheckBox
+        {
+            Text = "Ignore null valued keys",
+        };
+        this.ignoreNullCheckBox.CheckedChanged += (object? sender, EventArgs e) =>
+        {
+            RerenderJson();
+        };
+
         this.errorMessage = new Label
         {
             ForeColor = Color.Red,
@@ -74,6 +93,7 @@ public partial class JSONPathForm : Form
         this.Controls.Add(this.richTextBox);
         this.Controls.Add(this.jsonPathTextBox);
         this.Controls.Add(this.nullIfNotExistentCheckBox);
+        this.Controls.Add(this.ignoreNullCheckBox);
         this.Controls.Add(this.errorMessage);
 
         this.Resize += (object? sender, EventArgs e) =>
@@ -88,7 +108,7 @@ public partial class JSONPathForm : Form
         var height = this.ClientSize.Height;
 
         int richTextBoxYStart = 10;
-        int richTextBoxHeight = height - 75;
+        int richTextBoxHeight = height - 95;
         richTextBox.Location = new Point(10, richTextBoxYStart);
         richTextBox.Width = width - 20;
         richTextBox.Height = richTextBoxHeight;
@@ -102,14 +122,68 @@ public partial class JSONPathForm : Form
 
         errorMessage.Location = new Point(nullIfNotExistentCheckBoxWidth + 35, richTextBoxYStart + richTextBoxHeight + 38);
         errorMessage.Width = 900;
+
+        ignoreNullCheckBox.Location = new Point(10, richTextBoxYStart + richTextBoxHeight + 55);
+        ignoreNullCheckBox.Width = nullIfNotExistentCheckBoxWidth;
     }
 
-    private JsonSerializerOptions jsonOptions = new()
+    private JsonSerializerOptions CreateOptions()
     {
-        WriteIndented = true,
-        IndentCharacter = ' ',
-        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-    };
+        return new()
+        {
+            WriteIndented = true,
+            IndentCharacter = ' ',
+            IndentSize = 3,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        };
+    }
+
+    class JsonObjectConverter : JsonConverter<JsonElement>
+    {
+        JsonSerializerOptions regularOptions;
+
+        public JsonObjectConverter(JsonSerializerOptions regularOptions)
+        {
+            this.regularOptions = regularOptions;
+        }
+
+        public override JsonElement Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override void Write(Utf8JsonWriter writer, JsonElement value, JsonSerializerOptions options)
+        {
+            if (value.ValueKind == JsonValueKind.Object)
+            {
+                writer.WriteStartObject();
+                foreach (var item in value.EnumerateObject())
+                {
+                    if (item.Value.ValueKind == JsonValueKind.Null)
+                        continue;
+
+                    writer.WritePropertyName(item.Name);
+                    JsonSerializer.Serialize(writer, item.Value, options);
+                }
+                writer.WriteEndObject();
+                return;
+            }
+
+            if (value.ValueKind == JsonValueKind.Array)
+            {
+                writer.WriteStartArray();
+                foreach (var item in value.EnumerateArray())
+                {
+                    JsonSerializer.Serialize(writer, item, options);
+                }
+                writer.WriteEndArray();
+                return;
+            }
+
+            JsonSerializer.Serialize(writer, value, regularOptions);
+        }
+    }
+
     private void RerenderJson()
     {
         try
@@ -151,7 +225,7 @@ public partial class JSONPathForm : Form
                     parsedList = GetFiltered(rest, parsedList);
             }
 
-            var text = JsonSerializer.Serialize(parsedList, jsonOptions);
+            var text = JsonSerializer.Serialize(parsedList, ignoreNullCheckBox.Checked ? jsonOptionsIgnoreNull : jsonOptions);
             ignoreNextChange = true;
             richTextBox.Text = text;
         }
