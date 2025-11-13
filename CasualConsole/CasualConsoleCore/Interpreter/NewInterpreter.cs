@@ -18,7 +18,6 @@ public class NewInterpreter
 
     private static readonly HashSet<string> operators = new HashSet<string>() { "+", "-", "*", "/", "%", "=", "?", ":", "<", ">", "<=", ">=", "&&", "||", "??", "!", "!=", ".", "==", "+=", "-=", "*=", "/=", "%=", "??=", "||=", "&&=", "=>", "++", "--", "...", "?.", "?.[", "?.(" };
     private static readonly Dictionary<char, Dictionary<char, HashSet<char>>> operatorsCompiled;
-    private static readonly HashSet<string> regularOperatorSet = new HashSet<string>() { "+", "-", "*", "/", "%", "==", "!=", "<", ">", "<=", ">=", "&&", "||", "??" };
     private static readonly Dictionary<char, int> hexToint = new Dictionary<char, int>() { { '0', 0 }, { '1', 1 }, { '2', 2 }, { '3', 3 }, { '4', 4 }, { '5', 5 }, { '6', 6 }, { '7', 7 }, { '8', 8 }, { '9', 9 }, { 'A', 10 }, { 'B', 11 }, { 'C', 12 }, { 'D', 13 }, { 'E', 14 }, { 'F', 15 }, { 'a', 10 }, { 'b', 11 }, { 'c', 12 }, { 'd', 13 }, { 'e', 14 }, { 'f', 15 }, };
     private static readonly Dictionary<char, string> onlyChars = new Dictionary<char, string>() {
         { ',', "," },

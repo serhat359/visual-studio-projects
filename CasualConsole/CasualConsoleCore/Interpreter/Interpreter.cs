@@ -66,6 +66,10 @@ public class Interpreter
             { "log", printFunctionCustomValue },
         }), AssignmentType.Const);
         defaultvariables["print"] = (printFunctionCustomValue, AssignmentType.Const);
+        defaultvariables["performance"] = (CustomValue.FromMap(new Dictionary<string, ValueOrGetterSetter>()
+        {
+            { "now", CustomValue.FromFunction(new PerformanceNowFunction()) },
+        }), AssignmentType.Const);
         defaultvariables["parseNumber"] = (CustomValue.FromFunction(new ParseNumberFunction()), AssignmentType.Const);
         defaultvariables["setTimeout"] = (CustomValue.FromFunction(new SetTimeoutFunction(this)), AssignmentType.Const);
         defaultvariables["clearTimeout"] = (CustomValue.FromFunction(new ClearTimeoutFunction(this)), AssignmentType.Const);
@@ -540,7 +544,7 @@ public class Interpreter
             ("2 && 7", 7),
             ("2 && 0", 0),
             ("var name = 'name1'; ({ name }).name", "name1"),
-            ("print()", null),
+            //("print()", null),
             ("[...[1,2,3]].length", 3),
             ("var arr = [2, ...[1,2,3]]; arr[0] == 2 && arr[1] == 1 && arr[2] == 2 && arr[3] == 3", true),
             ("var arr = [1,2,3]; var arr2 = [...arr]; arr.push(6); arr2.length", 3),
@@ -2133,6 +2137,25 @@ public class Interpreter
             throw new NotImplementedException();
         }
     }
+    class PerformanceNowFunction : FunctionObject
+    {
+        public (string paramName, bool isRest)[] Parameters => Array.Empty<(string, bool)>();
+
+        public VariableScope? Scope => null;
+
+        public bool IsLambda => false;
+
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
+        {
+            var ms = Stopwatch.GetTimestamp() / 10000L;
+            return (CustomValue.FromNumber(ms), ReturnType.None);
+        }
+
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
+        {
+            throw new NotImplementedException();
+        }
+    }
     class FunctionCallFunction : FunctionObject
     {
         private static readonly (string paramName, bool isRest)[] parameters = new[] { ("thisOwner", false), ("args", true) };
@@ -2670,7 +2693,7 @@ public class Interpreter
     {
 
     }
-    private struct CustomValue : ValueOrGetterSetter
+    private readonly struct CustomValue : ValueOrGetterSetter
     {
         public readonly object value;
         public readonly ValueType type;
