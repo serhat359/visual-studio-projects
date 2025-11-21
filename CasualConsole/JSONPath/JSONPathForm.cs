@@ -243,6 +243,7 @@ public partial class JSONPathForm : Form
             var text = JsonSerializer.Serialize(parsedList, ignoreNullCheckBox.Checked ? jsonOptionsIgnoreNull : jsonOptions);
             ignoreNextChange = true;
             richTextBox2.Text = text;
+            richTextBox2.ScrollToCaret(); // Scroll to top
         }
         catch (Exception e)
         {
