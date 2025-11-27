@@ -19,7 +19,7 @@ public class Interpreter
     private static readonly HashSet<string> operators = new() { "+", "-", "*", "/", "%", "=", "?", ":", "<", ">", "<=", ">=", "&&", "||", "??", "!", "!=", ".", "==", "+=", "-=", "*=", "/=", "%=", "??=", "||=", "&&=", "=>", "++", "--", "...", "?.", "?.[", "?.(" };
     private static readonly HashSet<string> assignmentSet = new() { "=", "+=", "-=", "*=", "/=", "%=", "&&=", "||=", "??=" };
     private static readonly HashSet<string> regularOperatorSet = new() { "+", "-", "*", "/", "%", "==", "!=", "<", ">", "<=", ">=", "&&", "||", "??" };
-    private static readonly HashSet<string> keywords = new() { "this", "var", "let", "const", "if", "else", "while", "for", "break", "continue", "function", "class", "async", "await", "return", "yield", "true", "false", "null", "new" };
+    private static readonly HashSet<string> keywords = new() { "this", "var", "let", "const", "if", "else", "while", "for", "break", "continue", "function", "class", "async", "await", "return", "yield", "true", "false", "null", "new", "delete" };
     private static readonly Dictionary<char, Dictionary<char, HashSet<char>>> operatorsCompiled;
     private static readonly Dictionary<char, int> hexToint = new() { { '0', 0 }, { '1', 1 }, { '2', 2 }, { '3', 3 }, { '4', 4 }, { '5', 5 }, { '6', 6 }, { '7', 7 }, { '8', 8 }, { '9', 9 }, { 'A', 10 }, { 'B', 11 }, { 'C', 12 }, { 'D', 13 }, { 'E', 14 }, { 'F', 15 }, { 'a', 10 }, { 'b', 11 }, { 'c', 12 }, { 'd', 13 }, { 'e', 14 }, { 'f', 15 }, };
 
@@ -735,6 +735,11 @@ public class Interpreter
             ("[...sb].length", 2),
             ("({ ab: sb })[sb]", "ab"),
             ("'hello'.endsWith('llo')", true),
+            ("var o = {a:1}; delete o.a; o.a", null),
+            ("var o = {a:1}; delete o['a']; o.a", null),
+            ("var o = {a:{b:2}}; delete o.a.b; o.a.b", null),
+            ("var o = {a:{b:2}}; delete o.a['b']; o.a.b", null),
+            ("var o = {a:{b:2}}; delete o['a'].b; o.a.b", null),
         };
 
         var interpreter = new Interpreter();
@@ -1453,11 +1458,11 @@ public class Interpreter
         }
         else if (lValue is Op18Expression op18)
         {
-            var (lastOperator, expressions) = op18.nextValues[^1];
+            var (lastOperator, lastExpression) = op18.nextValues[^1];
             if (lastOperator == Operator.MemberAccess || lastOperator == Operator.ComputedMemberAccess)
             {
                 var baseExpressionValue = op18.EvaluateAllButLast(context);
-                var keyExpressionValue = ((Expression)expressions).EvaluateExpression(context);
+                var keyExpressionValue = ((Expression)lastExpression).EvaluateExpression(context);
 
                 oldValue = needOldValue ? DoIndexingGet(baseExpressionValue, keyExpressionValue, context) : null;
                 var newValue = operation(oldValue);
@@ -3549,6 +3554,12 @@ public class Interpreter
                 var newExpression = new AwaitExpression(expressionRest);
                 return (newExpression, lastIndex);
             }
+            if (token == "delete")
+            {
+                var (expressionRest, lastIndex) = ReadExpression(tokens, index + 1);
+                var newExpression = new DeleteExpression(expressionRest);
+                return (newExpression, lastIndex);
+            }
             if (token == "new")
             {
                 var className = tokens[1];
@@ -4445,6 +4456,35 @@ public class Interpreter
             }
 
             return rest;
+        }
+    }
+    class DeleteExpression : HasRestExpression
+    {
+        private Expression expressionRest;
+
+        public Expression ExpressionRest { get { return expressionRest; } set { expressionRest = value; } }
+
+        public DeleteExpression(Expression expressionRest)
+        {
+            this.expressionRest = expressionRest;
+        }
+
+        public CustomValue EvaluateExpression(Context context)
+        {
+            var op18 = (Op18Expression)expressionRest;
+
+            var (lastOperator, lastExpression) = op18.nextValues[^1];
+            if (lastOperator == Operator.MemberAccess || lastOperator == Operator.ComputedMemberAccess)
+            {
+                var baseExpressionValue = op18.EvaluateAllButLast(context);
+                var keyExpressionValue = ((Expression)lastExpression).EvaluateExpression(context);
+
+                var map = baseExpressionValue.GetAsMap();
+                map.Remove((string)keyExpressionValue.value);
+                return CustomValue.Null;
+            }
+
+            throw new Exception();
         }
     }
     class NewClassInstanceExpression : Expression
