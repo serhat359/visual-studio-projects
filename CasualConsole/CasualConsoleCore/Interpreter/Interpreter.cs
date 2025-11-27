@@ -740,6 +740,9 @@ public class Interpreter
             ("var o = {a:{b:2}}; delete o.a.b; o.a.b", null),
             ("var o = {a:{b:2}}; delete o.a['b']; o.a.b", null),
             ("var o = {a:{b:2}}; delete o['a'].b; o.a.b", null),
+            ("var numbersGen = (function*(){ yield 1; yield 2; yield 3; })(); [...numbersGen].length", 3),
+            ("var numbersGen = (function*(){ yield 1; yield 2; yield 3; })(); numbersGen.next(); [...numbersGen].length", 2),
+            ("var numbersGen = (function*(){ yield 1; yield 2; yield 3; })(); for (let x of numbersGen){ break; } [...numbersGen].length", 0),
         };
 
         var interpreter = new Interpreter();
