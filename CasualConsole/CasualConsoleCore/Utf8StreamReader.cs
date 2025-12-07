@@ -9,6 +9,7 @@ public class Utf8StreamReader
     private readonly byte[] buffer;
     private int start = -1;
     private int end;
+    private int lastByteReadCount = -1;
 
     const byte ln = (byte)'\n';
 
@@ -20,11 +21,17 @@ public class Utf8StreamReader
 
     public bool TryReadLine(out ReadOnlySpan<byte> ret)
     {
+        if (lastByteReadCount == 0 && start == end)
+        {
+            ret = default;
+            return false;
+        }
+
         if (start == -1)
         {
             // first run
             start = 0;
-            end = stream.Read(buffer);
+            lastByteReadCount = end = stream.Read(buffer);
         }
 
         while (true)
@@ -35,25 +42,35 @@ public class Utf8StreamReader
             int i = bufferSpan.IndexOf(ln);
             if (i >= 0)
             {
+                // If new line was found
                 ret = bufferSpan[..i];
+                if (ret.Length > 0 && ret[^1] == '\r')
+                    ret = ret[..^1];
                 start += i + 1;
                 return true;
             }
 
+            // New line was not found
             int remainingLength = end - start;
             bufferSpan.CopyTo(buffer);
             var target = wholeBufferSpan[remainingLength..];
-            int count = stream.Read(target);
-            if (count == 0)
+            lastByteReadCount = stream.Read(target);
+            if (lastByteReadCount == 0)
             {
                 if (remainingLength == 0)
                 {
                     ret = default;
                     return false;
                 }
-                throw new Exception();
+                else
+                {
+                    // Last line
+                    ret = bufferSpan[..remainingLength];
+                    start = end = remainingLength;
+                    return true;
+                }
             }
-            this.end = remainingLength + count;
+            this.end = remainingLength + lastByteReadCount;
             this.start = 0;
         }
     }
