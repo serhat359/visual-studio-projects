@@ -53,6 +53,111 @@ public class Program
         //CategorizeUbuntuWallpapers();
     }
 
+    static object? JsonElementToObject(JsonElement jsonElement)
+    {
+        switch (jsonElement.ValueKind)
+        {
+            case JsonValueKind.Null:
+                return null;
+            case JsonValueKind.True:
+                return true;
+            case JsonValueKind.False:
+                return false;
+            case JsonValueKind.Number:
+                return jsonElement.Deserialize<double>();
+            case JsonValueKind.String:
+                return jsonElement.Deserialize<string>();
+            case JsonValueKind.Array:
+                return jsonElement.EnumerateArray().Select(JsonElementToObject).ToList();
+            case JsonValueKind.Object:
+                var map = new Dictionary<string, object?>();
+                foreach (var pair in jsonElement.EnumerateObject())
+                {
+                    map[pair.Name] = JsonElementToObject(pair.Value);
+                }
+                return map;
+        }
+        throw new Exception($"Unexpected json kind: {jsonElement.ValueKind}");
+    }
+
+    static void QuickSort(Span<int> array)
+    {
+        static int Pivot(ref int x, ref int y, ref int z)
+        {
+            if (x <= y)
+            {
+                if (y <= z)
+                {
+                    return y;
+                }
+                if (z >= x)
+                {
+                    (y, z) = (z, y);
+                    return y;
+                }
+                int t = z;
+                z = y;
+                y = x;
+                x = t;
+                return y;
+            }
+            else
+            {
+                if (y >= z)
+                {
+                    (x, z) = (z, x);
+                    return y;
+                }
+                if (z >= x)
+                {
+                    (x, y) = (y, x);
+                    return y;
+                }
+                int t = x;
+                x = y;
+                y = z;
+                z = t;
+                return y;
+            }
+        }
+
+        if (array.Length <= 1)
+            return;
+        if (array.Length == 2)
+        {
+            if (array[0] > array[1])
+                (array[0], array[1]) = (array[1], array[0]);
+            return;
+        }
+        int pivot = Pivot(ref array[0], ref array[array.Length / 2], ref array[array.Length - 1]);
+        if (array.Length == 3)
+            return;
+        int end = array.Length;
+        int start = -1;
+        while (true)
+        {
+            do
+            {
+                end--;
+            } while (end >= 0 && array[end] >= pivot);
+
+            do
+            {
+                start++;
+            } while (start < array.Length && array[start] <= pivot);
+
+            if (start >= end)
+            {
+                end++;
+                QuickSort(array[start..]);
+                QuickSort(array[..end]);
+                return;
+            }
+
+            (array[start], array[end]) = (array[end], array[start]);
+        }
+    }
+
     private static void CategorizeUbuntuWallpapers()
     {
         var basePath = @"C:\Users\Xhertas\Downloads\ubuntu-wallpapers-25.04.2";
@@ -224,7 +329,7 @@ public class Program
         WriteSrtLinesToFile(@"D:\Downloads\decrypted_files\movie-English2.srt", lines);
     }
 
-    record class SrtParsedLine
+    class SrtParsedLine
     {
         public required string TimeBegin { get; set; }
         public required string TimeEnd { get; set; }
@@ -302,18 +407,8 @@ public class Program
     }
 }
 
-public static class JsonExtensions
+public static class CollectionExtensions
 {
-    public static List<JsonElement> ToList(this JsonElement element)
-    {
-        var list = new List<JsonElement>(element.GetArrayLength());
-        foreach (var x in element.EnumerateArray())
-        {
-            list.Add(x);
-        }
-        return list;
-    }
-
     public static IEnumerable<T> EmptyIfNull<T>(this IEnumerable<T>? source)
     {
         if (source == null)
@@ -328,7 +423,7 @@ public static class JsonExtensions
         return source;
     }
 
-    public static bool TryFirst<T>(this IEnumerable<T> source, Func<T, bool> predicate, [MaybeNullWhen(false)] out T value)
+    public static bool TryGetFirst<T>(this IEnumerable<T> source, Func<T, bool> predicate, [MaybeNullWhen(false)] out T value)
     {
         foreach (var item in source)
         {
@@ -345,25 +440,6 @@ public static class JsonExtensions
 
 public static class AsyncExtensions
 {
-    public static async IAsyncEnumerable<E> SelectAsync<T, E>(this IEnumerable<T> source, Func<T, Task<E>> converter)
-    {
-        foreach (var item in source)
-            yield return await converter(item);
-    }
-
-    public static async IAsyncEnumerable<E> Select<T, E>(this IAsyncEnumerable<T> source, Func<T, E> converter)
-    {
-        await foreach (var item in source)
-            yield return converter(item);
-    }
-
-    public static async IAsyncEnumerable<T> Where<T>(this IAsyncEnumerable<T> source, Func<T, bool> predicate)
-    {
-        await foreach (var item in source)
-            if (predicate(item))
-                yield return item;
-    }
-
     /// <summary>
     /// Runs the tasks in parallel with a limit to the thread count. Returns the elements in an unordered way.
     /// </summary>
@@ -448,7 +524,7 @@ public static class AsyncExtensions
     }
 }
 
-public static class Expressions
+public static class ExpressionExtensions
 {
     public static Expression<Func<T, bool>> Or<T>(IEnumerable<Expression<Func<T, bool>>> expressions)
     {
