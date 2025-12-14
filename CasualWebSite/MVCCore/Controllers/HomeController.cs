@@ -15,28 +15,21 @@ using System.Text.RegularExpressions;
 
 namespace MVCCore.Controllers;
 
-public partial class HomeController : Controller
+public class HomeController(
+    ILogger<HomeController> logger
+    , IHttpClientFactory httpClientFactory
+    , CacheHelper cacheHelper
+    , MyTorrentRssHelper myTorrentRssHelper
+    , PokemonService pokemonService
+    , ManhwaService manhwaService
+    ) : Controller
 {
-    private readonly ILogger<HomeController> _logger;
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly CacheHelper _cacheHelper;
-    private readonly MyTorrentRssHelper _myTorrentRssHelper;
-    private readonly PokemonService _pokemonService;
-
     private static readonly Regex nanaRegex = new(@"<ul class=""su-posts.*?</ul>", RegexOptions.Compiled | RegexOptions.Singleline);
+    private static readonly Regex frierenRegex = new(@"<ul class=""su-posts.*?</ul>", RegexOptions.Compiled | RegexOptions.Singleline);
 
     private HttpClient CreateClient()
     {
-        return _httpClientFactory.CreateClient();
-    }
-
-    public HomeController(ILogger<HomeController> logger, IHttpClientFactory httpClientFactory, CacheHelper cacheHelper, MyTorrentRssHelper myTorrentRssHelper, PokemonService pokemonService)
-    {
-        _logger = logger;
-        _httpClientFactory = httpClientFactory;
-        _cacheHelper = cacheHelper;
-        _myTorrentRssHelper = myTorrentRssHelper;
-        _pokemonService = pokemonService;
+        return httpClientFactory.CreateClient();
     }
 
     [HttpGet]
@@ -73,6 +66,16 @@ public partial class HomeController : Controller
         });
 
         return Json(new { message = "All tests successful" });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> AnimeNews()
+    {
+        var client = CreateClient();
+        using var response = await client.GetAsync("https://www.animenewsnetwork.com/news/rss.xml?ann-edition=us");
+        response.EnsureSuccessStatusCode();
+        string content = await response.Content.ReadAsStringAsync();
+        return Content(content, "application/rss+xml; charset=UTF-8");
     }
 
     [HttpGet]
@@ -117,14 +120,14 @@ public partial class HomeController : Controller
         async Task<IActionResult> initializer()
         {
             string[] urls = {
-                              "https://www.tomshardware.com/reviews",
-                              "https://www.tomshardware.com/reviews/page/2",
-                              "https://www.tomshardware.com/reference",
-                              "https://www.tomshardware.com/features",
-                              "https://www.tomshardware.com/how-to",
-                              "https://www.tomshardware.com/round-up",
-                              "https://www.tomshardware.com/best-picks",
-                            };
+                "https://www.tomshardware.com/reviews",
+                "https://www.tomshardware.com/reviews/page/2",
+                "https://www.tomshardware.com/reference",
+                "https://www.tomshardware.com/features",
+                "https://www.tomshardware.com/how-to",
+                "https://www.tomshardware.com/round-up",
+                "https://www.tomshardware.com/best-picks",
+            };
 
             var client = CreateClient();
             var tasks = urls.Select(async url =>
@@ -140,7 +143,7 @@ public partial class HomeController : Controller
             return this.Xml(rssObject);
         }
 
-        var xmlResultResult = await _cacheHelper.GetAsync(CacheHelper.TomsArticlesKey, initializer, TimeSpan.FromHours(2));
+        var xmlResultResult = await cacheHelper.GetAsync(CacheHelper.TomsArticlesKey, initializer, TimeSpan.FromHours(2));
 
         return xmlResultResult;
     }
@@ -164,7 +167,7 @@ public partial class HomeController : Controller
         var newData = elements.OrderByDescending(c => c.PubDate).ToList();
 
         var cacheKey = CacheHelper.TomsNewsKey;
-        var oldData = _cacheHelper.GetNotInit<List<RssResultItem>>(cacheKey);
+        var oldData = cacheHelper.GetNotInit<List<RssResultItem>>(cacheKey);
 
         List<RssResultItem> data;
         if (oldData == null || oldData.Count == 0)
@@ -186,7 +189,7 @@ public partial class HomeController : Controller
                 data = oldData;
         }
 
-        _cacheHelper.Set(cacheKey, data, TimeSpan.FromHours(12));
+        cacheHelper.Set(cacheKey, data, TimeSpan.FromHours(12));
         var rssObject = new RssResult(data);
 
         return this.Xml(rssObject);
@@ -361,6 +364,45 @@ public partial class HomeController : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> FrierenParseXml()
+    {
+        var today = DateTime.UtcNow.Date;
+
+        var url = "https://sousou-no-frieren.com/";
+
+        string contents = await GetUrlTextData(CreateClient(), url);
+
+        var items = frierenRegex.Matches(contents)
+            .Select(x => x.Value)
+            .Select(ulPart =>
+            {
+                var document = XmlParser.Parse(ulPart);
+
+                var items = document.ChildNodes[0].ChildNodes.Select(liNode =>
+                {
+                    var aNode = liNode.ChildNodes[0];
+
+                    var chapterName = aNode.InnerText;
+
+                    return new RssResultItem
+                    {
+                        Description = "This was parsed from sousou-no-frieren.com",
+                        Link = aNode.Attributes["href"] ?? throw new Exception(),
+                        PubDate = today,
+                        Title = chapterName,
+                    };
+                });
+                return items;
+            })
+            .SelectMany(x => x)
+            .ToList();
+
+        var rssObject = new RssResult(items);
+
+        return this.Xml(rssObject);
+    }
+
+    [HttpGet]
     public async Task<IActionResult> GenerateRssResult(int page)
     {
         return await GenerateRssResultInner(useRealLinks: false, page);
@@ -375,7 +417,7 @@ public partial class HomeController : Controller
     [HttpGet]
     public async Task<IActionResult> GetRssLinks()
     {
-        var links = _myTorrentRssHelper.GetLinks();
+        var links = myTorrentRssHelper.GetLinks();
 
         return View(links);
     }
@@ -383,8 +425,8 @@ public partial class HomeController : Controller
     [HttpPost]
     public async Task<IActionResult> AddRssLink(string link, string name)
     {
-        _myTorrentRssHelper.AddLink(link: link, name: name);
-        _cacheHelper.Delete(CacheHelper.MyRssKey);
+        myTorrentRssHelper.AddLink(link: link, name: name);
+        cacheHelper.Delete(CacheHelper.MyRssKey);
 
         return RedirectToAction(nameof(GetRssLinks));
     }
@@ -392,8 +434,8 @@ public partial class HomeController : Controller
     [HttpGet]
     public async Task<IActionResult> DeleteRssLink(string link)
     {
-        _myTorrentRssHelper.RemoveLink(link);
-        _cacheHelper.Delete(CacheHelper.MyRssKey);
+        myTorrentRssHelper.RemoveLink(link);
+        cacheHelper.Delete(CacheHelper.MyRssKey);
 
         return RedirectToAction(nameof(GetRssLinks));
     }
@@ -401,7 +443,7 @@ public partial class HomeController : Controller
     [HttpGet]
     public async Task<ActionResult> Pokemon()
     {
-        PokemonModel model = await _pokemonService.LoadCasual();
+        PokemonModel model = await pokemonService.LoadCasual();
 
         model.Query = "order by max(attack,spattack)*speed desc";
 
@@ -411,7 +453,7 @@ public partial class HomeController : Controller
     [HttpPost]
     public async Task<ActionResult> Pokemon([Required] string query = "")
     {
-        PokemonModel model = await (ModelState.IsValid ? _pokemonService.LoadCasual(query) : _pokemonService.LoadCasual());
+        PokemonModel model = await (ModelState.IsValid ? pokemonService.LoadCasual(query) : pokemonService.LoadCasual());
 
         model.Query = query;
 
@@ -424,14 +466,16 @@ public partial class HomeController : Controller
         if (keys == null)
             return BadRequest();
 
-        var keysParsed = JsonSerializer.Deserialize<HashSet<string>>(keys);
+        if (!TryDeserialize<HashSet<string>>(keys, out var keysParsed))
+            return BadRequest();
+
         if (keysParsed == null)
             return BadRequest();
 
         var client = CreateClient();
         var tasks = keysParsed.Select(async key =>
         {
-            using var response = await client.SendWithRetryAsync(() => new HttpRequestMessage(HttpMethod.Get, "https://yts.mx/movies/" + key));
+            using var response = await client.SendWithRetryAsync(() => new HttpRequestMessage(HttpMethod.Get, "https://yts.lt/movies/" + key));
             if (!response.IsSuccessStatusCode)
                 return (key, null);
             var contextText = await response.Content.ReadAsStringAsync();
@@ -454,6 +498,46 @@ public partial class HomeController : Controller
         return Json(map);
     }
 
+    [HttpGet]
+    public async Task<ActionResult> GetManhwaScores()
+    {
+        var scores = await manhwaService.GetScores();
+        return Json(new
+        {
+            scores = scores,
+        });
+    }
+
+    [HttpPost]
+    public async Task<ActionResult> AddManhwaScore(string? name, int score)
+    {
+        await manhwaService.AddScore(name ?? "", score);
+        return Json(new
+        {
+            message = "success",
+        });
+    }
+
+    [HttpGet]
+    public async Task<ActionResult> GetManhwaChapters(string? name)
+    {
+        var chapters = await manhwaService.GetChapters(name ?? "");
+        return Json(new
+        {
+            chapters = chapters.Select(c => c.chapterName),
+        });
+    }
+
+    [HttpPost]
+    public async Task<ActionResult> AddManhwaChapter(string? manhwaName, string? chapterName)
+    {
+        await manhwaService.AddChapter(manhwaName: manhwaName ?? "", chapterName: chapterName ?? "");
+        return Json(new
+        {
+            message = "success",
+        });
+    }
+
     public IActionResult Privacy()
     {
         return View();
@@ -466,11 +550,9 @@ public partial class HomeController : Controller
     }
 
     #region Private Methods
-    private static async Task<string> GetUrlTextData(HttpClient client, string url, Action<HttpRequestMessage>? extraAction = null)
+    private static async Task<string> GetUrlTextData(HttpClient client, string url)
     {
-        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
-        extraAction?.Invoke(requestMessage);
-
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         using var response = await client.SendAsync(requestMessage);
         if (!response.IsSuccessStatusCode)
             throw new Exception($"Error status code: {(int)response.StatusCode}");
@@ -490,9 +572,10 @@ public partial class HomeController : Controller
             var classIndex = data.IndexOf(" fxKbKc");
             if (classIndex < 0)
                 throw new Exception("classIndex");
-            var beginIndex = data.IndexOf('>', classIndex) + 1;
+            var beginIndex = data.IndexOf('>', classIndex);
             if (beginIndex < 0)
                 throw new Exception("beginIndex");
+            beginIndex += 1;
             var endIndex = data.IndexOf('<', beginIndex);
             if (endIndex < 0)
                 throw new Exception("endIndex");
@@ -605,14 +688,14 @@ public partial class HomeController : Controller
 
         string nyaaCookie = System.IO.File.ReadAllText("nyaaCookie.txt");
 
-        var links = _myTorrentRssHelper.GetLinks().Keys;
+        var links = myTorrentRssHelper.GetLinks().Keys;
 
         var allLinks = new List<(DateTime date, XmlNode node)>();
 
         var tasks = links.Select(url => Task.Run(async () =>
         {
             var key = CacheHelper.MyRssKey + ":" + url;
-            var val = await _cacheHelper.GetAsync(key, () => GetUrlTextDataWithRetry(url, message => message.Headers.Add("Cookie", nyaaCookie)), cacheTimespan);
+            var val = await cacheHelper.GetAsync(key, () => GetUrlTextDataWithRetry(url, message => message.Headers.Add("Cookie", nyaaCookie)), cacheTimespan);
             return val;
         })).ToArray();
 
@@ -674,11 +757,25 @@ public partial class HomeController : Controller
             return View(data);
         }
     }
+
+    private static bool TryDeserialize<T>(string s, out T? value)
+    {
+        try
+        {
+            value = JsonSerializer.Deserialize<T>(s);
+            return true;
+        }
+        catch
+        {
+            value = default;
+            return false;
+        }
+    }
     #endregion
 }
 
 class CurrencyElement
 {
-    public required string code { get; set; }
-    public required decimal value { get; set; }
+    public required string code { get; init; }
+    public required decimal value { get; init; }
 }

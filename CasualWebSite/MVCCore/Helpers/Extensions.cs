@@ -18,6 +18,12 @@ public static class Extensions
         return res;
     }
 
+    public static async Task<List<T>> ToList<T>(this Task<IEnumerable<T>> source)
+    {
+        var data = await source;
+        return data.ToList();
+    }
+
     public static IEnumerable<XmlNode> GetAllNodesRecursive(this XmlNode node)
     {
         yield return node;

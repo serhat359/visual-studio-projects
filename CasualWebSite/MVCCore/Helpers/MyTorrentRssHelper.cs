@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 
 namespace MVCCore.Helpers;
@@ -46,7 +47,12 @@ public class MyTorrentRssHelper
 
     private void SaveLinks()
     {
-        File.WriteAllText(path: FileName, contents: JsonSerializer.Serialize(this.links));
+        var options = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        };
+        File.WriteAllText(path: FileName, contents: JsonSerializer.Serialize(this.links, options));
     }
 
     private void CheckLinks()

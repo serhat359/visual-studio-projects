@@ -33,6 +33,7 @@ public class Program
         services.AddTransient<CacheHelper>();
         services.AddSingleton<MyTorrentRssHelper>();
         services.AddSingleton<PokemonService>();
+        services.AddSingleton<ManhwaService>();
         services.AddSingleton<DataContext>();
 
         services.AddHttpClient("")

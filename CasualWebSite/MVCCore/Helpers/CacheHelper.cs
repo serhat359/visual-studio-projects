@@ -2,80 +2,79 @@
 using System;
 using System.Threading.Tasks;
 
-namespace MVCCore.Helpers
+namespace MVCCore.Helpers;
+
+public class CacheHelper
 {
-    public class CacheHelper
+    public const string TomsArticlesKey = nameof(TomsArticlesKey);
+    public const string TomsNewsKey = nameof(TomsNewsKey);
+    public const string MyRssKey = nameof(MyRssKey);
+    public const string MyTorrentRssKey = nameof(MyTorrentRssKey);
+
+    private readonly IMemoryCache _cache;
+
+    public CacheHelper(IMemoryCache cache)
     {
-        public const string TomsArticlesKey = nameof(TomsArticlesKey);
-        public const string TomsNewsKey = nameof(TomsNewsKey);
-        public const string MyRssKey = nameof(MyRssKey);
-        public const string MyTorrentRssKey = nameof(MyTorrentRssKey);
+        _cache = cache;
+    }
 
-        private readonly IMemoryCache _cache;
+    public IMemoryCache Cache => _cache;
 
-        public CacheHelper(IMemoryCache cache)
+    public T? GetNotInit<T>(string cacheKey)
+    {
+        return Cache.Get<T>(cacheKey);
+    }
+
+    public T Get<T>(string cacheKey, Func<T> initializer, TimeSpan timeSpan)
+    {
+        T? obj = Cache.Get<T>(cacheKey);
+
+        if (obj == null)
         {
-            _cache = cache;
-        }
-
-        public IMemoryCache Cache => _cache;
-
-        public T? GetNotInit<T>(string cacheKey)
-        {
-            return Cache.Get<T>(cacheKey);
-        }
-
-        public T Get<T>(string cacheKey, Func<T> initializer, TimeSpan timeSpan)
-        {
-            T? obj = Cache.Get<T>(cacheKey);
-
-            if (obj == null)
+            var newValue = initializer();
+            if (IsTaskType(newValue?.GetType()))
             {
-                var newValue = initializer();
-                if (IsTaskType(newValue?.GetType()))
-                {
-                    throw new Exception($"Cannot insert task type into the cache, please use {nameof(GetAsync)} method instead");
-                }
-                Cache.Set(cacheKey, newValue, timeSpan);
-                obj = newValue;
+                throw new Exception($"Cannot insert task type into the cache, please use {nameof(GetAsync)} method instead");
             }
-
-            return obj;
-        }
-
-        public async Task<T> GetAsync<T>(string cacheKey, Func<Task<T>> initializer, TimeSpan timeSpan)
-        {
-            T? obj = Cache.Get<T>(cacheKey);
-
-            if (obj == null)
-            {
-                var newValue = await initializer();
-                Cache.Set(cacheKey, newValue, timeSpan);
-                obj = newValue;
-            }
-
-            return obj;
-        }
-
-        public void Set(string cacheKey, object newValue, TimeSpan timeSpan)
-        {
             Cache.Set(cacheKey, newValue, timeSpan);
+            obj = newValue;
         }
 
-        public void Delete(string cacheKey)
+        return obj;
+    }
+
+    public async Task<T> GetAsync<T>(string cacheKey, Func<Task<T>> initializer, TimeSpan timeSpan)
+    {
+        T? obj = Cache.Get<T>(cacheKey);
+
+        if (obj == null)
         {
-            Cache.Remove(cacheKey);
+            var newValue = await initializer();
+            Cache.Set(cacheKey, newValue, timeSpan);
+            obj = newValue;
         }
 
-        private static bool IsTaskType(Type? t)
-        {
-            if (t == null)
-                return false;
-            if (t == typeof(Task))
-                return true;
-            if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(Task<>))
-                return true;
+        return obj;
+    }
+
+    public void Set(string cacheKey, object newValue, TimeSpan timeSpan)
+    {
+        Cache.Set(cacheKey, newValue, timeSpan);
+    }
+
+    public void Delete(string cacheKey)
+    {
+        Cache.Remove(cacheKey);
+    }
+
+    private static bool IsTaskType(Type? t)
+    {
+        if (t == null)
             return false;
-        }
+        if (t == typeof(Task))
+            return true;
+        if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(Task<>))
+            return true;
+        return false;
     }
 }

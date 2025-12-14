@@ -23,7 +23,7 @@ public class PokemonService
         try
         {
             using var conn = dataContext.CreateConnection();
-            List<Stat> statList = (await conn.QueryAsync<Stat>(new CommandDefinition(commandText: query))).ToList();
+            var statList = await conn.QueryAsync<Stat>(new CommandDefinition(commandText: query)).ToList();
 
             return new PokemonModel
             {
