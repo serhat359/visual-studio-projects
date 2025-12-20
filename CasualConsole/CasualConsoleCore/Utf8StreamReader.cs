@@ -32,6 +32,10 @@ public class Utf8StreamReader
             // first run
             start = 0;
             lastByteReadCount = end = stream.Read(buffer);
+
+            // Check for UTF8 BOM
+            if (end >= 3 && buffer[0] == 239 && buffer[1] == 187 && buffer[2] == 191)
+                start = 3;
         }
 
         while (true)
