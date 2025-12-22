@@ -57,7 +57,7 @@ public class XmlParser
 
         var isSingleTag = tokens[0].token.IsSingleTag();
 
-        var (tagName, attributes) = GetTagAndAttributes(tokens[0].token);
+        var (tagName, attributes) = GetTagAndAttributes(tokens[0].token, tokens[0].lineNumber);
         var parent = new XmlNode();
         parent.TagName = tagName;
         parent.Attributes = attributes;
@@ -135,7 +135,6 @@ public class XmlParser
 
         while (true)
         {
-            if (i < xml.Length && xml[i] == '\n') lineNumber++;
             if (i == xml.Length)
                 break;
 
@@ -222,7 +221,7 @@ public class XmlParser
         return list;
     }
 
-    private static (string, NameValueCollection) GetTagAndAttributes(string s)
+    private static (string, NameValueCollection) GetTagAndAttributes(string s, int line)
     {
         var attributes = new NameValueCollection();
         int i = 1;
@@ -254,7 +253,7 @@ public class XmlParser
                 {
                     '"' => '"',
                     '\'' => '\'',
-                    _ => throw new Exception($"unexpected characted: {c}"),
+                    _ => throw new Exception($"unexpected characted: {c} at line: {line}"),
                 };
 
                 var attrValueStart = i += 1;

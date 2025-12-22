@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Xml;
 
 namespace CasualConsoleCore.Xml;
@@ -32,6 +33,7 @@ public class XmlParserTest
         AllowSelfClosingToImmediatelyClose();
         AllowScriptTag();
         AllowWhitespaceInNodes();
+        LineNumberTest();
 
         Console.WriteLine("All xml tests are successful!");
     }
@@ -385,5 +387,31 @@ e <c>DData</c>
         var attributes = child.Attributes;
         if (attributes.Count != 1) throw new System.Exception();
         if (attributes["a"] != "bc") throw new System.Exception();
+    }
+
+    private static void LineNumberTest()
+    {
+        var cases = new[]
+        {
+            (new int[]{1,2,3,4}, @"<dd>
+            <a>
+            </a>
+            </dd>"),
+            (new int[]{1,2,4,5}, @"<dd>
+            <a>
+
+            </a>
+            </dd>"),
+        };
+
+        foreach (var (counts, text) in cases)
+        {
+            var parts = XmlParser.GetParts(text);
+            var nonWhiteSpaceparts = parts.Where(x => !char.IsWhiteSpace(x.token[0]))
+                .Select(x => x.lineNumber)
+                .ToArray();
+            if (!counts.SequenceEqual(nonWhiteSpaceparts))
+                throw new Exception();
+        }
     }
 }
