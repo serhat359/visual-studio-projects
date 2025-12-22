@@ -226,14 +226,14 @@ public class XmlParser
     {
         var attributes = new NameValueCollection();
         int i = 1;
-        while (s[i] != ' ' && s[i] != '>')
+        while (!IsWhiteSpace(s[i]) && s[i] != '>')
             i++;
 
         var tagName = s[1..i];
 
         while (true)
         {
-            if (s[i] == ' ')
+            while (IsWhiteSpace(s[i]))
                 i++;
             if (s[i] == '>' || s[i] == '/')
                 return (tagName, attributes);
@@ -242,9 +242,14 @@ public class XmlParser
                 i++;
             var attrName = s[start..i];
             string? attrValue = null;
+            while (IsWhiteSpace(s[i]))
+                i++;
             if (s[i] == '=')
             {
-                char c = s[i + 1];
+                i++;
+                while (IsWhiteSpace(s[i]))
+                    i++;
+                char c = s[i];
                 char startCharacter = c switch
                 {
                     '"' => '"',
@@ -252,7 +257,7 @@ public class XmlParser
                     _ => throw new Exception($"unexpected characted: {c}"),
                 };
 
-                var attrValueStart = i += 2;
+                var attrValueStart = i += 1;
                 while (s[i] != startCharacter)
                     i++;
                 attrValue = s[attrValueStart..i];
@@ -261,6 +266,17 @@ public class XmlParser
             }
             attributes[attrName] = attrValue;
         }
+    }
+
+    private static bool IsWhiteSpace(char c)
+    {
+        return c switch
+        {
+            ' ' => true,
+            '\r' => true,
+            '\n' => true,
+            _ => false,
+        };
     }
 
     private static readonly Regex htmlEncodedRegex = new Regex(@"&[0-9a-zA-Z]+;", RegexOptions.Compiled);

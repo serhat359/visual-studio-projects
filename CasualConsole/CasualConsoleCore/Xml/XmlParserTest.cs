@@ -31,6 +31,7 @@ public class XmlParserTest
         UnclosedTagHtmlTag();
         AllowSelfClosingToImmediatelyClose();
         AllowScriptTag();
+        AllowWhitespaceInNodes();
 
         Console.WriteLine("All xml tests are successful!");
     }
@@ -365,5 +366,24 @@ e <c>DData</c>
         if (!scripts[0].InnerText.Contains("<start>")) throw new System.Exception();
         if (scripts[1].TagName != "script") throw new System.Exception();
         if (!scripts[1].InnerText.Contains("<other>")) throw new System.Exception();
+    }
+
+    private static void AllowWhitespaceInNodes()
+    {
+        var text = @"
+        <dd
+        a 
+        =  
+        ""bc""
+        >
+        </dd>
+        ";
+        var mydoc = XmlParser.Parse(text, isHtml: true);
+        if (mydoc.ChildNodes.Count != 1) throw new System.Exception();
+        var child = mydoc.ChildNodes[0];
+        if (child.TagName != "dd") throw new System.Exception();
+        var attributes = child.Attributes;
+        if (attributes.Count != 1) throw new System.Exception();
+        if (attributes["a"] != "bc") throw new System.Exception();
     }
 }
