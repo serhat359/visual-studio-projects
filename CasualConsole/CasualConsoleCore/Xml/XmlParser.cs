@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
@@ -307,15 +307,7 @@ public class XmlNodeBase
         get
         {
             var stringBuilder = new StringBuilder();
-            foreach (var item in Children)
-            {
-                if (item is string s)
-                    stringBuilder.Append(s);
-                else if (item is XmlNode node)
-                    stringBuilder.Append(node.InnerText);
-                else
-                    throw new Exception();
-            }
+            WriteInnerText(stringBuilder);
             return stringBuilder.ToString().Trim();
         }
         set
@@ -323,6 +315,19 @@ public class XmlNodeBase
             children.Clear();
             childNodes.Clear();
             children.Add(value);
+        }
+    }
+
+    private void WriteInnerText(StringBuilder stringBuilder)
+    {
+        foreach (var item in Children)
+        {
+            if (item is string s)
+                stringBuilder.Append(s);
+            else if (item is XmlNode node)
+                node.WriteInnerText(stringBuilder);
+            else
+                throw new Exception();
         }
     }
 
