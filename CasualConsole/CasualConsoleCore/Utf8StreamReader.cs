@@ -6,7 +6,7 @@ namespace CasualConsoleCore;
 public class Utf8StreamReader
 {
     private readonly Stream stream;
-    private readonly byte[] buffer;
+    private byte[] buffer;
     private int start = -1;
     private int end;
     private int lastByteReadCount = -1;
@@ -15,12 +15,15 @@ public class Utf8StreamReader
 
     public Utf8StreamReader(Stream stream, int bufferSize = 30000)
     {
+        if (bufferSize <= 0) throw new ArgumentException($"{nameof(bufferSize)} must be positive", nameof(bufferSize));
+
         this.stream = stream;
         this.buffer = new byte[bufferSize];
     }
 
     public bool TryReadLine(out ReadOnlySpan<byte> ret)
     {
+    begin:
         if (lastByteReadCount == 0 && start == end)
         {
             ret = default;
@@ -29,7 +32,7 @@ public class Utf8StreamReader
 
         if (start == -1)
         {
-            // first run
+            // First run
             start = 0;
             lastByteReadCount = end = stream.Read(buffer);
 
@@ -40,7 +43,7 @@ public class Utf8StreamReader
 
         while (true)
         {
-            // start should always be after new line
+            // Start should always be after new line
             var wholeBufferSpan = buffer.AsSpan();
             var bufferSpan = wholeBufferSpan[start..end];
             int i = bufferSpan.IndexOf(ln);
@@ -56,6 +59,18 @@ public class Utf8StreamReader
 
             // New line was not found
             int remainingLength = end - start;
+            if (remainingLength == buffer.Length)
+            {
+                // Buffer must be too small
+                var newBuffer = new byte[buffer.Length * 2];
+                buffer.CopyTo(newBuffer);
+                this.buffer = newBuffer;
+                start = 0;
+                int read = stream.Read(buffer.AsSpan()[remainingLength..]);
+                lastByteReadCount = end = read + remainingLength;
+                goto begin;
+            }
+
             bufferSpan.CopyTo(buffer);
             var target = wholeBufferSpan[remainingLength..];
             lastByteReadCount = stream.Read(target);
