@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Web;
@@ -19,14 +20,13 @@ public class XmlParser
 
     public static XmlNodeBase Parse(ReadOnlySpan<char> xml, bool isHtml = false)
     {
-        var partsEnumerable = GetParts(xml).Where(x => !string.IsNullOrWhiteSpace(x.token));
+        ReadOnlySpan<(string token, int lineNumber)> parts = CollectionsMarshal.AsSpan(GetParts(xml));
         if (isHtml)
         {
-            if (partsEnumerable.FirstOrDefault().token.StartsWith("<!"))
-                partsEnumerable = partsEnumerable.Skip(1);
+            if (parts.Length > 0 && parts[0].token.StartsWith("<!"))
+                parts = parts[1..];
         }
-        ReadOnlySpan<(string, int)> parts = partsEnumerable.ToArray();
-        if (parts.Length > 0 && parts[0].Item1.StartsWith("<?xml"))
+        if (parts.Length > 0 && parts[0].token.StartsWith("<?xml"))
             parts = parts[1..];
 
         var topDocument = new XmlNodeBase();
@@ -53,8 +53,6 @@ public class XmlParser
 
     private static (XmlNode, int) ReadNode(ReadOnlySpan<(string token, int lineNumber)> tokens, bool isHtml)
     {
-        if (!tokens[0].token.IsBeginTag()) throw new Exception(); // TODO remove later
-
         var isSingleTag = tokens[0].token.IsSingleTag();
 
         var (tagName, attributes) = GetTagAndAttributes(tokens[0].token, tokens[0].lineNumber);
@@ -163,7 +161,7 @@ public class XmlParser
 
                     i = cdataEndIndex + 3;
                     var cdataToken = xml[(lookupIndex - 3)..i];
-                    list.Add((cdataToken.ToString(), lineNumberStart));
+                    AddToList(list, cdataToken, lineNumberStart);
                 }
                 else
                 {
@@ -179,7 +177,7 @@ public class XmlParser
                     if (xml[i] == '\n') lineNumber++;
                     i++;
                     var token = xml[start..i];
-                    list.Add((token.ToString(), lineNumberStart));
+                    AddToList(list, token, lineNumberStart);
 
                     bool isScript = false;
                     bool isStyle = false;
@@ -193,8 +191,8 @@ public class XmlParser
                         if (scriptEnd < 0)
                             throw new Exception();
                         var scriptContent = xml[i..scriptEnd];
-                        list.Add((scriptContent.ToString(), lineNumberStart));
-                        list.Add((scriptEndTag, lineNumber));
+                        AddToList(list, scriptContent, lineNumberStart);
+                        AddToList(list, scriptEndTag, lineNumber);
                         i = scriptEnd + scriptEndTag.Length;
                     }
                 }
@@ -214,11 +212,22 @@ public class XmlParser
                 var end = i;
 
                 var token = xml[start..end];
-                list.Add((token.ToString(), lineNumberStart));
+                AddToList(list, token, lineNumberStart);
             }
         }
 
         return list;
+    }
+
+    private static void AddToList(List<(string token, int lineNumber)> list, ReadOnlySpan<char> token, int lineNumber)
+    {
+        if (!MemoryExtensions.IsWhiteSpace(token))
+            list.Add((token.ToString(), lineNumber));
+    }
+    private static void AddToList(List<(string token, int lineNumber)> list, string token, int lineNumber)
+    {
+        if (!MemoryExtensions.IsWhiteSpace(token))
+            list.Add((token, lineNumber));
     }
 
     private static (string, NameValueCollection) GetTagAndAttributes(string s, int line)
