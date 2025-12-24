@@ -1,4 +1,5 @@
 ﻿using DotNetCoreWebsite.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using System;
@@ -19,10 +20,10 @@ namespace DotNetCoreWebsite.Controllers
     {
         private readonly string extension = ".serhatCustom";
 
-        private IConfiguration configuration;
-        private FileNameHelper fileNameHelper;
-        private CoreEncryption coreEncryption;
-        private IHttpClientFactory httpClientFactory;
+        private readonly IConfiguration configuration;
+        private readonly FileNameHelper fileNameHelper;
+        private readonly CoreEncryption coreEncryption;
+        private readonly IHttpClientFactory httpClientFactory;
 
         public HomeController(IConfiguration configuration, FileNameHelper fileNameHelper, CoreEncryption coreEncryption, IHttpClientFactory httpClientFactory)
         {
@@ -234,7 +235,7 @@ namespace DotNetCoreWebsite.Controllers
 
             if (rangeStart == null)
             {
-                Response.Headers.Add("Content-Length", fileLength.ToString());
+                Response.Headers.Append("Content-Length", fileLength.ToString());
             }
             else
             {
@@ -244,10 +245,10 @@ namespace DotNetCoreWebsite.Controllers
 
                 Response.StatusCode = 206;
                 string contentRange = string.Format("bytes {0}-{1}/{2}", startbyte, fileLength - 1, fileLength);
-                Response.Headers.Add("Content-Range", contentRange);
+                Response.Headers.Append("Content-Range", contentRange);
             }
 
-            Response.Headers.Add("Accept-Ranges", "bytes");
+            Response.Headers.Append("Accept-Ranges", "bytes");
 
             return File(fileStream, "application/unknown", fileNameHelper.CreateAlternativeFileName(q) + extension);
         }
@@ -412,7 +413,7 @@ namespace DotNetCoreWebsite.Controllers
 
         private static string SafeCombine(string? param1, string? param2)
         {
-            if (param1 == null) return param2;
+            if (param1 == null) return param2 ?? throw new ArgumentException("param1 and param2 cannot be both null");
             if (param2 == null) return param1;
             return Path.Combine(param1, param2);
         }

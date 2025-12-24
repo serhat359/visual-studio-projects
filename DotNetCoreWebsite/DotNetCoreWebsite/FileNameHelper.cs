@@ -7,34 +7,32 @@ namespace DotNetCoreWebsite
 {
     public class FileNameHelper
     {
-        private Dictionary<string, string> fileNames = null;
-        private readonly string repositoryFileName = "filenames.json";
+        private static readonly string repositoryFileName = "filenames.json";
 
         public FileNameHelper()
         {
             if (!File.Exists(repositoryFileName))
             {
-                fileNames = new();
-                SaveFileNames();
+                SaveFileNames(new Dictionary<string, string>());
             }
         }
 
         public string CreateAlternativeFileName(string originalFileName)
         {
-            CheckFileNames();
+            var fileNames = GetFileNames();
 
             var newFileName = Guid.NewGuid().ToString().Replace("-", "").ToLowerInvariant();
 
             fileNames[newFileName] = originalFileName;
 
-            SaveFileNames();
+            SaveFileNames(fileNames);
 
             return newFileName;
         }
 
         public string? GetOriginalFileName(string fileName)
         {
-            CheckFileNames();
+            var fileNames = GetFileNames();
 
             if (fileNames.TryGetValue(fileName, out var originalFileName))
                 return originalFileName;
@@ -42,14 +40,17 @@ namespace DotNetCoreWebsite
                 return null;
         }
 
-        private void SaveFileNames()
+        private static void SaveFileNames(Dictionary<string, string> fileNames)
         {
-            File.WriteAllText(path: repositoryFileName, contents: JsonSerializer.Serialize(this.fileNames));
+            File.WriteAllText(path: repositoryFileName, contents: JsonSerializer.Serialize(fileNames));
         }
 
-        private void CheckFileNames()
+        private Dictionary<string, string> GetFileNames()
         {
-            this.fileNames ??= JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(repositoryFileName));
+            var text = File.ReadAllText(repositoryFileName);
+            if (text == "")
+                return new Dictionary<string, string>();
+            return JsonSerializer.Deserialize<Dictionary<string, string>>(text)!;
         }
     }
 }

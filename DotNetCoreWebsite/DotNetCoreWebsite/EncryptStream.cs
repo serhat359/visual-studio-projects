@@ -5,15 +5,14 @@ namespace DotNetCoreWebsite
 {
     public class EncryptStream : Stream
     {
-        private Stream stream;
-        private CoreEncryption coreEncryption;
+        private readonly Stream stream;
+        private readonly CoreEncryption coreEncryption;
         private readonly long misalignment;
         private readonly long rangeStart;
-        bool disposed;
         Action? onClose = null;
         bool isOnCloseExecuted = false;
 
-        public EncryptStream(Stream stream, CoreEncryption coreEncryption, long rangeStart, Action onClose = null)
+        public EncryptStream(Stream stream, CoreEncryption coreEncryption, long rangeStart, Action? onClose = null)
         {
             this.stream = stream;
             this.coreEncryption = coreEncryption;
@@ -71,23 +70,10 @@ namespace DotNetCoreWebsite
             }
         }
 
-        protected virtual void Dispose(bool disposing)
+        protected override void Dispose(bool disposing)
         {
-            if (!disposed)
-            {
-                if (disposing)
-                {
-                    //dispose managed resources
-                }
-            }
-            //dispose unmanaged resources
-            disposed = true;
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
+            base.Dispose(disposing);
+            stream.Dispose();
         }
     }
 }

@@ -96,14 +96,15 @@ async function getFolderSizes() {
 }
 
 function selectText(elementId) {
-    let doc = document, text = doc.getElementById(elementId), range, selection;
+    let doc = document;
+    let text = doc.getElementById(elementId);
     if (doc.body.createTextRange) {
-        range = document.body.createTextRange();
+        let range = document.body.createTextRange();
         range.moveToElementText(text);
         range.select();
     } else if (window.getSelection) {
-        selection = window.getSelection();
-        range = document.createRange();
+        let selection = window.getSelection();
+        let range = document.createRange();
         range.selectNodeContents(text);
         selection.removeAllRanges();
         selection.addRange(range);
@@ -127,26 +128,23 @@ function addOnClick(selector, func) {
 function allowTableSorting() {
     // Allow table sorting
     addOnClick('th', function () {
-        const table = this.closest("table");
-        const tbody = table.querySelector("tbody");
-        const trs = tbody.querySelectorAll('tr');
-        const comparer = getComparer(whichIndex(this));
-        let rows = Array.from(trs).sort(comparer);
+        let table = this.closest("table");
+        let tbody = table.querySelector("tbody");
+        let trs = tbody.querySelectorAll('tr');
+        let index = whichIndex(this);
+        let rows = Array.from(trs).sort((a, b) => {
+            let valA = getCellValue(a, index);
+            let valB = getCellValue(b, index);
+            return isNumeric(valA) && isNumeric(valB) ? valA - valB : valA.toString().localeCompare(valB);
+        });
         this.asc = !this.asc;
         if (!this.asc) {
             rows = rows.reverse();
         }
-        for (const row of rows) {
+        for (let row of rows) {
             tbody.appendChild(row);
         }
     });
-}
-
-function getComparer(index) {
-    return function (a, b) {
-        const valA = getCellValue(a, index), valB = getCellValue(b, index)
-        return isNumeric(valA) && isNumeric(valB) ? valA - valB : valA.toString().localeCompare(valB)
-    }
 }
 
 function getCellValue(row, index) {
@@ -158,7 +156,7 @@ function getCellValue(row, index) {
 }
 
 function isNumeric(text) {
-    return !isNaN(new Number(text));
+    return !isNaN(Number(text || undefined));
 }
 
 function whichIndex(elem) {
