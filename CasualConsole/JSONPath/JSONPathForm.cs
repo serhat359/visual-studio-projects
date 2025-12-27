@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -16,8 +15,8 @@ public partial class JSONPathForm : Form
     private CheckBox nullIfNotExistentCheckBox;
     private Label errorMessage;
     private CheckBox ignoreNullCheckBox;
-    private JsonElement parsed;
 
+    private JsonElement parsed;
     private JsonSerializerOptions jsonOptions;
     private JsonSerializerOptions jsonOptionsIgnoreNull;
 
@@ -34,7 +33,7 @@ public partial class JSONPathForm : Form
         {
             Multiline = true,
         };
-        this.richTextBox.TextChanged += (object? sender, EventArgs e) =>
+        this.richTextBox.TextChanged += (object? sender, EventArgs args) =>
         {
             try
             {
@@ -44,7 +43,15 @@ public partial class JSONPathForm : Form
                     return;
                 }
 
-                parsed = JsonSerializer.Deserialize<JsonElement>(richTextBox.Text);
+                try
+                {
+                    parsed = JsonSerializer.Deserialize<JsonElement>(richTextBox.Text);
+                }
+                catch (Exception)
+                {
+                    errorMessage!.Text = $"Could not parse JSON";
+                    return;
+                }
                 richTextBox.Text = JsonSerializer.Serialize(parsed, jsonOptions);
                 RerenderJson();
             }
@@ -61,7 +68,7 @@ public partial class JSONPathForm : Form
 
         this.jsonPathTextBox = new TextBox
         {
-            PlaceholderText = "$.store[*].books[?(@.id > 5)].author%c%k%u%kc%uc",
+            PlaceholderText = "$.store[*].books[?(@.id > 5)].author%c%k%u%kc%uc%kcs%ucs",
         };
         this.jsonPathTextBox.KeyPress += (object? sender, KeyPressEventArgs e) =>
         {
@@ -289,6 +296,7 @@ public partial class JSONPathForm : Form
 
     private static IEnumerable<JsonElement> ApplyDirective(string type, IEnumerable<JsonElement> elements)
     {
+        bool sortByCountDesc = false;
         switch (type)
         {
             case "c":
@@ -308,6 +316,9 @@ public partial class JSONPathForm : Form
                     }
                     return set.Select(x => ConvertStringToJsonElement(x));
                 }
+            case "kcs":
+                sortByCountDesc = true;
+                goto case "kc";
             case "kc":
                 {
                     var counts = new Dictionary<string, int>();
@@ -319,7 +330,7 @@ public partial class JSONPathForm : Form
                             counts[key.Name] = n + 1;
                         }
                     }
-                    return [ConvertMapToJsonElement(counts)];
+                    return [ConvertMapToJsonElement(counts, sortByCountDesc)];
                 }
             case "u":
                 {
@@ -348,6 +359,9 @@ public partial class JSONPathForm : Form
                     }
                     return returnList;
                 }
+            case "ucs":
+                sortByCountDesc = true;
+                goto case "uc";
             case "uc":
                 {
                     var counts = new Dictionary<string, int>();
@@ -375,7 +389,7 @@ public partial class JSONPathForm : Form
                             counts[key] = n + 1;
                         }
                     }
-                    return [ConvertMapToJsonElement(counts)];
+                    return [ConvertMapToJsonElement(counts, sortByCountDesc)];
                 }
         }
         throw new Exception($"Unknown directive: '{type}'");
@@ -391,8 +405,12 @@ public partial class JSONPathForm : Form
         return JsonSerializer.Deserialize<JsonElement>('"' + s + '"');
     }
 
-    private static JsonElement ConvertMapToJsonElement<T>(T o) where T : IDictionary
+    private static JsonElement ConvertMapToJsonElement(Dictionary<string, int> o, bool sortByCountDesc)
     {
+        if (sortByCountDesc)
+        {
+            o = o.OrderByDescending(x => x.Value).ToDictionary(x => x.Key, x => x.Value);
+        }
         return JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(o));
     }
 
