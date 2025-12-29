@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -6,8 +7,6 @@ namespace JSONPath;
 
 public partial class JSONPathForm : Form
 {
-    private static readonly JsonElement jsonNull = JsonSerializer.Deserialize<JsonElement>("null");
-
     private bool ignoreNextChange = false;
     private RichTextBox richTextBox;
     private RichTextBox richTextBox2;
@@ -16,7 +15,7 @@ public partial class JSONPathForm : Form
     private Label errorMessage;
     private CheckBox ignoreNullCheckBox;
 
-    private JsonElement parsed;
+    private object? parsed;
     private JsonSerializerOptions jsonOptions;
     private JsonSerializerOptions jsonOptionsIgnoreNull;
 
@@ -45,7 +44,7 @@ public partial class JSONPathForm : Form
 
                 try
                 {
-                    parsed = JsonSerializer.Deserialize<JsonElement>(richTextBox.Text);
+                    parsed = Deserialize(richTextBox.Text);
                 }
                 catch (Exception)
                 {
@@ -160,7 +159,7 @@ public partial class JSONPathForm : Form
         };
     }
 
-    class JsonObjectConverter : JsonConverter<JsonElement>
+    class JsonObjectConverter : JsonConverter<Dictionary<string, object?>>
     {
         private JsonSerializerOptions regularOptions;
 
@@ -169,32 +168,32 @@ public partial class JSONPathForm : Form
             this.regularOptions = regularOptions;
         }
 
-        public override JsonElement Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        public override Dictionary<string, object?> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             throw new NotImplementedException();
         }
 
-        public override void Write(Utf8JsonWriter writer, JsonElement value, JsonSerializerOptions options)
+        public override void Write(Utf8JsonWriter writer, Dictionary<string, object?> value, JsonSerializerOptions options)
         {
-            if (value.ValueKind == JsonValueKind.Object)
+            if (GetObject(value, out var map))
             {
                 writer.WriteStartObject();
-                foreach (var item in value.EnumerateObject())
+                foreach (var pair in map)
                 {
-                    if (item.Value.ValueKind == JsonValueKind.Null)
+                    if (pair.Value == null)
                         continue;
 
-                    writer.WritePropertyName(item.Name);
-                    JsonSerializer.Serialize(writer, item.Value, options);
+                    writer.WritePropertyName(pair.Key);
+                    JsonSerializer.Serialize(writer, pair.Value, options);
                 }
                 writer.WriteEndObject();
                 return;
             }
 
-            if (value.ValueKind == JsonValueKind.Array)
+            if (GetArray(value, out var list))
             {
                 writer.WriteStartArray();
-                foreach (var item in value.EnumerateArray())
+                foreach (var item in list)
                 {
                     JsonSerializer.Serialize(writer, item, options);
                 }
@@ -221,7 +220,7 @@ public partial class JSONPathForm : Form
 
             var jsonPathParts = CustomSplit(jsonPath);
 
-            IEnumerable<JsonElement> parsedList = new[] { this.parsed };
+            IEnumerable<object?> parsedList = new[] { this.parsed };
 
             var nullIfNotExistent = nullIfNotExistentCheckBox.Checked;
             foreach (var part in jsonPathParts)
@@ -286,7 +285,7 @@ public partial class JSONPathForm : Form
         return parts;
     }
 
-    private static IEnumerable<JsonElement> GetProperty(IEnumerable<JsonElement> elements, string property, bool nullIfNotExistent)
+    private static IEnumerable<object?> GetProperty(IEnumerable<object?> elements, string property, bool nullIfNotExistent)
     {
         bool isExcludeMapping = false;
         string[]? mappingParts = null;
@@ -297,26 +296,26 @@ public partial class JSONPathForm : Form
             mappingParts = property[i..^1].Split(",");
         }
 
-        foreach (var je in elements)
+        foreach (var item in elements)
         {
             if (mappingParts != null)
             {
-                var map = new Dictionary<string, JsonElement>();
-                foreach (var key in je.EnumerateObject())
+                var map = new Dictionary<string, object?>();
+                foreach (var pair in EnumerateObject(item))
                 {
-                    if (mappingParts.Contains(key.Name) != isExcludeMapping)
-                        map[key.Name] = key.Value;
+                    if (mappingParts.Contains(pair.Key) != isExcludeMapping)
+                        map[pair.Key] = pair.Value;
                 }
-                yield return ConvertMapToJsonElement(map);
+                yield return map;
             }
-            else if (je.ValueKind == JsonValueKind.Object && je.TryGetProperty(property, out var value))
+            else if (GetObject(item, out var map) && map.TryGetValue(property, out var value))
                 yield return value;
             else if (nullIfNotExistent)
-                yield return jsonNull;
+                yield return null;
         }
     }
 
-    private static IEnumerable<JsonElement> ApplyDirective(string type, IEnumerable<JsonElement> elements)
+    private static IEnumerable<object?> ApplyDirective(string type, IEnumerable<object?> elements)
     {
         bool sortByCountDesc = false;
         switch (type)
@@ -324,19 +323,19 @@ public partial class JSONPathForm : Form
             case "c":
                 {
                     var count = elements.Count();
-                    return [ConvertIntToJsonElement(count)];
+                    return [(double)count];
                 }
             case "k":
                 {
                     var set = new HashSet<string>();
                     foreach (var item in elements)
                     {
-                        foreach (var key in item.EnumerateObject())
+                        foreach (var pair in EnumerateObject(item))
                         {
-                            set.Add(key.Name);
+                            set.Add(pair.Key);
                         }
                     }
-                    return set.Select(x => ConvertStringToJsonElement(x));
+                    return set;
                 }
             case "kcs":
                 sortByCountDesc = true;
@@ -346,36 +345,33 @@ public partial class JSONPathForm : Form
                     var counts = new Dictionary<string, int>();
                     foreach (var item in elements)
                     {
-                        foreach (var key in item.EnumerateObject())
+                        foreach (var pair in EnumerateObject(item))
                         {
-                            counts.TryGetValue(key.Name, out int n);
-                            counts[key.Name] = n + 1;
+                            counts.TryGetValue(pair.Key, out int n);
+                            counts[pair.Key] = n + 1;
                         }
                     }
-                    return [ConvertMapToJsonElement(counts, sortByCountDesc)];
+                    return [ConvertToSorted(counts, sortByCountDesc)];
                 }
             case "u":
                 {
                     var set = new HashSet<string>();
-                    var returnList = new List<JsonElement>();
+                    var returnList = new List<object?>();
                     foreach (var item in elements)
                     {
-                        if (item.ValueKind == JsonValueKind.String)
+                        if (item is string s)
                         {
-                            if (set.Add(item.GetString() ?? throw new Exception()))
+                            if (set.Add(s))
                                 returnList.Add(item);
                         }
-                        else if (item.ValueKind == JsonValueKind.Number)
+                        else if (TryGetDouble(item, out var d))
                         {
-                            if (TryGetNumber(item, out double d))
-                            {
-                                if (set.Add(d + ""))
-                                    returnList.Add(item);
-                            }
+                            if (set.Add(d + ""))
+                                returnList.Add(item);
                         }
-                        else if (item.ValueKind == JsonValueKind.True || item.ValueKind == JsonValueKind.False)
+                        else if (item is bool b)
                         {
-                            if (set.Add(item.ValueKind == JsonValueKind.True ? "true" : "false"))
+                            if (set.Add(b ? "true" : "false"))
                                 returnList.Add(item);
                         }
                     }
@@ -389,83 +385,106 @@ public partial class JSONPathForm : Form
                     var counts = new Dictionary<string, int>();
                     foreach (var item in elements)
                     {
-                        if (item.ValueKind == JsonValueKind.String)
+                        if (item is string s)
                         {
-                            var key = item.GetString() ?? throw new Exception();
+                            var key = s;
                             counts.TryGetValue(key, out int n);
                             counts[key] = n + 1;
                         }
-                        else if (item.ValueKind == JsonValueKind.Number)
+                        else if (TryGetDouble(item, out var d))
                         {
-                            if (TryGetNumber(item, out double d))
-                            {
-                                var key = d + "";
-                                counts.TryGetValue(key, out int n);
-                                counts[key] = n + 1;
-                            }
+                            var key = d + "";
+                            counts.TryGetValue(key, out int n);
+                            counts[key] = n + 1;
                         }
-                        else if (item.ValueKind == JsonValueKind.True || item.ValueKind == JsonValueKind.False)
+                        else if (item is bool b)
                         {
-                            var key = item.ValueKind == JsonValueKind.True ? "true" : "false";
+                            var key = b ? "true" : "false";
                             counts.TryGetValue(key, out int n);
                             counts[key] = n + 1;
                         }
                     }
-                    return [ConvertMapToJsonElement(counts, sortByCountDesc)];
+                    return [ConvertToSorted(counts, sortByCountDesc)];
                 }
         }
         throw new Exception($"Unknown directive: '{type}'");
     }
 
-    private static JsonElement ConvertIntToJsonElement(int i)
-    {
-        return JsonSerializer.Deserialize<JsonElement>(i + "");
-    }
-
-    private static JsonElement ConvertStringToJsonElement(string s)
-    {
-        return JsonSerializer.Deserialize<JsonElement>('"' + s + '"');
-    }
-
-    private static JsonElement ConvertMapToJsonElement(Dictionary<string, int> o, bool sortByCountDesc)
+    private static Dictionary<string, int> ConvertToSorted(Dictionary<string, int> o, bool sortByCountDesc)
     {
         if (sortByCountDesc)
-        {
-            o = o.OrderByDescending(x => x.Value).ToDictionary(x => x.Key, x => x.Value);
-        }
-        return JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(o));
+            return o.OrderByDescending(x => x.Value).ToDictionary(x => x.Key, x => x.Value);
+        return o;
     }
 
-    private static JsonElement ConvertMapToJsonElement(Dictionary<string, JsonElement> o)
+    private static object? Deserialize(string s)
     {
-        return JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(o));
+        var parsed = JsonSerializer.Deserialize<JsonElement>(s);
+        return JsonElementToObject(parsed);
     }
 
-    private static bool TryGetNumber(JsonElement je, out double value)
+    static object? JsonElementToObject(JsonElement jsonElement)
     {
-        if (je.TryGetInt32(out int n))
+        switch (jsonElement.ValueKind)
         {
-            value = n;
-            return true;
+            case JsonValueKind.Null:
+                return null;
+            case JsonValueKind.True:
+                return true;
+            case JsonValueKind.False:
+                return false;
+            case JsonValueKind.Number:
+                return jsonElement.Deserialize<double>();
+            case JsonValueKind.String:
+                return jsonElement.Deserialize<string>();
+            case JsonValueKind.Array:
+                return jsonElement.EnumerateArray().Select(JsonElementToObject).ToList();
+            case JsonValueKind.Object:
+                var map = new Dictionary<string, object?>();
+                foreach (var pair in jsonElement.EnumerateObject())
+                {
+                    map[pair.Name] = JsonElementToObject(pair.Value);
+                }
+                return map;
         }
-        if (je.TryGetDouble(out double d))
-        {
-            value = d;
-            return true;
-        }
+        throw new Exception($"Unexpected json kind: {jsonElement.ValueKind}");
+    }
 
-        value = default;
+    private static Dictionary<string, object?> EnumerateObject(object? o)
+    {
+        return (o as Dictionary<string, object?>) ?? throw new Exception("could not cast to map");
+    }
+
+    private static bool GetArray(object? o, [MaybeNullWhen(false)] out List<object?> list)
+    {
+        if (o is List<object?> l)
+        {
+            list = l;
+            return true;
+        }
+        list = default;
         return false;
     }
 
-    private static IEnumerable<JsonElement> GetFiltered(string filterExpression, IEnumerable<JsonElement> mapped)
+    private static bool GetObject(object? o, [MaybeNullWhen(false)] out Dictionary<string, object?> map)
+    {
+        if (o is Dictionary<string, object?> m)
+        {
+            map = m;
+            return true;
+        }
+        map = default;
+        return false;
+    }
+
+    private static IEnumerable<object?> GetFiltered(string filterExpression, IEnumerable<object?> mapped)
     {
         var mappedValues = mapped.SelectMany(x =>
         {
-            if (x.ValueKind == JsonValueKind.Array)
-                return x.EnumerateArray();
-            else if (x.ValueKind == JsonValueKind.Object)
-                return x.EnumerateObject().Select(x => x.Value);
+            if (GetArray(x, out var list))
+                return list;
+            else if (GetObject(x, out var m))
+                return m.Select(x => x.Value);
             else
                 throw new Exception();
         });
@@ -654,45 +673,34 @@ public partial class JSONPathForm : Form
         }
     }
 
-    private static object? GetValue(object? o)
+    private static bool TryGetDouble(object? o, out double ret)
     {
-        if (o is JsonElement je)
+        if (o is double d)
         {
-            if (je.ValueKind == JsonValueKind.Number)
-            {
-                if (TryGetNumber(je, out double d))
-                    return d;
-                throw new Exception();
-            }
-            if (je.ValueKind == JsonValueKind.String)
-                return je.GetString();
-            if (je.ValueKind == JsonValueKind.Null)
-                return null;
-            if (je.ValueKind == JsonValueKind.True)
-                return true;
-            if (je.ValueKind == JsonValueKind.False)
-                return false;
+            ret = d;
+            return true;
         }
-        return o;
+        if (o is int i)
+        {
+            ret = (double)i;
+            return true;
+        }
+        ret = 0;
+        return false;
     }
 
     private static bool IsTruthy(object? o)
     {
-        o = GetValue(o);
-
         if (o == null) return false;
         if (o is bool b) return b;
         if (o is string s) return s.Length > 0;
-        if (o is double d) return d != 0.0;
+        if (TryGetDouble(o, out var d)) return d != 0.0;
         return true;
     }
 
     private static bool Compare(object? o1, string token, object? o2)
     {
-        o1 = GetValue(o1);
-        o2 = GetValue(o2);
-
-        if (o1 is double d1 && o2 is double d2)
+        if (TryGetDouble(o1, out var d1) && TryGetDouble(o2, out var d2))
         {
             return token switch
             {
@@ -720,7 +728,7 @@ public partial class JSONPathForm : Form
         public required IExpression First { get; set; }
         public required List<(string token, IExpression expression)> Rest { get; set; }
 
-        public object? Evaluate(JsonElement at)
+        public object? Evaluate(object? at)
         {
             var value = First.Evaluate(at);
             foreach (var (token, expression) in Rest)
@@ -745,12 +753,12 @@ public partial class JSONPathForm : Form
 
     interface IExpression
     {
-        object? Evaluate(JsonElement at);
+        object? Evaluate(object? at);
     }
 
     class AtExpression : IExpression
     {
-        public object? Evaluate(JsonElement at)
+        public object? Evaluate(object? at)
         {
             return at;
         }
@@ -761,14 +769,13 @@ public partial class JSONPathForm : Form
         public required IExpression Expression { get; set; }
         public required string Prop { get; set; }
 
-        public object? Evaluate(JsonElement at)
+        public object? Evaluate(object? at)
         {
             var baseValue = Expression.Evaluate(at);
             if (baseValue == null)
                 return null;
 
-            var je = (JsonElement)baseValue;
-            if (je.ValueKind == JsonValueKind.Object && je.TryGetProperty(Prop, out var value))
+            if (GetObject(baseValue, out var map) && map.TryGetValue(Prop, out var value))
             {
                 return value;
             }
@@ -780,7 +787,7 @@ public partial class JSONPathForm : Form
     {
         public required object? Value { get; set; }
 
-        public object? Evaluate(JsonElement at)
+        public object? Evaluate(object? at)
         {
             return Value;
         }
