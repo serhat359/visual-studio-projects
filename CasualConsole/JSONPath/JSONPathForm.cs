@@ -68,7 +68,7 @@ public partial class JSONPathForm : Form
 
         this.jsonPathTextBox = new TextBox
         {
-            PlaceholderText = "$.store[*].books[?(@.id > 5)].author%c%k%u%kc%uc%kcs%ucs",
+            PlaceholderText = "$.store[*].books[?(@.id > 5)].[-ex,ex2].author%c%k%u%kc%uc%kcs%ucs",
         };
         this.jsonPathTextBox.KeyPress += (object? sender, KeyPressEventArgs e) =>
         {
@@ -219,32 +219,19 @@ public partial class JSONPathForm : Form
                 return;
             }
 
-            var (firstPart, jsonPathParts) = CustomSplit(jsonPath);
+            var jsonPathParts = CustomSplit(jsonPath);
 
             IEnumerable<JsonElement> parsedList = new[] { this.parsed };
 
-            {
-                // Do this for the first part
-                var (first, rest) = SplitFilter(firstPart);
-                if (first != "$")
-                    throw new Exception();
-
-                foreach (var restPart in rest)
-                    parsedList = GetFiltered(restPart, parsedList);
-            }
-
             var nullIfNotExistent = nullIfNotExistentCheckBox.Checked;
-            foreach (var (type, part) in jsonPathParts)
+            foreach (var part in jsonPathParts)
             {
-                var (first, rest) = SplitFilter(part);
-
-                if (type == '.')
-                    parsedList = GetProperty(parsedList, first, nullIfNotExistent);
-                else if (type == '%')
-                    parsedList = ApplyDirective(part, parsedList);
-
-                foreach (var restPart in rest)
-                    parsedList = GetFiltered(restPart, parsedList);
+                if (part[0] == '.')
+                    parsedList = GetProperty(parsedList, part[1..], nullIfNotExistent);
+                else if (part[0] == '%')
+                    parsedList = ApplyDirective(part[1..], parsedList);
+                else
+                    parsedList = GetFiltered(part, parsedList);
             }
 
             var text = JsonSerializer.Serialize(parsedList, ignoreNullCheckBox.Checked ? jsonOptionsIgnoreNull : jsonOptions);
@@ -258,36 +245,71 @@ public partial class JSONPathForm : Form
         }
     }
 
-    private static (string first, List<(char, string)> parts) CustomSplit(string s)
+    private static List<string> CustomSplit(string s)
     {
-        var indexes = new List<int>();
-        for (int i = 0; i < s.Length; i++)
+        if (s[0] != '$')
+            throw new Exception();
+        var parts = new List<string>();
+        int i = 1;
+        while (i < s.Length)
         {
-            if (s[i] == '.' || s[i] == '%')
-                indexes.Add(i);
-            else if (s[i] == '[')
+            char c = s[i];
+            if (c == '.' || c == '%')
             {
-                i++;
+                int start = i++;
+                if (s[i] == '[')
+                {
+                    while (s[i] != ']')
+                        i++;
+                    i++;
+                    parts.Add(s[start..i]);
+                }
+                else
+                {
+                    while (i < s.Length && char.IsAsciiLetter(s[i]))
+                        i++;
+                    parts.Add(s[start..i]);
+                }
+                continue;
+            }
+            if (c == '[')
+            {
+                int start = i++;
                 while (s[i] != ']')
                     i++;
+                i++;
+                parts.Add(s[start..i]);
+                continue;
             }
+            throw new Exception($"Unexpected char: {c}");
         }
-
-        var list = new List<(char, string)>(indexes.Count);
-        for (int j = 0; j < indexes.Count; j++)
-        {
-            var idx = indexes[j];
-            var nextIdx = j + 1 < indexes.Count ? indexes[j + 1] : s.Length;
-            list.Add((s[idx], s[(idx + 1)..nextIdx]));
-        }
-        return (indexes.Count == 0 ? s : s[..indexes[0]], list);
+        return parts;
     }
 
     private static IEnumerable<JsonElement> GetProperty(IEnumerable<JsonElement> elements, string property, bool nullIfNotExistent)
     {
+        bool isExcludeMapping = false;
+        string[]? mappingParts = null;
+        if (property[0] == '[')
+        {
+            isExcludeMapping = property[1] == '-';
+            int i = isExcludeMapping ? 2 : 1;
+            mappingParts = property[i..^1].Split(",");
+        }
+
         foreach (var je in elements)
         {
-            if (je.ValueKind == JsonValueKind.Object && je.TryGetProperty(property, out var value))
+            if (mappingParts != null)
+            {
+                var map = new Dictionary<string, JsonElement>();
+                foreach (var key in je.EnumerateObject())
+                {
+                    if (mappingParts.Contains(key.Name) != isExcludeMapping)
+                        map[key.Name] = key.Value;
+                }
+                yield return ConvertMapToJsonElement(map);
+            }
+            else if (je.ValueKind == JsonValueKind.Object && je.TryGetProperty(property, out var value))
                 yield return value;
             else if (nullIfNotExistent)
                 yield return jsonNull;
@@ -414,26 +436,9 @@ public partial class JSONPathForm : Form
         return JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(o));
     }
 
-    private static (string first, List<string> rest) SplitFilter(string part)
+    private static JsonElement ConvertMapToJsonElement(Dictionary<string, JsonElement> o)
     {
-        var i = part.IndexOf('[');
-        if (i < 0)
-            return (part, []);
-
-        var first = part[..i];
-        var parts = new List<string>();
-        while (true)
-        {
-            var i2 = part.IndexOf('[', i + 1);
-            if (i2 < 0)
-            {
-                parts.Add(part[i..]);
-                return (first, parts);
-            }
-
-            parts.Add(part[i..i2]);
-            i = i2;
-        }
+        return JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(o));
     }
 
     private static bool TryGetNumber(JsonElement je, out double value)
