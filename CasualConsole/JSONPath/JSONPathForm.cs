@@ -226,7 +226,7 @@ public partial class JSONPathForm : Form
             foreach (var part in jsonPathParts)
             {
                 if (part[0] == '.')
-                    parsedList = GetProperty(parsedList, part[1..], nullIfNotExistent);
+                    parsedList = GetProperty(part[1..], parsedList, nullIfNotExistent);
                 else if (part[0] == '%')
                     parsedList = ApplyDirective(part[1..], parsedList);
                 else
@@ -285,7 +285,7 @@ public partial class JSONPathForm : Form
         return parts;
     }
 
-    private static IEnumerable<object?> GetProperty(IEnumerable<object?> elements, string property, bool nullIfNotExistent)
+    private static IEnumerable<object?> GetProperty(string property, IEnumerable<object?> elements, bool nullIfNotExistent)
     {
         bool isExcludeMapping = false;
         string[]? mappingParts = null;
