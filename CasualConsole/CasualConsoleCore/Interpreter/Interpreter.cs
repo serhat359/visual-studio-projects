@@ -913,13 +913,13 @@ public class Interpreter
                 }
             case "function":
                 {
-                    var paranBegin = tokens.IndexOf("(", startingIndex);
-                    if (paranBegin < 0)
+                    var parenBegin = tokens.IndexOf("(", startingIndex);
+                    if (parenBegin < 0)
                         throw new Exception();
-                    var paranEnd = tokens.IndexOfParenthesesEnd(paranBegin + 1);
-                    if (paranEnd < 0)
+                    var parenEnd = tokens.IndexOfParenthesesEnd(parenBegin + 1);
+                    if (parenEnd < 0)
                         throw new Exception();
-                    var braceBegin = tokens.IndexOf("{", paranEnd + 1);
+                    var braceBegin = tokens.IndexOf("{", parenEnd + 1);
                     if (braceBegin < 0)
                         throw new Exception();
                     var braceEnd = tokens.IndexOfBracesEnd(braceBegin + 1);
@@ -939,15 +939,15 @@ public class Interpreter
                 }
             case "if":
                 {
-                    var paranBegin = tokens.IndexOf("(", startingIndex);
-                    if (paranBegin < 0)
+                    var parenBegin = tokens.IndexOf("(", startingIndex);
+                    if (parenBegin < 0)
                         throw new Exception();
-                    var paranEnd = tokens.IndexOfParenthesesEnd(paranBegin + 1);
-                    if (paranEnd < 0)
+                    var parenEnd = tokens.IndexOfParenthesesEnd(parenBegin + 1);
+                    if (parenEnd < 0)
                         throw new Exception();
 
-                    var (subEnd, subStatement) = GetStatement(tokens, paranEnd + 1, initialOnly);
-                    var condition = ExpressionMethods.New(tokens[(paranBegin + 1)..paranEnd]);
+                    var (subEnd, subStatement) = GetStatement(tokens, parenEnd + 1, initialOnly);
+                    var condition = ExpressionMethods.New(tokens[(parenBegin + 1)..parenEnd]);
                     var ifStatement = new IfStatement(condition, subStatement);
 
                     if (initialOnly)
@@ -975,29 +975,29 @@ public class Interpreter
                 }
             case "while":
                 {
-                    var paranBegin = tokens.IndexOf("(", startingIndex);
-                    if (paranBegin < 0)
+                    var parenBegin = tokens.IndexOf("(", startingIndex);
+                    if (parenBegin < 0)
                         throw new Exception();
-                    var paranEnd = tokens.IndexOfParenthesesEnd(paranBegin + 1);
-                    if (paranEnd < 0)
+                    var parenEnd = tokens.IndexOfParenthesesEnd(parenBegin + 1);
+                    if (parenEnd < 0)
                         throw new Exception();
 
-                    var (subEnd, subStatement) = GetStatement(tokens, paranEnd + 1, initialOnly: false);
-                    var condition = ExpressionMethods.New(tokens[(paranBegin + 1)..paranEnd]);
+                    var (subEnd, subStatement) = GetStatement(tokens, parenEnd + 1, initialOnly: false);
+                    var condition = ExpressionMethods.New(tokens[(parenBegin + 1)..parenEnd]);
                     var whileStatement = new WhileStatement(condition, subStatement);
                     return (subEnd, whileStatement);
                 }
             case "for":
                 {
-                    var paranBegin = tokens.IndexOf("(", startingIndex);
-                    if (paranBegin < 0)
+                    var parenBegin = tokens.IndexOf("(", startingIndex);
+                    if (parenBegin < 0)
                         throw new Exception();
-                    var paranEnd = tokens.IndexOfParenthesesEnd(paranBegin + 1);
-                    if (paranEnd < 0)
+                    var parenEnd = tokens.IndexOfParenthesesEnd(parenBegin + 1);
+                    if (parenEnd < 0)
                         throw new Exception();
 
-                    var (subEnd, subStatement) = GetStatement(tokens, paranEnd + 1, initialOnly: false);
-                    var forStatement = ForStatement.FromTokens(tokens[startingIndex..(paranEnd + 1)], subStatement);
+                    var (subEnd, subStatement) = GetStatement(tokens, parenEnd + 1, initialOnly: false);
+                    var forStatement = ForStatement.FromTokens(tokens[startingIndex..(parenEnd + 1)], subStatement);
                     return (subEnd, forStatement);
                 }
         }
@@ -3578,14 +3578,14 @@ public class Interpreter
             if (token == "new")
             {
                 var className = tokens[index + 1];
-                var paranBegin = index + 2;
-                if (tokens[paranBegin] != "(")
+                var parenBegin = index + 2;
+                if (tokens[parenBegin] != "(")
                     throw new Exception();
-                var paranEnd = tokens.IndexOfParenthesesEnd(paranBegin + 1);
-                if (paranEnd < 0)
+                var parenEnd = tokens.IndexOfParenthesesEnd(parenBegin + 1);
+                if (parenEnd < 0)
                     throw new Exception();
-                var newExpression = new NewClassInstanceExpression(className, tokens[(paranBegin + 1)..paranEnd]);
-                return (newExpression, paranEnd + 1);
+                var newExpression = new NewClassInstanceExpression(className, tokens[(parenBegin + 1)..parenEnd]);
+                return (newExpression, parenEnd + 1);
             }
             if (token == "-" || token == "+")
             {

@@ -348,7 +348,7 @@ public class NewInterpreter
         }
         if (firstToken.SequenceEqual("("))
         {
-            // Read parantheses expression or lambda function
+            // Read parentheses expression or lambda function
             var expressions = new List<Expression>();
             while (true)
             {
@@ -379,7 +379,7 @@ public class NewInterpreter
             }
 
             if (!tokenizer.TryReadToken(out var nextToken))
-                return new ParanthesesExpression(expressions[0]);
+                return new ParenthesesExpression(expressions[0]);
             if (nextToken.SequenceEqual("=>"))
             {
                 // read for arrow for lambda expression
@@ -389,7 +389,7 @@ public class NewInterpreter
             {
                 tokenizer.GiveBack(nextToken);
             }
-            return new ParanthesesExpression(expressions[0]);
+            return new ParenthesesExpression(expressions[0]);
         }
         if (firstToken.SequenceEqual("{"))
         {
@@ -406,7 +406,7 @@ public class NewInterpreter
 
     private static FunctionExpression ReadFunction(ref Tokenizer tokenizer)
     {
-        // expects parantheses
+        // expects parentheses
         var token = tokenizer.ReadToken();
         if (!token.SequenceEqual("("))
             throw new Exception();
@@ -914,11 +914,11 @@ public class NewInterpreter
             return CustomValue.Null;
         }
     }
-    class ParanthesesExpression : Expression
+    class ParenthesesExpression : Expression
     {
         internal readonly Expression insideExpression;
 
-        public ParanthesesExpression(Expression insideExpression)
+        public ParenthesesExpression(Expression insideExpression)
         {
             this.insideExpression = insideExpression;
         }
@@ -1389,9 +1389,9 @@ public class NewInterpreter
                 expression = Op18Expression.New(variableExpression, chain);
                 return;
             }
-            if (expression is ParanthesesExpression paranthesesExpression)
+            if (expression is ParenthesesExpression parenthesesExpression)
             {
-                expression = Op18Expression.New(paranthesesExpression.insideExpression, chain);
+                expression = Op18Expression.New(parenthesesExpression.insideExpression, chain);
                 return;
             }
             if (expression is TreeExpression treeExpression)
