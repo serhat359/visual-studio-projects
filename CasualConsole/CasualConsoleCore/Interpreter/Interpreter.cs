@@ -18,7 +18,7 @@ public class Interpreter
     private static readonly string[] onlyCharStrings;
     private static readonly HashSet<string> operators = new() { "+", "-", "*", "/", "%", "=", "?", ":", "<", ">", "<=", ">=", "&&", "||", "??", "!", "!=", ".", "==", "+=", "-=", "*=", "/=", "%=", "??=", "||=", "&&=", "=>", "++", "--", "...", "?.", "?.[", "?.(" };
     private static readonly HashSet<string> assignmentSet = new() { "=", "+=", "-=", "*=", "/=", "%=", "&&=", "||=", "??=" };
-    private static readonly HashSet<string> regularOperatorSet = new() { "+", "-", "*", "/", "%", "==", "!=", "<", ">", "<=", ">=", "&&", "||", "??" };
+    private static readonly HashSet<string> regularOperatorSet = new() { "+", "-", "*", "/", "%", "==", "!=", "<", ">", "<=", ">=", "&&", "||", "??", "in" };
     private static readonly HashSet<string> keywords = new() { "this", "var", "let", "const", "if", "else", "while", "for", "break", "continue", "function", "class", "async", "await", "return", "yield", "true", "false", "null", "new", "delete" };
     private static readonly Dictionary<char, Dictionary<char, HashSet<char>>> operatorsCompiled;
     private static readonly Dictionary<char, int> hexToint = new() { { '0', 0 }, { '1', 1 }, { '2', 2 }, { '3', 3 }, { '4', 4 }, { '5', 5 }, { '6', 6 }, { '7', 7 }, { '8', 8 }, { '9', 9 }, { 'A', 10 }, { 'B', 11 }, { 'C', 12 }, { 'D', 13 }, { 'E', 14 }, { 'F', 15 }, { 'a', 10 }, { 'b', 11 }, { 'c', 12 }, { 'd', 13 }, { 'e', 14 }, { 'f', 15 }, };
@@ -743,6 +743,10 @@ public class Interpreter
             ("var numbersGen = (function*(){ yield 1; yield 2; yield 3; })(); [...numbersGen].length", 3),
             ("var numbersGen = (function*(){ yield 1; yield 2; yield 3; })(); numbersGen.next(); [...numbersGen].length", 2),
             ("var numbersGen = (function*(){ yield 1; yield 2; yield 3; })(); for (let x of numbersGen){ break; } [...numbersGen].length", 0),
+            ("'a' in {a:2}", true),
+            ("'a' in {b:2}", false),
+            ("var r = new Rectangle(); 'height' in r", true),
+            ("'he' in r", false),
         };
 
         var interpreter = new Interpreter();
@@ -1183,6 +1187,12 @@ public class Interpreter
             || operatorType == Operator.LessThanOrEqual
             || operatorType == Operator.GreaterThanOrEqual)
             result = Compare(firstValue, operatorType, value);
+        else if (operatorType == Operator.In)
+        {
+            var str = firstValue.AsSpan();
+            var map = value.GetAsMap();
+            result = map.ContainsKey(str.ToString());
+        }
         else
             throw new Exception();
 
@@ -1589,6 +1599,7 @@ public class Interpreter
             "&&" => Operator.AndAnd,
             "||" => Operator.OrOr,
             "??" => Operator.DoubleQuestion,
+            "in" => Operator.In,
             _ => throw new Exception(),
         };
     }
@@ -2951,6 +2962,7 @@ public class Interpreter
         LessThan,
         GreaterThanOrEqual,
         LessThanOrEqual,
+        In,
         Not,
         QuestionMark,
         Colon,
@@ -3565,8 +3577,8 @@ public class Interpreter
             }
             if (token == "new")
             {
-                var className = tokens[1];
-                var paranBegin = 2;
+                var className = tokens[index + 1];
+                var paranBegin = index + 2;
                 if (tokens[paranBegin] != "(")
                     throw new Exception();
                 var paranEnd = tokens.IndexOfParenthesesEnd(paranBegin + 1);
@@ -3909,6 +3921,7 @@ public class Interpreter
                 "<=" => Precedence.Comparison,
                 ">" => Precedence.Comparison,
                 ">=" => Precedence.Comparison,
+                "in" => Precedence.Comparison,
                 "&&" => Precedence.AndAnd,
                 "||" => Precedence.OrOr,
                 "??" => Precedence.DoubleQuestionMark,
