@@ -265,7 +265,7 @@ public partial class JSONPathForm : Form
                 }
                 else
                 {
-                    while (i < s.Length && char.IsAsciiLetter(s[i]))
+                    while (i < s.Length && (s[i] == '_' || char.IsAsciiLetter(s[i])))
                         i++;
                     parts.Add(s[start..i]);
                 }
