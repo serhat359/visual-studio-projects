@@ -23,7 +23,7 @@ public partial class JSONPathForm : Form
     {
         jsonOptions = CreateOptions();
         jsonOptionsIgnoreNull = CreateOptions();
-        jsonOptionsIgnoreNull.Converters.Add(new JsonObjectConverter(jsonOptions));
+        jsonOptionsIgnoreNull.Converters.Add(new JsonObjectConverter());
 
         this.ClientSize = new Size(1100, 750);
         this.Text = "JSONPath";
@@ -54,9 +54,9 @@ public partial class JSONPathForm : Form
                 richTextBox.Text = JsonSerializer.Serialize(parsed, jsonOptions);
                 RerenderJson();
             }
-            catch (Exception)
+            catch (Exception e)
             {
-
+                errorMessage!.Text = e.Message;
             }
         };
 
@@ -161,47 +161,23 @@ public partial class JSONPathForm : Form
 
     class JsonObjectConverter : JsonConverter<Dictionary<string, object?>>
     {
-        private JsonSerializerOptions regularOptions;
-
-        public JsonObjectConverter(JsonSerializerOptions regularOptions)
-        {
-            this.regularOptions = regularOptions;
-        }
-
         public override Dictionary<string, object?> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             throw new NotImplementedException();
         }
 
-        public override void Write(Utf8JsonWriter writer, Dictionary<string, object?> value, JsonSerializerOptions options)
+        public override void Write(Utf8JsonWriter writer, Dictionary<string, object?> map, JsonSerializerOptions options)
         {
-            if (GetObject(value, out var map))
+            writer.WriteStartObject();
+            foreach (var pair in map)
             {
-                writer.WriteStartObject();
-                foreach (var pair in map)
-                {
-                    if (pair.Value == null)
-                        continue;
+                if (pair.Value == null)
+                    continue;
 
-                    writer.WritePropertyName(pair.Key);
-                    JsonSerializer.Serialize(writer, pair.Value, options);
-                }
-                writer.WriteEndObject();
-                return;
+                writer.WritePropertyName(pair.Key);
+                JsonSerializer.Serialize(writer, pair.Value, options);
             }
-
-            if (GetArray(value, out var list))
-            {
-                writer.WriteStartArray();
-                foreach (var item in list)
-                {
-                    JsonSerializer.Serialize(writer, item, options);
-                }
-                writer.WriteEndArray();
-                return;
-            }
-
-            JsonSerializer.Serialize(writer, value, regularOptions);
+            writer.WriteEndObject();
         }
     }
 
@@ -525,7 +501,11 @@ public partial class JSONPathForm : Form
                 var prop = tokens[i++];
                 AddToNode(ref firstExpr, precedence, expression =>
                 {
-                    return new DotAccessExpression { Expression = expression, Prop = prop };
+                    return new DotAccessExpression
+                    {
+                        Expression = expression,
+                        Prop = prop
+                    };
                 });
                 continue;
             }
@@ -533,13 +513,12 @@ public partial class JSONPathForm : Form
             var expr = GetExpression(tokens[i++]);
             AddToNode(ref firstExpr, precedence, expression =>
             {
-                var newOne = new TreeExpression
+                return new TreeExpression
                 {
                     First = expression,
                     Precedence = precedence,
                     Rest = [(op, expr)],
                 };
-                return newOne;
             });
         }
 
