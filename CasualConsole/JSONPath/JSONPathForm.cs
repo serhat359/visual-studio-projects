@@ -386,7 +386,12 @@ public partial class JSONPathForm : Form
 
     private static object? Deserialize(string s)
     {
-        var parsed = JsonSerializer.Deserialize<JsonElement>(s);
+        var options = new JsonSerializerOptions
+        {
+            ReadCommentHandling = JsonCommentHandling.Skip,
+            AllowTrailingCommas = true,
+        };
+        var parsed = JsonSerializer.Deserialize<JsonElement>(s, options);
         return JsonElementToObject(parsed);
     }
 
