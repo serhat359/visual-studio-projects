@@ -6,13 +6,8 @@
 *exe*
 *FileListAbsolute.txt
 .gitignore
-*/.vs/*
-*/obj/*
-*/bin/*
-*/obj
-*/bin
-obj/*
-bin/*
+.vs
+.vscode
 obj
 bin
 /GameProject/GameProject/Assets
