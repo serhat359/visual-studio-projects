@@ -88,6 +88,7 @@ public class Interpreter
                     { "map", CustomValue.FromFunction(new ArrayMapFunction()) },
                     { "filter", CustomValue.FromFunction(new ArrayFilterFunction()) },
                     { "join", CustomValue.FromFunction(new ArrayJoinFunction()) },
+                    { "sort", CustomValue.FromFunction(new ArraySortFunction()) },
                 })
             },
         }), AssignmentType.Const);
@@ -106,7 +107,9 @@ public class Interpreter
                 {
                     { "charAt", CustomValue.FromFunction(new CharAtFunction()) },
                     { "charCodeAt", CustomValue.FromFunction(new CharCodeAtFunction()) },
+                    { "startsWith", CustomValue.FromFunction(new StartsWithFunction()) },
                     { "endsWith", CustomValue.FromFunction(new EndsWithFunction()) },
+                    { "includes", CustomValue.FromFunction(new StringIncludesFunction()) },
                 })
             },
         }), AssignmentType.Const);
@@ -747,6 +750,9 @@ public class Interpreter
             ("'a' in {b:2}", false),
             ("var r = new Rectangle(); 'height' in r", true),
             ("'he' in r", false),
+            ("1 ? null : 3 ?? 10", null),
+            ("`\n`.length", 1),
+            ("`\r\n`.length", 1),
         };
 
         var interpreter = new Interpreter();
@@ -1100,7 +1106,7 @@ public class Interpreter
     private static CustomValue EvaluateFunctionCall(Context context, CustomValue functionValue, List<(bool hasThreeDot, Expression expression)> expressionList, CustomValue newOwner)
     {
         if (functionValue.type != ValueType.Function)
-            throw new Exception("variable is not a function");
+            throw new Exception($"Value is not a function. Type: {functionValue.type}");
         FunctionObject function = (FunctionObject)functionValue.value;
 
         return EvaluateFunctionCall(context, function, expressionList, newOwner);
@@ -2380,6 +2386,29 @@ public class Interpreter
             throw new NotImplementedException();
         }
     }
+    class StartsWithFunction : FunctionObject
+    {
+        private static readonly (string paramName, bool isRest)[] parameters = new[] { ("x", false) };
+
+        public (string paramName, bool isRest)[] Parameters => parameters;
+
+        public VariableScope? Scope => null;
+
+        public bool IsLambda => false;
+
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
+        {
+            var str = context.thisOwner.AsSpan();
+            var subStr = context.variableScope.GetVariable(Parameters[0].paramName).AsSpan();
+            var res = str.StartsWith(subStr) ? CustomValue.True : CustomValue.False;
+            return (res, ReturnType.None);
+        }
+
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
+        {
+            throw new NotImplementedException();
+        }
+    }
     class EndsWithFunction : FunctionObject
     {
         private static readonly (string paramName, bool isRest)[] parameters = new[] { ("x", false) };
@@ -2395,6 +2424,29 @@ public class Interpreter
             var str = context.thisOwner.AsSpan();
             var subStr = context.variableScope.GetVariable(Parameters[0].paramName).AsSpan();
             var res = str.EndsWith(subStr) ? CustomValue.True : CustomValue.False;
+            return (res, ReturnType.None);
+        }
+
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
+        {
+            throw new NotImplementedException();
+        }
+    }
+    class StringIncludesFunction : FunctionObject
+    {
+        private static readonly (string paramName, bool isRest)[] parameters = new[] { ("x", false) };
+
+        public (string paramName, bool isRest)[] Parameters => parameters;
+
+        public VariableScope? Scope => null;
+
+        public bool IsLambda => false;
+
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
+        {
+            var str = context.thisOwner.AsSpan();
+            var subStr = context.variableScope.GetVariable(Parameters[0].paramName).AsSpan();
+            var res = str.Contains(subStr, StringComparison.InvariantCulture) ? CustomValue.True : CustomValue.False;
             return (res, ReturnType.None);
         }
 
@@ -2523,6 +2575,77 @@ public class Interpreter
             var separator = context.variableScope.GetVariable(Parameters[0].paramName).ToString();
             var res = string.Join(separator, thisArray.list.Select(x => x.ToString()));
             return (CustomValue.FromParsedString(res), ReturnType.None);
+        }
+
+        public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
+        {
+            throw new NotImplementedException();
+        }
+    }
+    class ArraySortFunction : FunctionObject
+    {
+        class CustomValueComparer(FunctionObject f) : IComparer<CustomValue>
+        {
+            public int Compare(CustomValue x, CustomValue y)
+            {
+                var args = new List<CustomValue> { x, y };
+                var res = CallFunction(f, args, CustomValue.Null);
+                var resDouble = (double)res.value;
+                if (resDouble > 0) return 1;
+                if (resDouble < 0) return -1;
+                return 0;
+            }
+        }
+
+        private static readonly (string paramName, bool isRest)[] parameters = new[] { ("sortFunc", false) };
+
+        public (string paramName, bool isRest)[] Parameters => parameters;
+
+        public VariableScope? Scope => null;
+
+        public bool IsLambda => false;
+
+        public (CustomValue value, ReturnType returnType) EvaluateStatement(Context context)
+        {
+            var thisArray = context.thisOwner.GetAsArray();
+            var sortFunc = context.variableScope.GetVariable(Parameters[0].paramName);
+
+            if (sortFunc.type == ValueType.Null)
+            {
+                if (thisArray.Length <= 1)
+                    return (CustomValue.Null, ReturnType.None);
+
+                var first = thisArray.list[0];
+                if (first.type == ValueType.Number)
+                {
+                    thisArray.list.Sort((a, b) =>
+                    {
+                        var diff = (double)a.value - (double)b.value;
+                        if (diff > 0) return 1;
+                        if (diff < 0) return -1;
+                        return 0;
+                    });
+                }
+                else if (first.type == ValueType.String)
+                {
+                    thisArray.list.Sort((a, b) =>
+                    {
+                        return a.AsSpan().CompareTo(b.AsSpan(), StringComparison.InvariantCulture);
+                    });
+                }
+                else
+                {
+                    throw new Exception();
+                }
+            }
+            else
+            {
+                var f = sortFunc.GetAsFunction();
+                var sortedList = thisArray.list.Order(new CustomValueComparer(f)).ToList();
+                CollectionsMarshal.AsSpan(sortedList).CopyTo(CollectionsMarshal.AsSpan(thisArray.list));
+            }
+
+            return (CustomValue.Null, ReturnType.None);
         }
 
         public IEnumerable<(CustomValue, ReturnType)> AsEnumerable(Context context)
@@ -4319,7 +4442,7 @@ public class Interpreter
                         sb.Append(token[i]);
                     i++;
                 }
-                parts.Add(sb.ToString());
+                parts.Add(sb.Replace("\r", "").ToString());
             }
         }
 
