@@ -26,6 +26,7 @@ public class HomeController(
 {
     private static readonly Regex nanaRegex = new(@"<ul class=""su-posts.*?</ul>", RegexOptions.Compiled | RegexOptions.Singleline);
     private static readonly Regex frierenRegex = new(@"<ul class=""su-posts.*?</ul>", RegexOptions.Compiled | RegexOptions.Singleline);
+    private static readonly Regex premiumRegex = new(@"<li class=""wdn-listv2-item[^-].*?</li>", RegexOptions.Compiled | RegexOptions.Singleline);
 
     private HttpClient CreateClient()
     {
@@ -35,7 +36,8 @@ public class HomeController(
     [HttpGet]
     public async Task<IActionResult> Index()
     {
-        return View();
+        var headers = Request.Headers.Select(x => (x.Key, x.Value.ToList())).ToList();
+        return View(headers);
     }
 
     [Route("/test")]
@@ -117,7 +119,7 @@ public class HomeController(
     [HttpGet]
     public async Task<IActionResult> FixTomsArticlesManual()
     {
-        async Task<IActionResult> initializer()
+        Func<Task<IActionResult>> initializer = async () =>
         {
             string[] urls = {
                 "https://www.tomshardware.com/reviews",
@@ -141,7 +143,7 @@ public class HomeController(
             var rssObject = new RssResult(elements.Where(x => !x.Link.Contains("/news/")).OrderByDescending(x => x.PubDate));
 
             return this.Xml(rssObject);
-        }
+        };
 
         var xmlResultResult = await cacheHelper.GetAsync(CacheHelper.TomsArticlesKey, initializer, TimeSpan.FromHours(2));
 
@@ -159,12 +161,17 @@ public class HomeController(
             "https://www.tomshardware.com/news/page/5",
             "https://www.tomshardware.com/news/page/6",
         };
+        string[] premiumUrls = {
+            "https://www.tomshardware.com/premium",
+        };
 
         var client = CreateClient();
         var tasks = urls.Select(url => GetUrlTextData(client, url)).ToList();
+        var premiumTasks = premiumUrls.Select(url => GetUrlTextData(client, url)).ToList();
 
         var elements = (await tasks.AwaitAllAsync()).Select(GetRssObjectFromTomsContent).SelectMany(x => x);
-        var newData = elements.OrderByDescending(c => c.PubDate).ToList();
+        var premiumElements = (await premiumTasks.AwaitAllAsync()).Select(GetRssFromTomsPremium).SelectMany(x => x);
+        var newData = elements.Concat(premiumElements).OrderByDescending(c => c.PubDate).ToList();
 
         var cacheKey = CacheHelper.TomsNewsKey;
         var oldData = cacheHelper.GetNotInit<List<RssResultItem>>(cacheKey);
@@ -463,19 +470,24 @@ public class HomeController(
     [HttpGet]
     public async Task<ActionResult> GetImdbScores(string? keys)
     {
-        if (keys == null)
-            return BadRequest();
-
-        if (!TryDeserialize<HashSet<string>>(keys, out var keysParsed))
+        if (!TryDeserialize<HashSet<string>>(keys ?? "", out var keysParsed))
             return BadRequest();
 
         if (keysParsed == null)
             return BadRequest();
 
+        string ytsCookie = System.IO.File.ReadAllText("ytsCookie.txt");
+
         var client = CreateClient();
         var tasks = keysParsed.Select(async key =>
         {
-            using var response = await client.SendWithRetryAsync(() => new HttpRequestMessage(HttpMethod.Get, "https://yts.lt/movies/" + key));
+            using var response = await client.SendWithRetryAsync(() =>
+            {
+                var message = new HttpRequestMessage(HttpMethod.Get, "https://yts.bz/movies/" + key);
+                message.Headers.Add("Cookie", ytsCookie);
+                message.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:150.0) Gecko/20100101 Firefox/150.0");
+                return message;
+            });
             if (!response.IsSuccessStatusCode)
                 return (key, null);
             var contextText = await response.Content.ReadAsStringAsync();
@@ -565,22 +577,39 @@ public class HomeController(
         try
         {
             var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/110.0");
+            request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:150.0) Gecko/20100101 Firefox/150.0");
             using var response = await CreateClient().SendAsync(request);
             response.EnsureSuccessStatusCode();
             var data = await response.Content.ReadAsStringAsync();
             var classIndex = data.IndexOf(" fxKbKc");
-            if (classIndex < 0)
-                throw new Exception("classIndex");
-            var beginIndex = data.IndexOf('>', classIndex);
-            if (beginIndex < 0)
-                throw new Exception("beginIndex");
-            beginIndex += 1;
-            var endIndex = data.IndexOf('<', beginIndex);
-            if (endIndex < 0)
-                throw new Exception("endIndex");
-            var text = data[beginIndex..endIndex];
-            return text;
+            if (classIndex >= 0)
+            {
+                var beginIndex = data.IndexOf('>', classIndex);
+                if (beginIndex < 0)
+                    throw new Exception("beginIndex");
+                beginIndex += 1;
+                var endIndex = data.IndexOf('<', beginIndex);
+                if (endIndex < 0)
+                    throw new Exception("endIndex");
+                var text = data[beginIndex..endIndex];
+                return text;
+            }
+
+            classIndex = data.IndexOf("\"N6SYTe\"");
+            if (classIndex >= 0)
+            {
+                var start = data.AsSpan()[..classIndex].LastIndexOf("<");
+                var endTag = "</div>";
+                var end = data.IndexOf(endTag, classIndex);
+                if (end < 0)
+                    throw new Exception("end tag not found");
+                end += endTag.Length;
+                var xml = XmlParser.ParseHtml(data.AsSpan()[start..end]);
+                var div = xml.ChildNodes[0];
+                return (string)div.ChildNodes[0].ChildNodes[0].Children[0];
+            }
+
+            throw new Exception("classIndex");
         }
         catch (Exception e)
         {
@@ -601,6 +630,35 @@ public class HomeController(
             throw new Exception($"Error status code: {(int)response.StatusCode}");
 
         return await response.Content.ReadAsStringAsync();
+    }
+
+    private IEnumerable<RssResultItem> GetRssFromTomsPremium(string contents)
+    {
+        var items = new List<RssResultItem>();
+
+        foreach (Match match in premiumRegex.Matches(contents))
+        {
+            var parsed = XmlParser.ParseHtml(match.Value).AllInnerNodes();
+            var timeNode = parsed.FirstOrDefault(x => x.TagName == "time");
+            if (timeNode == null)
+                continue;
+
+            var description = parsed.First(x => x.TagName == "h2").InnerText;
+            var pubDate = DateTime.Parse(timeNode.Attributes["datetime"] ?? throw new Exception("no datetime attribute found"));
+            var link = parsed.First(x => x.TagName == "a").Attributes["href"];
+            var imgSrc = parsed.First(x => x.TagName == "img").Attributes["src"];
+            var img = $"<a href=\"{link}\"><img src=\"{imgSrc}\" /></a>";
+            var rssItem = new RssResultItem
+            {
+                Description = img,
+                Link = link ?? "",
+                PubDate = pubDate,
+                Title = description,
+            };
+            items.Add(rssItem);
+        }
+
+        return items.DistinctBy(x => x.Link);
     }
 
     private IEnumerable<RssResultItem> GetRssObjectFromTomsContent(string contents)
@@ -642,7 +700,7 @@ public class HomeController(
 
             return new RssResultItem
             {
-                Description = $"<![CDATA[{img}]]>",
+                Description = img,
                 Link = link ?? "",
                 PubDate = DateTime.Parse(liNode.SearchByTag("time")!.Attributes["datetime"]!),
                 Title = liNode.SearchByTag("h3")!.InnerText,

@@ -42,7 +42,6 @@ public class RssResultItem
 
     public required string Link { get; set; }
 
-    [XmlCData]
     public required string Description { get; set; }
 
     [XmlFormat("R")]

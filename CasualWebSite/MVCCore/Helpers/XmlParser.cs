@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
@@ -12,12 +12,12 @@ public class XmlParser
 {
     private static readonly IReadOnlySet<string> unclosedTags = new HashSet<string> { "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr", };
 
-    public static XmlNodeBase ParseHtml(string xml)
+    public static XmlNodeBase ParseHtml(ReadOnlySpan<char> xml)
     {
         return Parse(xml, isHtml: true);
     }
 
-    public static XmlNodeBase Parse(string xml, bool isHtml = false)
+    public static XmlNodeBase Parse(ReadOnlySpan<char> xml, bool isHtml = false)
     {
         var partsEnumerable = GetParts(xml).Where(x => !string.IsNullOrWhiteSpace(x.token));
         if (isHtml)
@@ -25,7 +25,7 @@ public class XmlParser
             if (partsEnumerable.FirstOrDefault().token.StartsWith("<!"))
                 partsEnumerable = partsEnumerable.Skip(1);
         }
-        (string, int)[] parts = partsEnumerable.ToArray();
+        ReadOnlySpan<(string, int)> parts = partsEnumerable.ToArray();
         if (parts.Length > 0 && parts[0].Item1.StartsWith("<?xml"))
             parts = parts[1..];
 
@@ -51,13 +51,13 @@ public class XmlParser
         return topDocument;
     }
 
-    private static (XmlNode, int) ReadNode(ArraySegment<(string token, int lineNumber)> tokens, bool isHtml)
+    private static (XmlNode, int) ReadNode(ReadOnlySpan<(string token, int lineNumber)> tokens, bool isHtml)
     {
         if (!tokens[0].token.IsBeginTag()) throw new Exception(); // TODO remove later
 
         var isSingleTag = tokens[0].token.IsSingleTag();
 
-        var (tagName, attributes) = GetTagAndAttributes(tokens[0].token);
+        var (tagName, attributes) = GetTagAndAttributes(tokens[0].token, tokens[0].lineNumber);
         var parent = new XmlNode();
         parent.TagName = tagName;
         parent.Attributes = attributes;
@@ -65,7 +65,7 @@ public class XmlParser
 
         if (isHtml && unclosedTags.Contains(tagName))
         {
-            if (index < tokens.Count && tokens[index].token == "</" + tagName + ">")
+            if (index < tokens.Length && tokens[index].token == "</" + tagName + ">")
                 index++;
             return (parent, index);
         }
@@ -102,17 +102,13 @@ public class XmlParser
         return (parent, index + 1);
     }
 
-    private static IEnumerable<(string token, int lineNumber)> GetParts(string xml)
+    public static List<(string token, int lineNumber)> GetParts(ReadOnlySpan<char> xml)
     {
         int i = 0;
         int lineNumber = 1;
+        var list = new List<(string token, int lineNumber)>();
 
-        bool IsWhiteSpace(char c)
-        {
-            if (c == '\n') lineNumber++;
-            return char.IsWhiteSpace(c);
-        }
-        static bool ContinuesWith(string s, string text, int index)
+        static bool ContinuesWith(ReadOnlySpan<char> s, string text, int index)
         {
             for (int i = 0; i < text.Length; i++)
             {
@@ -121,7 +117,7 @@ public class XmlParser
             }
             return true;
         }
-        int IndexOf(string s, string smallText, int startLocation)
+        int IndexOf(ReadOnlySpan<char> s, string smallText, int startLocation)
         {
             for (int i = startLocation; i <= s.Length - smallText.Length; i++)
             {
@@ -139,7 +135,6 @@ public class XmlParser
 
         while (true)
         {
-            if (i < xml.Length && xml[i] == '\n') lineNumber++;
             if (i == xml.Length)
                 break;
 
@@ -168,7 +163,7 @@ public class XmlParser
 
                     i = cdataEndIndex + 3;
                     var cdataToken = xml[(lookupIndex - 3)..i];
-                    yield return (cdataToken, lineNumberStart);
+                    list.Add((cdataToken.ToString(), lineNumberStart));
                 }
                 else
                 {
@@ -184,7 +179,24 @@ public class XmlParser
                     if (xml[i] == '\n') lineNumber++;
                     i++;
                     var token = xml[start..i];
-                    yield return (token, lineNumberStart);
+                    list.Add((token.ToString(), lineNumberStart));
+
+                    bool isScript = false;
+                    bool isStyle = false;
+                    if ((isScript = token.StartsWith("<script")) || (isStyle = token.StartsWith("<style")))
+                    {
+                        lineNumberStart = lineNumber;
+                        var scriptEndTag = isScript ? "</script>"
+                            : isStyle ? "</style>"
+                            : throw new Exception();
+                        var scriptEnd = IndexOf(xml, scriptEndTag, i);
+                        if (scriptEnd < 0)
+                            throw new Exception();
+                        var scriptContent = xml[i..scriptEnd];
+                        list.Add((scriptContent.ToString(), lineNumberStart));
+                        list.Add((scriptEndTag, lineNumber));
+                        i = scriptEnd + scriptEndTag.Length;
+                    }
                 }
             }
             else
@@ -202,23 +214,25 @@ public class XmlParser
                 var end = i;
 
                 var token = xml[start..end];
-                yield return (token, lineNumberStart);
+                list.Add((token.ToString(), lineNumberStart));
             }
         }
+
+        return list;
     }
 
-    private static (string, NameValueCollection) GetTagAndAttributes(string s)
+    private static (string, NameValueCollection) GetTagAndAttributes(string s, int line)
     {
         var attributes = new NameValueCollection();
         int i = 1;
-        while (s[i] != ' ' && s[i] != '>')
+        while (!IsWhiteSpace(s[i]) && s[i] != '>')
             i++;
 
         var tagName = s[1..i];
 
         while (true)
         {
-            if (s[i] == ' ')
+            while (IsWhiteSpace(s[i]))
                 i++;
             if (s[i] == '>' || s[i] == '/')
                 return (tagName, attributes);
@@ -227,17 +241,22 @@ public class XmlParser
                 i++;
             var attrName = s[start..i];
             string? attrValue = null;
+            while (IsWhiteSpace(s[i]))
+                i++;
             if (s[i] == '=')
             {
-                char c = s[i + 1];
+                i++;
+                while (IsWhiteSpace(s[i]))
+                    i++;
+                char c = s[i];
                 char startCharacter = c switch
                 {
                     '"' => '"',
                     '\'' => '\'',
-                    _ => throw new Exception($"unexpected characted: {c}"),
+                    _ => throw new Exception($"unexpected characted: {c} at line: {line}"),
                 };
 
-                var attrValueStart = i += 2;
+                var attrValueStart = i += 1;
                 while (s[i] != startCharacter)
                     i++;
                 attrValue = s[attrValueStart..i];
@@ -248,10 +267,21 @@ public class XmlParser
         }
     }
 
+    private static bool IsWhiteSpace(char c)
+    {
+        return c switch
+        {
+            ' ' => true,
+            '\r' => true,
+            '\n' => true,
+            _ => false,
+        };
+    }
+
     private static readonly Regex htmlEncodedRegex = new Regex(@"&[0-9a-zA-Z]+;", RegexOptions.Compiled);
     private static readonly Regex htmlEncodedRegexInt = new Regex(@"&#([0-9]+);", RegexOptions.Compiled);
     private static readonly Regex htmlEncodedRegexHexInt = new Regex(@"&#x([0-9]+);", RegexOptions.Compiled);
-    private static string NormalizeXml(string s)
+    public static string NormalizeXml(string s)
     {
         if (s.Length >= 2 && s[0] == '<' && s[1] == '!')
         {
@@ -267,9 +297,8 @@ public class XmlParser
 
 public class XmlNodeBase
 {
-    private readonly List<object> children = new List<object>();
-    private readonly List<XmlNode> childNodes = new List<XmlNode>();
-    public string xmlHeader = "";
+    private readonly List<object> children = new();
+    private readonly List<XmlNode> childNodes = new();
 
     public IReadOnlyList<object> Children => children;
     public IReadOnlyList<XmlNode> ChildNodes => childNodes;
@@ -278,15 +307,7 @@ public class XmlNodeBase
         get
         {
             var stringBuilder = new StringBuilder();
-            foreach (var item in Children)
-            {
-                if (item is string s)
-                    stringBuilder.Append(s);
-                else if (item is XmlNode node)
-                    stringBuilder.Append(node.InnerText);
-                else
-                    throw new Exception();
-            }
+            WriteInnerText(stringBuilder);
             return stringBuilder.ToString().Trim();
         }
         set
@@ -294,6 +315,19 @@ public class XmlNodeBase
             children.Clear();
             childNodes.Clear();
             children.Add(value);
+        }
+    }
+
+    private void WriteInnerText(StringBuilder stringBuilder)
+    {
+        foreach (var item in Children)
+        {
+            if (item is string s)
+                stringBuilder.Append(s);
+            else if (item is XmlNode node)
+                node.WriteInnerText(stringBuilder);
+            else
+                throw new Exception();
         }
     }
 
@@ -317,7 +351,6 @@ public class XmlNodeBase
     public string Beautify(string indentChars = "  ", string newLineChars = "\r\n")
     {
         var sb = new StringBuilder();
-        sb.Append(xmlHeader);
 
         foreach (var item in ChildNodes)
         {
@@ -335,6 +368,8 @@ public class XmlNode : XmlNodeBase
 
     public string TagName { get { return tagName ?? throw new Exception(); } set { tagName = value; } }
     public NameValueCollection Attributes { get { return attributes ?? throw new Exception(); } set { attributes = value; } }
+
+    public XmlNode this[string key] => this.ChildNodes.Single(x => x.tagName == key);
 
     public XmlNode()
     {
