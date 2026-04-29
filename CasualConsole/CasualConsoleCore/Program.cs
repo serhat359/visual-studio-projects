@@ -1,7 +1,5 @@
 using System;
-using System.Buffers;
 using System.Collections.Generic;
-using System.Data;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -51,6 +49,57 @@ public class Program
         //ZeldaTwilightPrincessPuzzle.Solve();
 
         //CategorizeUbuntuWallpapers();
+    }
+
+    static async Task<Task<T>?> AnySuccessful<T>(IReadOnlyList<Task<T>> tasks)
+    {
+        var ch = Channel.CreateBounded<Task<T>>(tasks.Count);
+        var newTasks = tasks.Select(async task =>
+        {
+            try
+            {
+                await task;
+                await ch.Writer.WriteAsync(task);
+            }
+            catch { }
+        }).ToList();
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.WhenAll(newTasks);
+            }
+            catch { }
+
+            ch.Writer.Complete();
+        });
+
+        await ch.Reader.WaitToReadAsync();
+        if (ch.Reader.TryRead(out var task))
+            return task;
+        return null;
+    }
+
+    static async Task<Task?> AnySuccessful(List<Task> tasks)
+    {
+        var ch = Channel.CreateBounded<Task>(1);
+        _ = tasks.Select(async task =>
+        {
+            try
+            {
+                await task;
+                await ch.Writer.WriteAsync(task);
+            }
+            catch
+            {
+
+            }
+        }).ToList();
+
+        await ch.Reader.WaitToReadAsync();
+        if (ch.Reader.TryRead(out var task))
+            return task;
+        return null;
     }
 
     static object? JsonElementToObject(JsonElement jsonElement)
@@ -121,6 +170,7 @@ public class Program
             }
         }
 
+    begin:
         if (array.Length <= 1)
             return;
         if (array.Length == 2)
@@ -149,9 +199,20 @@ public class Program
             if (start >= end)
             {
                 end++;
-                QuickSort(array[start..]);
-                QuickSort(array[..end]);
-                return;
+                var first = array[start..];
+                var last = array[..end];
+                if (last.Length < first.Length)
+                {
+                    QuickSort(last);
+                    array = first;
+                    goto begin;
+                }
+                else
+                {
+                    QuickSort(first);
+                    array = last;
+                    goto begin;
+                }
             }
 
             (array[start], array[end]) = (array[end], array[start]);
@@ -264,7 +325,9 @@ public class Program
 
     private static async Task ImportFreecellGame(int gameNo)
     {
-        var text = await (await clientLazy.Value.GetAsync($"https://freecellgamesolutions.com/fcs/?game={gameNo}")).Content.ReadAsStringAsync();
+        using var response = await clientLazy.Value.GetAsync($"https://freecellgamesolutions.com/fcs/?game={gameNo}");
+        response.EnsureSuccessStatusCode();
+        var text = await response.Content.ReadAsStringAsync();
         var i1 = text.IndexOf("<table id");
         var end = "</table>";
         var i2 = text.IndexOf(end, i1);
@@ -281,7 +344,7 @@ public class Program
             var group = XmlParser.NormalizeXml(parts[i].token + parts[i + 1].token);
             cardList.Add(group);
         }
-        var path = $@"C:\Users\Xhertas\Documents\Visual Studio 2017\Projects\CasualConsole\CasualConsoleCore\FreeCellGames\freecellGame{gameNo}.json";
+        var path = $@"C:\Users\Xhertas\Documents\Visual Studio Projects\OldOnes\CasualConsole\CasualConsoleCore\FreeCellGames\freecellGame{gameNo}.json";
         var jsonOptions = new JsonSerializerOptions()
         {
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
@@ -409,11 +472,11 @@ public class Program
 
 public static class CollectionExtensions
 {
-    public static IEnumerable<T> EmptyIfNull<T>(this IEnumerable<T>? source)
+    public static bool IsNullOrEmpty<T>([NotNullWhen(false)] this IEnumerable<T>? source)
     {
         if (source == null)
-            return Enumerable.Empty<T>();
-        return source;
+            return true;
+        return !source.Any();
     }
 
     public static T[] EmptyIfNull<T>(this T[]? source)

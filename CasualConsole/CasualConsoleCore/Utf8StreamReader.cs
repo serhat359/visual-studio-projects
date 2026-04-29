@@ -63,7 +63,7 @@ public class Utf8StreamReader
             {
                 // Buffer must be too small
                 var newBuffer = new byte[buffer.Length * 2];
-                buffer.CopyTo(newBuffer);
+                buffer.CopyTo(newBuffer.AsSpan());
                 this.buffer = newBuffer;
                 start = 0;
                 int read = stream.Read(buffer.AsSpan()[remainingLength..]);
