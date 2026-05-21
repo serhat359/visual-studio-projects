@@ -203,6 +203,8 @@ public partial class JSONPathForm : Form
             {
                 if (part[0] == '.')
                     parsedList = GetProperty(part[1..], parsedList, nullIfNotExistent);
+                else if (part[0] == '[' && part[1] == '"')
+                    parsedList = GetProperty(part[2..^2], parsedList, nullIfNotExistent);
                 else if (part[0] == '%')
                     parsedList = ApplyDirective(part[1..], parsedList);
                 else
@@ -241,7 +243,7 @@ public partial class JSONPathForm : Form
                 }
                 else
                 {
-                    while (i < s.Length && (s[i] == '_' || char.IsAsciiLetter(s[i]) || char.IsDigit(s[i])))
+                    while (i < s.Length && (s[i] == '_' || IsLetter(s[i]) || IsDigit(s[i])))
                         i++;
                     parts.Add(s[start..i]);
                 }
@@ -250,8 +252,19 @@ public partial class JSONPathForm : Form
             if (c == '[')
             {
                 int start = i++;
-                while (s[i] != ']')
+                int count = 1;
+                while (true)
+                {
+                    if (s[i] == ']')
+                    {
+                        count--;
+                        if (count == 0)
+                            break;
+                    }
+                    else if (s[i] == '[')
+                        count++;
                     i++;
+                }
                 i++;
                 parts.Add(s[start..i]);
                 continue;
@@ -506,6 +519,24 @@ public partial class JSONPathForm : Form
                 continue;
             }
 
+            if (op == "[")
+            {
+                var prop = tokens[i++];
+                prop = prop[1..^1];
+                AddToNode(ref firstExpr, precedence, expression =>
+                {
+                    return new DotAccessExpression
+                    {
+                        Expression = expression,
+                        Prop = prop
+                    };
+                });
+                var end = tokens[i++];
+                if (end != "]")
+                    throw new Exception();
+                continue;
+            }
+
             var expr = GetExpression(tokens[i++]);
             AddToNode(ref firstExpr, precedence, expression =>
             {
@@ -521,7 +552,7 @@ public partial class JSONPathForm : Form
         return firstExpr;
     }
 
-    private static char[] singleCharOperators = { '@', '.', '<', '>' };
+    private static char[] singleCharOperators = { '@', '.', '<', '>', '[', ']' };
     private static string[] doubleCharOperators = { "==", "!=", ">=", "<=", "&&", "||" };
     private static List<string> GetTokens(string s)
     {
@@ -545,10 +576,10 @@ public partial class JSONPathForm : Form
                 i++;
                 continue;
             }
-            else if (IsLetter(s[i]))
+            else if (s[i] == '_' || IsLetter(s[i]))
             {
                 var start = i++;
-                while (i < s.Length && IsLetter(s[i]))
+                while (i < s.Length && (s[i] == '_' || IsLetter(s[i]) || IsDigit(s[i])))
                     i++;
                 tokens.Add(s[start..i]);
                 continue;
@@ -585,11 +616,17 @@ public partial class JSONPathForm : Form
         return false;
     }
 
+    private static bool IsDigit(char c)
+    {
+        return c >= '0' && c <= '9';
+    }
+
     private static int GetPrecedence(string s)
     {
         return s switch
         {
             "." => 17,
+            "[" => 17,
             ">" => 9,
             ">=" => 9,
             "<" => 9,
