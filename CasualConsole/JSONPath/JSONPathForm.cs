@@ -24,6 +24,7 @@ public partial class JSONPathForm : Form
         jsonOptions = CreateOptions();
         jsonOptionsIgnoreNull = CreateOptions();
         jsonOptionsIgnoreNull.Converters.Add(new JsonObjectConverter());
+        jsonOptionsIgnoreNull.Converters.Add(new JsonArrayConverter());
 
         this.ClientSize = new Size(1100, 750);
         this.Text = "JSONPath";
@@ -89,7 +90,7 @@ public partial class JSONPathForm : Form
 
         this.ignoreNullCheckBox = new CheckBox
         {
-            Text = "Ignore null valued keys",
+            Text = "Ignore null",
         };
         this.ignoreNullCheckBox.CheckedChanged += (object? sender, EventArgs e) =>
         {
@@ -181,8 +182,30 @@ public partial class JSONPathForm : Form
         }
     }
 
+    class JsonArrayConverter : JsonConverter<List<object?>>
+    {
+        public override List<object?>? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override void Write(Utf8JsonWriter writer, List<object?> list, JsonSerializerOptions options)
+        {
+            writer.WriteStartArray();
+            foreach (var item in list)
+            {
+                if (item == null)
+                    continue;
+
+                JsonSerializer.Serialize(writer, item, options);
+            }
+            writer.WriteEndArray();
+        }
+    }
+
     private void RerenderJson()
     {
+        bool ignoreNull = ignoreNullCheckBox.Checked;
         try
         {
             errorMessage.Text = "";
@@ -190,7 +213,7 @@ public partial class JSONPathForm : Form
             if (jsonPath == "")
             {
                 ignoreNextChange = true;
-                richTextBox2.Text = JsonSerializer.Serialize(this.parsed, ignoreNullCheckBox.Checked ? jsonOptionsIgnoreNull : jsonOptions);
+                richTextBox2.Text = JsonSerializer.Serialize(this.parsed, ignoreNull ? jsonOptionsIgnoreNull : jsonOptions);
                 return;
             }
 
@@ -202,16 +225,16 @@ public partial class JSONPathForm : Form
             foreach (var part in jsonPathParts)
             {
                 if (part[0] == '.')
-                    parsedList = GetProperty(part[1..], parsedList, nullIfNotExistent);
+                    parsedList = GetProperty(part[1..], parsedList, nullIfNotExistent, ignoreNull);
                 else if (part[0] == '[' && part[1] == '"')
-                    parsedList = GetProperty(part[2..^2], parsedList, nullIfNotExistent);
+                    parsedList = GetProperty(part[2..^2], parsedList, nullIfNotExistent, ignoreNull);
                 else if (part[0] == '%')
-                    parsedList = ApplyDirective(part[1..], parsedList);
+                    parsedList = ApplyDirective(part[1..], parsedList, ignoreNull);
                 else
-                    parsedList = GetFiltered(part, parsedList);
+                    parsedList = GetFiltered(part, parsedList, ignoreNull);
             }
 
-            var text = JsonSerializer.Serialize(parsedList, ignoreNullCheckBox.Checked ? jsonOptionsIgnoreNull : jsonOptions);
+            var text = JsonSerializer.Serialize(parsedList, ignoreNull ? jsonOptionsIgnoreNull : jsonOptions);
             ignoreNextChange = true;
             richTextBox2.Text = text;
             richTextBox2.ScrollToCaret(); // Scroll to top
@@ -274,7 +297,7 @@ public partial class JSONPathForm : Form
         return parts;
     }
 
-    private static IEnumerable<object?> GetProperty(string property, IEnumerable<object?> elements, bool nullIfNotExistent)
+    private static IEnumerable<object?> GetProperty(string property, IEnumerable<object?> elements, bool nullIfNotExistent, bool ignoreNull)
     {
         bool isExcludeMapping = false;
         string[]? mappingParts = null;
@@ -298,19 +321,24 @@ public partial class JSONPathForm : Form
                 yield return map;
             }
             else if (GetObject(item, out var map) && map.TryGetValue(property, out var value))
+            {
+                if (value == null && ignoreNull && !nullIfNotExistent)
+                    continue;
+
                 yield return value;
+            }
             else if (nullIfNotExistent)
                 yield return null;
         }
     }
 
-    private static IEnumerable<object?> ApplyDirective(string type, IEnumerable<object?> elements)
+    private static IEnumerable<object?> ApplyDirective(string type, IEnumerable<object?> elements, bool ignoreNull)
     {
         switch (type)
         {
             case "c":
                 {
-                    var count = elements.Count();
+                    var count = ignoreNull ? elements.Count(x => x != null) : elements.Count();
                     return [(double)count];
                 }
             case "k":
@@ -320,6 +348,9 @@ public partial class JSONPathForm : Form
                     {
                         foreach (var pair in EnumerateObject(item))
                         {
+                            if (pair.Value == null && ignoreNull)
+                                continue;
+
                             set.Add(pair.Key);
                         }
                     }
@@ -332,6 +363,9 @@ public partial class JSONPathForm : Form
                     {
                         foreach (var pair in EnumerateObject(item))
                         {
+                            if (pair.Value == null && ignoreNull)
+                                continue;
+
                             counts.TryGetValue(pair.Key, out int n);
                             counts[pair.Key] = n + 1;
                         }
@@ -359,6 +393,14 @@ public partial class JSONPathForm : Form
                             if (set.Add(b ? "true" : "false"))
                                 returnList.Add(item);
                         }
+                        else if (item == null)
+                        {
+                            if (ignoreNull)
+                                continue;
+
+                            if (set.Add("null"))
+                                returnList.Add(item);
+                        }
                     }
                     return returnList;
                 }
@@ -382,6 +424,15 @@ public partial class JSONPathForm : Form
                         else if (item is bool b)
                         {
                             var key = b ? "true" : "false";
+                            counts.TryGetValue(key, out int n);
+                            counts[key] = n + 1;
+                        }
+                        else if (item == null)
+                        {
+                            if (ignoreNull)
+                                continue;
+
+                            var key = "null";
                             counts.TryGetValue(key, out int n);
                             counts[key] = n + 1;
                         }
@@ -462,7 +513,7 @@ public partial class JSONPathForm : Form
         return false;
     }
 
-    private static IEnumerable<object?> GetFiltered(string filterExpression, IEnumerable<object?> mapped)
+    private static IEnumerable<object?> GetFiltered(string filterExpression, IEnumerable<object?> mapped, bool ignoreNull)
     {
         var mappedValues = mapped.SelectMany(x =>
         {
@@ -473,6 +524,9 @@ public partial class JSONPathForm : Form
             else
                 throw new Exception();
         });
+
+        if (ignoreNull)
+            mappedValues = mappedValues.Where(x => x != null);
 
         if (filterExpression == "[*]")
         {
